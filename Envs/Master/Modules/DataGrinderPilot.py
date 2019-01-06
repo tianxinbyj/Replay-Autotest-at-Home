@@ -4,6 +4,7 @@
 """
 import glob
 import json
+import os.path
 import shutil
 import subprocess
 import time
@@ -447,6 +448,7 @@ class DataGrinderPilotOneCase:
         calibrated_data = pd.read_csv(calibrated_data_path, index_col=False)
         calibrated_time_series = calibrated_data['time_stamp'].to_list()
 
+        '''
         cmd = [
             f"{bench_config['master']['sys_interpreter']}",
             "Api_GetTimeGap.py",
@@ -468,6 +470,10 @@ class DataGrinderPilotOneCase:
 
         if 'sa_time_gap' in self.test_result['General']:
             t_delta = self.test_result['General']['sa_time_gap']
+
+        '''
+
+        t_delta = 0
 
         self.test_result['General']['time_gap'] = t_delta
 
@@ -2174,11 +2180,12 @@ class DataGrinderPilotOneTask:
         self.tag_combination_folder = os.path.join(task_folder, '02_TagCombination')
         self.output_result_folder = os.path.join(task_folder, '03_OutputResult')
         self.region_division = self.test_config['region_division']
-        topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
-        self.scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
-        self.broken_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 0].index)
+        # topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
+        # self.scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
+        # self.broken_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 0].index)
         self.valid_scenario_list = []
-        print(f'Broken Scenario为{self.broken_scenario_list}, 不参与结果分析')
+        # print(f'Broken Scenario为{self.broken_scenario_list}, 不参与结果分析')
+        self.broken_scenario_list = []
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
@@ -2490,7 +2497,7 @@ class DataGrinderPilotOneTask:
             self.test_result['OutputResult']['report_table'][characteristic] = self.get_relpath(path)
 
             # 使用ExcelWriter将DataFrame保存到不同的sheet中
-            with (pd.ExcelWriter(path, engine='openpyxl') as writer):
+            with pd.ExcelWriter(path, engine='openpyxl') as writer:
                 for scenario_tag in scenario_tag_key:
                     rows = []
                     for obstacle_type in obstacle_type_key:
@@ -2768,14 +2775,15 @@ class DataGrinderPilotOneTask:
         test_topic = self.test_config['test_topic']
         version_comparison_folder = self.test_config['version_comparison']
         old_version = ''
-        for root, dirs, files in os.walk(version_comparison_folder):
-            for file in files:
-                if 'TestConfig.yaml' in file:
-                    file_path = os.path.join(root, file)
-                    with open(file_path, 'r', encoding='utf-8') as file:
-                        old_test_config = yaml.safe_load(file)
-                    if 'version_comparison' in old_test_config and old_test_config['test_topic'] == test_topic:
-                        old_version = old_test_config['version']
+        if version_comparison_folder is not None and os.path.exists(version_comparison_folder):
+            for root, dirs, files in os.walk(version_comparison_folder):
+                for file in files:
+                    if 'TestConfig.yaml' in file:
+                        file_path = os.path.join(root, file)
+                        with open(file_path, 'r', encoding='utf-8') as file:
+                            old_test_config = yaml.safe_load(file)
+                        if 'version_comparison' in old_test_config and old_test_config['test_topic'] == test_topic:
+                            old_version = old_test_config['version']
 
         output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
         obstacle_type_key = ';'.join(output_result['obstacle_type'].unique())
@@ -3572,8 +3580,9 @@ class DataGrinderPilotOneTask:
             img_list = []
             for i, scenario_id in enumerate(self.test_result['TagCombination'][scenario_tag]['scenario_id']):
                 scenario_info_img = os.path.join(self.output_result_folder, 'visualization', scenario_tag, f'{scenario_id}.jpg')
-                img_list.append([scenario_info_img])
-                img_count += 1
+                if os.path.exists(scenario_info_img):
+                    img_list.append([scenario_info_img])
+                    img_count += 1
                 if img_count == 3 or i == len(self.test_result['TagCombination'][scenario_tag]['scenario_id'])-1:
                     report_generator.addOnePage(heading=f'{scenario_tag} 测试场景',
                                                 text_list=None,
@@ -3625,7 +3634,7 @@ class DataGrinderPilotOneTask:
             self.combine_scenario_tag()
 
         if self.test_action['output_result']:
-            self.summary_bug_items()
+            # self.summary_bug_items()
             self.compile_statistics()
             self.visualize_output()
 
@@ -3646,3 +3655,8 @@ class DataGrinderPilotOneTask:
     def load_test_result(self):
         with open(self.test_result_yaml) as f:
             self.test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+
+if __name__ == '__main__':
+    dgpot = DataGrinderPilotOneTask('/home/hp/aeb_test_result/04_TestData/1-Obstacles')
+    dgpot.start()
