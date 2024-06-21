@@ -5,3 +5,5 @@ rosbags
 scipy
 pandas
 matplotlib
+dateparser
+paramiko
