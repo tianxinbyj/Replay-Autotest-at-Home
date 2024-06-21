@@ -8,4 +8,4 @@ Replay02:
     ip: 172.31.131.222
     username: vcar
     password: 123456
-    py_path: /home/hp/HiL-Autotest-at-Home
+    py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
