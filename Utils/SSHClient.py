@@ -75,23 +75,13 @@ class SSHClient:
         print(res)
         command = 'DISPLAY=:0 gnome-terminal --command="tmux attach -t ses_replay"'
         self.send_cmd(command)
-
-    def start_record(self, workspace, topic_list, folder, bag_name):
-        topic_str = ' '.join(topic_list)
-        command = f'cd {self.interface_path} && python3 Api_StartRecord.py ' \
-                  f'-w {workspace} -t {topic_str} -f {folder} -b {bag_name}'
-        res = self.send_cmd(command)
-        print(command)
-        print(res)
-        command = 'DISPLAY=:0 gnome-terminal --command="tmux attach -t ses_ros2bag"'
-        self.send_cmd(command)
         try:
             return eval(res.strip().split('\n'))
         except:
             return 0
 
-    def stop_record(self):
-        command = f'cd {self.interface_path} && python3 Api_StopRecord.py'
+    def stop_replay(self):
+        command = f'cd {self.interface_path} && python3 Api_StopReplay.py'
         res = self.send_cmd(command)
         print(command)
         print(res)
