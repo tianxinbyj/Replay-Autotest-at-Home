@@ -61,7 +61,7 @@ class ReplayManagement:
             time.sleep(0.5)
 
         kill_tmux_session_if_exists(self.tmux_session)
-        print(f'回灌动作结束')
+        print(f'回灌动作结束，task id = {self.task_id}')
         self.task_id = 0
 
     def parse_replay_process(self):

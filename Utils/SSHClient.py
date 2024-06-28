@@ -65,23 +65,27 @@ class SSHClient:
             command = f'cd {self.interface_path} && python3 Api_MakeDirs.py -f {test_folder} -t "{(time.time())}"'
         res = self.send_cmd(command)
         print(command)
-        print(res)
         return res
 
     def start_replay(self):
         command = f'cd {self.interface_path} && python3 Api_StartReplay.py'
         res = self.send_cmd(command)
         print(command)
-        print(res)
         command = 'DISPLAY=:0 gnome-terminal --command="tmux attach -t ses_replay"'
         self.send_cmd(command)
         try:
-            return eval(res.strip().split('\n'))
+            r = eval(res.strip().split('\n')[-1])
+            return r
         except:
             return 0
 
     def stop_replay(self):
         command = f'cd {self.interface_path} && python3 Api_StopReplay.py'
+        self.send_cmd(command)
+        print(command)
+
+    def get_replay_process(self):
+        command = f'cd {self.interface_path} && python3 Api_GetReplayProcess.py'
         res = self.send_cmd(command)
         print(command)
         print(res)
@@ -94,4 +98,10 @@ if __name__ == '__main__':
     project_path = '/home/vcar/work/pythonProject/Replay-Autotest-at-Home'
     ss = SSHClient(ip, username, password)
     ss.set_interface_path(project_path)
-    print('=======', ss.start_replay())
+    res = ss.start_replay()
+    print('=======')
+    print(res)
+
+    time.sleep(5)
+    print(ss.get_replay_process())
+    ss.stop_replay()
