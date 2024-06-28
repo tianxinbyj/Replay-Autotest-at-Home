@@ -29,6 +29,8 @@ class ReplayManagement:
         os.system(f"tmux send-keys -t {self.tmux_session}:{self.tmux_window} 'cd ~/work/injectFile' C-m")
         os.system(f"tmux send-keys -t {self.tmux_session}:{self.tmux_window} 'python start_inject.py -e 0' C-m")
 
+        t0 = time.time()
+
         while True:
             res = self.parse_replay_process()
             if res:
@@ -36,6 +38,10 @@ class ReplayManagement:
                 print(f'回灌动作开始，task id = {self.task_id}')
                 return True
             print('发出回灌指令，等待回灌开始')
+            if time.time() - t0 > 15:
+                self.task_id = 0
+                print(f'回灌开始失败')
+                return False
             time.sleep(1)
 
     def get_replay_process(self):
@@ -93,7 +99,5 @@ if __name__ == '__main__':
     for _ in range(100):
         p = replay_management.get_replay_process()
         print(p)
-        if p > 0.1:
-            replay_management.stop_inject()
         time.sleep(3)
 

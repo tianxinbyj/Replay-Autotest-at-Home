@@ -2,8 +2,25 @@
 Author: Bu Yujun
 Date: 6/21/24  
 """
-
+import glob
+import os
 import subprocess
+import yaml
+
+
+def get_project_path():
+    """
+    获取项目路径的函数。
+    遍历当前文件的父目录，直到找到包含'Tests/conftest.py'的路径为止。
+    """
+    folder = os.path.dirname(os.path.abspath(__file__))  # 获取当前文件所在的绝对路径的目录
+    while True:
+        if os.path.exists(os.path.join(folder, 'requirements.txt')):
+            return folder
+        parent_folder = os.path.dirname(folder)
+        if parent_folder == folder:
+            raise Exception("未找到项目路径")
+        folder = parent_folder
 
 
 def kill_tmux_session_if_exists(session_name):
@@ -60,3 +77,40 @@ def get_tmux_window_content(session_name, window_name):
 
     # 返回命令的输出
     return result.stdout
+
+
+def get_bench_id():
+    ids = glob.glob(os.path.join(get_project_path(), 'Replay0*'))
+    if len(ids):
+        return os.path.basename(ids[0])
+    else:
+        return None
+
+
+def parse_bench_config():
+    bench_id = get_bench_id()
+    if not bench_id:
+        return None
+
+    bench_config_yaml = os.path.join(get_project_path(), 'Docs', 'Resources', 'bench_config.yaml')
+    with open(bench_config_yaml, 'r', encoding='utf-8') as file:
+        data = yaml.safe_load(file)
+        if bench_id not in data:
+            return None
+        return data[bench_id]
+
+
+def parse_test_encyclopaedia():
+    test_encyclopaedia_path = os.path.join(get_project_path(), 'Docs', 'Resources', 'test_encyclopaedia.yaml')
+    with open(test_encyclopaedia_path, 'r', encoding='utf-8') as file:
+        data = yaml.safe_load(file)
+        return data
+
+
+bench_id = get_bench_id()
+project_path = get_project_path()
+bench_config = parse_bench_config()
+test_encyclopaedia = parse_test_encyclopaedia()
+
+if __name__ == '__main__':
+    print(get_bench_id())

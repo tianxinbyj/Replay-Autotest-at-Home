@@ -7,3 +7,12 @@ pandas
 matplotlib
 dateparser
 paramiko
+PyQt5
+ping3
+PyQt-Fluent-Widgets
+pyyaml
+pytz
+pyvisa
+pyserial
+moviepy
+Pillow
