@@ -17,8 +17,8 @@ class ReplayManagement:
 
     def __init__(self):
         self.task_id = 0
-        self.tmux_session = 'replay_session'
-        self.tmux_window = 'replay_window'
+        self.tmux_session = 'ses_replay'
+        self.tmux_window = 'win_replay'
 
     def start_replay(self):
         kill_tmux_session_if_exists(self.tmux_session)

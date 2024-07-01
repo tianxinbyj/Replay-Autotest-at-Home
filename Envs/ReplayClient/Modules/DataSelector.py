@@ -4,6 +4,7 @@ Date: 6/21/24
 """
 import os
 import sys
+
 from PIL import Image
 from moviepy.editor import VideoFileClip
 
@@ -165,8 +166,7 @@ class DataSelector:
 
 if __name__ == '__main__':
     DS = DataSelector()
-    print(DS.data.index)
     index = '20240528_150013_n000002'
-    # DS.gen_video_config(index)
-    # DS.gen_can_config(index)
+    DS.gen_video_config(index)
+    DS.gen_can_config(index)
     DS.gen_video_shot(index)
