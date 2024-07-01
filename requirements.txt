@@ -16,3 +16,4 @@ pyvisa
 pyserial
 moviepy
 Pillow
+pexpect

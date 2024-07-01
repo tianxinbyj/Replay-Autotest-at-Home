@@ -20,7 +20,7 @@ from Envs.ReplayClient.Modules.DataSelector import DataSelector
 from Envs.ReplayClient.Modules.CameraMonitor import CameraMonitor
 from Envs.ReplayClient.Modules.PowerControl.power_controller import PowerSupplyObjectManager
 from Envs.ReplayClient.Modules.ReplayManagement import ReplayManagement
-from Utils.Libs import bench_config, test_encyclopaedia, project_path
+from Utils.Libs import test_encyclopaedia, project_path
 
 
 def set_icon(Qw, img, x, y):
