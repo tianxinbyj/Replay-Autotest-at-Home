@@ -148,14 +148,13 @@ class DataSelector:
         print(f'{can_toml} 生成完毕')
 
     def gen_video_shot(self, index):
-        video_path = self.data.at[index, 'CAM_FRONT_120']
         pic_path = os.path.join('/media/data/video_info', f'{index}.png')
         frame = 100
 
         if not os.path.exists(pic_path):
             interface_path = os.path.join(get_project_path(), 'Envs', 'ReplayClient', 'Interfaces')
             command = ['/usr/bin/python3', 'Api_CutOneFrame.py',
-                       '-v', video_path,
+                       '-s', index,
                        '-f', str(frame),
                        '-p', pic_path]
 
@@ -168,6 +167,9 @@ class DataSelector:
             print(f'生成{pic_path}')
 
         return pic_path
+
+
+data_selector = DataSelector()
 
 
 if __name__ == '__main__':
