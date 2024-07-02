@@ -9,21 +9,19 @@ from Libs import get_project_path
 
 sys.path.append(get_project_path())
 
-from Utils.VideoProcess import extract_frame
+from Utils.VideoProcess import parse_video
 from Envs.ReplayClient.Modules.DataSelector import data_selector
 
 
 def main():
     # video_path, frame_number, pic_path
-    parser = argparse.ArgumentParser(description="extract frame from video.")
+    parser = argparse.ArgumentParser(description="get video fps and duration")
     parser.add_argument("-s", "--scenario_id", type=str, required=True, help="specify scenario id")
-    parser.add_argument("-f", "--frame_number", type=int, required=True, help="specify frame number")
-    parser.add_argument("-p", "--pic_path", type=str, required=True, help="specify pic path")
     args = parser.parse_args()
 
     video_path = data_selector.data.at[args.scenario_id, 'CAM_FRONT_120']
 
-    extract_frame(video_path, args.frame_number, args.pic_path)
+    parse_video(video_path)
 
 
 if __name__ == "__main__":

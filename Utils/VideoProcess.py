@@ -30,10 +30,33 @@ def extract_frame(video_path, frame_number, pic_path):
         cv2.imwrite(pic_path, frame)
 
     cap.release()
+    return pic_path
+
+
+def parse_video(video_path):
+    import cv2
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        sys.exit()
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_count = 0
+    while True:
+        success, _ = cap.read()
+        if not success:
+            break
+        frame_count += 1
+
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    duration = frame_count / fps
+    cap.release()
+
+    print(fps, duration)
+    return fps, duration
 
 
 if __name__ == '__main__':
     # 示例用法
     video_path = '/media/data/NI_Data/20240528_150013/Images/CAM_FRONT_120/n000002-2024-05-28-15-05-13-887_CAM_FRONT_120.mkv'
-    pic_path = 'frame.jpg'
-    extract_frame(video_path, 100, pic_path)
+    # print(get_video_length(video_path))
