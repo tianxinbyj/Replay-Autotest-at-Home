@@ -1,0 +1,39 @@
+/Camera/FrontWide/H265:
+  reliability: best_effort
+  history: keep_all
+/Camera/RearLeft/H265:
+  reliability: best_effort
+  history: keep_all
+/Camera/RearRight/H265:
+  reliability: best_effort
+  history: keep_all
+/PK/DES/ParkingProcessDbg:
+  reliability: best_effort
+  history: keep_all
+/PK/PL/LonPlanningDebug:
+  reliability: best_effort
+  history: keep_all
+/PK/PL/PlanDebugInfo:
+  reliability: best_effort
+  history: keep_all
+/PK/VC/ParkingGearShiftCtrlDbg:
+  reliability: best_effort
+  history: keep_all
+/PK/VC/ParkingGearShiftCtrlDbgES33:
+  reliability: best_effort
+  history: keep_all
+/PK/VC/ParkingLatCtrlDbg:
+  reliability: best_effort
+  history: keep_all
+/PK/VC/ParkingLonCtrlDbgData:
+  reliability: best_effort
+  history: keep_all
+/PK/VC/ParkingLonCtrlDbgDataES33:
+  reliability: best_effort
+  history: keep_all
+/PK/VC/ParkingLonPlanDbgDataES33:
+  reliability: best_effort
+  history: keep_all
+/PP/CUS/FctDebug:
+  reliability: best_effort
+  history: keep_all

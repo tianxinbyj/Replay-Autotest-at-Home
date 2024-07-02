@@ -1,0 +1,406 @@
+# ros2 bag play --qos-profile-overrides-path QOS_PROFILE_OVERRIDES_PATH
+/AEB/AEBDebug:
+  reliability: reliable
+  history: keep_all
+/AEB/AEBFlag:
+  reliability: reliable
+  history: keep_all
+/AEB/EgoMotionInfo:
+  reliability: reliable
+  history: keep_all
+/AEB/FS/TypeRaCamObjectVcc:
+  reliability: reliable
+  history: keep_all
+/AEB/FS/TypeRaCamRoadVcc:
+  reliability: reliable
+  history: keep_all
+/AEB/HbLanes:
+  reliability: reliable
+  history: keep_all
+/AEB/HbObstacles:
+  reliability: reliable
+  history: keep_all
+/AEB/HorizonLines:
+  reliability: reliable
+  history: keep_all
+/AEB/HorizonObstacles:
+  reliability: reliable
+  history: keep_all
+/AEB/RadarObjList:
+  reliability: reliable
+  history: keep_all
+/Camera/FrontWide/H265:
+  reliability: reliable
+  history: keep_all
+/COM/CUS/CommonHMI:
+  reliability: reliable
+  history: keep_all
+/Diag/DiagServiceHeartbeat:
+  reliability: reliable
+  history: keep_all
+/ehr/to_ehp_hd_status:
+  reliability: reliable
+  history: keep_all
+/ehr/to_ehp_vehicle_info:
+  reliability: reliable
+  history: keep_all
+/ehr/to_em_data:
+  reliability: reliable
+  history: keep_all
+/ehr/to_soa_hd_status:
+  reliability: reliable
+  history: keep_all
+/ES37/NavigationInfo:
+  reliability: reliable
+  history: keep_all
+/FL/EhpInputInfo:
+  reliability: reliable
+  history: keep_all
+/FL/Localization:
+  reliability: reliable
+  history: keep_all
+/FL/LocalizationResult:
+  reliability: reliable
+  history: keep_all
+/FL/LocIAM:
+  reliability: reliable
+  history: keep_all
+/FL/MapMatchDebug:
+  reliability: reliable
+  history: keep_all
+/FL/MatchingResult:
+  reliability: reliable
+  history: keep_all
+/FM/FctReq:
+  reliability: reliable
+  history: keep_all
+/FS/FusionODResult:
+  reliability: reliable
+  history: keep_all
+/FS/FusionRoadEdgeOutInfo:
+  reliability: reliable
+  history: keep_all
+/IS/PRO:
+  reliability: reliable
+  history: keep_all
+/LP/Freespaces:
+  reliability: reliable
+  history: keep_all
+/LP/GroundWarning:
+  reliability: reliable
+  history: keep_all
+/LP/LidarTrackingObjects:
+  reliability: reliable
+  history: keep_all
+/LP/Lines:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/CrossInfo:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/Curvature:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/DtcMsg:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/DynamicEmergency:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/DynamicMeteorology:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/DynamicTraffic:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/GeoFence:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/GlobalData:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/Junction:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/LaneConnectivity:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/LaneModel:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/LanesGeometry:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/MergePoint:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/NoaInfoMsg:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/ObjInfo:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/PathCtrlMessage:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/PositionMsg:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/ProfCtrl:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/ProfileNode:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/RoadGeometry:
+  reliability: reliable
+  history: keep_all
+/MAPEHP/Slope:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpCurvatureInfo:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpHeadingInfo:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpLineInfo:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpLinkModel:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpMappingStatus:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpObjInfo:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpPathCtrl:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpPointInfo:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpPosition:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpSlopeInfo:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpStatusSwitch:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpSubPath:
+  reliability: reliable
+  history: keep_all
+/MAPLESS/ZoneEhpSuperElevationInfo:
+  reliability: reliable
+  history: keep_all
+/MCU/FuncStatus:
+  reliability: reliable
+  history: keep_all
+/ML/NavInfo:
+  reliability: reliable
+  history: keep_all
+/NavigationInfo:
+  reliability: reliable
+  history: keep_all
+/PDC/PdcDebugInfo:
+  reliability: reliable
+  history: keep_all
+/PI/CUS/HMIOutputES33:
+  reliability: reliable
+  history: keep_all
+/PI/DES/SitAnalysis:
+  reliability: reliable
+  history: keep_all
+/PI/DES/SitDebugData:
+  reliability: reliable
+  history: keep_all
+/PI/EG/EgoMotionInfo:
+  reliability: reliable
+  history: keep_all
+/PI/FS/LaneMarkingsHorizon:
+  reliability: reliable
+  history: keep_all
+/PI/FS/LaneMarkingsHorizonDebug:
+  reliability: reliable
+  history: keep_all
+/PI/FS/ObjTracksHorizon:
+  reliability: reliable
+  history: keep_all
+/PI/PD/EmHpc2Dbg:
+  reliability: reliable
+  history: keep_all
+/PI/PD/EnvModel:
+  reliability: reliable
+  history: keep_all
+/PI/PD/EnvModel4DLPred:
+  reliability: reliable
+  history: keep_all
+/PI/PD/PredictionData:
+  reliability: reliable
+  history: keep_all
+/PI/PD/PredictionDebug:
+  reliability: reliable
+  history: keep_all
+/PI/PD/PredictionDLData:
+  reliability: reliable
+  history: keep_all
+/PI/PD/WorldCondition:
+  reliability: reliable
+  history: keep_all
+/PI/PL/MPLatDebug:
+  reliability: reliable
+  history: keep_all
+/PI/PL/PlanningData:
+  reliability: reliable
+  history: keep_all
+/PI/PL/QpPathPlanningDebugData:
+  reliability: reliable
+  history: keep_all
+/PI/PL/StateSpaceSampleTrjDebug:
+  reliability: reliable
+  history: keep_all
+/PI/SOA/HMIOutputES37:
+  reliability: reliable
+  history: keep_all
+/PI/VC/ControlToPlanningData:
+  reliability: reliable
+  history: keep_all
+/PI/VC/ES33LatOutput:
+  reliability: reliable
+  history: keep_all
+/PI/VC/ES33LonOutput:
+  reliability: reliable
+  history: keep_all
+/PI/VC/LatCtrlYRCDebug:
+  reliability: reliable
+  history: keep_all
+/PI/VC/LatTrajectoryCtrlDebug:
+  reliability: reliable
+  history: keep_all
+/PI/VC/LongCtrlDebug:
+  reliability: reliable
+  history: keep_all
+/PI/VC/PilotLonCtrlDbgData:
+  reliability: reliable
+  history: keep_all
+/PK/CUS/HMIOutputES33:
+  reliability: reliable
+  history: keep_all
+/PK/CUS/IntelligentSwitch:
+  reliability: reliable
+  history: keep_all
+/PK/DR/Result:
+  reliability: reliable
+  history: keep_all
+/PP/CUS/FctDebug:
+  reliability: reliable
+  history: keep_all
+/SA/GNSS:
+  reliability: reliable
+  history: keep_all
+/SA/IMU:
+  reliability: reliable
+  history: keep_all
+/SA/InsIAM:
+  reliability: reliable
+  history: keep_all
+/SA/INSPVA:
+  reliability: reliable
+  history: keep_all
+/SA/TSRInfo:
+  reliability: reliable
+  history: keep_all
+/SA/UpcodObsList:
+  reliability: reliable
+  history: keep_all
+/SA/UpcUssPas:
+  reliability: reliable
+  history: keep_all
+/SA/UpcUssRaw:
+  reliability: reliable
+  history: keep_all
+/SA/UssRaw:
+  reliability: reliable
+  history: keep_all
+/SA/VisionLaneMarkList:
+  reliability: reliable
+  history: keep_all
+/SA/VisionObjList:
+  reliability: reliable
+  history: keep_all
+/SAFrontRadarLocation:
+  reliability: reliable
+  history: keep_all
+/SAFrontRadarObject:
+  reliability: reliable
+  history: keep_all
+/SASR5FrontLeftCornerRadarObject:
+  reliability: reliable
+  history: keep_all
+/SASR5FrontRightCornerRadarObject:
+  reliability: reliable
+  history: keep_all
+/SASR5RearLeftCornerRadarObject:
+  reliability: reliable
+  history: keep_all
+/SASR5RearRightCornerRadarObject:
+  reliability: reliable
+  history: keep_all
+/SOA/NaviDeviceUUID:
+  reliability: reliable
+  history: keep_all
+/SOA/NavigationInfoES33:
+  reliability: reliable
+  history: keep_all
+/SOA/NavigationInfoPlus:
+  reliability: reliable
+  history: keep_all
+/SOA/SDNaviLinkInfo:
+  reliability: reliable
+  history: keep_all
+/SOA/SDNaviStsInfo:
+  reliability: reliable
+  history: keep_all
+/VA/Freespaces:
+  reliability: reliable
+  history: keep_all
+/VA/FrontWideLaneInstanceDebug:
+  reliability: reliable
+  history: keep_all
+/VA/FusLines:
+  reliability: reliable
+  history: keep_all
+/VA/FusObjects:
+  reliability: reliable
+  history: keep_all
+/VA/IHBC:
+  reliability: reliable
+  history: keep_all
+/VA/LightType:
+  reliability: reliable
+  history: keep_all
+/VA/Lines:
+  reliability: reliable
+  history: keep_all
+/VA/Objects:
+  reliability: reliable
+  history: keep_all
+/VA/Obstacles:
+  reliability: reliable
+  history: keep_all
+/VA/VehicleHMI:
+  reliability: reliable
+  history: keep_all
+/VA/VehicleMotionIpd:
+  reliability: reliable
+  history: keep_all
+/VA/VehicleStatusIpd:
+  reliability: reliable
+  history: keep_all
+/VA/WeatherType:
+  reliability: reliable
+  history: keep_all

@@ -1,0 +1,405 @@
+/AEB/AEBDebug:
+  reliability: best_effort
+  history: keep_all
+/AEB/AEBFlag:
+  reliability: best_effort
+  history: keep_all
+/AEB/EgoMotionInfo:
+  reliability: best_effort
+  history: keep_all
+/AEB/FS/TypeRaCamObjectVcc:
+  reliability: best_effort
+  history: keep_all
+/AEB/FS/TypeRaCamRoadVcc:
+  reliability: best_effort
+  history: keep_all
+/AEB/HbLanes:
+  reliability: best_effort
+  history: keep_all
+/AEB/HbObstacles:
+  reliability: best_effort
+  history: keep_all
+/AEB/HorizonLines:
+  reliability: best_effort
+  history: keep_all
+/AEB/HorizonObstacles:
+  reliability: best_effort
+  history: keep_all
+/AEB/RadarObjList:
+  reliability: best_effort
+  history: keep_all
+/Camera/FrontWide/H265:
+  reliability: best_effort
+  history: keep_all
+/COM/CUS/CommonHMI:
+  reliability: best_effort
+  history: keep_all
+/Diag/DiagServiceHeartbeat:
+  reliability: best_effort
+  history: keep_all
+/ehr/to_ehp_hd_status:
+  reliability: best_effort
+  history: keep_all
+/ehr/to_ehp_vehicle_info:
+  reliability: best_effort
+  history: keep_all
+/ehr/to_em_data:
+  reliability: best_effort
+  history: keep_all
+/ehr/to_soa_hd_status:
+  reliability: best_effort
+  history: keep_all
+/ES37/NavigationInfo:
+  reliability: best_effort
+  history: keep_all
+/FL/EhpInputInfo:
+  reliability: best_effort
+  history: keep_all
+/FL/Localization:
+  reliability: best_effort
+  history: keep_all
+/FL/LocalizationResult:
+  reliability: best_effort
+  history: keep_all
+/FL/LocIAM:
+  reliability: best_effort
+  history: keep_all
+/FL/MapMatchDebug:
+  reliability: best_effort
+  history: keep_all
+/FL/MatchingResult:
+  reliability: best_effort
+  history: keep_all
+/FM/FctReq:
+  reliability: best_effort
+  history: keep_all
+/FS/FusionODResult:
+  reliability: best_effort
+  history: keep_all
+/FS/FusionRoadEdgeOutInfo:
+  reliability: best_effort
+  history: keep_all
+/IS/PRO:
+  reliability: best_effort
+  history: keep_all
+/LP/Freespaces:
+  reliability: best_effort
+  history: keep_all
+/LP/GroundWarning:
+  reliability: best_effort
+  history: keep_all
+/LP/LidarTrackingObjects:
+  reliability: best_effort
+  history: keep_all
+/LP/Lines:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/CrossInfo:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/Curvature:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/DtcMsg:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/DynamicEmergency:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/DynamicMeteorology:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/DynamicTraffic:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/GeoFence:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/GlobalData:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/Junction:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/LaneConnectivity:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/LaneModel:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/LanesGeometry:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/MergePoint:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/NoaInfoMsg:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/ObjInfo:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/PathCtrlMessage:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/PositionMsg:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/ProfCtrl:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/ProfileNode:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/RoadGeometry:
+  reliability: best_effort
+  history: keep_all
+/MAPEHP/Slope:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpCurvatureInfo:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpHeadingInfo:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpLineInfo:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpLinkModel:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpMappingStatus:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpObjInfo:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpPathCtrl:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpPointInfo:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpPosition:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpSlopeInfo:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpStatusSwitch:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpSubPath:
+  reliability: best_effort
+  history: keep_all
+/MAPLESS/ZoneEhpSuperElevationInfo:
+  reliability: best_effort
+  history: keep_all
+/MCU/FuncStatus:
+  reliability: best_effort
+  history: keep_all
+/ML/NavInfo:
+  reliability: best_effort
+  history: keep_all
+/NavigationInfo:
+  reliability: best_effort
+  history: keep_all
+/PDC/PdcDebugInfo:
+  reliability: best_effort
+  history: keep_all
+/PI/CUS/HMIOutputES33:
+  reliability: best_effort
+  history: keep_all
+/PI/DES/SitAnalysis:
+  reliability: best_effort
+  history: keep_all
+/PI/DES/SitDebugData:
+  reliability: best_effort
+  history: keep_all
+/PI/EG/EgoMotionInfo:
+  reliability: best_effort
+  history: keep_all
+/PI/FS/LaneMarkingsHorizon:
+  reliability: best_effort
+  history: keep_all
+/PI/FS/LaneMarkingsHorizonDebug:
+  reliability: best_effort
+  history: keep_all
+/PI/FS/ObjTracksHorizon:
+  reliability: best_effort
+  history: keep_all
+/PI/PD/EmHpc2Dbg:
+  reliability: best_effort
+  history: keep_all
+/PI/PD/EnvModel:
+  reliability: best_effort
+  history: keep_all
+/PI/PD/EnvModel4DLPred:
+  reliability: best_effort
+  history: keep_all
+/PI/PD/PredictionData:
+  reliability: best_effort
+  history: keep_all
+/PI/PD/PredictionDebug:
+  reliability: best_effort
+  history: keep_all
+/PI/PD/PredictionDLData:
+  reliability: best_effort
+  history: keep_all
+/PI/PD/WorldCondition:
+  reliability: best_effort
+  history: keep_all
+/PI/PL/MPLatDebug:
+  reliability: best_effort
+  history: keep_all
+/PI/PL/PlanningData:
+  reliability: best_effort
+  history: keep_all
+/PI/PL/QpPathPlanningDebugData:
+  reliability: best_effort
+  history: keep_all
+/PI/PL/StateSpaceSampleTrjDebug:
+  reliability: best_effort
+  history: keep_all
+/PI/SOA/HMIOutputES37:
+  reliability: best_effort
+  history: keep_all
+/PI/VC/ControlToPlanningData:
+  reliability: best_effort
+  history: keep_all
+/PI/VC/ES33LatOutput:
+  reliability: best_effort
+  history: keep_all
+/PI/VC/ES33LonOutput:
+  reliability: best_effort
+  history: keep_all
+/PI/VC/LatCtrlYRCDebug:
+  reliability: best_effort
+  history: keep_all
+/PI/VC/LatTrajectoryCtrlDebug:
+  reliability: best_effort
+  history: keep_all
+/PI/VC/LongCtrlDebug:
+  reliability: best_effort
+  history: keep_all
+/PI/VC/PilotLonCtrlDbgData:
+  reliability: best_effort
+  history: keep_all
+/PK/CUS/HMIOutputES33:
+  reliability: best_effort
+  history: keep_all
+/PK/CUS/IntelligentSwitch:
+  reliability: best_effort
+  history: keep_all
+/PK/DR/Result:
+  reliability: best_effort
+  history: keep_all
+/PP/CUS/FctDebug:
+  reliability: best_effort
+  history: keep_all
+/SA/GNSS:
+  reliability: best_effort
+  history: keep_all
+/SA/IMU:
+  reliability: best_effort
+  history: keep_all
+/SA/InsIAM:
+  reliability: best_effort
+  history: keep_all
+/SA/INSPVA:
+  reliability: best_effort
+  history: keep_all
+/SA/TSRInfo:
+  reliability: best_effort
+  history: keep_all
+/SA/UpcodObsList:
+  reliability: best_effort
+  history: keep_all
+/SA/UpcUssPas:
+  reliability: best_effort
+  history: keep_all
+/SA/UpcUssRaw:
+  reliability: best_effort
+  history: keep_all
+/SA/UssRaw:
+  reliability: best_effort
+  history: keep_all
+/SA/VisionLaneMarkList:
+  reliability: best_effort
+  history: keep_all
+/SA/VisionObjList:
+  reliability: best_effort
+  history: keep_all
+/SAFrontRadarLocation:
+  reliability: best_effort
+  history: keep_all
+/SAFrontRadarObject:
+  reliability: best_effort
+  history: keep_all
+/SASR5FrontLeftCornerRadarObject:
+  reliability: best_effort
+  history: keep_all
+/SASR5FrontRightCornerRadarObject:
+  reliability: best_effort
+  history: keep_all
+/SASR5RearLeftCornerRadarObject:
+  reliability: best_effort
+  history: keep_all
+/SASR5RearRightCornerRadarObject:
+  reliability: best_effort
+  history: keep_all
+/SOA/NaviDeviceUUID:
+  reliability: best_effort
+  history: keep_all
+/SOA/NavigationInfoES33:
+  reliability: best_effort
+  history: keep_all
+/SOA/NavigationInfoPlus:
+  reliability: best_effort
+  history: keep_all
+/SOA/SDNaviLinkInfo:
+  reliability: best_effort
+  history: keep_all
+/SOA/SDNaviStsInfo:
+  reliability: best_effort
+  history: keep_all
+/VA/Freespaces:
+  reliability: best_effort
+  history: keep_all
+/VA/FrontWideLaneInstanceDebug:
+  reliability: best_effort
+  history: keep_all
+/VA/FusLines:
+  reliability: best_effort
+  history: keep_all
+/VA/FusObjects:
+  reliability: best_effort
+  history: keep_all
+/VA/IHBC:
+  reliability: best_effort
+  history: keep_all
+/VA/LightType:
+  reliability: best_effort
+  history: keep_all
+/VA/Lines:
+  reliability: best_effort
+  history: keep_all
+/VA/Objects:
+  reliability: best_effort
+  history: keep_all
+/VA/Obstacles:
+  reliability: best_effort
+  history: keep_all
+/VA/VehicleHMI:
+  reliability: best_effort
+  history: keep_all
+/VA/VehicleMotionIpd:
+  reliability: best_effort
+  history: keep_all
+/VA/VehicleStatusIpd:
+  reliability: best_effort
+  history: keep_all
+/VA/WeatherType:
+  reliability: best_effort
+  history: keep_all
