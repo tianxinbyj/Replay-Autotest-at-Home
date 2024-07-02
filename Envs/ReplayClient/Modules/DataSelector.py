@@ -4,9 +4,7 @@ Date: 6/21/24
 """
 import os
 import sys
-
-from PIL import Image
-from moviepy.editor import VideoFileClip
+import subprocess
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from Libs import get_project_path
@@ -152,13 +150,21 @@ class DataSelector:
     def gen_video_shot(self, index):
         video_path = self.data.at[index, 'CAM_FRONT_120']
         pic_path = os.path.join('/media/data/video_info', f'{index}.png')
+        frame = 100
+
         if not os.path.exists(pic_path):
-            clip = VideoFileClip(video_path)
-            fps = clip.fps
-            time_of_frame = 100 / fps
-            frame = clip.get_frame(time_of_frame)
-            image = Image.fromarray(frame)
-            image.save(pic_path)
+            interface_path = os.path.join(get_project_path(), 'Envs', 'ReplayClient', 'Interfaces')
+            command = ['/usr/bin/python3', 'Api_CutOneFrame.py',
+                       '-v', video_path,
+                       '-f', str(frame),
+                       '-p', pic_path]
+
+            # 在指定的工作目录中执行命令
+            subprocess.run(command,
+                           cwd=interface_path,
+                           capture_output=True,
+                           text=True)
+
             print(f'生成{pic_path}')
 
         return pic_path
