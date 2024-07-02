@@ -23,6 +23,7 @@ import yaml
 class SSHClient:
 
     def __init__(self, ip=None, username=None, password=None):
+        self.temp_folder = None
         self.interface_path = None
         self.ip = ip
         self.username = username
@@ -35,6 +36,8 @@ class SSHClient:
 
     def set_interface_path(self, project_path):
         self.interface_path = f'{project_path}/Envs/ReplayClient/Interfaces'
+        self.temp_folder = f'{project_path}/Temp'
+        self.clear_temp_folder()
 
     def send_cmd(self, command):
         ssh = paramiko.SSHClient()
@@ -47,8 +50,8 @@ class SSHClient:
             stdin, stdout, stderr = ssh.exec_command(command)
             res = stdout.read().decode()
             err = stderr.read().decode()
-            print(res)
-            print(err)
+            # print(res)
+            # print(err)
             # print(stderr.read().decode())
 
         except Exception as e:
@@ -63,8 +66,8 @@ class SSHClient:
             command = f'cd {self.interface_path} && python3 Api_MakeDirs.py -f {test_folder} -t 0'
         else:
             command = f'cd {self.interface_path} && python3 Api_MakeDirs.py -f {test_folder} -t "{(time.time())}"'
-        res = self.send_cmd(command)
         print(command)
+        res = self.send_cmd(command)
         return res
 
     def start_replay(self, scenario_id=None):
@@ -86,8 +89,8 @@ class SSHClient:
 
     def stop_replay(self):
         command = f'cd {self.interface_path} && python3 Api_StopReplay.py'
-        self.send_cmd(command)
         print(command)
+        self.send_cmd(command)
 
     def get_replay_process(self):
         command = f'cd {self.interface_path} && python3 Api_GetReplayProcess.py'
@@ -97,6 +100,40 @@ class SSHClient:
             return r
         except:
             return 0
+
+    def cut_one_frame(self, scenario_id, frame_num, camera='CAM_FRONT_120', local_folder=None):
+        command = (f'cd {self.interface_path} && python3 Api_CutOneFrame.py '
+                   f'-s {scenario_id} -f {frame_num} -c {camera}')
+        print(command)
+        res = self.send_cmd(command)
+        try:
+            remote_pic_path = res.strip().split('\n')[-1]
+            if local_folder:
+                local_pic_path = os.path.join(local_folder, os.path.basename(remote_pic_path))
+                self.scp_file_remote_to_local(local_pic_path, remote_pic_path)
+                return local_pic_path
+            else:
+                return remote_pic_path
+        except:
+            return None
+
+    def get_video_info(self, scenario_id, local_folder=None):
+        command = f'cd {self.interface_path} && python3 Api_GetVideoInfo.py -s {scenario_id}'
+        print(command)
+        res = self.send_cmd(command)
+        try:
+            remote_file_list = res.strip().split('\n')
+            if local_folder:
+                local_file_list = []
+                for remote_file in remote_file_list:
+                    local_file = os.path.join(local_folder, os.path.basename(remote_file))
+                    self.scp_file_remote_to_local(local_file, remote_file)
+                    local_file_list.append(local_file)
+                return local_file_list
+            else:
+                return remote_file_list
+        except:
+            return None
 
     def scp_file_local_to_remote(self, local_file, remote_file):
         ssh = paramiko.SSHClient()
@@ -117,14 +154,11 @@ class SSHClient:
 
     def scp_folder_remote_to_local(self, local_folder, remote_folder):
         def download_folder_recursive(sftp, remote_dirpath, local_dirpath):
-            """
-            Recursively download a remote folder to a local path.
-            """
             # 创建本地目录结构
             if not os.path.exists(local_dirpath):
                 os.makedirs(local_dirpath)
 
-                # 列出远程目录内容
+            # 列出远程目录内容
             remote_files = sftp.listdir_attr(remote_dirpath)
 
             for file_attr in remote_files:
@@ -175,6 +209,11 @@ class SSHClient:
             print(f"Error: {e}")
             ssh.close()
             return e
+    
+    def clear_temp_folder(self):
+        command = f'rm -rf {self.temp_folder}/*'
+        print(command)
+        self.send_cmd(command)
 
 
 if __name__ == '__main__':
@@ -190,4 +229,7 @@ if __name__ == '__main__':
     # ss.scp_folder_remote_to_local(local_file, remote_file)
 
     scenario_id = '20240528_150013_n000002'
-    ss.start_replay(scenario_id)
+    local_folder = '/home/zhangliwei01/ZONE'
+    # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
+    # ss.get_video_info(scenario_id, local_folder)
+    ss.clear_temp_folder()
