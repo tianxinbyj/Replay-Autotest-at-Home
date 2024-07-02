@@ -21,7 +21,6 @@ def main():
     if args.scenario_id != 's':
         data_selector = DataSelector()
         scenario_id = args.scenario_id
-        print(scenario_id)
         data_selector.gen_can_config(scenario_id)
         data_selector.gen_video_config(scenario_id)
         data_selector.gen_video_shot(scenario_id)

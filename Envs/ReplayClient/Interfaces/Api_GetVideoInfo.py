@@ -20,7 +20,7 @@ from Utils.VideoProcess import extract_frame
 
 def main():
     # video_path, frame_number, pic_path
-    parser = argparse.ArgumentParser(description="extract frame from video.")
+    parser = argparse.ArgumentParser(description="get video info")
     parser.add_argument("-s", "--scenario_id", type=str, required=True, help="specify scenario id")
     args = parser.parse_args()
 
