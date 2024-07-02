@@ -1,0 +1,7 @@
+tmux_node:
+  ros2bag:
+    - ses_ros2bag
+    - win_ros2bag
+  replay:
+    - ses_replay
+    - win_replay

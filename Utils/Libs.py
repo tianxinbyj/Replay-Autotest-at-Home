@@ -101,8 +101,15 @@ def parse_bench_config():
 
 
 def parse_test_encyclopaedia():
-    test_encyclopaedia_path = os.path.join(get_project_path(), 'Docs', 'Resources', 'test_encyclopaedia.yaml')
-    with open(test_encyclopaedia_path, 'r', encoding='utf-8') as file:
+    test_encyclopaedia_yaml = os.path.join(get_project_path(), 'Docs', 'Resources', 'test_encyclopaedia.yaml')
+    with open(test_encyclopaedia_yaml, 'r', encoding='utf-8') as file:
+        data = yaml.safe_load(file)
+        return data
+
+
+def parse_code_variables():
+    var_yaml = os.path.join(get_project_path(), 'Docs', 'Resources', 'variables.yaml')
+    with open(var_yaml, 'r', encoding='utf-8') as file:
         data = yaml.safe_load(file)
         return data
 
@@ -111,6 +118,11 @@ bench_id = get_bench_id()
 project_path = get_project_path()
 bench_config = parse_bench_config()
 test_encyclopaedia = parse_test_encyclopaedia()
+variables = parse_code_variables()
+TempFolder = os.path.join(project_path, 'Temp')
+if not os.path.exists(TempFolder):
+    os.makedirs(TempFolder)
+
 
 if __name__ == '__main__':
     print(get_bench_id())

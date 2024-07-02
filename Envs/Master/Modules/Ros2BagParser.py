@@ -1037,14 +1037,9 @@ topic2msg = {
 }
 
 
-def sort_by_first_list(list_1, list_2):
-    list1, list2 = zip(*sorted(zip(list_1, list_2)))
-    return list1, list2
-
-
 class Ros2BagParser:
 
-    def __init__(self, workspace, product='ZPD_2J5'):
+    def __init__(self, workspace):
         self.last_timestamp = None
         self.frame_id_saver = None
         self.time_saver = None
@@ -1127,6 +1122,7 @@ class Ros2BagParser:
             # 顺便求出频率
 
             time_df = pd.DataFrame()
+            time_df['local_timestamp'] = [t / 1e9 for t in local_time_saver[topic]]
             time_df['time_stamp'] = self.time_saver[topic]
             time_df['frame_id'] = self.frame_id_saver[topic]
             new_time_df = time_df.drop_duplicates(subset=['time_stamp'], keep='first').iloc[10:]
@@ -1727,7 +1723,7 @@ class Ros2BagParser:
                        '/SASR5FrontRightCornerRadarObject', '/SASR5RearLeftCornerRadarObject',
                        '/SASR5RearRightCornerRadarObject']:
 
-            time_stamp = msg.timestamp / 1000000
+            time_stamp = msg.timestamp / 1000
             frame_id = msg.frame_number
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
@@ -2526,9 +2522,7 @@ if __name__ == "__main__":
     ]
 
     folder = '/home/zhangliwei01/ZONE/TestProject/temp/01_Rosbag/20240527_160340_n000001/RawData'
-    folder = '/home/zhangliwei01/123'
     bag_path = '/home/zhangliwei01/ZONE/TestProject/temp/01_Rosbag/20240527_160340_n000001/20240527_160340_n000001_2024-06-11-19-04-18'
-    bag_path = '/home/zhangliwei01/rosbag_2020_03_24'
     RBP = Ros2BagParser(J5_workspace)
     RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
 

@@ -11,14 +11,15 @@ from Libs import get_project_path
 
 sys.path.append(get_project_path())
 from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists, get_tmux_window_content
+from Utils.Libs import variables
 
 
 class ReplayManagement:
 
     def __init__(self):
         self.task_id = 0
-        self.tmux_session = 'ses_replay'
-        self.tmux_window = 'win_replay'
+        self.tmux_session = variables['replay'][0]
+        self.tmux_window = variables['replay'][1]
 
     def start_replay(self):
         kill_tmux_session_if_exists(self.tmux_session)
@@ -100,4 +101,3 @@ if __name__ == '__main__':
         p = replay_management.get_replay_process()
         print(p)
         time.sleep(3)
-
