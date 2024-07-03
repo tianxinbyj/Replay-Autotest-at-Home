@@ -857,14 +857,107 @@ def horizon_bev(folder, bev_type='fisheye'):
     BEV.getBev(new_images, bev_folder)
 
 
-if __name__ == "__main__":
-    # calibration_json = '/home/caobingqi/ZONE/Data/04_TestFolder/1J5/Test/1-Obstacles/晴天&城区道路/20230602_154428_n000002/match-wide_conf-0/Calibration/Origin/calibration.json'
-    # folder = '/home/caobingqi/下载/Temp'
-    # rect_pts = [[21, -1], [21, -4], [15, -4], [15, -1]]
-    # kunyi_bev(folder, calibration_json, bev_type='fisheye', rect_pts=rect_pts)
-    # kunyi_bev(folder, calibration_json, bev_type='pinhole', rect_pts=rect_pts)
-    # horizon_bev(folder=folder, bev_type='fisheye')
-    # horizon_bev(folder=folder, bev_type='pinhole')
+def transfer_2j5_2_1j5(num, json_folder, yaml_folder):
+    def euler2matrix2(roll, pitch, yaw, x, y, z):
+        R = np.eye(4)
+        R[0:3, 3] = [x, y, z]
+        R[0:3, 0:3] = Rotation.from_euler('XYZ', [roll, pitch, yaw]).as_matrix()
+        # R[0:3, 0:3] = Rotation.from_euler('ZYX', [yaw, pitch, roll]).as_matrix()
+        return R
+
+    def matrix2euler2(R):
+        x = R[0, 3]
+        y = R[1, 3]
+        z = R[2, 3]
+        yaw, pitch, roll = Rotation.from_matrix(R[0:3, 0:3]).as_euler('ZYX')
+        # roll, pitch, yaw = Rotation.from_matrix(R[0:3, 0:3]).as_euler('XYZ')
+        return roll, pitch, yaw, x, y, z
+
+    mapping = {
+        0: '100/frontright',
+        1: '100/frontleft',
+        2: '101/rear',
+        3: '100/rearleft',
+        4: '100/rearright',
+        5: '100/front',
+        6: '101/front_30fov',
+        7: '101/fisheye_front',
+        8: '101/fisheye_right',
+        9: '101/fisheye_rear',
+        10: '101/fisheye_left',
+    }
+
+    json_2j5 = os.path.join(json_folder, f'{mapping[num]}.json')
+    with open(json_2j5, 'r') as f:
+        camera_config = json.load(f)
+
+    world2calib = euler2matrix2(*camera_config['vcs']['rotation'],
+                                *camera_config['vcs']['translation'])
+    calib2camera = euler2matrix2(camera_config['roll'], camera_config['pitch'], camera_config['yaw'],
+                                 camera_config['camera_x'], camera_config['camera_y'], camera_config['camera_z'])
+
+    roll, pitch, yaw, x, y, z = matrix2euler2(world2calib @ calib2camera)
+
+    if num <= 6:
+        yaml_lines = [
+            'cam_{:d}_image_width: {:d}\n'.format(num, camera_config['image_width']),
+            'cam_{:d}_image_height: {:d}\n'.format(num, camera_config['image_height']),
+            'cam_{:d}_focal_x: {:.16e}\n'.format(num, camera_config['focal_u']),
+            'cam_{:d}_focal_y: {:.16e}\n'.format(num, camera_config['focal_v']),
+            'cam_{:d}_center_u: {:.16e}\n'.format(num, camera_config['center_u']),
+            'cam_{:d}_center_v: {:.16e}\n'.format(num, camera_config['center_v']),
+            'cam_{:d}_pos_x: {:.16e}\n'.format(num, float(x)),
+            'cam_{:d}_pos_y: {:.16e}\n'.format(num, float(y)),
+            'cam_{:d}_pos_z: {:.16e}\n'.format(num, float(z)),
+            'cam_{:d}_pitch: {:.16e}\n'.format(num, float(pitch)),
+            'cam_{:d}_roll: {:.16e}\n'.format(num, float(roll)),
+            'cam_{:d}_yaw: {:.16e}\n'.format(num, float(yaw)),
+            'cam_{:d}_vehicleWheelBase: {:.16e}\n'.format(num, 2.95),
+            'cam_{:d}_version: "{:s}"\n'.format(num, "230527 1414"),
+            'vehicle: 2\n',
+            'cam_{:d}_distort_k1: {:.16e}\n'.format(num, camera_config['distort'][0]),
+            'cam_{:d}_distort_k2: {:.16e}\n'.format(num, camera_config['distort'][1]),
+            'cam_{:d}_distort_p1: {:.16e}\n'.format(num, camera_config['distort'][2]),
+            'cam_{:d}_distort_p2: {:.16e}\n'.format(num, camera_config['distort'][3]),
+            'cam_{:d}_distort_k3: {:.16e}\n'.format(num, camera_config['distort'][4]),
+            'cam_{:d}_distort_k4: {:.16e}\n'.format(num, camera_config['distort'][5]),
+            'cam_{:d}_distort_k5: {:.16e}\n'.format(num, camera_config['distort'][6]),
+            'cam_{:d}_distort_k6: {:.16e}\n'.format(num, camera_config['distort'][7]),
+            'intri_flag: 0\n',
+        ]
+    else:
+        yaml_lines = [
+            'cam_{:d}_image_width: {:d}\n'.format(num, camera_config['image_width']),
+            'cam_{:d}_image_height: {:d}\n'.format(num, camera_config['image_height']),
+            'cam_{:d}_focal_x: {:.16e}\n'.format(num, camera_config['focal_u']),
+            'cam_{:d}_focal_y: {:.16e}\n'.format(num, camera_config['focal_v']),
+            'cam_{:d}_center_u: {:.16e}\n'.format(num, camera_config['center_u']),
+            'cam_{:d}_center_v: {:.16e}\n'.format(num, camera_config['center_v']),
+            'cam_{:d}_pos_x: {:.16e}\n'.format(num, float(x)),
+            'cam_{:d}_pos_y: {:.16e}\n'.format(num, float(y)),
+            'cam_{:d}_pos_z: {:.16e}\n'.format(num, float(z)),
+            'cam_{:d}_pitch: {:.16e}\n'.format(num, float(pitch)),
+            'cam_{:d}_roll: {:.16e}\n'.format(num, float(roll)),
+            'cam_{:d}_yaw: {:.16e}\n'.format(num, float(yaw)),
+            'cam_{:d}_vehicleWheelBase: {:.16e}\n'.format(num, 2.95),
+            'cam_{:d}_version: "{:s}"\n'.format(num, "230527 1414"),
+            'vehicle: 2\n',
+            'cam_{:d}_distort_k1: {:.16e}\n'.format(num, camera_config['distort'][0]),
+            'cam_{:d}_distort_k2: {:.16e}\n'.format(num, camera_config['distort'][1]),
+            'cam_{:d}_distort_k3: {:.16e}\n'.format(num, camera_config['distort'][2]),
+            'cam_{:d}_distort_k4: {:.16e}\n'.format(num, camera_config['distort'][3]),
+            'intri_flag: 0\n',
+        ]
+    with open(os.path.join(yaml_folder, f'camera_{num}.yaml'), 'w', encoding='utf-8') as f:
+        # yaml.dump(yaml_dict, f, encoding='utf-8', allow_unicode=True)
+        f.writelines(yaml_lines)
+
+
+if __name__ == '__main__':
+    json_folder = '/home/caobingqi/下载/2J5'
+    yaml_folder = '/home/caobingqi/下载/1J5'
+    for i in range(11):
+        transfer_2j5_2_1j5(i, json_folder, yaml_folder)
 
     calibration_json = '/home/caobingqi/ZONE/20231130_152434_calibration.json'
     output_folder = '/home/caobingqi/下载/2J5'
