@@ -164,13 +164,13 @@ class ReplayController:
         t.daemon = True
         t.start()
 
-        # 2.回灌和录包
         for scenario_id in self.scenario_ids:
 
             self.running_stage = f'{self.__class__.__name__}.bag_record'
             self.running_topic = 'All_Topic'
             self.running_scenario_id = scenario_id
 
+            # 2.回灌和录包
             if self.bag_action['record']:
                 if not self.bag_update:
                     if os.path.exists(os.path.join(self.predict_sensor_folder, scenario_id)):
@@ -199,7 +199,7 @@ class ReplayController:
                     bag_folder = None
                 parser_folder = os.path.join(self.predict_sensor_folder, scenario_id, 'RawData')
 
-            # 2.解析和压缩
+            # 3.解析和压缩
             if self.bag_action['parse']:
                 meta_yaml = glob.glob(
                     os.path.join(self.predict_sensor_folder, scenario_id, f'{scenario_id}*', 'metadata.yaml'))
@@ -210,10 +210,14 @@ class ReplayController:
                         t.daemon = True
                         t.start()
                         self.thread_list.append(t)
+
                     self.analyze_raw_data()
                 else:
                     print('不存在{:s}, 无法解析!'.format(
                         os.path.join(self.predict_sensor_folder, scenario_id, f'{scenario_id}*', 'metadata.yaml')))
+
+            # 4.获得视频信息
+            self.replay_client.get_video_info(scenario_id, parser_folder)
 
         self.write_log_flag = 0
         # 等待所有线程都结束

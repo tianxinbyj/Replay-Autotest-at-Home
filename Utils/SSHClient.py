@@ -126,9 +126,16 @@ class SSHClient:
             if local_folder:
                 local_file_list = []
                 for remote_file in remote_file_list:
-                    local_file = os.path.join(local_folder, os.path.basename(remote_file))
-                    self.scp_file_remote_to_local(local_file, remote_file)
-                    local_file_list.append(local_file)
+                    if 'file' in remote_file:
+                        remote_file = remote_file.split('file ')[-1]
+                        local_file = os.path.join(local_folder, os.path.basename(remote_file))
+                        self.scp_file_remote_to_local(local_file, remote_file)
+                        local_file_list.append(local_file)
+                    elif 'folder' in remote_file:
+                        remote_file = remote_file.split('folder ')[-1]
+                        local_file = os.path.join(local_folder, os.path.basename(remote_file))
+                        self.scp_folder_remote_to_local(local_file, remote_file)
+                        local_file_list.append(local_file)
                 return local_file_list
             else:
                 return remote_file_list
@@ -231,5 +238,5 @@ if __name__ == '__main__':
     scenario_id = '20240528_150013_n000002'
     local_folder = '/home/zhangliwei01/ZONE'
     # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
-    # ss.get_video_info(scenario_id, local_folder)
-    ss.clear_temp_folder()
+    ss.get_video_info(scenario_id, local_folder)
+    # ss.clear_temp_folder()
