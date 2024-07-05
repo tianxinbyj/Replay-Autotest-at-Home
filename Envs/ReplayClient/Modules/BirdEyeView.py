@@ -11,10 +11,8 @@ import shutil
 import cv2
 import numpy as np
 from scipy.spatial.transform import Rotation
-
-project_path = os.path.abspath(__file__)
-while os.path.basename(project_path) != 'IPDASFDataVisualization':
-    project_path = os.path.dirname(project_path)
+from Libs import get_project_path
+camera_parameter_folder = os.path.join(get_project_path(), 'Docs', 'Resources', 'camera_parameter')
 
 
 # 根据内外参计算世界坐标系到相机坐标系
@@ -22,18 +20,6 @@ def world2camera(intrinsic, extrinsic, x, y, z):
     res = extrinsic @ np.array([[x], [y], [z], [1]])
     res = intrinsic @ res / res[2][0]
     return res[0][0], res[1][0]
-
-
-# 将视频转换为单独的jpg
-def video2image(video, fps):
-    image_folder = os.path.join(os.path.dirname(video), os.path.basename(video).split('.')[0])
-    if os.path.exists(image_folder):
-        shutil.rmtree(image_folder)
-    os.mkdir(image_folder)
-    cmd = f'ffmpeg -i {video} -f image2 -vf fps={fps} -qscale:v 2 {image_folder}/img%05d.jpg'
-    os.system('''
-    gnome-terminal -- bash -c '{:s}'
-    '''.format(cmd))
 
 
 def changeCvDataShape(data, direction='1*N*mtoN*1*m'):
@@ -164,7 +150,7 @@ class ConvertJsonFile:
             cameras = json.load(f)['camera']
         for origin_camera in cameras:
             camera_name = camera_vs[origin_camera['name']][0]
-            template_json = '../Config/Camera/4/{:s}.json'.format(camera_name)
+            template_json = os.path.join(camera_parameter_folder, 'json_calib', f'{camera_name}.json')
             with open(template_json, 'r') as f:
                 temp_camera = json.load(f)
 
@@ -237,7 +223,9 @@ class ConvertJsonFile:
                 'focal_v': focal_v,
                 'fov': fov,
             }
-            print(origin_camera['name'], round(error, 6))
+
+            if __name__ == '__main__':
+                print(origin_camera['name'], round(error, 6))
 
             if 'eye' not in camera_name.lower():
                 new_camera['intern'] = temp_camera['intern']
@@ -718,7 +706,7 @@ class BirdEyeView:
 
 
 def kunyi_bev(folder, calibration_json, bev_type='fisheye', rect_pts=None):
-    bird_json_file = '../Config/Camera/birdvirtual/bird.json'
+    bird_json_file = os.path.join(camera_parameter_folder, 'bird_virtual', 'bird.json')
     distort_camera_dict = {}
 
     camera_vs = {
@@ -749,7 +737,7 @@ def kunyi_bev(folder, calibration_json, bev_type='fisheye', rect_pts=None):
             if 'eye' in origin_camera['name'].lower() or '30' in origin_camera['name'].lower():
                 continue
         camera_name = camera_vs[origin_camera['name']][0]
-        template_json = '../Config/Camera/4/{:s}.json'.format(camera_name)
+        template_json = os.path.join(camera_parameter_folder, 'json_calib', f'{camera_name}.json')
         with open(template_json, 'r') as f:
             temp_camera = json.load(f)
 
@@ -808,7 +796,7 @@ def kunyi_bev(folder, calibration_json, bev_type='fisheye', rect_pts=None):
 
 
 def horizon_bev(folder, bev_type='fisheye'):
-    bird_json_file = '../Config/Camera/birdvirtual/bird.json'
+    bird_json_file = os.path.join(camera_parameter_folder, 'bird_virtual', 'bird.json')
 
     camera_json_files = {
         'CAM_FRONT_120': ['../Config/Camera/replay/2J5/100/front.json', 'opencv_pinhole'],
@@ -951,6 +939,11 @@ def transfer_2j5_2_1j5(num, json_folder, yaml_folder):
     with open(os.path.join(yaml_folder, f'camera_{num}.yaml'), 'w', encoding='utf-8') as f:
         # yaml.dump(yaml_dict, f, encoding='utf-8', allow_unicode=True)
         f.writelines(yaml_lines)
+
+
+def print2(text):
+    if __name__ == '__main__':
+        print(text)
 
 
 if __name__ == '__main__':

@@ -18,8 +18,8 @@ class Ros2BagRecorder:
 
     def __init__(self, workspace):
         self.install = os.path.join(workspace, 'install')
-        self.tmux_session = variables['ros2bag'][0]
-        self.tmux_window = variables['ros2bag'][1]
+        self.tmux_session = variables['tmux_node']['ros2bag'][0]
+        self.tmux_window = variables['tmux_node']['ros2bag'][1]
 
     def start_record(self, scenario_id, folder, topic_list, bag_name=None):
         if topic_list and 'all' not in topic_list:
