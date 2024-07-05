@@ -12,7 +12,6 @@ from Libs import get_project_path
 sys.path.append(get_project_path())
 from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists, get_tmux_window_content
 from Utils.Libs import variables
-print(variables)
 
 
 class ReplayManagement:

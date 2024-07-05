@@ -21,8 +21,11 @@ def main():
     if args.scenario_id != 's':
         data_selector = DataSelector()
         scenario_id = args.scenario_id
+        is_existed = data_selector.gen_video_config(scenario_id)
+        if not is_existed:
+            print(0)
+            return is_existed
         data_selector.gen_can_config(scenario_id)
-        data_selector.gen_video_config(scenario_id)
         data_selector.gen_video_shot(scenario_id)
 
     replay_management = ReplayManagement()

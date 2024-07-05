@@ -22,6 +22,9 @@ class DataSelector:
         self.data.drop(self.data[self.data['Complete'] == False].index, inplace=True)
 
     def gen_video_config(self, index):
+        if index not in self.data.index:
+            return False
+
         video_toml = '/home/vcar/work/injectFile/input/video.toml'
 
         if bench_id == 'Replay02':
@@ -174,7 +177,10 @@ data_selector = DataSelector()
 
 if __name__ == '__main__':
     DS = DataSelector()
-    index = '20240528_150013_n000002'
-    DS.gen_video_config(index)
-    DS.gen_can_config(index)
-    DS.gen_video_shot(index)
+    index = '20231130_184025_n000001'
+    print(DS.data.index)
+    print(index in DS.data.index)
+
+    # DS.gen_video_config(index)
+    # DS.gen_can_config(index)
+    # DS.gen_video_shot(index)
