@@ -1,0 +1,47 @@
+{
+  "camera_x": 0,
+  "camera_y": 0,
+  "camera_z": 0,
+  "center_u": 750,
+  "center_v": 1500,
+  "distort": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "focal_u": 1500,
+  "focal_v": 1500,
+  "fov": 90.0,
+  "intern": 1,
+  "loc": 0,
+  "mask": 3,
+  "image_height": 3000,
+  "image_width": 1500,
+  "pitch": 1.5707963,
+  "roll": 0,
+  "type": 0,
+  "valid_height": [
+    1000,
+    1000
+  ],
+  "vcs": {
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "translation": [
+      0,
+      0,
+      60
+    ]
+  },
+  "vendor": "X8b",
+  "version": 1,
+  "yaw": 0
+}
