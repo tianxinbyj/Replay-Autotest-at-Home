@@ -21,7 +21,7 @@ from Ros2BagRecorder import Ros2BagRecorder
 
 sys.path.append(get_project_path())
 
-from Utils.Libs import bench_config
+from Utils.Libs import bench_config, test_encyclopaedia
 from Utils.SSHClient import SSHClient
 
 
@@ -43,17 +43,25 @@ class ReplayController:
         self.thread_list = []
 
         # 读取参数
-        self.workspace = replay_config['workspace']
-        self.predict_sensor = replay_config['predict_sensor']
         self.replay_end = replay_config['replay_end']
         self.log_path = replay_config['log_path']
         self.bag_update = replay_config['bag_update']
         self.scenario_ids = replay_config['scenario_id']
-        self.predict_sensor_folder = replay_config['predict_sensor_folder']
-        self.ground_truth_folder = replay_config['ground_truth_folder']
-        self.record_topic = replay_config['record_topic']
-        self.parse_topic = replay_config['parse_topic']
+        self.pred_raw_folder = replay_config['data_folder']['raw']['pred']
+        self.gt_raw_folder = replay_config['data_folder']['raw']['gt']
+        self.workspace = replay_config['data_folder']['workspace']
         self.bag_action = replay_config['bag_action']
+
+        product = replay_config['product']
+        test_type = replay_config['test_type']
+        self.record_topic = test_encyclopaedia[product]['record_topic'][test_type]
+        self.parse_topic = test_encyclopaedia[product]['parse_topic'][test_type]
+
+        # 建立文件夹
+        if not os.path.isdir(self.pred_raw_folder):
+            os.makedirs(self.pred_raw_folder)
+        if not os.path.isdir(self.gt_raw_folder):
+            os.makedirs(self.gt_raw_folder)
 
         # 实例化ssh_client用于控制ReplayClient的Api
         self.replay_client = SSHClient(
@@ -82,13 +90,13 @@ class ReplayController:
         print('先录制一个空的包,用于清除缓存')
         null_folder, _ = self.ros2bag_recorder.start_record(
             scenario_id=scenario_id,
-            folder=self.predict_sensor_folder,
+            folder=self.pred_raw_folder,
             topic_list=self.record_topic
         )
         time.sleep(5)
         self.ros2bag_recorder.stop_record()
         shutil.rmtree(null_folder)
-        
+
         print(f'开始回灌{scenario_id}')
         self.replay_client.start_replay(
             scenario_id=scenario_id)
@@ -96,10 +104,10 @@ class ReplayController:
         print(f'开始录包{scenario_id}')
         bag_folder, parser_folder = self.ros2bag_recorder.start_record(
             scenario_id=scenario_id,
-            folder=self.predict_sensor_folder,
+            folder=self.pred_raw_folder,
             topic_list=self.record_topic
         )
-        
+
         return bag_folder, parser_folder
 
     def stop_replay_and_record(self, scenario_id=None):
@@ -115,6 +123,15 @@ class ReplayController:
             print(f'无效的场景{scenario_id}')
             return
 
+        bag_xz_path = f'{bag_folder}.tar.xz'
+        if os.path.exists(bag_xz_path) and not os.path.exists(bag_folder):
+            print(f'仅存在压缩包，先解压缩{scenario_id}')
+            cmd = 'cd {:s}; tar xvf {:s}.tar.xz'.format(
+                os.path.dirname(bag_folder), os.path.basename(bag_folder)
+            )
+            os.popen(cmd).read()
+            print(f'{os.path.basename(bag_folder)}.tar.xz 解压缩完成')
+
         print(f'开始解析{scenario_id}')
         self.ros2bag_parser.getMsgInfo(
             bag_path=bag_folder,
@@ -128,6 +145,7 @@ class ReplayController:
             scenario_id=scenario_id,
             local_folder=parser_folder
         )
+
         # 获取一个大致的场景时间与ECU时间的差,可能有用
         video_info_path = os.path.join(parser_folder, f'{scenario_id}.yaml')
         with open(video_info_path) as f:
@@ -151,7 +169,7 @@ class ReplayController:
     def get_annotation(self):
         for scenario_id in self.scenario_ids:
             remote_folder = f'/media/data/annotation/{scenario_id}'
-            local_folder = os.path.join(self.ground_truth_folder, scenario_id)
+            local_folder = os.path.join(self.gt_raw_folder, scenario_id)
             self.replay_client.scp_folder_remote_to_local(local_folder, remote_folder)
 
     def run(self):
@@ -173,12 +191,12 @@ class ReplayController:
             # 2.回灌和录包
             if self.bag_action['record']:
                 if not self.bag_update:
-                    if os.path.exists(os.path.join(self.predict_sensor_folder, scenario_id)):
+                    if os.path.exists(os.path.join(self.pred_raw_folder, scenario_id)):
                         print(scenario_id, '已存在, 不重新录制')
                         continue
                 else:
-                    if os.path.exists(os.path.join(self.predict_sensor_folder, scenario_id)):
-                        shutil.rmtree(os.path.join(self.predict_sensor_folder, scenario_id))
+                    if os.path.exists(os.path.join(self.pred_raw_folder, scenario_id)):
+                        shutil.rmtree(os.path.join(self.pred_raw_folder, scenario_id))
                         print(scenario_id, '已存在, 删除重新录制')
 
                 bag_folder, parser_folder = self.start_replay_and_record(scenario_id)
@@ -192,17 +210,17 @@ class ReplayController:
 
             else:
                 bag_folder_glob = glob.glob(
-                    os.path.join(self.predict_sensor_folder, scenario_id, f'{scenario_id}*'))
+                    os.path.join(self.pred_raw_folder, scenario_id, f'{scenario_id}*'))
                 if bag_folder_glob:
                     bag_folder = bag_folder_glob[0]
                 else:
                     bag_folder = None
-                parser_folder = os.path.join(self.predict_sensor_folder, scenario_id, 'RawData')
+                parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
 
             # 3.解析和压缩
             if self.bag_action['parse']:
                 meta_yaml = glob.glob(
-                    os.path.join(self.predict_sensor_folder, scenario_id, f'{scenario_id}*', 'metadata.yaml'))
+                    os.path.join(self.pred_raw_folder, scenario_id, f'{scenario_id}*', 'metadata.yaml'))
                 if meta_yaml:
                     self.parse_bag(scenario_id, bag_folder, parser_folder)
                     if self.bag_action['compress']:
@@ -214,7 +232,7 @@ class ReplayController:
                     self.analyze_raw_data()
                 else:
                     print('不存在{:s}, 无法解析!'.format(
-                        os.path.join(self.predict_sensor_folder, scenario_id, f'{scenario_id}*', 'metadata.yaml')))
+                        os.path.join(self.pred_raw_folder, scenario_id, f'{scenario_id}*', 'metadata.yaml')))
 
             # 4.获得视频信息
             self.replay_client.get_video_info(scenario_id, parser_folder)
@@ -240,8 +258,8 @@ class ReplayController:
         rows = []
         index = []
         columns = []
-        for scenario_id in os.listdir(self.predict_sensor_folder):
-            raw_folder = os.path.join(self.predict_sensor_folder, scenario_id, 'RawData')
+        for scenario_id in os.listdir(self.pred_raw_folder):
+            raw_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
             if not os.path.exists(os.path.join(raw_folder, 'TestTopicInfo.yaml')):
                 continue
 
@@ -275,7 +293,7 @@ class ReplayController:
 
         if columns:
             res = pd.DataFrame(rows, columns=columns + ['valid'], index=index)
-            res.to_csv(os.path.join(self.predict_sensor_folder, 'topic_output_statistics.csv'))
+            res.to_csv(os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv'))
 
 
 if __name__ == '__main__':

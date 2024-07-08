@@ -37,7 +37,7 @@ class Ros2BagRecorder:
         work_folder = os.path.join(folder, scenario_id)
         if os.path.exists(work_folder):
             shutil.rmtree(work_folder)
-        os.mkdir(work_folder)
+        os.makedirs(work_folder)
         bag_folder = os.path.join(work_folder, bag_name)
         parser_folder = os.path.join(work_folder, 'RawData')
         os.mkdir(parser_folder)

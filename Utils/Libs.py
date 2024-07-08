@@ -4,6 +4,7 @@ Date: 6/21/24
 """
 import glob
 import os
+import shutil
 import subprocess
 import yaml
 
@@ -112,6 +113,16 @@ def parse_code_variables():
     with open(var_yaml, 'r', encoding='utf-8') as file:
         data = yaml.safe_load(file)
         return data
+
+
+def create_folder(path, update=True):
+    if update:
+        if os.path.exists(path):
+            shutil.rmtree(path)
+        os.makedirs(path)
+    else:
+        if not os.path.exists(path):
+            os.makedirs(path)
 
 
 bench_id = get_bench_id()

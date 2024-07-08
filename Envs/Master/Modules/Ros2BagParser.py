@@ -1113,7 +1113,6 @@ class Ros2BagParser:
 
             for connection, timestamp, rawdata in reader.messages(connections=connections):
                 msg = deserialize_cdr(rawdata, connection.msgtype)
-                print(timestamp)
                 local_time_saver[connection.topic].append(timestamp)
                 self.parser(timestamp, connection.topic, msg, queue_by_topic[connection.topic])
 
@@ -1122,9 +1121,10 @@ class Ros2BagParser:
             # 顺便求出频率
 
             time_df = pd.DataFrame()
-            time_df['local_timestamp'] = [t / 1e9 for t in local_time_saver[topic]]
+            time_df['local_time'] = [t / 1e9 for t in local_time_saver[topic]]
             time_df['time_stamp'] = self.time_saver[topic]
             time_df['frame_id'] = self.frame_id_saver[topic]
+            time_df = time_df.sort_values(by=['time_stamp', 'local_time'])
             new_time_df = time_df.drop_duplicates(subset=['time_stamp'], keep='first').iloc[10:]
             s = time_df['time_stamp'].value_counts()
             new_time_df['count'] = [s.loc[t] for t in new_time_df['time_stamp'].values]
@@ -1138,6 +1138,7 @@ class Ros2BagParser:
 
             time_csv = os.path.join(folder, '{:s}_{:.2f}_hz.csv'.format(topic.replace('/', ''), hz))
             new_time_df.to_csv(time_csv, index=False)
+            print(topic, f'hz = {hz}')
 
         print(time.time() - t0)
 
@@ -2511,20 +2512,18 @@ class Ros2bagPretreatment:
 
 
 if __name__ == "__main__":
-    J5_workspace = '/home/zhangliwei01/ZONE/TestProject/ES37_PP_Feature_20240611/03_Workspace'
+    J5_workspace = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug/03_WorkSpace'
     J5_topic_list = [
-        # '/PI/EG/EgoMotionInfo',
+        '/PI/EG/EgoMotionInfo',
         '/VA/Obstacles',
-        # '/VA/Lines',
-        # '/PI/FS/ObjTracksHorizon',
+        '/VA/Lines',
+        '/PI/FS/ObjTracksHorizon',
         # '/VA/FusLines',
         # '/VA/Objects',
     ]
 
-    folder = '/home/zhangliwei01/ZONE/TestProject/temp/01_Rosbag/20240527_160340_n000001/RawData'
-    bag_path = '/home/zhangliwei01/ZONE/TestProject/temp/01_Rosbag/20240527_160340_n000001/20240527_160340_n000001_2024-06-11-19-04-18'
+    folder = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug/01_RosBag/20230602_144755_n000003/RawData'
+    bag_path = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug/01_RosBag/20230602_144755_n000003/20230602_144755_n000003_2024-05-10-16-28-31'
     RBP = Ros2BagParser(J5_workspace)
     RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
 
-    # folder = '/home/zhangliwei01/ZONE/TestProject/ES37_PP_Feature_20240611/01_Rosbag'
-    # rrr = Ros2bagPretreatment(folder)
