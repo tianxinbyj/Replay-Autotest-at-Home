@@ -4,6 +4,7 @@ Created on 2024/6/20.
 """
 
 import os
+import shutil
 
 
 def get_project_path():
@@ -39,6 +40,23 @@ def replace_path_in_dict(input_dict, old_path, new_path):
                 input_dict[key] = value.replace(old_path, new_path)
 
     return input_dict
+
+
+def copy_to_destination(source, destination_dir):
+    # 确保目标文件夹存在
+    if not os.path.exists(destination_dir):
+        os.makedirs(destination_dir)
+
+    destination = os.path.join(destination_dir, os.path.basename(source))
+    if os.path.isfile(source):
+        shutil.copy(source, destination)
+    elif os.path.isdir(source):
+        shutil.copytree(source, destination)
+    else:
+        print(f"{source}源路径不存在或既不是文件也不是文件夹")
+        return None
+
+    return destination
 
 
 if __name__ == '__main__':

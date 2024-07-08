@@ -61,7 +61,7 @@ def main():
             yaml.dump(scenario_fps, f, allow_unicode=True)
 
     # 保存視頻信息
-    video_info_yaml = os.path.join(get_project_path(), 'Temp', f'{args.scenario_id}.yaml')
+    video_info_yaml = os.path.join(get_project_path(), 'Temp', 'video_info.yaml')
     with open(video_info_yaml, 'w', encoding='utf-8') as f:
         yaml.dump(video_info, f, encoding='utf-8', allow_unicode=True)
     print('file', video_info_yaml)

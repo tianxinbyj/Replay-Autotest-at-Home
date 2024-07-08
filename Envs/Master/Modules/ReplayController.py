@@ -141,13 +141,16 @@ class ReplayController:
         )
 
         print(f'获取场景信息{scenario_id}')
+        scenario_info_folder = os.path.join(parser_folder, 'scenario_info')
+        if os.path.exists(scenario_info_folder):
+            shutil.rmtree(scenario_info_folder)
         self.replay_client.get_video_info(
             scenario_id=scenario_id,
-            local_folder=parser_folder
+            local_folder=scenario_info_folder
         )
 
         # 获取一个大致的场景时间与ECU时间的差,可能有用
-        video_info_path = os.path.join(parser_folder, f'{scenario_id}.yaml')
+        video_info_path = os.path.join(parser_folder, 'video_info.yaml')
         with open(video_info_path) as f:
             video_info = yaml.load(f, Loader=yaml.FullLoader)
         ego_csv = glob.glob(os.path.join(parser_folder, '*Ego*hz.csv'))[0]
