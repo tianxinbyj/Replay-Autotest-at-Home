@@ -192,10 +192,12 @@ class ReplayController:
         with open(video_info_path) as f:
             video_info = yaml.load(f, Loader=yaml.FullLoader)
         ego_csv = glob.glob(os.path.join(parser_folder, '*Ego*hz.csv'))[0]
-        ego_t0 = float(pd.read_csv(ego_csv)['time_stamp'][0])
-        video_info['time_delta_estimated'] = video_info['start_time'] - ego_t0 - 1
-        with open(video_info_path, 'w', encoding='utf-8') as f:
-            yaml.dump(video_info, f, encoding='utf-8', allow_unicode=True)
+        ego_data = pd.read_csv(ego_csv)
+        if len(ego_data):
+            ego_t0 = float(pd.read_csv(ego_csv)['time_stamp'][0])
+            video_info['time_delta_estimated'] = video_info['start_time'] - ego_t0 - 1
+            with open(video_info_path, 'w', encoding='utf-8') as f:
+                yaml.dump(video_info, f, encoding='utf-8', allow_unicode=True)
 
     def get_annotation(self):
         if not os.path.isdir(self.gt_raw_folder):
@@ -260,6 +262,7 @@ class ReplayController:
         self.write_log_flag = 0
         print('等待所有线程都结束')
         for t in self.thread_list:
+            print(t.ident)
             t.join()
         self.thread_list.clear()
 
@@ -318,7 +321,7 @@ class ReplayController:
 
 if __name__ == '__main__':
     replay_config = {
-        'replay_end': 30,
+        'replay_end': 95,
         'log_path': '123.csv',
         'bag_update': True,
         'scenario_id': ['20231130_184025_n000001'],
@@ -330,7 +333,7 @@ if __name__ == '__main__':
             'workspace': '/home/zhangliwei01/ZONE/TestProject/ES37_PP_Feature_20240611/03_Workspace',
         },
         'bag_action': {
-            'record': False,
+            'record': True,
             'bag_update': True,
             'compress': True,
             'parse': True,
