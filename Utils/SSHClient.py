@@ -235,8 +235,10 @@ if __name__ == '__main__':
     # local_file = '/home/zhangliwei01/789'
     # ss.scp_folder_remote_to_local(local_file, remote_file)
 
-    scenario_id = '20240528_150013_n000002'
-    local_folder = '/home/zhangliwei01/ZONE'
+    scenario_id = '20231130_184025_n000001'
+    # ss.start_replay(scenario_id)
+    # ss.stop_replay()
+    local_folder = '/home/zhangliwei01/ZONE/TestProject/temp/01_Rosbag/20231130_184025_n000001/RawData/scenario_info'
     # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
     ss.get_video_info(scenario_id, local_folder)
     # ss.clear_temp_folder()
