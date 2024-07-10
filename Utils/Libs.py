@@ -189,9 +189,11 @@ project_path = get_project_path()
 bench_config = parse_bench_config()
 test_encyclopaedia = parse_test_encyclopaedia()
 variables = parse_code_variables()
+
 TempFolder = os.path.join(project_path, 'Temp')
 if not os.path.exists(TempFolder):
     os.makedirs(TempFolder)
+
 
 if __name__ == '__main__':
     print(get_bench_id())

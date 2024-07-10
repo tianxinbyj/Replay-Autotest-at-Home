@@ -5,12 +5,10 @@
 import json
 import os
 import socket
-import sys
 from datetime import datetime
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from Libs import kill_process_by_port
-from Libs import project_path, bench_config, variables
+from Utils.Libs import kill_process_by_port
+from Utils.Libs import project_path, bench_config, variables
 
 
 class UDPLogClient:
@@ -129,7 +127,7 @@ class RotatingFileHandler:
 
 
 class UDPLogServer:
-    
+
     def __init__(self, host=None, port=None, log_dir=None, filename_prefix='HilTest_log'):
         if not host:
             self.host = bench_config['master']['ip']
@@ -194,3 +192,6 @@ class UDPLogServer:
         kill_process_by_port(self.port)
         self.udp_socket.close()
         self.file_handler.close()
+
+
+log_client = UDPLogClient()

@@ -5,6 +5,7 @@ Created on 2024/6/28.
 
 import csv
 import glob
+import inspect
 import os
 import shutil
 import sys
@@ -23,6 +24,7 @@ sys.path.append(get_project_path())
 
 from Utils.Libs import bench_config, test_encyclopaedia
 from Utils.SSHClient import SSHClient
+from Utils.Logger import log_client
 
 
 def write_log(csv_path, row, is_new=False):
@@ -79,13 +81,12 @@ class ReplayController:
             workspace=self.workspace
         )
 
-        print(self.bag_action)
-        print('录制的topic:', self.record_topic)
-        print('解析的topic:', self.parse_topic)
+        self.send_log(f'回灌的场景为: {self.scenario_ids}')
+        self.send_log(f'录制的topic: {self.record_topic}')
+        self.send_log(f'解析的topic: {self.parse_topic}')
 
     def start_replay_and_record(self, scenario_id):
-
-        print('先录制一个空的包,用于清除缓存')
+        self.send_log('先录制一个空的包,用于清除缓存')
         null_folder, _ = self.ros2bag_recorder.start_record(
             scenario_id=scenario_id,
             folder=self.pred_raw_folder,
@@ -95,11 +96,11 @@ class ReplayController:
         self.ros2bag_recorder.stop_record()
         shutil.rmtree(null_folder)
 
-        print(f'开始回灌{scenario_id}')
+        self.send_log(f'开始回灌{scenario_id}')
         self.replay_client.start_replay(
             scenario_id=scenario_id)
 
-        print(f'开始录包{scenario_id}')
+        self.send_log(f'开始录包{scenario_id}')
         bag_folder, parser_folder = self.ros2bag_recorder.start_record(
             scenario_id=scenario_id,
             folder=self.pred_raw_folder,
@@ -110,29 +111,30 @@ class ReplayController:
 
     def stop_replay_and_record(self, scenario_id=None):
         if scenario_id:
-            print(f'结束录包{scenario_id}')
+            self.send_log(f'结束录包{scenario_id}')
         self.ros2bag_recorder.stop_record()
+
         if scenario_id:
-            print(f'结束回灌{scenario_id}')
+            self.send_log(f'结束回灌{scenario_id}')
         self.replay_client.stop_replay()
 
     def parse_bag(self, scenario_id):
         xz_l = glob.glob(os.path.join(self.pred_raw_folder,
-                                     scenario_id, f'{scenario_id}*.tar.xz'))
+                                      scenario_id, f'{scenario_id}*.tar.xz'))
 
         meta_l = glob.glob(
             os.path.join(self.pred_raw_folder,
                          scenario_id, f'{scenario_id}*', 'metadata.yaml'))
 
         if not len(meta_l) and len(xz_l):
-            print(f'存在压缩包，先解压缩{scenario_id}')
+            self.send_log(f'存在压缩包，先解压缩{scenario_id}')
             bag_xz_path = xz_l[0]
             cmd = 'cd {:s}; tar xvf {:s}'.format(
                 os.path.join(self.pred_raw_folder, scenario_id),
                 os.path.basename(bag_xz_path)
             )
             os.popen(cmd).read()
-            print(f'{os.path.basename(bag_xz_path)}解压缩完成')
+            self.send_log(f'{os.path.basename(bag_xz_path)}解压缩完成')
             bag_folder = bag_xz_path[:-7]
 
         elif len(meta_l):
@@ -142,11 +144,11 @@ class ReplayController:
             bag_folder = None
 
         if not bag_folder and os.path.exists(bag_folder):
-            print(f'无效的场景{scenario_id}')
+            self.send_log(f'无效的场景{scenario_id}')
             return
 
         parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
-        print(f'开始解析{scenario_id}')
+        self.send_log(f'开始解析{scenario_id}')
         self.ros2bag_parser.getMsgInfo(
             bag_path=bag_folder,
             topic_list=self.parse_topic,
@@ -156,7 +158,7 @@ class ReplayController:
 
     def compress_bag(self, scenario_id):
         xz_l = glob.glob(os.path.join(self.pred_raw_folder,
-                                     scenario_id, f'{scenario_id}*.tar.xz'))
+                                      scenario_id, f'{scenario_id}*.tar.xz'))
         if len(xz_l):
             os.remove(xz_l[0])
 
@@ -166,16 +168,16 @@ class ReplayController:
 
         if len(meta_l):
             bag_folder = os.path.dirname(meta_l[0])
-            print('{:s}.tar.xz 开始压缩'.format(os.path.basename(bag_folder)))
+            self.send_log('{:s}.tar.xz 开始压缩'.format(os.path.basename(bag_folder)))
             cmd = 'cd {:s}; tar -Jcvf {:s}.tar.xz {:s}'.format(
                 os.path.dirname(bag_folder), os.path.basename(bag_folder), os.path.basename(bag_folder)
             )
             p = os.popen(cmd)
             p.read()
-            print('{:s}.tar.xz 压缩完成'.format(os.path.basename(bag_folder)))
+            self.send_log('{:s}.tar.xz 压缩完成'.format(os.path.basename(bag_folder)))
             shutil.rmtree(bag_folder)
 
-        print(f'获取场景信息{scenario_id}')
+        self.send_log(f'获取场景信息{scenario_id}')
         parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
         scenario_info_folder = os.path.join(parser_folder, 'scenario_info')
         if os.path.exists(scenario_info_folder):
@@ -230,18 +232,18 @@ class ReplayController:
                 scenario_folder = os.path.join(self.pred_raw_folder, scenario_id)
                 if not self.bag_update:
                     if os.path.exists(scenario_folder):
-                        print(scenario_id, '已存在, 不重新录制')
+                        self.send_log(f'{scenario_id}已存在, 不重新录制')
                         continue
                 else:
                     if os.path.exists(scenario_folder):
                         shutil.rmtree(scenario_folder)
-                        print(scenario_id, '已存在, 删除重新录制')
+                        self.send_log(f'{scenario_id}已存在, 删除重新录制')
 
                 self.start_replay_and_record(scenario_id)
 
                 while True:
                     replay_process = self.replay_client.get_replay_process()
-                    print(scenario_id, '回灌进度{:.2%}'.format(replay_process))
+                    self.send_log(scenario_id, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
                     if float(replay_process) > self.replay_end / 100:
                         self.stop_replay_and_record(scenario_id)
                         break
@@ -252,7 +254,7 @@ class ReplayController:
                 self.parse_bag(scenario_id)
 
                 if self.bag_action['compress']:
-                    t = threading.Thread(target=self.compress_bag, args=(scenario_id, ))
+                    t = threading.Thread(target=self.compress_bag, args=(scenario_id,))
                     t.daemon = True
                     t.start()
                     self.thread_list.append(t)
@@ -260,9 +262,8 @@ class ReplayController:
                 self.analyze_raw_data()
 
         self.write_log_flag = 0
-        print('等待所有线程都结束')
+        self.send_log('等待所有线程都结束')
         for t in self.thread_list:
-            print(t.ident)
             t.join()
         self.thread_list.clear()
 
@@ -317,6 +318,10 @@ class ReplayController:
         if columns:
             res = pd.DataFrame(rows, columns=columns + ['valid'], index=index)
             res.to_csv(os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv'))
+
+    def send_log(self, log):
+        log_stage = f'{self.__class__.__name__}-{inspect.currentframe().f_back.f_code.co_name}'
+        log_client.send_log(log, log_stage)
 
 
 if __name__ == '__main__':
