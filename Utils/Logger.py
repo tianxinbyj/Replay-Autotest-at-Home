@@ -2,6 +2,7 @@
 @Author: BU YUJUN
 @Date: 2024/7/10 上午9:11  
 """
+import inspect
 import json
 import os
 import socket
@@ -195,3 +196,12 @@ class UDPLogServer:
 
 
 log_client = UDPLogClient()
+
+
+def send_log(some_instance=None, log='Hello World!'):
+    if some_instance is not None:
+        log_stage = f'{some_instance.__class__.__name__}.{inspect.currentframe().f_back.f_code.co_name}'
+    else:
+        log_stage = inspect.currentframe().f_back.f_code.co_name
+
+    log_client.send_log(log, log_stage)
