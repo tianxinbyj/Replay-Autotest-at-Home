@@ -2,15 +2,6 @@
   ip:
     s32g: 172.31.131.34
     j5a: 172.31.131.35
-  ego_rect:
-  - - -1
-    - -0.95
-  - - 3.6
-    - -0.95
-  - - 3.6
-    - 0.95
-  - - -1
-    - 0.95
   enum:
     Lines:
       color:
@@ -366,15 +357,6 @@ ES37:
     s32g: 172.31.131.34
     j5a: 172.31.131.35
     j5b: 172.31.131.36
-  ego_rect:
-  - - -1
-    - -0.95
-  - - 3.6
-    - -0.95
-  - - 3.6
-    - 0.95
-  - - -1
-    - 0.95
   enum:
     Lines:
       color:
@@ -759,3 +741,44 @@ ES37:
       - /HPP/VSLAM/VSLAMMappingStart
       - /SAFrontRadarObject
       - /PI/FS/ObjTracksHorizon
+Information:
+  ego_rect:
+    - - -1
+      - -0.95
+    - - 3.6
+      - -0.95
+    - - 3.6
+      - 0.95
+    - - -1
+      - 0.95
+  Obstacles:
+    name: 动态障碍物,
+    description:
+      - 基于动态要素感知与真值的位置坐标,
+      - 获取感知与真实动态要素的关联关系,
+      - 在此基础上获得以下检测指标,
+      - a. 召回率(recall):真实动态要素被感知系统检测及追踪到的比例.
+      - b. 精确率(precision):感知系统检测到的动态要素中, 真实存在的比例.
+      - c. 位置横向/纵向偏差(distance deviation):感知动态要素的位置坐标与真值在横向/纵向的偏差.
+      - d. 速度横向/纵向偏差(velocity deviation):感知动态要素的速度与真值在横向/纵向的偏差.
+      - e. 航向角偏差(yaw deviation):感知动态要素的运动方向与真值的偏差.
+      - f. 特征准确度(accuracy):感知动态要素的类型, 尺寸, 运动状态与其对应的真值的符合程度.
+    image: ObstaclesTestSetup.png
+    raw_column:
+      - time_stamp
+      - frame_id
+      - id
+      - type
+      - sub_type
+      - x
+      - y
+      - z
+      - vx
+      - vy
+      - vx_rel
+      - vy_rel
+      - yaw
+      - length
+      - width
+      - height
+      - confidence
