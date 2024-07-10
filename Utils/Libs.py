@@ -4,7 +4,10 @@ Date: 6/21/24
 """
 import glob
 import os
+import platform
+import re
 import shutil
+import signal
 import subprocess
 import yaml
 
@@ -80,6 +83,62 @@ def get_tmux_window_content(session_name, window_name):
     return result.stdout
 
 
+def kill_process_by_port(port, password='123456'):
+    system = platform.system()
+
+    if system == "Windows":
+        # For Windows, use netstat and taskkill
+        result = subprocess.run(["netstat", "-ano", "|", "findstr", f":{port}"], capture_output=True, text=True,
+                                shell=True)
+        if result.stdout:
+            pid = result.stdout.split()[-1]
+            subprocess.run(["taskkill", "/F", "/PID", pid])
+        else:
+            print(f"No process is listening on port {port} on Windows.")
+
+    elif system == "Linux":
+        # 使用正则表达式来匹配 PID
+        command = ["sudo", "-S", "netstat", "-tulnp"]
+        result = subprocess.run(command, input=f'{password}\n', encoding='utf-8', capture_output=True, text=True)
+        output = result.stdout
+
+        # 正则表达式匹配 PID（假设 PID 是一个或多个数字）
+        pid_pattern = re.compile(r'\b(\d+)/')
+        for line in output.splitlines():
+            if f":{port} " in line:
+                match = pid_pattern.search(line)
+                if match:
+                    pid = match.group(1)
+                    kill_command = ["sudo", "-S", "kill", "-9", pid]
+                    subprocess.run(kill_command, input=f'{password}\n', encoding='utf-8')
+                    break
+    else:
+        print("Unsupported operating system.")
+
+
+def kill_process_by_keyword(keyword):
+    # 执行 ps aux 命令并获取输出
+    result = subprocess.run(['ps', 'aux'], stdout=subprocess.PIPE, text=True)
+    output = result.stdout
+
+    # 解析输出，寻找包含关键字的进程，并提取PID
+    pids = []
+    for line in output.splitlines()[1:]:  # 跳过ps aux输出的标题行
+        if keyword in line:
+            pid = line.split()[1]  # ps aux输出的第二列是PID
+            pids.append(pid)
+
+    for pid in pids:
+        try:
+            # 使用os.kill发送SIGTERM信号来终止进程
+            os.kill(int(pid), signal.SIGTERM)
+            print(f"Killed process with PID {pid}")
+        except ProcessLookupError:
+            print(f"Process with PID {pid} not found or already terminated")
+        except PermissionError:
+            print(f"Permission denied when trying to kill PID {pid}")
+
+
 def get_bench_id():
     ids = glob.glob(os.path.join(get_project_path(), 'Replay0*'))
     if len(ids):
@@ -133,7 +192,6 @@ variables = parse_code_variables()
 TempFolder = os.path.join(project_path, 'Temp')
 if not os.path.exists(TempFolder):
     os.makedirs(TempFolder)
-
 
 if __name__ == '__main__':
     print(get_bench_id())

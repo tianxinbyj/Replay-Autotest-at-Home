@@ -5,3 +5,5 @@ tmux_node:
   replay:
     - ses_replay
     - win_replay
+udp_port:
+  master_log: 20008

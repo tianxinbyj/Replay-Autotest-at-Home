@@ -22,3 +22,9 @@ Replay01:
     password: 123456
     py_path: /home/vcar/work/pythonproject/HIL_test_at_home/Replay-Autotest-at-Home
     ECU_product_preferred: 1J5
+Replay00:
+  master:
+    ip: localhost
+    username: byj
+    password: 123456
+    py_path: /home/byj/ZONE/PythonProject/Replay-Autotest-at-Home
