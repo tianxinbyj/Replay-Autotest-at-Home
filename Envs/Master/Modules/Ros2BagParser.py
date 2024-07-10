@@ -836,7 +836,7 @@ data_columns = {
         [
             'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
             'id', 'type', 'obstacle_type_text', 'confidence', 'sub_type', 'curr_lane',
-            'x', 'y', 'z', 'vx', 'vy', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
+            'x', 'y', 'z', 'vx', 'vy', 'vx_rel', 'vy_rel', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
             'is_cipv', 'is_mcp', 'status',
         ],
     'proto_horizon_msgs/msg/Lines':
@@ -875,21 +875,21 @@ data_columns = {
         [
             'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
             'id', 'type', 'obstacle_type_text', 'confidence', 'sub_type', 'curr_lane',
-            'x', 'y', 'z', 'vx', 'vy', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
+            'x', 'y', 'z', 'vx', 'vy', 'vx_rel', 'vy_rel', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
             'is_cipv', 'is_mcp', 'status',
         ],
     'pilot_perception_msg/msg/Obstacles2dDet':
         [
             'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
             'id', 'type', 'obstacle_type_text', 'confidence', 'sub_type', 'curr_lane',
-            'x', 'y', 'z', 'vx', 'vy', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
+            'x', 'y', 'z', 'vx', 'vy', 'vx_rel', 'vy_rel', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
             'is_cipv', 'is_mcp', 'status',
         ],
     'per_fusion_msgs/msg/ObjTracks':
         [
             'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
             'id', 'type', 'obstacle_type_text', 'confidence', 'sub_type', 'curr_lane',
-            'x', 'y', 'z', 'vx', 'vy', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
+            'x', 'y', 'z', 'vx', 'vy', 'vx_rel', 'vy_rel', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
             'is_cipv', 'is_mcp', 'status',
         ],
     'pilot_perception_msg/msg/VisionLaneMarkList':
@@ -1215,7 +1215,7 @@ class Ros2BagParser:
                     queue.put([
                         local_time, time_stamp, header_seq, header_stamp, frame_id,
                         obstacle_id, obstacle_type, obstacle_type_text, type_conf, sub_type, curr_lane,
-                        x, y, world_info.position.z, vx, vy, yaw, length, width, height, age, coverage,
+                        x, y, world_info.position.z, vx, vy, vx_rel, vy_rel, yaw, length, width, height, age, coverage,
                         is_cipv, is_mcp, status,
                     ])
 
@@ -1242,9 +1242,9 @@ class Ros2BagParser:
                         local_time, time_stamp, header_seq, header_stamp, frame_id,
                         ob_id, 1, 'vehicle', obj_data.obj_confidence, obj_data.obj_type, 0,
                         obj_data.center_x, obj_data.center_y, obj_data.center_z,
-                        obj_data.velocity_x, obj_data.velocity_y,
-                        obj_data.yaw, obj_data.obj_length, obj_data.obj_width, obj_data.obj_height, 0, 0,
-                        0, 0, 0,
+                        obj_data.velocity_x, obj_data.velocity_y, 0, 0,
+                        obj_data.yaw, obj_data.obj_length, obj_data.obj_width, obj_data.obj_height,
+                        0, 0, 0, 0, 0,
                     ])
 
                 for ped_cyc_id in range(ped_cyc_num):
@@ -1259,10 +1259,10 @@ class Ros2BagParser:
                     queue.put([
                         local_time, time_stamp, header_seq, header_stamp, frame_id,
                         ob_id, ob_type, obstacle_type_text, obj_data.obj_confidence, -1, 0,
-                        obj_data.center_x, obj_data.center_y, obj_data.center_z, obj_data.velocity_x,
-                        obj_data.velocity_y,
-                        obj_data.yaw, obj_data.obj_length, obj_data.obj_width, obj_data.obj_height, 0, 0,
-                        0, 0, 0,
+                        obj_data.center_x, obj_data.center_y, obj_data.center_z,
+                        obj_data.velocity_x, obj_data.velocity_y, 0, 0,
+                        obj_data.yaw, obj_data.obj_length, obj_data.obj_width, obj_data.obj_height,
+                        0, 0, 0, 0, 0,
                     ])
 
                 self.last_timestamp[topic] = time_stamp
@@ -1302,10 +1302,9 @@ class Ros2BagParser:
                                 local_time, time_stamp, header_seq, header_stamp, frame_id,
                                 ob_id, 1, 'vehicle', obj_data.obj_conf, sub_type, 0,
                                 world_info.center_x, world_info.center_y, world_info.center_z,
-                                world_info.velocity_x, world_info.velocity_y,
-                                world_info.yaw, world_info.obj_length, world_info.obj_width, world_info.obj_height, 0,
-                                0,
-                                0, 0, 0,
+                                world_info.velocity_x, world_info.velocity_y, 0, 0,
+                                world_info.yaw, world_info.obj_length, world_info.obj_width, world_info.obj_height,
+                                0, 0, 0, 0, 0,
                             ])
 
                     for ped_cyc_id in range(ped_cyc_num):
@@ -1323,10 +1322,9 @@ class Ros2BagParser:
                                 local_time, time_stamp, header_seq, header_stamp, frame_id,
                                 ob_id, ob_type, obj_type_text, obj_data.obj_conf, obj_data.obj_type, 0,
                                 world_info.center_x, world_info.center_y, world_info.center_z,
-                                world_info.velocity_x, world_info.velocity_y,
-                                world_info.yaw, world_info.obj_length, world_info.obj_width, world_info.obj_height, 0,
-                                0,
-                                0, 0, 0,
+                                world_info.velocity_x, world_info.velocity_y, 0, 0,
+                                world_info.yaw, world_info.obj_length, world_info.obj_width, world_info.obj_height,
+                                0, 0, 0, 0, 0,
                             ])
 
                     self.last_timestamp[topic] = time_stamp
@@ -1399,7 +1397,7 @@ class Ros2BagParser:
                         queue.put([
                             local_time, time_stamp, header_seq, header_stamp, frame_id,
                             obstacle_id, obj_type, obj_type_text, type_conf, sub_type, 0,
-                            x, y, 0, vx, vy, yaw, length, width, height, 0, 0,
+                            x, y, 0, vx, vy, vx_rel, vy_rel, yaw, length, width, height, 0, 0,
                             is_cipv, is_mcp, 0,
                         ])
 
