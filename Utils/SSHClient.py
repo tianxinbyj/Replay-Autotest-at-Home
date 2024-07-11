@@ -19,22 +19,38 @@ import pandas as pd
 import paramiko
 import yaml
 
+from Utils.Libs import bench_config
+
 
 class SSHClient:
 
     def __init__(self, ip=None, username=None, password=None):
         self.temp_folder = None
         self.interface_path = None
-        self.ip = ip
-        self.username = username
-        self.password = password
+
+        # 默认使用ReplayClient作为目标
+        if not ip:
+            self.ip = bench_config['ReplayClient']['ip']
+            project_path = bench_config['ReplayClient']['py_path']
+            self.interface_path = f'{project_path}/Envs/ReplayClient/Interfaces'
+            self.temp_folder = f'{project_path}/Temp'
+        else:
+            self.ip = ip
+        if not username:
+            self.username = bench_config['ReplayClient']['username']
+        else:
+            self.username = username
+        if not password:
+            self.password = str(bench_config['ReplayClient']['password'])
+        else:
+            self.password = str(password)
 
     def load_info(self, ip, username, password):
         self.ip = ip
         self.username = username
         self.password = password
 
-    def set_interface_path(self, project_path):
+    def set_interface_path(self, project_path=None):
         self.interface_path = f'{project_path}/Envs/ReplayClient/Interfaces'
         self.temp_folder = f'{project_path}/Temp'
         self.clear_temp_folder()
@@ -216,7 +232,7 @@ class SSHClient:
             print(f"Error: {e}")
             ssh.close()
             return e
-    
+
     def clear_temp_folder(self):
         command = f'rm -rf {self.temp_folder}/*'
         print(command)
@@ -224,21 +240,16 @@ class SSHClient:
 
 
 if __name__ == '__main__':
-    ip = '172.31.131.222'
-    username = 'vcar'
-    password = '123456'
-    project_path = '/home/vcar/work/pythonProject/Replay-Autotest-at-Home'
-    ss = SSHClient(ip, username, password)
-    ss.set_interface_path(project_path)
+    ss = SSHClient()
 
     # remote_file = f'/media/data/annotation/20240527_160340_n000002'
     # local_file = '/home/zhangliwei01/789'
     # ss.scp_folder_remote_to_local(local_file, remote_file)
 
-    scenario_id = '20231130_184025_n000001'
-    # ss.start_replay(scenario_id)
+    scenario_id = '20240123_143218_n000001'
+    ss.start_replay(scenario_id)
     # ss.stop_replay()
-    local_folder = '/home/zhangliwei01/ZONE/TestProject/temp/01_Rosbag/20231130_184025_n000001/RawData/scenario_info'
+    # local_folder = '/home/zhangliwei01/ZONE/TestProject/temp/01_Rosbag/20231130_184025_n000001/RawData/scenario_info'
     # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
-    ss.get_video_info(scenario_id, local_folder)
+    # ss.get_video_info(scenario_id, local_folder)
     # ss.clear_temp_folder()
