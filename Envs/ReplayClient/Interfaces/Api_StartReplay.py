@@ -10,7 +10,7 @@ from Libs import get_project_path
 sys.path.append(get_project_path())
 
 from Envs.ReplayClient.Modules.ReplayManagement import ReplayManagement
-from Envs.ReplayClient.Modules.DataSelector import DataSelector
+from Envs.ReplayClient.Modules.DataSelector import data_selector
 
 
 def main():
@@ -19,7 +19,6 @@ def main():
     args = parser.parse_args()
 
     if args.scenario_id != 's':
-        data_selector = DataSelector()
         scenario_id = args.scenario_id
         is_existed = data_selector.gen_video_config(scenario_id)
         if not is_existed:

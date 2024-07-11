@@ -131,10 +131,10 @@ class BenchDBMS:
         # print(root)
         # print(Path(root).parts[-1])
         if '_n000' in Path(root).parts[-1]:  # root文件夹是分割开的，如 20231128_152430_n000001
-            print('find split')
+            # print('find split')
             piece_id = Path(root).parts[-1]
             piece_num_str = piece_id[-7:]  # n000002
-            print(piece_num_str)
+            # print(piece_num_str)
             single_root_series_list = []
 
             single_root_id_index_list = [piece_id]
@@ -146,13 +146,13 @@ class BenchDBMS:
                                'CAM_FISHEYE_RIGHT', 'CAM_FRONT_30', 'CAM_FRONT_120',
                                'CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT']:
                         temp_series_list.append(
-                            glob.glob(os.path.join(root, '*', col, 'n{:s}*.mkv'.format(piece_num_str)))[0])  # .mkv
+                            glob.glob(os.path.join(root, '*', col, '{:s}*.mkv'.format(piece_num_str)))[0])  # .mkv
                     elif col in ['ADAS1', 'ADAS2', 'ADAS3', 'BKP', 'CH', 'IMU', 'IPS', 'PT', 'Safety']:
                         temp_series_list.append(
-                            glob.glob(os.path.join(root, '*', col, 'n{:s}*.asc'.format(piece_num_str)))[0])  # .asc
+                            glob.glob(os.path.join(root, '*', col, '{:s}*.asc'.format(piece_num_str)))[0])  # .asc
                     else:
                         temp_series_list.append(
-                            glob.glob(os.path.join(root, '*', col, 'n{:s}*'.format(piece_num_str)))[0])  # .pcap等
+                            glob.glob(os.path.join(root, '*', col, '{:s}*'.format(piece_num_str)))[0])  # .pcap等
                 except:
                     # print('not find ', col, temp_series_list)
                     temp_series_list.append(None)

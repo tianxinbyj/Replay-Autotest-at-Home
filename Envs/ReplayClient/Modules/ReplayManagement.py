@@ -74,7 +74,7 @@ class ReplayManagement:
         replay_process = None
         for t in text:
             if 'task_id' in t:
-                matches = re.findall(r'task_id \d{1,5}', t)
+                matches = re.findall(r'"task_id":\s*(\d+)', t)
                 for match in matches:
                     try:
                         task_id = int(match.split(' ')[-1])
