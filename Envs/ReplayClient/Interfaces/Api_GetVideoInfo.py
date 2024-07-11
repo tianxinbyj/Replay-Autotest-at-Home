@@ -65,12 +65,12 @@ def main():
 
     # 保存視頻截圖
     for frame_number in [300, 3000]:
-        pic_path = os.path.join('/media/data/video_info', f'{args.scenario_id}_{frame_number}.jpg')
+        pic_path = os.path.join('/media/data/video_info', f'{args.scenario_id}_{frame_number}.png')
         extract_frame(video_path, frame_number, pic_path)
         print('file', pic_path)
 
     # 获取地图
-    map_path = os.path.join('/media/data/video_info', f'{args.scenario_id}_map.jpg')
+    map_path = os.path.join('/media/data/video_info', f'{args.scenario_id}_map.png')
     if os.path.exists(map_path):
         print('file', map_path)
     else:

@@ -35,12 +35,17 @@ class Ros2BagRecorder:
         kill_tmux_session_if_exists(self.tmux_session)
 
         work_folder = os.path.join(folder, scenario_id)
-        if os.path.exists(work_folder):
-            shutil.rmtree(work_folder)
-        os.makedirs(work_folder)
+        if not os.path.exists(work_folder):
+            os.makedirs(work_folder)
+
         bag_folder = os.path.join(work_folder, bag_name)
+        if os.path.exists(bag_folder):
+            shutil.rmtree(bag_folder)
+
         parser_folder = os.path.join(work_folder, 'RawData')
-        os.mkdir(parser_folder)
+        if os.path.exists(parser_folder):
+            shutil.rmtree(parser_folder)
+        os.makedirs(parser_folder)
 
         qos_config = os.path.join(get_project_path(),
                                   'Docs', 'Resources', 'qos_config', 'best_effort_driving.yaml')

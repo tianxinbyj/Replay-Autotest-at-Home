@@ -3,6 +3,7 @@ Author: Bu Yujun
 Date: 6/21/24  
 """
 import glob
+import hashlib
 import os
 import platform
 import re
@@ -184,6 +185,20 @@ def create_folder(path, update=True):
             os.makedirs(path)
 
 
+def calculate_file_checksum(file_path, method='md5'):
+    """
+    计算文件的校验和（哈希值）。
+    :param filepath: 文件的路径。
+    :param method: 使用的哈希算法，默认为'md5'。
+    :return: 文件的哈希值。
+    """
+    hash_func = getattr(hashlib, method)()
+    with open(file_path, 'rb') as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_func.update(chunk)
+    return hash_func.hexdigest()
+
+
 bench_id = get_bench_id()
 project_path = get_project_path()
 bench_config = parse_bench_config()
@@ -197,3 +212,12 @@ if not os.path.exists(TempFolder):
 
 if __name__ == '__main__':
     print(get_bench_id())
+    f1 = '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/01_Rosbag/20230627_173157_n000001/RawData/scenario_info/json_calib/100/front.json'
+    f2 = '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/01_Rosbag/20230602_144755_n000005/RawData/scenario_info/json_calib/100/front.json'
+    f3 = '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/01_Rosbag/20230602_144755_n000005/RawData/scenario_info/json_calib/101/front_30fov.json'
+    c1 = calculate_file_checksum(f1)
+    c2 = calculate_file_checksum(f2)
+    c3 = calculate_file_checksum(f3)
+    print(type(c1))
+    print(c1 == c2)
+    print(c1, c2, c3)

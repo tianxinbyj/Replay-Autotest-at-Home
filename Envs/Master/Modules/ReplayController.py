@@ -21,37 +21,27 @@ from Ros2BagRecorder import Ros2BagRecorder
 
 sys.path.append(get_project_path())
 
-from Utils.Libs import bench_config, test_encyclopaedia
+from Utils.Libs import bench_config, test_encyclopaedia, calculate_file_checksum
 from Utils.SSHClient import SSHClient
 from Utils.Logger import send_log
-
-
-def write_log(csv_path, row, is_new=False):
-    write_flag = 'w' if is_new else 'a+'
-    with open(csv_path, write_flag, encoding='utf-8') as f:
-        f_csv = csv.writer(f)
-        f_csv.writerow(row)
 
 
 class ReplayController:
 
     def __init__(self, replay_config):
 
-        self.running_stage = None
-        self.running_topic = None
-        self.running_scenario_id = None
-        self.write_log_flag = None
+        # 变量初始化
         self.thread_list = []
+        self.calib_file = {}
 
         # 读取参数
         self.replay_end = replay_config['replay_end']
-        self.log_path = replay_config['log_path']
         self.bag_update = replay_config['bag_update']
         self.scenario_ids = replay_config['scenario_id']
         self.pred_raw_folder = replay_config['data_folder']['raw']['pred']
         self.gt_raw_folder = replay_config['data_folder']['raw']['gt']
         self.workspace = replay_config['data_folder']['workspace']
-        self.bag_action = replay_config['bag_action']
+        self.replay_action = replay_config['replay_action']
 
         product = replay_config['product']
         test_type = replay_config['test_type']
@@ -155,6 +145,8 @@ class ReplayController:
             tag=scenario_id
         )
 
+        self.get_video_info(scenario_id)
+
     def compress_bag(self, scenario_id):
         xz_l = glob.glob(os.path.join(self.pred_raw_folder,
                                       scenario_id, f'{scenario_id}*.tar.xz'))
@@ -167,24 +159,53 @@ class ReplayController:
 
         if len(meta_l):
             bag_folder = os.path.dirname(meta_l[0])
-            send_log(self, '{:s}.tar.xz 开始压缩'.format(os.path.basename(bag_folder)))
+            send_log(self, '开始压缩 {:s}.tar.xz'.format(os.path.basename(bag_folder)))
             cmd = 'cd {:s}; tar -Jcvf {:s}.tar.xz {:s}'.format(
                 os.path.dirname(bag_folder), os.path.basename(bag_folder), os.path.basename(bag_folder)
             )
             p = os.popen(cmd)
             p.read()
-            send_log(self, '{:s}.tar.xz 压缩完成'.format(os.path.basename(bag_folder)))
+            send_log(self, '压缩完成 {:s}.tar.xz'.format(os.path.basename(bag_folder)))
             shutil.rmtree(bag_folder)
 
-        send_log(self, f'获取场景信息{scenario_id}')
-        parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
-        scenario_info_folder = os.path.join(parser_folder, 'scenario_info')
+    def group_scenarios_by_calib(self):
+        scenario_groups = {}
+        for scenario_id in self.scenario_ids:
+            parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
+            test_topic_info = os.path.join(parser_folder, 'TestTopicInfo.yaml')
+            if self.bag_update or (not os.path.exists(test_topic_info)):
+                check_file_path = os.path.join(self.calib_file[scenario_id], 'json_calib', '100', 'front.json')
+                check_sum = calculate_file_checksum(check_file_path)
+                if check_sum not in scenario_groups:
+                    scenario_groups[check_sum] = []
+                scenario_groups[check_sum].append(scenario_id)
+            else:
+                send_log(self, f'{scenario_id}已经存在,不需录制')
+
+        for key, value in scenario_groups.items():
+            send_log(self, f'标定文件为{key}的场景为{value}')
+
+        return list(scenario_groups.values())
+
+    def get_calib(self, scenario_id):
+        send_log(self, f'获取标定文件{scenario_id}')
+        scenario_info_folder = os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info')
         if os.path.exists(scenario_info_folder):
             shutil.rmtree(scenario_info_folder)
         os.makedirs(scenario_info_folder)
-
-        self.replay_client.get_video_info(
+        self.replay_client.get_scenario_info(
             scenario_id=scenario_id,
+            info_type='Calib',
+            local_folder=scenario_info_folder,
+        )
+        self.calib_file[scenario_id] = scenario_info_folder
+
+    def get_video_info(self, scenario_id):
+        send_log(self, f'获取场景信息{scenario_id}')
+        scenario_info_folder = os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info')
+        self.replay_client.get_scenario_info(
+            scenario_id=scenario_id,
+            info_type='VideoInfo',
             local_folder=scenario_info_folder,
         )
 
@@ -192,6 +213,7 @@ class ReplayController:
         video_info_path = os.path.join(scenario_info_folder, 'video_info.yaml')
         with open(video_info_path) as f:
             video_info = yaml.load(f, Loader=yaml.FullLoader)
+        parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
         ego_csv = glob.glob(os.path.join(parser_folder, '*Ego*hz.csv'))[0]
         ego_data = pd.read_csv(ego_csv)
         if len(ego_data):
@@ -199,83 +221,70 @@ class ReplayController:
             video_info['time_delta_estimated'] = video_info['start_time'] - ego_t0 - 1
             with open(video_info_path, 'w', encoding='utf-8') as f:
                 yaml.dump(video_info, f, encoding='utf-8', allow_unicode=True)
+        else:
+            send_log(self, f'{scenario_id} /PI/EG/EgoMotionInfo 数据为空')
 
     def get_annotation(self):
         if not os.path.isdir(self.gt_raw_folder):
             os.makedirs(self.gt_raw_folder)
 
         for scenario_id in self.scenario_ids:
+            send_log(self, f'获取真值 {scenario_id}')
             remote_folder = f'/media/data/annotation/{scenario_id}'
             local_folder = os.path.join(self.gt_raw_folder, scenario_id)
             self.replay_client.scp_folder_remote_to_local(local_folder, remote_folder)
 
-    def run(self):
-        # 0.记录log
-        self.write_log_flag = 1
-        self.auto_write_log()
+    def copy_calib_file(self, scenario_id):
+        # todo: 下电, 拷贝参数, 上电, 使用scenario_group[0]对应的参数
+        send_log(self,  f'拷贝相机参数{scenario_id}')
+
+    def start(self):
 
         # 1.获取真值，线程中执行
-        if self.bag_action['get_gt']:
+        if self.replay_action['get_gt']:
             t = threading.Thread(target=self.get_annotation)
             t.daemon = True
             t.start()
+            self.thread_list.append(t)
 
+        # 2. 检查标定文件并分组
+        self.calib_file = {}
         for scenario_id in self.scenario_ids:
+            self.get_calib(scenario_id)
+        scenario_groups = self.group_scenarios_by_calib()
 
-            self.running_stage = f'{self.__class__.__name__}.bag_record'
-            self.running_topic = 'All_Topic'
-            self.running_scenario_id = scenario_id
+        # 3. 录制和解析
+        if self.replay_action['record']:
+            for scenario_group in scenario_groups:
+                if self.replay_action['calib']:
+                    self.copy_calib_file(scenario_group[0])
 
-            # 2.回灌和录包
-            if self.bag_action['record']:
-                scenario_folder = os.path.join(self.pred_raw_folder, scenario_id)
-                if not self.bag_update:
-                    if os.path.exists(scenario_folder):
-                        send_log(self, f'{scenario_id}已存在, 不重新录制')
-                        continue
-                else:
-                    if os.path.exists(scenario_folder):
-                        shutil.rmtree(scenario_folder)
-                        send_log(self, f'{scenario_id}已存在, 删除重新录制')
+                for scenario_id in scenario_group:
+                    self.start_replay_and_record(scenario_id)
 
-                self.start_replay_and_record(scenario_id)
+                    while True:
+                        replay_process = self.replay_client.get_replay_process()
+                        send_log(self, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
+                        if float(replay_process) > self.replay_end / 100:
+                            self.stop_replay_and_record(scenario_id)
+                            break
+                        time.sleep(8)
 
-                while True:
-                    replay_process = self.replay_client.get_replay_process()
-                    send_log(self, scenario_id, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
-                    if float(replay_process) > self.replay_end / 100:
-                        self.stop_replay_and_record(scenario_id)
-                        break
-                    time.sleep(8)
-
-            # 3.解析和压缩
-            if self.bag_action['parse']:
-                self.parse_bag(scenario_id)
-
-                if self.bag_action['compress']:
+                    self.parse_bag(scenario_id)
                     t = threading.Thread(target=self.compress_bag, args=(scenario_id,))
                     t.daemon = True
                     t.start()
                     self.thread_list.append(t)
 
-                self.analyze_raw_data()
+                    self.analyze_raw_data()
 
-        self.write_log_flag = 0
         send_log(self, '等待所有线程都结束')
         for t in self.thread_list:
             t.join()
         self.thread_list.clear()
 
-    def write_log(self):
-        while self.write_log_flag:
-            row = [time.time(), self.running_scenario_id, self.running_topic, self.running_stage]
-            write_log(self.log_path, row)
-            time.sleep(np.pi / 2)
-
-    def auto_write_log(self):
-        t = threading.Thread(target=self.write_log)
-        t.daemon = True
-        t.start()
+        send_log(self, '清理临时文件夹')
+        self.replay_client.clear_temp_folder()
 
     def analyze_raw_data(self):
         rows = []
@@ -322,26 +331,38 @@ class ReplayController:
 if __name__ == '__main__':
     replay_config = {
         'replay_end': 95,
-        'log_path': '123.csv',
         'bag_update': True,
-        'scenario_id': ['20231130_184025_n000001'],
+        'scenario_id': [
+            '20230602_144755_n000003',
+            '20230627_170934_n000001',
+            '20230703_103858_n000003',
+            '20230703_105701_n000001',
+            # '20230706_160503_n000001',
+            # '20230706_161116_n000001',
+            # '20230706_162037_n000001',
+            '20230602_144755_n000005',
+            '20230614_135643_n000001',
+            '20230614_142204_n000004',
+            '20230627_173157_n000001',
+            # '20230706_165109_n000002',
+            # '20230706_184054_n000001',
+        ],
         'data_folder': {
             'raw': {
-                'pred': '/home/zhangliwei01/ZONE/TestProject/temp/01_Rosbag',
-                'gt': '/home/zhangliwei01/ZONE/TestProject/temp/02_Annotation',
+                'pred': '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/01_Rosbag',
+                'gt': '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/02_Annotation',
             },
-            'workspace': '/home/zhangliwei01/ZONE/TestProject/ES37_PP_Feature_20240611/03_Workspace',
+            'workspace': '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/03_Workspace',
         },
-        'bag_action': {
+        'replay_action': {
+            'calib': True,
             'record': True,
             'bag_update': True,
-            'compress': True,
-            'parse': True,
             'get_gt': False,
         },
-        'product': 'ES37',
+        'product': '1J5',
         'test_type': 'pilot',
     }
 
     replay_controller = ReplayController(replay_config)
-    replay_controller.run()
+    replay_controller.start()

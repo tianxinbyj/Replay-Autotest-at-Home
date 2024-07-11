@@ -67,8 +67,8 @@ class SSHClient:
             res = stdout.read().decode()
             err = stderr.read().decode()
             # print(res)
+            # print('======================')
             # print(err)
-            # print(stderr.read().decode())
 
         except Exception as e:
             print(f"Error: {e}")
@@ -133,8 +133,11 @@ class SSHClient:
         except:
             return None
 
-    def get_video_info(self, scenario_id, local_folder=None):
-        command = f'cd {self.interface_path} && python3 Api_GetVideoInfo.py -s {scenario_id}'
+    def get_scenario_info(self, scenario_id, info_type, local_folder=None):
+        if info_type == 'VideoInfo':
+            command = f'cd {self.interface_path} && python3 Api_GetVideoInfo.py -s {scenario_id}'
+        else:
+            command = f'cd {self.interface_path} && python3 Api_GetCalib.py -s {scenario_id}'
         print(command)
         res = self.send_cmd(command)
         try:
@@ -241,15 +244,10 @@ class SSHClient:
 
 if __name__ == '__main__':
     ss = SSHClient()
-
-    # remote_file = f'/media/data/annotation/20240527_160340_n000002'
-    # local_file = '/home/zhangliwei01/789'
-    # ss.scp_folder_remote_to_local(local_file, remote_file)
-
     scenario_id = '20240123_143218_n000001'
-    ss.start_replay(scenario_id)
+    # ss.start_replay(scenario_id)
     # ss.stop_replay()
-    # local_folder = '/home/zhangliwei01/ZONE/TestProject/temp/01_Rosbag/20231130_184025_n000001/RawData/scenario_info'
+    local_folder = '/home/caobingqi/ZONE/Data/TestProject/temp/01_Rosbag'
     # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
-    # ss.get_video_info(scenario_id, local_folder)
+    ss.get_scenario_info(scenario_id, 'VideoInfo', local_folder)
     # ss.clear_temp_folder()
