@@ -48,10 +48,18 @@ def copy_to_destination(source, destination_dir):
         os.makedirs(destination_dir)
 
     destination = os.path.join(destination_dir, os.path.basename(source))
+    existed_flag = os.path.exists(destination)
+
     if os.path.isfile(source):
+        if existed_flag:
+            os.remove(destination)
         shutil.copy(source, destination)
+
     elif os.path.isdir(source):
+        if existed_flag:
+            shutil.rmtree(destination)
         shutil.copytree(source, destination)
+
     else:
         print(f"{source}源路径不存在或既不是文件也不是文件夹")
         return None

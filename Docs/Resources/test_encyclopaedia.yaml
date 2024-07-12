@@ -752,7 +752,12 @@ Information:
     - - -1
       - 0.95
   Obstacles:
-    name: 动态障碍物,
+    name: 动态障碍物
+    topics:
+      /VA/Obstacles: 感知后处理
+      /PI/FS/ObjTracksHorizon: 感知融合
+      /VA/BevObstaclesDet: 感知BEV模型
+      /VA/FrontWideObstacles2dDet: 感知Mono模型
     description:
       - 基于动态要素感知与真值的位置坐标,
       - 获取感知与真实动态要素的关联关系,
@@ -782,3 +787,12 @@ Information:
       - width
       - height
       - confidence
+  Lines:
+    name: 车道线
+    topics:
+      /VA/Lines: 感知前向
+      /PI/FS/LaneMarkingsHorizon: 感知融合
+  Objects:
+    name: 静态障碍物
+    topics:
+       /VA/Objects: 感知后处理

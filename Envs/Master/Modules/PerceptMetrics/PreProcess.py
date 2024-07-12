@@ -86,18 +86,77 @@ def calculate_time_gap(
     return t_delta, res['v_error'].min()
 
 
-def get_rect_points(x, y, yaw, length, width):
-    a = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
-        [[-length / 2], [-width / 2]])).reshape(1, 2) + np.array([[x, y]])
-    b = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
-        [[length / 2], [-width / 2]])).reshape(1, 2) + np.array([[x, y]])
-    c = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
-        [[length / 2], [width / 2]])).reshape(1, 2) + np.array([[x, y]])
-    d = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
-        [[-length / 2], [width / 2]])).reshape(1, 2) + np.array([[x, y]])
-    return *a[0], *b[0], *c[0], *d[0]
+class RectPoints:
+
+    def __init__(self):
+        self.columns = [
+            'pt_0_x', 'pt_0_y',
+            'pt_1_x', 'pt_1_y',
+            'pt_2_x', 'pt_2_y',
+            'pt_3_x', 'pt_3_y',
+        ]
+
+    def __call__(self, input_data):
+        if isinstance(input_data, dict):  # 假设传入的是一行数据的字典形式
+            x = input_data['x']
+            y = input_data['y']
+            yaw = input_data['yaw']
+            length = input_data['length']
+            width = input_data['width']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 5):  # 假设传入的是五个参数的元组
+            x, y, yaw, length, width = input_data
+
+        else:
+            raise ValueError("Invalid input format for get_rect_points function")
+
+        # 使用旋转矩阵计算矩形左下角点a的坐标
+        a = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+            [[-length / 2], [-width / 2]])).reshape(1, 2) + np.array([[x, y]])
+
+        # 使用旋转矩阵计算矩形右下角点b的坐标
+        b = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+            [[length / 2], [-width / 2]])).reshape(1, 2) + np.array([[x, y]])
+
+        # 使用旋转矩阵计算矩形右上角点c的坐标
+        c = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+            [[length / 2], [width / 2]])).reshape(1, 2) + np.array([[x, y]])
+
+        # 使用旋转矩阵计算矩形左上角点d的坐标
+        d = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+            [[-length / 2], [width / 2]])).reshape(1, 2) + np.array([[x, y]])
+
+        # 返回矩形的四个顶点的坐标
+        return *a[0], *b[0], *c[0], *d[0]
+
+
+class ObstaclesPreprocess:
+    
+    def __init__(self, data, preprocess_types=None):
+        if preprocess_types is None:
+            self.preprocess_types = [
+                'RectPoints',
+            ]
+        else:
+            self.preprocess_types = []
+
+        for preprocess_type in self.preprocess_types:
+            func = eval(f'{preprocess_type}()')
+            result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
+            result_df.columns = func.columns
+            data = pd.concat([data, result_df], axis=1)
+
+        self.data = data
 
 
 if __name__ == '__main__':
-    x, y, yaw, length, width = 83.331413269043, 4.83086681365967, 0.046913467347622, 4.56963491439819, 1.87354874610901
-    print(get_rect_points(x, y, yaw, length, width))
+    df = pd.DataFrame({
+        'x': [10, 20],
+        'y': [30, 40],
+        'yaw': [np.pi / 4, np.pi / 2],
+        'length': [5, 6],
+        'width': [2, 3]
+    })
+
+    d = ObstaclesPreprocess(df, preprocess_types=['rectPoints'])

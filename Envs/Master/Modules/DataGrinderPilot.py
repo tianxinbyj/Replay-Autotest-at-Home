@@ -30,35 +30,20 @@ def get_test_project_root_path(path):
         path = os.path.dirname(path)
 
 
-def get_raw_column(topic):
-    if topic in [
-        '/VA/Obstacles',
-        '/VA/FrontWideObstacles2dDet',
-        '/VA/BevObstaclesDet',
-        '/PI/FS/ObjTracksHorizon'
-    ]:
-        raw_column = test_encyclopaedia['Information']['Obstacles']['raw_column']
-    elif topic in [
-        '/VA/Lines',
-        'VA/FusLines',
-        '/PI/FS/LaneMarkingsHorizonDebug',
-        '/PI/FS/LaneMarkingsHorizon',
-    ]:
-        raw_column = test_encyclopaedia['Information']['Lines']['raw_column']
-    elif topic in [
-        '/VA/Objects'
-    ]:
-        raw_column = test_encyclopaedia['Information']['Objects']['raw_column']
-    else:
-        raw_column = None
+def get_topic_attribution(topic):
+    for topic_belonging in test_encyclopaedia['Information']:
+        if 'topics' in test_encyclopaedia['Information'][topic_belonging]:
+            if topic in test_encyclopaedia['Information'][topic_belonging]['topics']:
+                return topic_belonging, test_encyclopaedia['Information'][topic_belonging]['raw_column']
 
-    return raw_column
+    return None, None
 
 
 class DataGrinderPilotOneCase:
 
     def __init__(self, scenario_unit_path):
         # 变量初始化
+        send_log(self, '=' * 50)
 
         # 同时要考虑文件文件路径发生变化，需要修改yaml中的所有相关路径
         scenario_config_yaml = os.path.join(scenario_unit_path, 'TestConfig.yaml')
@@ -95,7 +80,7 @@ class DataGrinderPilotOneCase:
         self.test_result_info_path = os.path.join(self.unit_folder, 'TestResultInfo.yaml')
         if not os.path.exists(self.test_result_info_path):
             self.test_result = {'General': {}, 'Topics': {topic: {
-                'raw': {}, 'additional': {},
+                'frequency': {}, 'raw': {}, 'additional': {},
             } for topic in self.topics_for_evaluation}}
 
             self.save_test_result()
@@ -106,7 +91,7 @@ class DataGrinderPilotOneCase:
                       f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
     def load_pred_data(self):
-        test_topic_info_path = os.path.join(self.pred_raw_folder, 'TestTopicInfo.yaml')
+        test_topic_info_path = os.path.join(self.pred_raw_folder, 'RawData', 'TestTopicInfo.yaml')
         if not os.path.exists(test_topic_info_path):
             send_log(self, 'No TestTopicInfo.yaml is found. Please check')
             return
@@ -122,12 +107,13 @@ class DataGrinderPilotOneCase:
             if topic in self.topics_for_evaluation:
                 send_log(self, f'Prediction 正在读取{topic}')
 
-                raw_column = get_raw_column(topic)
+                _, raw_column = get_topic_attribution(topic)
                 if not raw_column:
+                    send_log(self, f'Prediction 不存在{topic}对应的raw_column')
                     continue
 
                 # 读取原始数据
-                csv_list = glob.glob(os.path.join(self.pred_raw_folder, f'{topic_tag}*.csv'))
+                csv_list = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*.csv'))
                 csv_data = []
                 for csv_file in sorted(csv_list, reverse=False):
                     if 'hz' not in csv_file:
@@ -135,7 +121,7 @@ class DataGrinderPilotOneCase:
                 pred_data = pd.concat(csv_data).sort_values(by=['time_stamp'])[raw_column]
 
                 # 读取时间辍，用于时间辍匹配
-                pred_timestamp_csv = glob.glob(os.path.join(self.pred_raw_folder, f'{topic_tag}*hz.csv'))[0]
+                pred_timestamp_csv = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*hz.csv'))[0]
                 pred_timestamp = pd.read_csv(pred_timestamp_csv, index_col=False).sort_values(
                     by=['time_stamp']).drop_duplicates(subset=['time_stamp'], keep='first')
 
@@ -149,13 +135,13 @@ class DataGrinderPilotOneCase:
                 path = os.path.join(raw_folder, 'pred_timestamp.csv')
                 pred_timestamp.to_csv(path, index=False)
                 self.test_result['Topics'][topic]['raw']['pred_timestamp'] = path
-                self.test_result['Topics'][topic]['raw']['pred_hz'] = float(os.path.basename(pred_timestamp_csv).split('_')[1])
+                self.test_result['Topics'][topic]['frequency']['pred_hz'] = float(os.path.basename(pred_timestamp_csv).split('_')[1])
 
             elif topic == '/PI/EG/EgoMotionInfo':
                 send_log(self, f'Prediction 正在读取{topic}, 用于时间同步')
 
                 # 读取原始数据
-                csv_list = glob.glob(os.path.join(self.pred_raw_folder, f'{topic_tag}*.csv'))
+                csv_list = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*.csv'))
                 csv_data = []
                 for csv_file in sorted(csv_list, reverse=False):
                     if 'hz' not in csv_file:
@@ -183,19 +169,9 @@ class DataGrinderPilotOneCase:
             gt_config = yaml.load(f, Loader=yaml.FullLoader)
 
         gt_topic_mapping = {
-            'od_csv': [
-                '/VA/Obstacles',
-                '/PI/FS/ObjTracksHorizon',
-                '/VA/BevObstaclesDet',
-                '/VA/FrontWideObstacles2dDet',
-            ],
-            'object_csv': ['/VA/Objects'],
-            'lanebev_csv': [
-                '/VA/Lines',
-                'VA/FusLines',
-                '/PI/FS/LaneMarkingsHorizonDebug',
-                '/PI/FS/LaneMarkingsHorizon',
-            ],
+            'od_csv': test_encyclopaedia['Information']['Obstacles']['topics'],
+            'object_csv': test_encyclopaedia['Information']['Objects']['topics'],
+            'lanebev_csv': test_encyclopaedia['Information']['Lines']['topics'],
         }
 
         gt_topics = {}
@@ -239,7 +215,11 @@ class DataGrinderPilotOneCase:
 
                 for topic in topic_list:
                     send_log(self, f'GroundTruth 保存数据于{topic}')
-                    raw_column = get_raw_column(topic)
+
+                    _, raw_column = get_topic_attribution(topic)
+                    if not raw_column:
+                        send_log(self, f'GroundTruth 不存在{topic}对应的raw_column')
+                        continue
 
                     topic_tag = topic.replace('/', '')
                     raw_folder = os.path.join(self.DataFolder, topic_tag, 'raw', 'gt')
@@ -252,7 +232,7 @@ class DataGrinderPilotOneCase:
                     path = os.path.join(raw_folder, 'gt_timestamp.csv')
                     gt_timestamp.to_csv(path, index=False)
                     self.test_result['Topics'][topic]['raw']['gt_timestamp'] = path
-                    self.test_result['Topics'][topic]['raw']['gt_hz'] = gt_hz
+                    self.test_result['Topics'][topic]['frequency']['gt_hz'] = gt_hz
 
         # 自车速度用于对齐
         ego_data_path = os.path.join(self.GT_raw_folder, 'od_ego.csv')
@@ -304,15 +284,23 @@ class DataGrinderPilotOneCase:
             additional_folder = os.path.join(self.DataFolder, topic_tag, 'additional')
             create_folder(additional_folder)
 
+            topic_belonging, _ = get_topic_attribution(topic)
+            print(f'PreProcess.{topic_belonging}Preprocess')
+            reprocess_cls = eval(f'PreProcess.{topic_belonging}Preprocess')
+            send_log(self, f'{topic} 归属于 {topic_belonging}, 使用{topic_belonging}Preprocess')
+
             for k, v in raw.items():
-                if isinstance(v, float):
-                    self.test_result['Topics'][topic]['additional'][k] = v
-                elif 'csv' in v:
+                if 'csv' in v:
                     data = pd.read_csv(v, index_col=False)
 
                     if 'pred' in k:
-                        send_log(self, f'{topic} 时间辍同步')
+                        send_log(self, f'{topic} {k} 时间辍同步')
                         data['time_stamp'] += time_gap
+
+                    if 'timestamp' not in k:
+                        ins = reprocess_cls(data)
+                        send_log(self, f'{topic} {k} 预处理步骤 {ins.preprocess_types}')
+                        data = ins.data
 
                     path = os.path.join(additional_folder, os.path.basename(v))
                     self.test_result['Topics'][topic]['additional'][k] = path
