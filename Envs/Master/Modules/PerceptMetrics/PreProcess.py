@@ -145,23 +145,25 @@ class DruDirection:
             'is_sameDir',
             'is_oppositeDir',
             'is_crossingDir',
+            'is_moving',
         ]
         self.type = 'by_row'
 
     def __call__(self, input_data):
 
         if isinstance(input_data, dict):  # 假设传入的是一行数据的字典形式
-            obj_type, yaw = input_data['type'], input_data['yaw']
+            obj_type, yaw, vx, vy = input_data['type'], input_data['yaw'], input_data['vx'], input_data['vy']
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 5):
-            obj_type, yaw = input_data
+              and len(input_data) == 4):
+            obj_type, yaw, vx, vy = input_data
 
         else:
             raise ValueError("Invalid input format for get_rect_points function")
 
         yaw_degree = np.rad2deg(yaw)
         while True:
+
             if -180 <= yaw_degree <= 180:
                 break
             if yaw_degree < -180:
@@ -169,17 +171,23 @@ class DruDirection:
             if yaw_degree > 180:
                 yaw_degree -= 360
 
+        velocity = np.sqrt(vx ** 2 + vy ** 2)
+
         if obj_type == 1:
-            if -30 <= yaw_degree <= 30:
-                return 1, 0, 0
-            elif -180 <= yaw_degree < -150 or 150 < yaw_degree < 180:
-                return 0, 1, 0
+
+            if velocity >= 2:
+                is_moving = 1
             else:
-                return 0, 0, 1
+                is_moving = 0
 
+            if -30 <= yaw_degree <= 30:
+                return 1, 0, 0, is_moving
+            elif -180 <= yaw_degree < -150 or 150 < yaw_degree <= 180:
+                return 0, 1, 0, is_moving
+            else:
+                return 0, 0, 1, is_moving
 
-
-        return 0, 0, 0
+        return 0, 0, 0, 0
 
 
 class ObstaclesPreprocess:
