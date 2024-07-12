@@ -10,6 +10,7 @@ import shutil
 
 import cv2
 import numpy as np
+import yaml
 from scipy.spatial.transform import Rotation
 from Libs import get_project_path
 camera_parameter_folder = os.path.join(get_project_path(), 'Docs', 'Resources', 'camera_parameter')
@@ -845,7 +846,7 @@ def horizon_bev(folder, bev_type='fisheye'):
     BEV.getBev(new_images, bev_folder)
 
 
-def transfer_2j5_2_1j5(num, json_folder, yaml_folder):
+def transfer_2j5_2_1j5(json_folder, yaml_folder):
     def euler2matrix2(roll, pitch, yaw, x, y, z):
         R = np.eye(4)
         R[0:3, 3] = [x, y, z]
@@ -875,70 +876,86 @@ def transfer_2j5_2_1j5(num, json_folder, yaml_folder):
         10: '101/fisheye_left',
     }
 
-    json_2j5 = os.path.join(json_folder, f'{mapping[num]}.json')
-    with open(json_2j5, 'r') as f:
-        camera_config = json.load(f)
+    for num in mapping.keys():
 
-    world2calib = euler2matrix2(*camera_config['vcs']['rotation'],
-                                *camera_config['vcs']['translation'])
-    calib2camera = euler2matrix2(camera_config['roll'], camera_config['pitch'], camera_config['yaw'],
-                                 camera_config['camera_x'], camera_config['camera_y'], camera_config['camera_z'])
+        json_2j5 = os.path.join(json_folder, f'{mapping[num]}.json')
+        with open(json_2j5, 'r') as f:
+            camera_config = json.load(f)
 
-    roll, pitch, yaw, x, y, z = matrix2euler2(world2calib @ calib2camera)
+        world2calib = euler2matrix2(*camera_config['vcs']['rotation'],
+                                    *camera_config['vcs']['translation'])
+        calib2camera = euler2matrix2(camera_config['roll'], camera_config['pitch'], camera_config['yaw'],
+                                     camera_config['camera_x'], camera_config['camera_y'], camera_config['camera_z'])
 
-    if num <= 6:
-        yaml_lines = [
-            'cam_{:d}_image_width: {:d}\n'.format(num, camera_config['image_width']),
-            'cam_{:d}_image_height: {:d}\n'.format(num, camera_config['image_height']),
-            'cam_{:d}_focal_x: {:.16e}\n'.format(num, camera_config['focal_u']),
-            'cam_{:d}_focal_y: {:.16e}\n'.format(num, camera_config['focal_v']),
-            'cam_{:d}_center_u: {:.16e}\n'.format(num, camera_config['center_u']),
-            'cam_{:d}_center_v: {:.16e}\n'.format(num, camera_config['center_v']),
-            'cam_{:d}_pos_x: {:.16e}\n'.format(num, float(x)),
-            'cam_{:d}_pos_y: {:.16e}\n'.format(num, float(y)),
-            'cam_{:d}_pos_z: {:.16e}\n'.format(num, float(z)),
-            'cam_{:d}_pitch: {:.16e}\n'.format(num, float(pitch)),
-            'cam_{:d}_roll: {:.16e}\n'.format(num, float(roll)),
-            'cam_{:d}_yaw: {:.16e}\n'.format(num, float(yaw)),
-            'cam_{:d}_vehicleWheelBase: {:.16e}\n'.format(num, 2.95),
-            'cam_{:d}_version: "{:s}"\n'.format(num, "230527 1414"),
-            'vehicle: 2\n',
-            'cam_{:d}_distort_k1: {:.16e}\n'.format(num, camera_config['distort'][0]),
-            'cam_{:d}_distort_k2: {:.16e}\n'.format(num, camera_config['distort'][1]),
-            'cam_{:d}_distort_p1: {:.16e}\n'.format(num, camera_config['distort'][2]),
-            'cam_{:d}_distort_p2: {:.16e}\n'.format(num, camera_config['distort'][3]),
-            'cam_{:d}_distort_k3: {:.16e}\n'.format(num, camera_config['distort'][4]),
-            'cam_{:d}_distort_k4: {:.16e}\n'.format(num, camera_config['distort'][5]),
-            'cam_{:d}_distort_k5: {:.16e}\n'.format(num, camera_config['distort'][6]),
-            'cam_{:d}_distort_k6: {:.16e}\n'.format(num, camera_config['distort'][7]),
-            'intri_flag: 0\n',
-        ]
-    else:
-        yaml_lines = [
-            'cam_{:d}_image_width: {:d}\n'.format(num, camera_config['image_width']),
-            'cam_{:d}_image_height: {:d}\n'.format(num, camera_config['image_height']),
-            'cam_{:d}_focal_x: {:.16e}\n'.format(num, camera_config['focal_u']),
-            'cam_{:d}_focal_y: {:.16e}\n'.format(num, camera_config['focal_v']),
-            'cam_{:d}_center_u: {:.16e}\n'.format(num, camera_config['center_u']),
-            'cam_{:d}_center_v: {:.16e}\n'.format(num, camera_config['center_v']),
-            'cam_{:d}_pos_x: {:.16e}\n'.format(num, float(x)),
-            'cam_{:d}_pos_y: {:.16e}\n'.format(num, float(y)),
-            'cam_{:d}_pos_z: {:.16e}\n'.format(num, float(z)),
-            'cam_{:d}_pitch: {:.16e}\n'.format(num, float(pitch)),
-            'cam_{:d}_roll: {:.16e}\n'.format(num, float(roll)),
-            'cam_{:d}_yaw: {:.16e}\n'.format(num, float(yaw)),
-            'cam_{:d}_vehicleWheelBase: {:.16e}\n'.format(num, 2.95),
-            'cam_{:d}_version: "{:s}"\n'.format(num, "230527 1414"),
-            'vehicle: 2\n',
-            'cam_{:d}_distort_k1: {:.16e}\n'.format(num, camera_config['distort'][0]),
-            'cam_{:d}_distort_k2: {:.16e}\n'.format(num, camera_config['distort'][1]),
-            'cam_{:d}_distort_k3: {:.16e}\n'.format(num, camera_config['distort'][2]),
-            'cam_{:d}_distort_k4: {:.16e}\n'.format(num, camera_config['distort'][3]),
-            'intri_flag: 0\n',
-        ]
-    with open(os.path.join(yaml_folder, f'camera_{num}.yaml'), 'w', encoding='utf-8') as f:
-        # yaml.dump(yaml_dict, f, encoding='utf-8', allow_unicode=True)
-        f.writelines(yaml_lines)
+        roll, pitch, yaw, x, y, z = matrix2euler2(world2calib @ calib2camera)
+
+        if num <= 6:
+            yaml_lines = [
+                'cam_{:d}_image_width: {:d}\n'.format(num, camera_config['image_width']),
+                'cam_{:d}_image_height: {:d}\n'.format(num, camera_config['image_height']),
+                'cam_{:d}_focal_x: {:.16e}\n'.format(num, camera_config['focal_u']),
+                'cam_{:d}_focal_y: {:.16e}\n'.format(num, camera_config['focal_v']),
+                'cam_{:d}_center_u: {:.16e}\n'.format(num, camera_config['center_u']),
+                'cam_{:d}_center_v: {:.16e}\n'.format(num, camera_config['center_v']),
+                'cam_{:d}_pos_x: {:.16e}\n'.format(num, float(x)),
+                'cam_{:d}_pos_y: {:.16e}\n'.format(num, float(y)),
+                'cam_{:d}_pos_z: {:.16e}\n'.format(num, float(z)),
+                'cam_{:d}_pitch: {:.16e}\n'.format(num, float(pitch)),
+                'cam_{:d}_roll: {:.16e}\n'.format(num, float(roll)),
+                'cam_{:d}_yaw: {:.16e}\n'.format(num, float(yaw)),
+                'cam_{:d}_vehicleWheelBase: {:.16e}\n'.format(num, 2.95),
+                'cam_{:d}_version: "{:s}"\n'.format(num, "230527 1414"),
+                'vehicle: 2\n',
+                'cam_{:d}_distort_k1: {:.16e}\n'.format(num, camera_config['distort'][0]),
+                'cam_{:d}_distort_k2: {:.16e}\n'.format(num, camera_config['distort'][1]),
+                'cam_{:d}_distort_p1: {:.16e}\n'.format(num, camera_config['distort'][2]),
+                'cam_{:d}_distort_p2: {:.16e}\n'.format(num, camera_config['distort'][3]),
+                'cam_{:d}_distort_k3: {:.16e}\n'.format(num, camera_config['distort'][4]),
+                'cam_{:d}_distort_k4: {:.16e}\n'.format(num, camera_config['distort'][5]),
+                'cam_{:d}_distort_k5: {:.16e}\n'.format(num, camera_config['distort'][6]),
+                'cam_{:d}_distort_k6: {:.16e}\n'.format(num, camera_config['distort'][7]),
+                'intri_flag: 0\n',
+            ]
+        else:
+            yaml_lines = [
+                'cam_{:d}_image_width: {:d}\n'.format(num, camera_config['image_width']),
+                'cam_{:d}_image_height: {:d}\n'.format(num, camera_config['image_height']),
+                'cam_{:d}_focal_x: {:.16e}\n'.format(num, camera_config['focal_u']),
+                'cam_{:d}_focal_y: {:.16e}\n'.format(num, camera_config['focal_v']),
+                'cam_{:d}_center_u: {:.16e}\n'.format(num, camera_config['center_u']),
+                'cam_{:d}_center_v: {:.16e}\n'.format(num, camera_config['center_v']),
+                'cam_{:d}_pos_x: {:.16e}\n'.format(num, float(x)),
+                'cam_{:d}_pos_y: {:.16e}\n'.format(num, float(y)),
+                'cam_{:d}_pos_z: {:.16e}\n'.format(num, float(z)),
+                'cam_{:d}_pitch: {:.16e}\n'.format(num, float(pitch)),
+                'cam_{:d}_roll: {:.16e}\n'.format(num, float(roll)),
+                'cam_{:d}_yaw: {:.16e}\n'.format(num, float(yaw)),
+                'cam_{:d}_vehicleWheelBase: {:.16e}\n'.format(num, 2.95),
+                'cam_{:d}_version: "{:s}"\n'.format(num, "230527 1414"),
+                'vehicle: 2\n',
+                'cam_{:d}_distort_k1: {:.16e}\n'.format(num, camera_config['distort'][0]),
+                'cam_{:d}_distort_k2: {:.16e}\n'.format(num, camera_config['distort'][1]),
+                'cam_{:d}_distort_k3: {:.16e}\n'.format(num, camera_config['distort'][2]),
+                'cam_{:d}_distort_k4: {:.16e}\n'.format(num, camera_config['distort'][3]),
+                'intri_flag: 0\n',
+            ]
+        with open(os.path.join(yaml_folder, f'camera_{num}.yaml'), 'w', encoding='utf-8') as f:
+            f.writelines(yaml_lines)
+
+    with open(os.path.join(yaml_folder, f'cam_description.yaml'), 'w', encoding='utf-8') as f:
+        yaml.dump({
+            0: 'CAM_BACK_RIGHT',
+            1: 'CAM_FRONT_LEFT',
+            2: 'CAM_BACK',
+            3: 'CAM_BACK_LEFT',
+            4: 'CAM_BACK_RIGHT',
+            5: 'CAM_FRONT_120',
+            6: 'CAM_FRONT_30',
+            7: 'CAM_FISHEYE_FRONT',
+            8: 'CAM_FISHEYE_RIGHT',
+            9: 'CAM_FISHEYE_BACK',
+            10: 'CAM_FISHEYE_LEFT',
+        }, f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
 
 def print2(text):
@@ -949,8 +966,7 @@ def print2(text):
 if __name__ == '__main__':
     json_folder = '/home/caobingqi/下载/2J5'
     yaml_folder = '/home/caobingqi/下载/1J5'
-    for i in range(11):
-        transfer_2j5_2_1j5(i, json_folder, yaml_folder)
+    transfer_2j5_2_1j5(json_folder, yaml_folder)
 
     calibration_json = '/home/caobingqi/ZONE/20231130_152434_calibration.json'
     output_folder = '/home/caobingqi/下载/2J5'

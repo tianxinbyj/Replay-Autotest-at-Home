@@ -40,8 +40,7 @@ def main():
             shutil.rmtree(yaml_calib_folder)
         os.makedirs(yaml_calib_folder)
 
-        for i in range(11):
-            transfer_2j5_2_1j5(i, json_calib_folder, yaml_calib_folder)
+        transfer_2j5_2_1j5(json_calib_folder, yaml_calib_folder)
         print('folder', yaml_calib_folder)
 
 

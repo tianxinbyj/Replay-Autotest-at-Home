@@ -154,7 +154,24 @@ class DataGrinderPilotOneCase:
 
         # 复制场景相关的信息
         scenario_info_folder = os.path.join(self.pred_raw_folder, 'scenario_info')
-        self.test_result['General']['scenario_info'] = copy_to_destination(scenario_info_folder, self.unit_folder)
+        if copy_to_destination(scenario_info_folder, self.unit_folder):
+
+            self.test_result['General']['camera_position'] = {}
+            yaml_folder = os.path.join(scenario_info_folder, 'yaml_calib')
+            cam_description_path = os.path.join(yaml_folder, 'cam_description.yaml')
+
+            with open(cam_description_path, 'r', encoding='utf-8') as f:
+                cam_description = yaml.safe_load(f)
+
+            for i, cam_name in cam_description.items():
+                cam_par_path = os.path.join(yaml_folder, f'camera_{i}.yaml')
+                with open(cam_par_path, 'r', encoding='utf-8') as f:
+                    cam_par = yaml.safe_load(f)
+                self.test_result['General']['camera_position'][cam_name] = [
+                    float(cam_par[f'cam_{i}_pos_x']),
+                    float(cam_par[f'cam_{i}_pos_y']),
+                    float(cam_par[f'cam_{i}_pos_z']),
+                ]
 
         self.save_test_result()
 
@@ -285,7 +302,6 @@ class DataGrinderPilotOneCase:
             create_folder(additional_folder)
 
             topic_belonging, _ = get_topic_attribution(topic)
-            print(f'PreProcess.{topic_belonging}Preprocess')
             reprocess_cls = eval(f'PreProcess.{topic_belonging}Preprocess')
             send_log(self, f'{topic} 归属于 {topic_belonging}, 使用{topic_belonging}Preprocess')
 
