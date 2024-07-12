@@ -2,6 +2,7 @@
 @Author: BU YUJUN
 @Date: 2024/7/8 上午9:57  
 """
+import time
 from typing import List, Tuple, Any
 
 import numpy as np
@@ -90,13 +91,16 @@ class RectPoints:
 
     def __init__(self):
         self.columns = [
+            'distance',
             'pt_0_x', 'pt_0_y',
             'pt_1_x', 'pt_1_y',
             'pt_2_x', 'pt_2_y',
             'pt_3_x', 'pt_3_y',
         ]
+        self.type = 'by_row'
 
     def __call__(self, input_data):
+
         if isinstance(input_data, dict):  # 假设传入的是一行数据的字典形式
             x = input_data['x']
             y = input_data['y']
@@ -105,11 +109,14 @@ class RectPoints:
             width = input_data['width']
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 5):  # 假设传入的是五个参数的元组
+              and len(input_data) == 5):
             x, y, yaw, length, width = input_data
 
         else:
             raise ValueError("Invalid input format for get_rect_points function")
+
+        # 计算距离
+        distance = np.sqrt(x ** 2 + y ** 2)
 
         # 使用旋转矩阵计算矩形左下角点a的坐标
         a = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
@@ -128,35 +135,86 @@ class RectPoints:
             [[-length / 2], [width / 2]])).reshape(1, 2) + np.array([[x, y]])
 
         # 返回矩形的四个顶点的坐标
-        return *a[0], *b[0], *c[0], *d[0]
+        return distance, *a[0], *b[0], *c[0], *d[0]
+
+
+class DruDirection:
+
+    def __init__(self):
+        self.columns = [
+            'is_sameDir',
+            'is_oppositeDir',
+            'is_crossingDir',
+        ]
+        self.type = 'by_row'
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):  # 假设传入的是一行数据的字典形式
+            obj_type, yaw = input_data['type'], input_data['yaw']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 5):
+            obj_type, yaw = input_data
+
+        else:
+            raise ValueError("Invalid input format for get_rect_points function")
+
+        yaw_degree = np.rad2deg(yaw)
+        while True:
+            if -180 <= yaw_degree <= 180:
+                break
+            if yaw_degree < -180:
+                yaw_degree += 360
+            if yaw_degree > 180:
+                yaw_degree -= 360
+
+        if obj_type == 1:
+            if -30 <= yaw_degree <= 30:
+                return 1, 0, 0
+            elif -180 <= yaw_degree < -150 or 150 < yaw_degree < 180:
+                return 0, 1, 0
+            else:
+                return 0, 0, 1
+
+
+
+        return 0, 0, 0
 
 
 class ObstaclesPreprocess:
-    
+
     def __init__(self, data, preprocess_types=None):
         if preprocess_types is None:
             self.preprocess_types = [
-                'RectPoints',
+                'RectPoints', 'DruDirection'
             ]
         else:
             self.preprocess_types = []
 
         for preprocess_type in self.preprocess_types:
             func = eval(f'{preprocess_type}()')
-            result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
-            result_df.columns = func.columns
-            data = pd.concat([data, result_df], axis=1)
+            if func.type == 'by_row':
+                result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
+                result_df.columns = func.columns
+                data = pd.concat([data, result_df], axis=1)
+            else:
+                pass
 
         self.data = data
 
 
 if __name__ == '__main__':
-    df = pd.DataFrame({
-        'x': [10, 20],
-        'y': [30, 40],
-        'yaw': [np.pi / 4, np.pi / 2],
-        'length': [5, 6],
-        'width': [2, 3]
-    })
+    # df = pd.DataFrame({
+    #     'x': [10, 20],
+    #     'y': [30, 40],
+    #     'yaw': [np.pi / 4, np.pi / 2],
+    #     'length': [5, 6],
+    #     'width': [2, 3]
+    # })
+    #
+    # d = ObstaclesPreprocess(df, preprocess_types=['rectPoints'])
 
-    d = ObstaclesPreprocess(df, preprocess_types=['rectPoints'])
+    t0 = time.time()
+    # rays = get_rays()
+    print(time.time() - t0)

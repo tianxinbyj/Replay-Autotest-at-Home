@@ -135,7 +135,8 @@ class DataGrinderPilotOneCase:
                 path = os.path.join(raw_folder, 'pred_timestamp.csv')
                 pred_timestamp.to_csv(path, index=False)
                 self.test_result['Topics'][topic]['raw']['pred_timestamp'] = path
-                self.test_result['Topics'][topic]['frequency']['pred_hz'] = float(os.path.basename(pred_timestamp_csv).split('_')[1])
+                self.test_result['Topics'][topic]['frequency']['pred_hz'] = float(
+                    os.path.basename(pred_timestamp_csv).split('_')[1])
 
             elif topic == '/PI/EG/EgoMotionInfo':
                 send_log(self, f'Prediction 正在读取{topic}, 用于时间同步')
@@ -152,7 +153,7 @@ class DataGrinderPilotOneCase:
                 pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False)
                 self.test_result['General']['pred_ego'] = path
 
-        # 复制场景相关的信息
+        # 复制场景相关的信息, 解析相机参数
         scenario_info_folder = os.path.join(self.pred_raw_folder, 'scenario_info')
         if copy_to_destination(scenario_info_folder, self.unit_folder):
 
@@ -167,11 +168,13 @@ class DataGrinderPilotOneCase:
                 cam_par_path = os.path.join(yaml_folder, f'camera_{i}.yaml')
                 with open(cam_par_path, 'r', encoding='utf-8') as f:
                     cam_par = yaml.safe_load(f)
-                self.test_result['General']['camera_position'][cam_name] = [
-                    float(cam_par[f'cam_{i}_pos_x']),
-                    float(cam_par[f'cam_{i}_pos_y']),
-                    float(cam_par[f'cam_{i}_pos_z']),
-                ]
+                    x, y, z = [
+                        float(cam_par[f'cam_{i}_pos_x']),
+                        float(cam_par[f'cam_{i}_pos_y']),
+                        float(cam_par[f'cam_{i}_pos_z']),
+                    ]
+                self.test_result['General']['camera_position'][cam_name] = [x, y, z]
+                send_log(self, f'{cam_name} 位于({x}, {y}, {z})')
 
         self.save_test_result()
 
