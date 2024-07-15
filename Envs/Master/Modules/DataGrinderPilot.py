@@ -60,14 +60,21 @@ class DataGrinderPilotOneCase:
         send_log(self, f'{self.scenario_id}开始数据处理')
         self.product = self.test_config['product']
         self.version = self.test_config['version']
-        self.scenario_tag = self.test_config['scenario_tag']
-        self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_info = {
             'title': '{:s}-{:s}'.format(self.product, self.version),
             'date': time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime(time.time()))
         }
+
+        self.scenario_tag = self.test_config['scenario_tag']
+        self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_item = self.test_config['test_item']
         self.topics_for_evaluation = self.test_item.keys()
+        self.coverage_reference_point = self.test_config['coverage_reference_point']
+        self.coverage_threshold = self.test_config['coverage_threshold']
+
+        # 设置数据预处理类的变量池
+        PreProcess.parameter_container['coverage_reference_point'] = self.coverage_reference_point
+        PreProcess.parameter_container['coverage_threshold'] = self.coverage_threshold
 
         # 建立文件夹
         self.pred_raw_folder = self.test_config['data_folder']['raw']['pred']

@@ -9,6 +9,11 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 
+parameter_container = {
+    'coverage_reference_point': [2, 0, 1],
+    'coverage_threshold': 0.6,
+}
+
 
 def calculate_time_gap(
         baseline_time_series: List[float],
@@ -113,7 +118,7 @@ class RectPoints:
             x, y, yaw, length, width = input_data
 
         else:
-            raise ValueError("Invalid input format for get_rect_points function")
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 计算距离
         distance = np.sqrt(x ** 2 + y ** 2)
@@ -151,7 +156,7 @@ class DruDirection:
 
     def __call__(self, input_data):
 
-        if isinstance(input_data, dict):  # 假设传入的是一行数据的字典形式
+        if isinstance(input_data, dict):
             obj_type, yaw, vx, vy = input_data['type'], input_data['yaw'], input_data['vx'], input_data['vy']
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
@@ -159,7 +164,7 @@ class DruDirection:
             obj_type, yaw, vx, vy = input_data
 
         else:
-            raise ValueError("Invalid input format for get_rect_points function")
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         yaw_degree = np.rad2deg(yaw)
         while True:
@@ -190,12 +195,214 @@ class DruDirection:
         return 0, 0, 0, 0
 
 
+class VisionAngleRange:
+
+    def __init__(self, coverage_reference_point=None):
+        self.columns = [
+            'azimuth_right',
+            'azimuth_left',
+            'elevation_bottom',
+            'elevation_top',
+        ]
+        self.type = 'by_row'
+
+        # x0, y0, z0为观察点的坐标
+        if coverage_reference_point is None:
+            self.x0, self.y0, self.z0 = parameter_container['coverage_reference_point']
+        else:
+            self.x0, self.y0, self.z0 = coverage_reference_point
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            pt_0_x = input_data['pt_0_x']
+            pt_0_y = input_data['pt_0_y']
+            pt_1_x = input_data['pt_1_x']
+            pt_1_y = input_data['pt_1_y']
+            pt_2_x = input_data['pt_2_x']
+            pt_2_y = input_data['pt_2_y']
+            pt_3_x = input_data['pt_3_x']
+            pt_3_y = input_data['pt_3_y']
+            height = input_data['height']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 9):
+            pt_0_x = input_data[0]
+            pt_0_y = input_data[1]
+            pt_1_x = input_data[2]
+            pt_1_y = input_data[3]
+            pt_2_x = input_data[4]
+            pt_2_y = input_data[5]
+            pt_3_x = input_data[6]
+            pt_3_y = input_data[7]
+            height = input_data[8]
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        azimuth_list, elevation_list = [], []
+        for i in range(8):
+            x, y = eval(f'pt_{i % 4}_x') - self.x0, eval(f'pt_{i % 4}_y') - self.y0
+            z = height * (i // 4) - self.z0
+            azimuth = np.arctan2(y, x)
+            if azimuth < 0:
+                azimuth += 2 * np.pi
+            azimuth_list.append(azimuth)
+
+            elevation = np.arctan2(z, np.sqrt(x ** 2 + y ** 2))
+            elevation_list.append(elevation)
+
+        # 若横跨0度，应该较靠近360度的角度化为负数,
+        if max(azimuth_list) - min(azimuth_list) > np.pi:
+            azimuth_list = [azi if azi < np.pi else azi - 2 * np.pi for azi in azimuth_list]
+
+        return min(azimuth_list), max(azimuth_list), min(elevation_list), max(elevation_list)
+
+
+class IsCoverageValid:
+
+    def __init__(self, coverage_threshold=None):
+        self.type = 'by_frame'
+
+        if coverage_threshold is None:
+            self.threshold = parameter_container['coverage_threshold']
+        else:
+            self.threshold = coverage_threshold
+
+    def __call__(self, input_data):
+        if isinstance(input_data, pd.DataFrame):
+            data = input_data.sort_values(by=['time_stamp', 'distance'], ascending=[True, False])
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        # intvs = []
+        coverages = []
+        is_coverage_valid = []
+
+        for time_stamp in data['time_stamp'].drop_duplicates():
+            frame_data = data[data['time_stamp'] == time_stamp].reset_index(drop=True)
+            for i, one_row in frame_data.iterrows():
+
+                # 计算水平遮挡率
+                b = self.gen_interval_by_angle(one_row['azimuth_right'], one_row['azimuth_left'])
+                b_union = self.merge_intervals(b)
+                b_length = 0
+                for b in b_union:
+                    b_length += b[1] - b[0]
+
+                a = []
+                for j in range(i + 1, len(frame_data)):
+                    a.extend(self.gen_interval_by_angle(
+                        frame_data.at[j, 'azimuth_right'], frame_data.at[j, 'azimuth_left']
+                    ))
+                a_union = self.merge_intervals(a)
+                overlaps = self.find_overlapping_intervals(a_union, b_union)
+                covered_length = 0
+                for overlap in overlaps:
+                    covered_length += overlap[1] - overlap[0]
+
+                azimuth_coverage = covered_length / b_length
+
+                # intv = f'{a_union}-{b_union}-{overlaps}'
+
+                if azimuth_coverage:
+                    # 计算高度这档率
+                    b_union = [[one_row['elevation_bottom'], one_row['elevation_top']]]
+                    b_length = b_union[0][1] - b_union[0][0]
+
+                    a = []
+                    for j in range(i + 1, len(frame_data)):
+                        a.extend([[
+                            frame_data.at[j, 'elevation_bottom'], frame_data.at[j, 'elevation_top']
+                        ]])
+                    a_union = self.merge_intervals(a)
+                    overlaps = self.find_overlapping_intervals(a_union, b_union)
+                    covered_length = 0
+                    for overlap in overlaps:
+                        covered_length += overlap[1] - overlap[0]
+
+                    elevation_coverage = covered_length / b_length
+
+                    coverage = azimuth_coverage * elevation_coverage
+                    coverages.append(coverage)
+                    is_coverage_valid.append(1 if coverage <= self.threshold else 0)
+
+                    # intv += f'                {a_union}-{b_union}-{overlaps}'
+
+                else:
+                    coverages.append(0)
+                    is_coverage_valid.append(1)
+                    # intv = ''
+
+                # intvs.append(intv)
+
+        data['coverage'] = coverages
+        data['isCoverageValid'] = is_coverage_valid
+        # data['intv'] = intvs
+
+        return data
+
+    def gen_interval_by_angle(self, min_angle, max_angle):
+        # 如果小角度小于0，那么将区间分割成两端
+        if min_angle < 0:
+            res_interval = [
+                [min_angle + 2 * np.pi, 2 * np.pi],
+                [0, max_angle],
+            ]
+        else:
+            res_interval = [
+                [min_angle, max_angle]
+            ]
+        return res_interval
+
+    def merge_intervals(self, intervals):
+        # Sort intervals by their start times
+        intervals.sort(key=lambda x: x[0])
+
+        merged = []
+        for interval in intervals:
+            # If the list is empty or the new interval doesn't overlap with the previous, append it
+            if not merged or merged[-1][1] < interval[0]:
+                merged.append(interval)
+            else:
+                # Otherwise, merge with the previous interval
+                merged[-1][1] = max(merged[-1][1], interval[1])
+
+        return merged
+
+    def find_overlapping_intervals(self, a_union, b_union):
+        overlaps = []
+        i, j = 0, 0
+        while i < len(a_union) and j < len(b_union):
+            a_start, a_end = a_union[i]
+            b_start, b_end = b_union[j]
+
+            # Check for overlap
+            if a_start <= b_end and b_start <= a_end:
+                overlap_start = max(a_start, b_start)
+                overlap_end = min(a_end, b_end)
+                overlaps.append([overlap_start, overlap_end])
+
+                # Move the pointer for the list whose interval ends first
+                if a_end < b_end:
+                    i += 1
+                else:
+                    j += 1
+            elif a_end < b_end:
+                i += 1
+            else:
+                j += 1
+
+        return overlaps
+
+
 class ObstaclesPreprocess:
 
     def __init__(self, data, preprocess_types=None):
         if preprocess_types is None:
             self.preprocess_types = [
-                'RectPoints', 'DruDirection'
+                'RectPoints', 'VisionAngleRange', 'IsCoverageValid', 'DruDirection'
             ]
         else:
             self.preprocess_types = []
@@ -206,23 +413,24 @@ class ObstaclesPreprocess:
                 result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
                 result_df.columns = func.columns
                 data = pd.concat([data, result_df], axis=1)
-            else:
-                pass
+
+            elif func.type == 'by_frame':
+                data = func(data)
 
         self.data = data
 
 
 if __name__ == '__main__':
-    # df = pd.DataFrame({
-    #     'x': [10, 20],
-    #     'y': [30, 40],
-    #     'yaw': [np.pi / 4, np.pi / 2],
-    #     'length': [5, 6],
-    #     'width': [2, 3]
-    # })
-    #
-    # d = ObstaclesPreprocess(df, preprocess_types=['rectPoints'])
+
+    data_path = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug/04_TestData/1-Obstacles/ScenarioUnit/20230602_144755_n000003/01_Data/VAObstacles/additional/pred_data.csv'
+    data = pd.read_csv(data_path, index_col=False)
+
+    ins = VisionAngleRange()
 
     t0 = time.time()
-    # rays = get_rays()
+    for idx, row in data.iterrows():
+        print(idx)
+        print(ins(row.to_dict()))
+        if idx == 100:
+            break
     print(time.time() - t0)
