@@ -34,9 +34,15 @@ def get_topic_attribution(topic):
     for topic_belonging in test_encyclopaedia['Information']:
         if 'topics' in test_encyclopaedia['Information'][topic_belonging]:
             if topic in test_encyclopaedia['Information'][topic_belonging]['topics']:
-                return topic_belonging, test_encyclopaedia['Information'][topic_belonging]['raw_column']
+                res = {
+                    'topic_belonging': topic_belonging,
+                    'raw_column': test_encyclopaedia['Information'][topic_belonging]['raw_column'],
+                    'additional_column': test_encyclopaedia['Information'][topic_belonging]['raw_column'] +
+                                         test_encyclopaedia['Information'][topic_belonging]['additional_column']
+                }
+                return res
 
-    return None, None
+    return None
 
 
 class DataGrinderPilotOneCase:
@@ -114,10 +120,11 @@ class DataGrinderPilotOneCase:
             if topic in self.topics_for_evaluation:
                 send_log(self, f'Prediction 正在读取{topic}')
 
-                _, raw_column = get_topic_attribution(topic)
-                if not raw_column:
+                attribution = get_topic_attribution(topic)
+                if not attribution:
                     send_log(self, f'Prediction 不存在{topic}对应的raw_column')
                     continue
+                raw_column = attribution['raw_column']
 
                 # 读取原始数据
                 csv_list = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*.csv'))
@@ -243,10 +250,11 @@ class DataGrinderPilotOneCase:
                 for topic in topic_list:
                     send_log(self, f'GroundTruth 保存数据于{topic}')
 
-                    _, raw_column = get_topic_attribution(topic)
-                    if not raw_column:
+                    attribution = get_topic_attribution(topic)
+                    if not attribution:
                         send_log(self, f'GroundTruth 不存在{topic}对应的raw_column')
                         continue
+                    raw_column = attribution['raw_column']
 
                     topic_tag = topic.replace('/', '')
                     raw_folder = os.path.join(self.DataFolder, topic_tag, 'raw', 'gt')
@@ -311,7 +319,10 @@ class DataGrinderPilotOneCase:
             additional_folder = os.path.join(self.DataFolder, topic_tag, 'additional')
             create_folder(additional_folder)
 
-            topic_belonging, _ = get_topic_attribution(topic)
+            attribution = get_topic_attribution(topic)
+            topic_belonging = attribution['topic_belonging']
+            additional_column = attribution['additional_column']
+
             reprocess_cls = eval(f'PreProcess.{topic_belonging}Preprocess')
             send_log(self, f'{topic} 归属于 {topic_belonging}, 使用{topic_belonging}Preprocess')
 
@@ -326,7 +337,7 @@ class DataGrinderPilotOneCase:
                     if 'timestamp' not in k:
                         ins = reprocess_cls(data)
                         send_log(self, f'{topic} {k} 预处理步骤 {ins.preprocess_types}')
-                        data = ins.data
+                        data = ins.data[additional_column]
 
                     path = os.path.join(additional_folder, os.path.basename(v))
                     self.test_result['Topics'][topic]['additional'][k] = path

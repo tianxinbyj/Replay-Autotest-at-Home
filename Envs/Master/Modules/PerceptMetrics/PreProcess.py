@@ -12,6 +12,9 @@ from scipy.interpolate import interp1d
 parameter_container = {
     'coverage_reference_point': [2, 0, 1],
     'coverage_threshold': 0.6,
+    'lane_width': 3.6,
+    'moving_threshold': 2,
+    'key_coverage_threshold': 0.1,
 }
 
 
@@ -143,58 +146,6 @@ class RectPoints:
         return distance, *a[0], *b[0], *c[0], *d[0]
 
 
-class DruDirection:
-
-    def __init__(self):
-        self.columns = [
-            'is_sameDir',
-            'is_oppositeDir',
-            'is_crossingDir',
-            'is_moving',
-        ]
-        self.type = 'by_row'
-
-    def __call__(self, input_data):
-
-        if isinstance(input_data, dict):
-            obj_type, yaw, vx, vy = input_data['type'], input_data['yaw'], input_data['vx'], input_data['vy']
-
-        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 4):
-            obj_type, yaw, vx, vy = input_data
-
-        else:
-            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
-
-        yaw_degree = np.rad2deg(yaw)
-        while True:
-
-            if -180 <= yaw_degree <= 180:
-                break
-            if yaw_degree < -180:
-                yaw_degree += 360
-            if yaw_degree > 180:
-                yaw_degree -= 360
-
-        velocity = np.sqrt(vx ** 2 + vy ** 2)
-
-        if obj_type == 1:
-
-            if velocity >= 2:
-                is_moving = 1
-            else:
-                is_moving = 0
-
-            if -30 <= yaw_degree <= 30:
-                return 1, 0, 0, is_moving
-            elif -180 <= yaw_degree < -150 or 150 < yaw_degree <= 180:
-                return 0, 1, 0, is_moving
-            else:
-                return 0, 0, 1, is_moving
-
-        return 0, 0, 0, 0
-
-
 class VisionAngleRange:
 
     def __init__(self, coverage_reference_point=None):
@@ -271,7 +222,7 @@ class IsCoverageValid:
 
     def __call__(self, input_data):
         if isinstance(input_data, pd.DataFrame):
-            data = input_data.sort_values(by=['time_stamp', 'distance'], ascending=[True, False])
+            data = input_data.sort_values(by=['time_stamp', 'distance'], ascending=[True, False]).reset_index(drop=True)
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -282,8 +233,8 @@ class IsCoverageValid:
 
         for time_stamp in data['time_stamp'].drop_duplicates():
             frame_data = data[data['time_stamp'] == time_stamp].reset_index(drop=True)
-            for i, one_row in frame_data.iterrows():
 
+            for i, one_row in frame_data.iterrows():
                 # 计算水平遮挡率
                 b = self.gen_interval_by_angle(one_row['azimuth_right'], one_row['azimuth_left'])
                 b_union = self.merge_intervals(b)
@@ -303,7 +254,6 @@ class IsCoverageValid:
                     covered_length += overlap[1] - overlap[0]
 
                 azimuth_coverage = covered_length / b_length
-
                 # intv = f'{a_union}-{b_union}-{overlaps}'
 
                 if azimuth_coverage:
@@ -323,22 +273,20 @@ class IsCoverageValid:
                         covered_length += overlap[1] - overlap[0]
 
                     elevation_coverage = covered_length / b_length
+                    # intv += f'                {a_union}-{b_union}-{overlaps}'
 
                     coverage = azimuth_coverage * elevation_coverage
                     coverages.append(coverage)
                     is_coverage_valid.append(1 if coverage <= self.threshold else 0)
-
-                    # intv += f'                {a_union}-{b_union}-{overlaps}'
+                    # intvs.append(intv)
 
                 else:
                     coverages.append(0)
                     is_coverage_valid.append(1)
-                    # intv = ''
-
-                # intvs.append(intv)
+                    # intvs.append('')
 
         data['coverage'] = coverages
-        data['isCoverageValid'] = is_coverage_valid
+        data['is_coverageValid'] = is_coverage_valid
         # data['intv'] = intvs
 
         return data
@@ -397,15 +345,140 @@ class IsCoverageValid:
         return overlaps
 
 
+class DruDirection:
+
+    def __init__(self, moving_threshold=None):
+        self.columns = [
+            'is_sameDir',
+            'is_oppositeDir',
+            'is_crossingDir',
+            'is_moving',
+        ]
+        self.type = 'by_row'
+
+        if moving_threshold is None:
+            self.moving_threshold = parameter_container['moving_threshold']
+        else:
+            self.moving_threshold = moving_threshold
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            obj_type, yaw, vx, vy = input_data['type'], input_data['yaw'], input_data['vx'], input_data['vy']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 4):
+            obj_type, yaw, vx, vy = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        yaw_degree = np.rad2deg(yaw)
+        while True:
+
+            if -180 <= yaw_degree <= 180:
+                break
+            if yaw_degree < -180:
+                yaw_degree += 360
+            if yaw_degree > 180:
+                yaw_degree -= 360
+
+        velocity = np.sqrt(vx ** 2 + vy ** 2)
+
+        if obj_type == 1:
+
+            if velocity >= self.moving_threshold:
+                is_moving = 1
+            else:
+                is_moving = 0
+
+            if -30 <= yaw_degree <= 30:
+                return 1, 0, 0, is_moving
+            elif -180 <= yaw_degree < -150 or 150 < yaw_degree <= 180:
+                return 0, 1, 0, is_moving
+            else:
+                return 0, 0, 1, is_moving
+
+        return 0, 0, 0, 0
+
+
+class IsKeyObj:
+
+    def __init__(self, lane_width=None, key_coverage_threshold=None):
+        self.type = 'by_frame'
+
+        if lane_width is None:
+            self.lane_width = parameter_container['lane_width']
+        else:
+            self.lane_width = lane_width
+
+        if key_coverage_threshold is None:
+            self.key_coverage_threshold = parameter_container['key_coverage_threshold']
+        else:
+            self.key_coverage_threshold = key_coverage_threshold
+
+    def __call__(self, input_data):
+        if isinstance(input_data, pd.DataFrame):
+            data = input_data.sort_values(by=['time_stamp'], ascending=[True]).reset_index(drop=True)
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data['is_cipv'] = 0
+        data['is_keyObj'] = 0
+
+        # 正前方
+        data_front = data[
+            (data['x'] > 0) & (data['y'] > -self.lane_width / 2)
+            & (data['y'] < self.lane_width / 2)
+            & (data['coverage'] < self.key_coverage_threshold)].sort_values(
+            by=['x'], ascending=[True])
+
+        for time_stamp in data_front['time_stamp'].drop_duplicates():
+            frame_data = data_front[data_front['time_stamp'] == time_stamp]
+
+            for i, one_row in frame_data.iterrows():
+                data.at[i, 'is_cipv'] = 1
+                data.at[i, 'is_keyObj'] = 1
+                break
+
+        # 正后方
+        data_rear = data[
+            (data['x'] < 0) & (data['y'] > -self.lane_width / 2)
+            & (data['y'] < self.lane_width / 2)
+            & (data['coverage'] < self.key_coverage_threshold)].sort_values(
+            by=['x'], ascending=[False])
+
+        for time_stamp in data_rear['time_stamp'].drop_duplicates():
+            frame_data = data_rear[data_rear['time_stamp'] == time_stamp]
+
+            for i, one_row in frame_data.iterrows():
+                data.at[i, 'is_keyObj'] = 1
+                break
+
+        # 左右
+        data_other = data[(((data['y'] < -self.lane_width / 2) & (data['y'] > -3 * self.lane_width / 2)) | (
+                    (data['y'] > self.lane_width / 2) & (data['y'] < 3 * self.lane_width / 2))) & (
+                                      data['coverage'] < self.key_coverage_threshold)]
+        for i in data_other.index:
+            data.at[i, 'is_keyObj'] = 1
+
+        return data
+
+
 class ObstaclesPreprocess:
 
     def __init__(self, data, preprocess_types=None):
         if preprocess_types is None:
             self.preprocess_types = [
-                'RectPoints', 'VisionAngleRange', 'IsCoverageValid', 'DruDirection'
+                'RectPoints', 'VisionAngleRange', 'IsCoverageValid', 'IsKeyObj', 'DruDirection'
             ]
         else:
             self.preprocess_types = []
+
+        # 增加age
+        id_counts = data['id'].value_counts()
+        data['age'] = data['id'].map(id_counts)
 
         for preprocess_type in self.preprocess_types:
             func = eval(f'{preprocess_type}()')

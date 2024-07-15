@@ -211,13 +211,6 @@ if not os.path.exists(TempFolder):
 
 
 if __name__ == '__main__':
-    print(get_bench_id())
-    f1 = '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/01_Rosbag/20230627_173157_n000001/RawData/scenario_info/json_calib/100/front.json'
-    f2 = '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/01_Rosbag/20230602_144755_n000005/RawData/scenario_info/json_calib/100/front.json'
-    f3 = '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/01_Rosbag/20230602_144755_n000005/RawData/scenario_info/json_calib/101/front_30fov.json'
-    c1 = calculate_file_checksum(f1)
-    c2 = calculate_file_checksum(f2)
-    c3 = calculate_file_checksum(f3)
-    print(type(c1))
-    print(c1 == c2)
-    print(c1, c2, c3)
+    with open('123.yaml', 'w', encoding='utf-8') as f:
+        yaml.dump(test_encyclopaedia,
+                  f, encoding='utf-8', allow_unicode=True, sort_keys=False)
