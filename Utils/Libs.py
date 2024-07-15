@@ -209,6 +209,44 @@ TempFolder = os.path.join(project_path, 'Temp')
 if not os.path.exists(TempFolder):
     os.makedirs(TempFolder)
 
+font_size = 13
+title_font = {
+    'family': 'Ubuntu',
+    'style': 'normal',
+    'weight': 'normal',
+    'color': 'lightskyblue',
+    'size': font_size * 1.3,
+}
+axis_font = {
+    'family': 'Ubuntu',
+    'style': 'normal',
+    'weight': 'normal',
+    'color': 'black',
+    'size': font_size,
+}
+axis_font_white = {
+    'family': 'Ubuntu',
+    'style': 'normal',
+    'weight': 'normal',
+    'color': 'white',
+    'size': font_size,
+}
+text_font = {
+    'family': 'sans-serif',
+    'style': 'italic',
+    'weight': 'normal',
+    'color': 'black',
+    'size': font_size * 0.65,
+}
+legend_font = {
+    'family': 'Ubuntu',
+    'style': 'normal',
+    'weight': 'normal',
+    'size': font_size * 0.8,
+}
+mpl_colors = ['#3682be', '#45a776', '#f05326', '#eed777', '#334f65', '#b3974e', '#38cb7d', '#ddae33', '#844bb3',
+              '#93c555', '#5f6694', '#df3881'] * 2
+
 
 if __name__ == '__main__':
     with open('123.yaml', 'w', encoding='utf-8') as f:

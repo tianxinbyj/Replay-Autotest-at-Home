@@ -8,7 +8,10 @@ import sys
 import time
 
 import pandas as pd
+import numpy as np
 import yaml
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from Libs import get_project_path, replace_path_in_dict, copy_to_destination
@@ -16,6 +19,7 @@ from Libs import get_project_path, replace_path_in_dict, copy_to_destination
 sys.path.append(get_project_path())
 
 from Utils.Libs import test_encyclopaedia, create_folder
+from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_font, legend_font, mpl_colors
 from Utils.Logger import send_log
 
 # 导入评测api
@@ -161,7 +165,7 @@ class DataGrinderPilotOneCase:
                 for csv_file in sorted(csv_list, reverse=False):
                     if 'hz' not in csv_file:
                         csv_data.append(pd.read_csv(csv_file, index_col=False))
-                pred_data = pd.concat(csv_data).sort_values(by=['time_stamp'])
+                pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
                 create_folder(os.path.join(self.DataFolder, 'General'), update=False)
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
                 pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False)
@@ -306,6 +310,45 @@ class DataGrinderPilotOneCase:
         send_log(self, f'时间辍同步耗时{round(time.time() - t0, 2)} sec, '
                        f'最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
         self.test_result['General']['time_gap'] = float(t_delta)
+
+        start_time = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
+        end_time = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
+        send_log(self, f'测试指标的数据时间段为{start_time}-{end_time}')
+        self.test_result['General']['start_time'] = float(start_time)
+        self.test_result['General']['end_time'] = float(end_time)
+
+        # 将同步后的自车速度可视化
+        fig = plt.figure(figsize=(10, 5.625))
+        fig.tight_layout()
+        plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+        grid = plt.GridSpec(1, 1, wspace=0.2, hspace=0.25)
+        ax = fig.add_subplot(grid[0, 0])
+
+        ax.plot(calibrated_data['time_stamp'].values + t_delta,
+                calibrated_data['ego_vx'].values * 3.6,
+                color='red', linestyle='dashed', linewidth=2,
+                label=f'ego_speed of {self.product}')
+        ax.plot(baseline_data['time_stamp'].values,
+                baseline_data['ego_vx'].values * 3.6,
+                color='green', linestyle='dashed', linewidth=2,
+                label=f'ego_speed of GroundTruth')
+        ax.set_title(f'{self.scenario_id}  time_gap = {t_delta} sec', fontsize=font_size * 1.3)
+        ax.set_xlabel('time[second]', fontdict=axis_font)
+        ax.set_ylabel('ego_vx[km/h]', fontdict=axis_font)
+        ax.set_xlim(start_time, end_time)
+        ax.set_ylim(0, 140)
+        ax.set_yticks(np.arange(0, 141, 20))
+        ax.grid('--', color='gainsboro')
+        ax.tick_params(direction='out', labelsize=font_size / 1.1, length=2)
+        ax.legend(loc=0, prop=legend_font)
+
+        path = os.path.join(self.DataFolder, 'General', 'SyncEgoVx.png')
+        canvas = FigureCanvas(fig)
+        canvas.print_figure(path, facecolor='white', dpi=100)
+        self.test_result['General']['sync_ego_vx'] = path
+        fig.clf()
+        plt.close()
+        send_log(self, f'{path} 保存完毕')
 
         self.save_test_result()
 
