@@ -51,19 +51,20 @@ def get_topic_attribution(topic):
 
 class DataGrinderPilotOneCase:
 
-    def __init__(self, scenario_unit_path):
+    def __init__(self, scenario_unit_folder):
         # 变量初始化
         send_log(self, '=' * 50)
 
         # 同时要考虑文件文件路径发生变化，需要修改yaml中的所有相关路径
-        scenario_config_yaml = os.path.join(scenario_unit_path, 'TestConfig.yaml')
+        scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
             scenario_test_config = yaml.safe_load(file)
-        test_project_root_path = get_test_project_root_path(scenario_unit_path)
+        test_project_root_path = get_test_project_root_path(scenario_unit_folder)
         self.test_config = replace_path_in_dict(
             scenario_test_config,
             scenario_test_config['root_path'], test_project_root_path
         )
+        self.scenario_unit_folder = scenario_unit_folder
 
         # 加载测试相关的参数
         self.scenario_id = self.test_config['scenario_id']
@@ -89,12 +90,11 @@ class DataGrinderPilotOneCase:
         # 建立文件夹
         self.pred_raw_folder = self.test_config['data_folder']['raw']['pred']
         self.GT_raw_folder = self.test_config['data_folder']['raw']['GT']
-        self.unit_folder = self.test_config['data_folder']['unit']
         self.workspace = self.test_config['workspace']
-        self.DataFolder = os.path.join(self.unit_folder, '01_Data')
+        self.DataFolder = os.path.join(self.scenario_unit_folder, '01_Data')
 
         # 初始化测试配置
-        self.test_result_info_path = os.path.join(self.unit_folder, 'TestResultInfo.yaml')
+        self.test_result_info_path = os.path.join(self.scenario_unit_folder, 'TestResultInfo.yaml')
         if not os.path.exists(self.test_result_info_path):
             self.test_result = {'General': {}, 'Topics': {topic: {
                 'frequency': {}, 'raw': {}, 'additional': {},
@@ -102,7 +102,7 @@ class DataGrinderPilotOneCase:
 
             self.save_test_result()
 
-        test_encyclopaedia_yaml = os.path.join(self.unit_folder, 'TestEncyclopaedia.yaml')
+        test_encyclopaedia_yaml = os.path.join(self.scenario_unit_folder, 'TestEncyclopaedia.yaml')
         with open(test_encyclopaedia_yaml, 'w', encoding='utf-8') as f:
             yaml.dump(self.test_encyclopaedia,
                       f, encoding='utf-8', allow_unicode=True, sort_keys=False)
@@ -148,11 +148,11 @@ class DataGrinderPilotOneCase:
 
                 path = os.path.join(raw_folder, 'pred_data.csv')
                 pred_data.to_csv(path, index=False)
-                self.test_result['Topics'][topic]['raw']['pred_data'] = path
+                self.test_result['Topics'][topic]['raw']['pred_data'] = self.get_relpath(path)
 
                 path = os.path.join(raw_folder, 'pred_timestamp.csv')
                 pred_timestamp.to_csv(path, index=False)
-                self.test_result['Topics'][topic]['raw']['pred_timestamp'] = path
+                self.test_result['Topics'][topic]['raw']['pred_timestamp'] = self.get_relpath(path)
                 self.test_result['Topics'][topic]['frequency']['pred_hz'] = float(
                     os.path.basename(pred_timestamp_csv).split('_')[1])
 
@@ -169,11 +169,11 @@ class DataGrinderPilotOneCase:
                 create_folder(os.path.join(self.DataFolder, 'General'), update=False)
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
                 pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False)
-                self.test_result['General']['pred_ego'] = path
+                self.test_result['General']['pred_ego'] = self.get_relpath(path)
 
         # 复制场景相关的信息, 解析相机参数
         scenario_info_folder = os.path.join(self.pred_raw_folder, 'scenario_info')
-        if copy_to_destination(scenario_info_folder, self.unit_folder):
+        if copy_to_destination(scenario_info_folder, self.scenario_unit_folder):
 
             self.test_result['General']['camera_position'] = {}
             yaml_folder = os.path.join(scenario_info_folder, 'yaml_calib')
@@ -230,8 +230,8 @@ class DataGrinderPilotOneCase:
                 # 读取原始数据
                 csv_data = []
                 for csv_file in gt_config['{:s}_list'.format(gt_topic)]:
-                    path = os.path.join(self.GT_raw_folder, gt_topic, csv_file)
-                    csv_data.append(pd.read_csv(path, index_col=False))
+                    csv_path = os.path.join(self.GT_raw_folder, gt_topic, csv_file)
+                    csv_data.append(pd.read_csv(csv_path, index_col=False))
                 gt_data = pd.concat(csv_data).rename(columns={
                     'timestamp': 'time_stamp',
                     'od_json_sequence': 'frame_id',
@@ -266,11 +266,11 @@ class DataGrinderPilotOneCase:
 
                     path = os.path.join(raw_folder, 'gt_data.csv')
                     gt_data[raw_column].to_csv(path, index=False)
-                    self.test_result['Topics'][topic]['raw']['gt_data'] = path
+                    self.test_result['Topics'][topic]['raw']['gt_data'] = self.get_relpath(path)
 
                     path = os.path.join(raw_folder, 'gt_timestamp.csv')
                     gt_timestamp.to_csv(path, index=False)
-                    self.test_result['Topics'][topic]['raw']['gt_timestamp'] = path
+                    self.test_result['Topics'][topic]['raw']['gt_timestamp'] = self.get_relpath(path)
                     self.test_result['Topics'][topic]['frequency']['gt_hz'] = gt_hz
 
         # 自车速度用于对齐
@@ -285,7 +285,7 @@ class DataGrinderPilotOneCase:
             create_folder(os.path.join(self.DataFolder, 'General'), update=False)
             path = os.path.join(self.DataFolder, 'General', 'gt_ego.csv')
             ego_data.to_csv(path, index=False)
-            self.test_result['General']['gt_ego'] = path
+            self.test_result['General']['gt_ego'] = self.get_relpath(path)
 
         self.save_test_result()
 
@@ -293,11 +293,13 @@ class DataGrinderPilotOneCase:
         self.load_test_result()
         t0 = time.time()
 
-        baseline_data = pd.read_csv(self.test_result['General']['gt_ego'], index_col=False)
+        baseline_data = pd.read_csv(
+            self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
         baseline_time_series = baseline_data['time_stamp'].to_list()
         baseline_velocity_series = baseline_data['ego_vx'].to_list()
 
-        calibrated_data = pd.read_csv(self.test_result['General']['pred_ego'], index_col=False)
+        calibrated_data = pd.read_csv(
+            self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
         calibrated_time_series = calibrated_data['time_stamp'].to_list()
         calibrated_velocity_series = calibrated_data['ego_vx'].to_list()
 
@@ -345,7 +347,7 @@ class DataGrinderPilotOneCase:
         path = os.path.join(self.DataFolder, 'General', 'SyncEgoVx.png')
         canvas = FigureCanvas(fig)
         canvas.print_figure(path, facecolor='white', dpi=100)
-        self.test_result['General']['sync_ego_vx'] = path
+        self.test_result['General']['sync_ego_vx'] = self.get_relpath(path)
         fig.clf()
         plt.close()
         send_log(self, f'{path} 保存完毕')
@@ -371,7 +373,7 @@ class DataGrinderPilotOneCase:
 
             for k, v in raw.items():
                 if 'csv' in v:
-                    data = pd.read_csv(v, index_col=False)
+                    data = pd.read_csv(self.get_abspath(v), index_col=False)
 
                     if 'pred' in k:
                         send_log(self, f'{topic} {k} 时间辍同步')
@@ -383,10 +385,16 @@ class DataGrinderPilotOneCase:
                         data = ins.data[additional_column]
 
                     path = os.path.join(additional_folder, os.path.basename(v))
-                    self.test_result['Topics'][topic]['additional'][k] = path
+                    self.test_result['Topics'][topic]['additional'][k] = self.get_relpath(path)
                     data.to_csv(path, index=False)
 
         self.save_test_result()
+
+    def get_relpath(self, path: str) -> str:
+        return os.path.relpath(path, self.scenario_unit_folder)
+
+    def get_abspath(self, path: str) -> str:
+        return os.path.join(self.scenario_unit_folder, path)
 
     def save_test_result(self):
         with open(self.test_result_info_path, 'w', encoding='utf-8') as f:
