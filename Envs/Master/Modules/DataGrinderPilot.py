@@ -427,7 +427,6 @@ class DataGrinderPilotOneCase:
                         'key_coverage_threshold': 0.1,
                     }
                     data = preprocess_ins.run(data, input_parameter_container)[additional_column]
-
                     path = os.path.join(additional_folder, 'pred_data.csv')
                     self.test_result[topic_belonging][topic]['additional']['pred_data'] = self.get_relpath(path)
                     data.to_csv(path, index=False)
@@ -441,7 +440,7 @@ class DataGrinderPilotOneCase:
 
                     # 时间辍补齐
                     send_log(self, f'{topic_belonging} GroundTruth 时间辍同步')
-                    data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
+                    data = pd.read_csv(self.get_abspath(raw['gt_timestamp']), index_col=False)
                     data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
                     path = os.path.join(additional_folder, 'gt_timestamp.csv')
                     self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(path)

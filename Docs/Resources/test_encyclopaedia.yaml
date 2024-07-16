@@ -800,6 +800,7 @@ Information:
     - age
     - coverage
     - is_coverageValid
+    - is_detectedValid
     - is_cipv
     - is_keyObj
     - is_sameDir

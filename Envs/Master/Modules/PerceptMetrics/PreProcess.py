@@ -14,6 +14,7 @@ parameter_container = {
     'lane_width': 3.6,
     'moving_threshold': 2,
     'key_coverage_threshold': 0.1,
+    'ROI': {'x': [-80, 120], 'y': [-30, 30]},
 }
 
 
@@ -93,6 +94,23 @@ def calculate_time_gap(
     return t_delta, res['v_error'].min()
 
 
+def calculate_angle(x, y, z=None):
+    """
+    返回的azimuth是0-360度内的弧度, elevation是-90到90的弧度
+
+    """
+
+    azimuth = np.arctan2(y, x)
+    if azimuth < 0:
+        azimuth += 2 * np.pi
+
+    if z is None:
+        return azimuth
+
+    elevation = np.arctan2(z, np.sqrt(x ** 2 + y ** 2))
+    return azimuth, elevation
+
+
 class RectPoints:
     """
     计算距离和四个角点
@@ -111,7 +129,7 @@ class RectPoints:
 
     def __call__(self, input_data):
 
-        if isinstance(input_data, dict):  # 假设传入的是一行数据的字典形式
+        if isinstance(input_data, dict):
             x = input_data['x']
             y = input_data['y']
             yaw = input_data['yaw']
@@ -172,26 +190,22 @@ class VisionAngleRange:
     def __call__(self, input_data):
 
         if isinstance(input_data, dict):
-            pt_0_x = input_data['pt_0_x']
-            pt_0_y = input_data['pt_0_y']
-            pt_1_x = input_data['pt_1_x']
-            pt_1_y = input_data['pt_1_y']
-            pt_2_x = input_data['pt_2_x']
-            pt_2_y = input_data['pt_2_y']
-            pt_3_x = input_data['pt_3_x']
-            pt_3_y = input_data['pt_3_y']
+            pts = {
+                '0': {'x': input_data['pt_0_x'], 'y': input_data['pt_0_y']},
+                '1': {'x': input_data['pt_1_x'], 'y': input_data['pt_1_y']},
+                '2': {'x': input_data['pt_2_x'], 'y': input_data['pt_2_y']},
+                '3': {'x': input_data['pt_3_x'], 'y': input_data['pt_3_y']},
+            }
             height = input_data['height']
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
               and len(input_data) == 9):
-            pt_0_x = input_data[0]
-            pt_0_y = input_data[1]
-            pt_1_x = input_data[2]
-            pt_1_y = input_data[3]
-            pt_2_x = input_data[4]
-            pt_2_y = input_data[5]
-            pt_3_x = input_data[6]
-            pt_3_y = input_data[7]
+            pts = {
+                '0': {'x': input_data[0], 'y': input_data[1]},
+                '1': {'x': input_data[2], 'y': input_data[3]},
+                '2': {'x': input_data[4], 'y': input_data[5]},
+                '3': {'x': input_data[6], 'y': input_data[7]},
+            }
             height = input_data[8]
 
         else:
@@ -199,14 +213,11 @@ class VisionAngleRange:
 
         azimuth_list, elevation_list = [], []
         for i in range(8):
-            x, y = eval(f'pt_{i % 4}_x') - self.x0, eval(f'pt_{i % 4}_y') - self.y0
+            x = pts[f'{i % 4}']['x'] - self.x0
+            y = pts[f'{i % 4}']['y'] - self.y0
             z = height * (i // 4) - self.z0
-            azimuth = np.arctan2(y, x)
-            if azimuth < 0:
-                azimuth += 2 * np.pi
+            azimuth, elevation = calculate_angle(x, y, z)
             azimuth_list.append(azimuth)
-
-            elevation = np.arctan2(z, np.sqrt(x ** 2 + y ** 2))
             elevation_list.append(elevation)
 
         # 若横跨0度，应该较靠近360度的角度化为负数,
@@ -487,8 +498,113 @@ class IsObstaclesDetectedValid:
 
     """
 
-    def __init__(self, ):
-        pass
+    def __init__(self, input_parameter_container=None):
+        self.columns = [
+            'reserved',
+            'is_detectedValid',
+        ]
+        self.type = 'by_row'
+
+        # ROI列表内的关系为或，字典内的关系为和
+        if isinstance(input_parameter_container, dict):
+            self.ROI = input_parameter_container['ROI']
+        else:
+            self.ROI = parameter_container['ROI']
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            pts = {
+                '0': {'x': input_data['pt_0_x'], 'y': input_data['pt_0_y']},
+                '1': {'x': input_data['pt_1_x'], 'y': input_data['pt_1_y']},
+                '2': {'x': input_data['pt_2_x'], 'y': input_data['pt_2_y']},
+                '3': {'x': input_data['pt_3_x'], 'y': input_data['pt_3_y']},
+            }
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 8):
+            pts = {
+                '0': {'x': input_data[0], 'y': input_data[1]},
+                '1': {'x': input_data[2], 'y': input_data[3]},
+                '2': {'x': input_data[4], 'y': input_data[5]},
+                '3': {'x': input_data[6], 'y': input_data[7]},
+            }
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        # 4个点都在roi内才认为True
+        is_pts_valid_list = []
+
+        for pt in pts.values():
+
+            # ROI是列表，则内部关系为或； 是字典，则内部关系为和
+            if isinstance(self.ROI, dict):
+                is_pts_valid = self.check_with_dict(pt, self.ROI)
+                is_pts_valid_list.append(is_pts_valid)
+
+            elif isinstance(self.ROI, list):
+                is_pts_valid = any([self.check_with_dict(pt, sub_roi) for sub_roi in self.ROI])
+                is_pts_valid_list.append(is_pts_valid)
+
+        if all(is_pts_valid_list):
+            return 0, 1
+        else:
+            return 0, 0
+
+    def check_with_dict(self, pt, roi_dict):
+        is_valid_list = []
+        for range_type, range_value in roi_dict.items():
+            if range_type in ['x', 'y']:
+
+                # 需要判断是否嵌套了表格，他们的关系为或
+                if isinstance(range_value[0], float) or isinstance(range_value[0], int):
+                    is_valid = range_value[0] <= pt[range_type] <= range_value[1]
+                    is_valid_list.append(is_valid)
+
+                elif isinstance(range_value[0], list) or isinstance(range_value[0], tuple):
+                    is_valid = any(
+                        [sub_range_value[0] <= pt[range_type] <= sub_range_value[1] for sub_range_value in range_value])
+                    is_valid_list.append(is_valid)
+
+            elif range_type == 'azimuth':
+
+                # 需要判断是否嵌套了表格，他们的关系为或
+                if isinstance(range_value[0], float) or isinstance(range_value[0], int):
+                    angle_min, angle_max = range_value[0], range_value[1]
+                    x_ref, y_ref, _ = range_value[2]
+
+                    is_valid = self.check_angle(pt['x'], pt['y'], x_ref, y_ref, angle_min, angle_max)
+                    is_valid_list.append(is_valid)
+
+                elif isinstance(range_value[0], list) or isinstance(range_value[0], tuple):
+                    sub_is_valid_list = []
+
+                    for sub_range_value in range_value:
+                        angle_min, angle_max = sub_range_value[0], sub_range_value[1]
+                        x_ref, y_ref, _ = sub_range_value[2]
+
+                        sub_is_valid = self.check_angle(pt['x'], pt['y'], x_ref, y_ref, angle_min, angle_max)
+                        sub_is_valid_list.append(sub_is_valid)
+
+                    is_valid = any(sub_is_valid_list)
+                    is_valid_list.append(is_valid)
+
+        return all(is_valid_list)
+
+    def check_angle(self, x, y, x_ref, y_ref, angle_min, angle_max):
+        azimuth = calculate_angle(x - x_ref, y - y_ref)
+        angle_min, angle_max = np.deg2rad(angle_min), np.deg2rad(angle_max)
+
+        if angle_min >= 0:
+            if angle_min <= azimuth < angle_max:
+                return True
+
+        else:
+            if angle_min + 2 * np.pi <= azimuth or azimuth <= angle_max:
+                return True
+
+        return False
 
 
 class ObstaclesPreprocess:
@@ -496,7 +612,8 @@ class ObstaclesPreprocess:
     def __init__(self, preprocess_types=None):
         if preprocess_types is None:
             self.preprocess_types = [
-                'RectPoints', 'VisionAngleRange', 'IsCoverageValid', 'IsKeyObj', 'DruDirection'
+                'RectPoints', 'VisionAngleRange', 'IsObstaclesDetectedValid',
+                'IsCoverageValid', 'IsKeyObj', 'DruDirection'
             ]
         else:
             self.preprocess_types = preprocess_types
