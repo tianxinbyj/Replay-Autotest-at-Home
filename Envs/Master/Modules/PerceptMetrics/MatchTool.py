@@ -58,5 +58,11 @@ def match_timestamp(
     return zip(*sorted(zip(pred_timestamp, gt_timestamp)))
 
 
+class ObstaclesMatchTool:
+
+    def __init__(self):
+        pass
+
+
 if __name__ == '__main__':
     pass

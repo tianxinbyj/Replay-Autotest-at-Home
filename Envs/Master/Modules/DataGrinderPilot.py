@@ -69,7 +69,7 @@ class DataGrinderPilotOneCase:
         # 变量初始化
         send_log(self, '=' * 50)
 
-        # 同时要考虑文件文件路径发生变化，需要修改yaml中的所有相关路径
+        # 同时要考虑文件文件路径发生变化, 需要修改yaml中的所有相关路径
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
             scenario_test_config = yaml.safe_load(file)
@@ -83,6 +83,7 @@ class DataGrinderPilotOneCase:
         # 加载测试相关的参数
         self.scenario_id = self.test_config['scenario_id']
         send_log(self, f'{self.scenario_id}开始数据处理')
+        print('=' * 25 + self.scenario_id + '=' * 25)
         self.product = self.test_config['product']
         self.version = self.test_config['version']
         self.test_info = {
@@ -95,15 +96,6 @@ class DataGrinderPilotOneCase:
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_item = self.test_config['test_item']
         self.topics_for_evaluation = self.test_item.keys()
-        self.coverage_reference_point = self.test_config['coverage_reference_point']
-        self.coverage_threshold = self.test_config['coverage_threshold']
-        self.timestamp_matching_tolerance = self.test_config['timestamp_matching_tolerance']
-
-        # 设置数据预处理类的变量池
-        PreProcess.parameter_container['coverage_reference_point'] = self.coverage_reference_point
-        PreProcess.parameter_container['coverage_threshold'] = self.coverage_threshold
-
-        # 设置匹配处理类的变量池
 
         # 建立文件夹
         self.pred_raw_folder = self.test_config['data_folder']['raw']['pred']
@@ -113,9 +105,16 @@ class DataGrinderPilotOneCase:
         # 初始化测试配置
         self.test_result_info_path = os.path.join(self.scenario_unit_folder, 'TestResultInfo.yaml')
         if not os.path.exists(self.test_result_info_path):
-            self.test_result = {'General': {}, 'Topics': {topic: {
-                'frequency': {}, 'raw': {}
-            } for topic in self.topics_for_evaluation}}
+            self.test_result = {'General': {}}
+            for topic in self.topics_for_evaluation:
+                attribution = get_topic_attribution(topic)
+                if not attribution:
+                    send_log(self, f'不存在{topic}对应的分类')
+                    continue
+
+                topic_belonging = attribution['topic_belonging']
+                self.test_result[topic_belonging] = {topic: {} for topic in self.topics_for_evaluation}
+                self.test_result[topic_belonging]['GroundTruth'] = {}
 
             self.save_test_result()
 
@@ -145,7 +144,9 @@ class DataGrinderPilotOneCase:
                 if not attribution:
                     send_log(self, f'Prediction 不存在{topic}对应的raw_column')
                     continue
+
                 raw_column = attribution['raw_column']
+                topic_belonging = attribution['topic_belonging']
 
                 # 读取原始数据
                 csv_list = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*.csv'))
@@ -155,23 +156,25 @@ class DataGrinderPilotOneCase:
                         csv_data.append(pd.read_csv(csv_file, index_col=False))
                 pred_data = pd.concat(csv_data).sort_values(by=['time_stamp'])[raw_column]
 
-                # 读取时间辍，用于时间辍匹配
+                # 读取时间辍, 用于时间辍匹配
                 pred_timestamp_csv = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*hz.csv'))[0]
                 pred_timestamp = pd.read_csv(pred_timestamp_csv, index_col=False).sort_values(
                     by=['time_stamp']).drop_duplicates(subset=['time_stamp'], keep='first')
+                pred_hz = float(os.path.basename(pred_timestamp_csv).split('_')[1])
 
-                raw_folder = os.path.join(self.DataFolder, topic_tag, 'raw')
+                raw_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'raw')
                 create_folder(raw_folder, False)
+                self.test_result[topic_belonging][topic] = {
+                    'frequency': pred_hz, 'raw': {},
+                }
 
                 path = os.path.join(raw_folder, 'pred_data.csv')
                 pred_data.to_csv(path, index=False)
-                self.test_result['Topics'][topic]['raw']['pred_data'] = self.get_relpath(path)
+                self.test_result[topic_belonging][topic]['raw']['pred_data'] = self.get_relpath(path)
 
                 path = os.path.join(raw_folder, 'pred_timestamp.csv')
                 pred_timestamp.to_csv(path, index=False)
-                self.test_result['Topics'][topic]['raw']['pred_timestamp'] = self.get_relpath(path)
-                self.test_result['Topics'][topic]['frequency']['pred_hz'] = float(
-                    os.path.basename(pred_timestamp_csv).split('_')[1])
+                self.test_result[topic_belonging][topic]['raw']['pred_timestamp'] = self.get_relpath(path)
 
             elif topic == '/PI/EG/EgoMotionInfo':
                 send_log(self, f'Prediction 正在读取{topic}, 用于时间同步')
@@ -227,6 +230,12 @@ class DataGrinderPilotOneCase:
             'lanebev_csv': test_encyclopaedia['Information']['Lines']['topics'],
         }
 
+        gt_topic_belongings = {
+            'od_csv': 'Obstacles',
+            'object_csv': 'Objects',
+            'lanebev_csv': 'Lines',
+        }
+
         gt_topics = {}
         for topic in self.topics_for_evaluation:
             for gt_topic in gt_topic_mapping.keys():
@@ -239,54 +248,54 @@ class DataGrinderPilotOneCase:
             flag = '{:s}_flag'.format(gt_topic)
             timestamp_csv_tag = '{:s}_timestamp'.format(gt_topic.split('_')[0])
 
-            if flag in gt_config.keys() and gt_config[flag]:
-                send_log(self, f'GroundTruth 正在读取{gt_topic}')
+            if not (flag in gt_config.keys() and gt_config[flag]):
+                continue
 
-                # 读取原始数据
-                csv_data = []
-                for csv_file in gt_config['{:s}_list'.format(gt_topic)]:
-                    csv_path = os.path.join(self.GT_raw_folder, gt_topic, csv_file)
-                    csv_data.append(pd.read_csv(csv_path, index_col=False))
-                gt_data = pd.concat(csv_data).rename(columns={
-                    'timestamp': 'time_stamp',
-                    'od_json_sequence': 'frame_id',
-                    'subtype': 'sub_type',
-                    'type_conf_3d': 'confidence',
-                }).sort_values(by=['time_stamp'])
+            send_log(self, f'GroundTruth 正在读取{gt_topic}')
 
-                if gt_topic == 'od_csv':
-                    gt_data['vx_rel'] = gt_data['vx'] - gt_data['ego_v']
-                    gt_data['vy_rel'] = gt_data['vy']
+            # 读取原始数据
+            csv_data = []
+            for csv_file in gt_config['{:s}_list'.format(gt_topic)]:
+                csv_path = os.path.join(self.GT_raw_folder, gt_topic, csv_file)
+                csv_data.append(pd.read_csv(csv_path, index_col=False))
+            gt_data = pd.concat(csv_data).rename(columns={
+                'timestamp': 'time_stamp',
+                'od_json_sequence': 'frame_id',
+                'subtype': 'sub_type',
+                'type_conf_3d': 'confidence',
+            }).sort_values(by=['time_stamp'])
 
-                # 读取时间辍，用于时间辍匹配
-                gt_timestamp_csv = \
-                    glob.glob(os.path.join(self.GT_raw_folder, f'{timestamp_csv_tag}*hz.csv'))[0]
-                gt_timestamp = pd.read_csv(gt_timestamp_csv).sort_values(
-                    by=['timestamp']).rename(columns={'timestamp': 'time_stamp'}) \
-                    .drop_duplicates(subset=['time_stamp'], keep='first')
-                gt_hz = float(os.path.basename(gt_timestamp_csv).split('_')[2])
+            if gt_topic == 'od_csv':
+                gt_data['vx_rel'] = gt_data['vx'] - gt_data['ego_v']
+                gt_data['vy_rel'] = gt_data['vy']
 
-                for topic in topic_list:
-                    send_log(self, f'GroundTruth 保存数据于{topic}')
+            # 读取时间辍, 用于时间辍匹配
+            gt_timestamp_csv = \
+                glob.glob(os.path.join(self.GT_raw_folder, f'{timestamp_csv_tag}*hz.csv'))[0]
+            gt_timestamp = pd.read_csv(gt_timestamp_csv).sort_values(
+                by=['timestamp']).rename(columns={'timestamp': 'time_stamp'}) \
+                .drop_duplicates(subset=['time_stamp'], keep='first')
+            gt_hz = float(os.path.basename(gt_timestamp_csv).split('_')[2])
 
-                    attribution = get_topic_attribution(topic)
-                    if not attribution:
-                        send_log(self, f'GroundTruth 不存在{topic}对应的raw_column')
-                        continue
-                    raw_column = attribution['raw_column']
+            gt_topic_belonging = gt_topic_belongings[gt_topic]
+            send_log(self, f'GroundTruth 保存数据于{gt_topic_belonging}')
 
-                    topic_tag = topic.replace('/', '')
-                    raw_folder = os.path.join(self.DataFolder, topic_tag, 'raw')
-                    create_folder(raw_folder, False)
+            attribution = get_topic_attribution(topic_list[0])
+            raw_column = attribution['raw_column']
 
-                    path = os.path.join(raw_folder, 'gt_data.csv')
-                    gt_data[raw_column].to_csv(path, index=False)
-                    self.test_result['Topics'][topic]['raw']['gt_data'] = self.get_relpath(path)
+            raw_folder = os.path.join(self.DataFolder, gt_topic_belonging, 'GroundTruth', 'raw')
+            create_folder(raw_folder, False)
+            self.test_result[gt_topic_belonging]['GroundTruth'] = {
+                'frequency': gt_hz, 'raw': {},
+            }
 
-                    path = os.path.join(raw_folder, 'gt_timestamp.csv')
-                    gt_timestamp.to_csv(path, index=False)
-                    self.test_result['Topics'][topic]['raw']['gt_timestamp'] = self.get_relpath(path)
-                    self.test_result['Topics'][topic]['frequency']['gt_hz'] = gt_hz
+            path = os.path.join(raw_folder, 'gt_data.csv')
+            gt_data[raw_column].to_csv(path, index=False)
+            self.test_result[gt_topic_belonging]['GroundTruth']['raw']['gt_data'] = self.get_relpath(path)
+
+            path = os.path.join(raw_folder, 'gt_timestamp.csv')
+            gt_timestamp.to_csv(path, index=False)
+            self.test_result[gt_topic_belonging]['GroundTruth']['raw']['gt_timestamp'] = self.get_relpath(path)
 
         # 自车速度用于对齐
         ego_data_path = os.path.join(self.GT_raw_folder, 'od_ego.csv')
@@ -330,7 +339,7 @@ class DataGrinderPilotOneCase:
         self.test_result['General']['time_start'] = float(time_start)
         self.test_result['General']['time_end'] = float(time_end)
 
-        # 将同步后的自车速度保存，后续插值车速需要
+        # 将同步后的自车速度保存, 后续插值车速需要
         calibrated_data['time_stamp'] += t_delta
         sync_ego_data = calibrated_data[(calibrated_data['time_stamp'] <= time_end + 1)
                                         & (calibrated_data['time_stamp'] >= time_start - 1)]
@@ -376,80 +385,147 @@ class DataGrinderPilotOneCase:
         time_start = self.test_result['General']['time_start']
         time_end = self.test_result['General']['time_end']
 
-        for topic in self.test_result['Topics'].keys():
-            raw = self.test_result['Topics'][topic]['raw']
-            topic_tag = topic.replace('/', '')
-            additional_folder = os.path.join(self.DataFolder, topic_tag, 'additional')
-            create_folder(additional_folder)
-            if 'additional' not in self.test_result['Topics'][topic]:
-                self.test_result['Topics'][topic]['additional'] = {}
+        for topic_belonging in self.test_result.keys():
+            if topic_belonging == 'General':
+                continue
 
-            attribution = get_topic_attribution(topic)
-            topic_belonging = attribution['topic_belonging']
-            additional_column = attribution['additional_column']
+            additional_column = (test_encyclopaedia['Information'][topic_belonging]['raw_column']
+                                 + test_encyclopaedia['Information'][topic_belonging]['additional_column'])
+            send_log(self, f'{topic_belonging}, 使用{topic_belonging}Preprocess')
+            preprocess_ins = eval(f'PreProcess.{topic_belonging}Preprocess()')
 
-            reprocess_cls = eval(f'PreProcess.{topic_belonging}Preprocess')
-            send_log(self, f'{topic} 归属于 {topic_belonging}, 使用{topic_belonging}Preprocess')
-
-            for k, v in raw.items():
-                if 'csv' in v:
-                    data = pd.read_csv(self.get_abspath(v), index_col=False)
+            for topic in self.test_result[topic_belonging].keys():
+                if topic != 'GroundTruth':
+                    raw = self.test_result[topic_belonging][topic]['raw']
+                    topic_tag = topic.replace('/', '')
+                    additional_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'additional')
+                    create_folder(additional_folder)
+                    if 'additional' not in self.test_result[topic_belonging][topic]:
+                        self.test_result[topic_belonging][topic]['additional'] = {}
 
                     # 时间辍补齐
-                    if 'pred' in k:
-                        send_log(self, f'{topic} {k} 时间辍同步')
-                        data['time_stamp'] += time_gap
+                    send_log(self, f'{topic_belonging} {topic} 时间辍同步')
+                    data = pd.read_csv(self.get_abspath(raw['pred_timestamp']), index_col=False)
+                    data['time_stamp'] += time_gap
+                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+                    path = os.path.join(additional_folder, 'pred_timestamp.csv')
+                    self.test_result[topic_belonging][topic]['additional']['pred_timestamp'] = self.get_relpath(path)
+                    data.to_csv(path, index=False)
 
-                    # 预处理原始数据，增加列
-                    if 'timestamp' not in k:
-                        ins = reprocess_cls(data)
-                        send_log(self, f'{topic} {k} 预处理步骤 {ins.preprocess_types}')
-                        data = ins.data[additional_column]
+                    # 预处理原始数据, 增加列
+                    send_log(self, f'{topic_belonging} {topic} 预处理步骤 {preprocess_ins.preprocess_types}')
+                    data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
+                    data['time_stamp'] += time_gap
+                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
 
-                    data = data[(data['time_stamp'] <= time_end)
-                                & (data['time_stamp'] >= time_start)]
+                    input_parameter_container = {
+                        'coverage_reference_point': self.test_config['coverage_reference_point'],
+                        'coverage_threshold': self.test_config['coverage_threshold'],
+                        'ROI': self.test_config['pred_ROI'][topic],
+                        'lane_width': 3.6,
+                        'moving_threshold': 2,
+                        'key_coverage_threshold': 0.1,
+                    }
+                    data = preprocess_ins.run(data, input_parameter_container)[additional_column]
 
-                    path = os.path.join(additional_folder, os.path.basename(v))
-                    self.test_result['Topics'][topic]['additional'][k] = self.get_relpath(path)
+                    path = os.path.join(additional_folder, 'pred_data.csv')
+                    self.test_result[topic_belonging][topic]['additional']['pred_data'] = self.get_relpath(path)
+                    data.to_csv(path, index=False)
+
+                else:
+                    raw = self.test_result[topic_belonging]['GroundTruth']['raw']
+                    additional_folder = os.path.join(self.DataFolder, topic_belonging, 'GroundTruth', 'additional')
+                    create_folder(additional_folder)
+                    if 'additional' not in self.test_result[topic_belonging]['GroundTruth']:
+                        self.test_result[topic_belonging]['GroundTruth']['additional'] = {}
+
+                    # 时间辍补齐
+                    send_log(self, f'{topic_belonging} GroundTruth 时间辍同步')
+                    data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
+                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+                    path = os.path.join(additional_folder, 'gt_timestamp.csv')
+                    self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(path)
+                    data.to_csv(path, index=False)
+
+                    # 预处理原始数据, 增加列
+                    send_log(self, f'{topic_belonging} GroundTruth 预处理步骤 {preprocess_ins.preprocess_types}')
+                    data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
+                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+
+                    input_parameter_container = {
+                        'coverage_reference_point': self.test_config['coverage_reference_point'],
+                        'coverage_threshold': self.test_config['coverage_threshold'],
+                        'ROI': self.test_config['gt_ROI'],
+                        'lane_width': 3.6,
+                        'moving_threshold': 2,
+                        'key_coverage_threshold': 0.1,
+                    }
+                    data = preprocess_ins.run(data, input_parameter_container)[additional_column]
+
+                    path = os.path.join(additional_folder, 'gt_data.csv')
+                    self.test_result[topic_belonging]['GroundTruth']['additional']['gt_data'] = self.get_relpath(path)
                     data.to_csv(path, index=False)
 
     @sync_test_result
     def match_timestamp(self):
+        for topic_belonging in self.test_result.keys():
+            if topic_belonging == 'General':
+                continue
+
+            gt_timestamp_path = self.get_abspath(self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'])
+            gt_timestamp = pd.read_csv(gt_timestamp_path, index_col=False)['time_stamp'].to_list()
+            gt_hz = self.test_result[topic_belonging]['GroundTruth']['frequency']
+
+            for topic in self.test_result[topic_belonging].keys():
+                if topic == 'GroundTruth':
+                    continue
+
+                additional = self.test_result[topic_belonging][topic]['additional']
+                topic_tag = topic.replace('/', '')
+                match_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'match')
+                create_folder(match_folder)
+                if 'match' not in self.test_result[topic_belonging][topic]:
+                    self.test_result[topic_belonging][topic]['match'] = {}
+
+                pred_timestamp_path = self.get_abspath(additional['pred_timestamp'])
+                pred_timestamp = pd.read_csv(pred_timestamp_path, index_col=False)['time_stamp'].to_list()
+                pred_hz = self.test_result[topic_belonging][topic]['frequency']
+
+                match_tolerance = self.test_config['timestamp_matching_tolerance'] / max(pred_hz, gt_hz)
+                send_log(self, f'{topic_belonging} {topic} 时间差低于{match_tolerance} sec的尝试匹配, 进一步选择局部最优')
+
+                match_pred_timestamp, match_gt_timestamp = MatchTool.match_timestamp(
+                    pred_timestamp, gt_timestamp, match_tolerance)
+                send_log(self, f'{topic_belonging} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, 对齐{len(match_pred_timestamp)}')
+                send_log(self, f'{topic_belonging} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, 对齐{len(match_gt_timestamp)}')
+
+                # 保存时间辍匹配数据
+                match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_gap'])
+                if len(match_pred_timestamp):
+                    match_timestamp_data['gt_timestamp'] = match_gt_timestamp
+                    match_timestamp_data['pred_timestamp'] = match_pred_timestamp
+                    match_timestamp_data['match_gap'] = match_timestamp_data['pred_timestamp'] - match_timestamp_data[
+                        'gt_timestamp']
+
+                path = os.path.join(match_folder, 'match_timestamp.csv')
+                match_timestamp_data.to_csv(path, index=False)
+                self.test_result[topic_belonging][topic]['match']['match_timestamp'] = self.get_relpath(path)
+
+    @sync_test_result
+    def match_object(self):
         for topic in self.test_result['Topics'].keys():
             additional = self.test_result['Topics'][topic]['additional']
             topic_tag = topic.replace('/', '')
-            match_folder = os.path.join(self.DataFolder, topic_tag, 'match')
-            create_folder(match_folder)
-            if 'match' not in self.test_result['Topics'][topic]:
-                self.test_result['Topics'][topic]['match'] = {}
+            match_timestamp_path = self.test_result['Topics'][topic]['match']['match_timestamp']
+            match_timestamp = pd.read_csv(self.get_abspath(match_timestamp_path), index_col=False)
 
-            pred_timestamp_path = self.get_abspath(additional['pred_timestamp'])
-            pred_timestamp = pd.read_csv(pred_timestamp_path, index_col=False)['time_stamp'].to_list()
+            if not len(match_timestamp):
+                send_log(self, f'{topic} 不存在匹配的时间戳, 请检查')
+                continue
 
-            gt_timestamp_path = self.get_abspath(additional['gt_timestamp'])
-            gt_timestamp = pd.read_csv(gt_timestamp_path, index_col=False)['time_stamp'].to_list()
-
-            pred_hz = self.test_result['Topics'][topic]['frequency']['pred_hz']
-            gt_hz = self.test_result['Topics'][topic]['frequency']['gt_hz']
-            match_tolerance = self.timestamp_matching_tolerance / max(pred_hz, gt_hz)
-            send_log(self, f'{topic} 时间差低于{match_tolerance} sec的尝试匹配，进一步选择局部最优')
-
-            match_pred_timestamp, match_gt_timestamp = MatchTool.match_timestamp(
-                pred_timestamp, gt_timestamp, match_tolerance)
-            send_log(self, f'{topic} Prediction 时间戳总计{len(pred_timestamp)}个, 对齐{len(match_pred_timestamp)}')
-            send_log(self, f'{topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, 对齐{len(match_gt_timestamp)}')
-
-            # 保存时间辍匹配数据
-            match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_gap'])
-            if len(match_pred_timestamp):
-                match_timestamp_data['gt_timestamp'] = match_gt_timestamp
-                match_timestamp_data['pred_timestamp'] = match_pred_timestamp
-                match_timestamp_data['match_gap'] = match_timestamp_data['pred_timestamp'] - match_timestamp_data[
-                    'gt_timestamp']
-
-            path = os.path.join(match_folder, 'match_timestamp.csv')
-            match_timestamp_data.to_csv(path, index=False)
-            self.test_result['Topics'][topic]['match']['match_timestamp'] = self.get_relpath(path)
+            attribution = get_topic_attribution(topic)
+            topic_belonging = attribution['topic_belonging']
+            additional_column = attribution['additional_column']
 
     def start(self):
 
@@ -461,6 +537,7 @@ class DataGrinderPilotOneCase:
 
         if self.test_action['match']:
             self.match_timestamp()
+        #     self.match_object()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)

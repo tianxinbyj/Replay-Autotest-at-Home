@@ -2,7 +2,7 @@
 @Author: BU YUJUN
 @Date: 2024/7/8 上午9:57  
 """
-from typing import List, Tuple, Any
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -94,8 +94,12 @@ def calculate_time_gap(
 
 
 class RectPoints:
+    """
+    计算距离和四个角点
 
-    def __init__(self):
+    """
+
+    def __init__(self, input_parameter_container=None):
         self.columns = [
             'distance',
             'pt_0_x', 'pt_0_y',
@@ -145,8 +149,12 @@ class RectPoints:
 
 
 class VisionAngleRange:
+    """
+    计算物体在参考点的观察角度占据
 
-    def __init__(self, coverage_reference_point=None):
+    """
+
+    def __init__(self, input_parameter_container=None):
         self.columns = [
             'azimuth_right',
             'azimuth_left',
@@ -156,10 +164,10 @@ class VisionAngleRange:
         self.type = 'by_row'
 
         # x0, y0, z0为观察点的坐标
-        if coverage_reference_point is None:
-            self.x0, self.y0, self.z0 = parameter_container['coverage_reference_point']
+        if isinstance(input_parameter_container, dict):
+            self.x0, self.y0, self.z0 = input_parameter_container['coverage_reference_point']
         else:
-            self.x0, self.y0, self.z0 = coverage_reference_point
+            self.x0, self.y0, self.z0 = parameter_container['coverage_reference_point']
 
     def __call__(self, input_data):
 
@@ -209,14 +217,18 @@ class VisionAngleRange:
 
 
 class IsCoverageValid:
+    """
+    计算物体的被遮挡率和是否有效
 
-    def __init__(self, coverage_threshold=None):
+    """
+
+    def __init__(self, input_parameter_container=None):
         self.type = 'by_frame'
 
-        if coverage_threshold is None:
-            self.threshold = parameter_container['coverage_threshold']
+        if isinstance(input_parameter_container, dict):
+            self.threshold = input_parameter_container['coverage_threshold']
         else:
-            self.threshold = coverage_threshold
+            self.threshold = parameter_container['coverage_threshold']
 
     def __call__(self, input_data):
         if isinstance(input_data, pd.DataFrame):
@@ -344,8 +356,12 @@ class IsCoverageValid:
 
 
 class DruDirection:
+    """
+    计算物体的运动和朝向状态
 
-    def __init__(self, moving_threshold=None):
+    """
+
+    def __init__(self, input_parameter_container=None):
         self.columns = [
             'is_sameDir',
             'is_oppositeDir',
@@ -354,10 +370,10 @@ class DruDirection:
         ]
         self.type = 'by_row'
 
-        if moving_threshold is None:
-            self.moving_threshold = parameter_container['moving_threshold']
+        if isinstance(input_parameter_container, dict):
+            self.moving_threshold = input_parameter_container['moving_threshold']
         else:
-            self.moving_threshold = moving_threshold
+            self.moving_threshold = parameter_container['moving_threshold']
 
     def __call__(self, input_data):
 
@@ -401,19 +417,20 @@ class DruDirection:
 
 
 class IsKeyObj:
+    """
+    计算物体是否为关键目标
 
-    def __init__(self, lane_width=None, key_coverage_threshold=None):
+    """
+
+    def __init__(self, input_parameter_container=None):
         self.type = 'by_frame'
 
-        if lane_width is None:
+        if isinstance(input_parameter_container, dict):
+            self.lane_width = input_parameter_container['lane_width']
+            self.key_coverage_threshold = input_parameter_container['key_coverage_threshold']
+        else:
             self.lane_width = parameter_container['lane_width']
-        else:
-            self.lane_width = lane_width
-
-        if key_coverage_threshold is None:
             self.key_coverage_threshold = parameter_container['key_coverage_threshold']
-        else:
-            self.key_coverage_threshold = key_coverage_threshold
 
     def __call__(self, input_data):
         if isinstance(input_data, pd.DataFrame):
@@ -456,30 +473,41 @@ class IsKeyObj:
 
         # 左右
         data_other = data[(((data['y'] < -self.lane_width / 2) & (data['y'] > -3 * self.lane_width / 2)) | (
-                    (data['y'] > self.lane_width / 2) & (data['y'] < 3 * self.lane_width / 2))) & (
-                                      data['coverage'] < self.key_coverage_threshold)]
+                (data['y'] > self.lane_width / 2) & (data['y'] < 3 * self.lane_width / 2))) & (
+                                  data['coverage'] < self.key_coverage_threshold)]
         for i in data_other.index:
             data.at[i, 'is_keyObj'] = 1
 
         return data
 
 
+class IsObstaclesDetectedValid:
+    """
+    计算动态障碍物是否在标定的探测范围内
+
+    """
+
+    def __init__(self, ):
+        pass
+
+
 class ObstaclesPreprocess:
 
-    def __init__(self, data, preprocess_types=None):
+    def __init__(self, preprocess_types=None):
         if preprocess_types is None:
             self.preprocess_types = [
                 'RectPoints', 'VisionAngleRange', 'IsCoverageValid', 'IsKeyObj', 'DruDirection'
             ]
         else:
-            self.preprocess_types = []
+            self.preprocess_types = preprocess_types
 
+    def run(self, data, input_parameter_container):
         # 增加age
         id_counts = data['id'].value_counts()
         data['age'] = data['id'].map(id_counts)
 
         for preprocess_type in self.preprocess_types:
-            func = eval(f'{preprocess_type}()')
+            func = eval(f'{preprocess_type}(input_parameter_container)')
             if func.type == 'by_row':
                 result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
                 result_df.columns = func.columns
@@ -488,4 +516,4 @@ class ObstaclesPreprocess:
             elif func.type == 'by_frame':
                 data = func(data)
 
-        self.data = data
+        return data
