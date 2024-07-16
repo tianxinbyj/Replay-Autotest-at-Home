@@ -2,7 +2,6 @@
 @Author: BU YUJUN
 @Date: 2024/7/8 上午9:57  
 """
-import time
 from typing import List, Tuple, Any
 
 import numpy as np
@@ -22,8 +21,7 @@ def calculate_time_gap(
         baseline_time_series: List[float],
         baseline_velocity_series: List[float],
         calibrated_time_series: List[float],
-        calibrated_velocity_series: List[float]
-) -> Tuple[Any, Any]:
+        calibrated_velocity_series: List[float]) -> Tuple[float, float]:
     # 提取时间序列和速度序列
     t1 = baseline_time_series
     v1 = baseline_velocity_series
@@ -491,19 +489,3 @@ class ObstaclesPreprocess:
                 data = func(data)
 
         self.data = data
-
-
-if __name__ == '__main__':
-
-    data_path = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug/04_TestData/1-Obstacles/ScenarioUnit/20230602_144755_n000003/01_Data/VAObstacles/additional/pred_data.csv'
-    data = pd.read_csv(data_path, index_col=False)
-
-    ins = VisionAngleRange()
-
-    t0 = time.time()
-    for idx, row in data.iterrows():
-        print(idx)
-        print(ins(row.to_dict()))
-        if idx == 100:
-            break
-    print(time.time() - t0)

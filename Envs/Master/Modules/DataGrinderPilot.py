@@ -24,7 +24,7 @@ from Utils.Logger import send_log
 
 # 导入评测api
 #1. 预处理Api
-from Envs.Master.Modules.PerceptMetrics import PreProcess
+from Envs.Master.Modules.PerceptMetrics import PreProcess, MatchTool
 
 
 def get_test_project_root_path(path):
@@ -47,6 +47,20 @@ def get_topic_attribution(topic):
                 return res
 
     return None
+
+
+def sync_test_result(method):
+    def wrapper(self, *args, **kwargs):
+        method_start_time = time.time()
+        self.load_test_result()
+        result = method(self, *args, **kwargs)
+        self.save_test_result()
+        method_end_time = time.time()
+        print(f'{self.__class__.__name__}.{method.__name__} '
+              f'executed in {method_end_time - method_start_time:.2f} sec')
+        return result
+
+    return wrapper
 
 
 class DataGrinderPilotOneCase:
@@ -77,27 +91,30 @@ class DataGrinderPilotOneCase:
         }
 
         self.scenario_tag = self.test_config['scenario_tag']
+        self.test_action = self.test_config['test_action']
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_item = self.test_config['test_item']
         self.topics_for_evaluation = self.test_item.keys()
         self.coverage_reference_point = self.test_config['coverage_reference_point']
         self.coverage_threshold = self.test_config['coverage_threshold']
+        self.timestamp_matching_tolerance = self.test_config['timestamp_matching_tolerance']
 
         # 设置数据预处理类的变量池
         PreProcess.parameter_container['coverage_reference_point'] = self.coverage_reference_point
         PreProcess.parameter_container['coverage_threshold'] = self.coverage_threshold
 
+        # 设置匹配处理类的变量池
+
         # 建立文件夹
         self.pred_raw_folder = self.test_config['data_folder']['raw']['pred']
         self.GT_raw_folder = self.test_config['data_folder']['raw']['GT']
-        self.workspace = self.test_config['workspace']
         self.DataFolder = os.path.join(self.scenario_unit_folder, '01_Data')
 
         # 初始化测试配置
         self.test_result_info_path = os.path.join(self.scenario_unit_folder, 'TestResultInfo.yaml')
         if not os.path.exists(self.test_result_info_path):
             self.test_result = {'General': {}, 'Topics': {topic: {
-                'frequency': {}, 'raw': {}, 'additional': {},
+                'frequency': {}, 'raw': {}
             } for topic in self.topics_for_evaluation}}
 
             self.save_test_result()
@@ -107,13 +124,13 @@ class DataGrinderPilotOneCase:
             yaml.dump(self.test_encyclopaedia,
                       f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
+    @sync_test_result
     def load_pred_data(self):
         test_topic_info_path = os.path.join(self.pred_raw_folder, 'RawData', 'TestTopicInfo.yaml')
         if not os.path.exists(test_topic_info_path):
             send_log(self, 'No TestTopicInfo.yaml is found. Please check')
             return
 
-        self.load_test_result()
         with open(test_topic_info_path) as f:
             parsed_topic = yaml.load(f, Loader=yaml.FullLoader)['topics_for_parser']
 
@@ -143,8 +160,8 @@ class DataGrinderPilotOneCase:
                 pred_timestamp = pd.read_csv(pred_timestamp_csv, index_col=False).sort_values(
                     by=['time_stamp']).drop_duplicates(subset=['time_stamp'], keep='first')
 
-                raw_folder = os.path.join(self.DataFolder, topic_tag, 'raw', 'pred')
-                create_folder(raw_folder)
+                raw_folder = os.path.join(self.DataFolder, topic_tag, 'raw')
+                create_folder(raw_folder, False)
 
                 path = os.path.join(raw_folder, 'pred_data.csv')
                 pred_data.to_csv(path, index=False)
@@ -194,15 +211,13 @@ class DataGrinderPilotOneCase:
                 self.test_result['General']['camera_position'][cam_name] = [x, y, z]
                 send_log(self, f'{cam_name} 位于({x}, {y}, {z})')
 
-        self.save_test_result()
-
+    @sync_test_result
     def load_gt_data(self):
         gt_config_path = os.path.join(self.GT_raw_folder, 'yaml_management.yaml')
         if not os.path.exists(gt_config_path):
             print('No yaml_management.yaml is found. Please check')
             return
 
-        self.load_test_result()
         with open(gt_config_path) as f:
             gt_config = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -261,8 +276,8 @@ class DataGrinderPilotOneCase:
                     raw_column = attribution['raw_column']
 
                     topic_tag = topic.replace('/', '')
-                    raw_folder = os.path.join(self.DataFolder, topic_tag, 'raw', 'gt')
-                    create_folder(raw_folder)
+                    raw_folder = os.path.join(self.DataFolder, topic_tag, 'raw')
+                    create_folder(raw_folder, False)
 
                     path = os.path.join(raw_folder, 'gt_data.csv')
                     gt_data[raw_column].to_csv(path, index=False)
@@ -287,11 +302,8 @@ class DataGrinderPilotOneCase:
             ego_data.to_csv(path, index=False)
             self.test_result['General']['gt_ego'] = self.get_relpath(path)
 
-        self.save_test_result()
-
+    @sync_test_result
     def sync_timestamp(self):
-        self.load_test_result()
-        t0 = time.time()
 
         baseline_data = pd.read_csv(
             self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
@@ -309,15 +321,22 @@ class DataGrinderPilotOneCase:
             calibrated_time_series=calibrated_time_series,
             calibrated_velocity_series=calibrated_velocity_series
         )
-        send_log(self, f'时间辍同步耗时{round(time.time() - t0, 2)} sec, '
-                       f'最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
+        send_log(self, f'最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
         self.test_result['General']['time_gap'] = float(t_delta)
 
-        start_time = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
-        end_time = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
-        send_log(self, f'测试指标的数据时间段为{start_time}-{end_time}')
-        self.test_result['General']['start_time'] = float(start_time)
-        self.test_result['General']['end_time'] = float(end_time)
+        time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
+        time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
+        send_log(self, f'测试指标的数据时间段为{time_start}-{time_end}')
+        self.test_result['General']['time_start'] = float(time_start)
+        self.test_result['General']['time_end'] = float(time_end)
+
+        # 将同步后的自车速度保存，后续插值车速需要
+        calibrated_data['time_stamp'] += t_delta
+        sync_ego_data = calibrated_data[(calibrated_data['time_stamp'] <= time_end + 1)
+                                        & (calibrated_data['time_stamp'] >= time_start - 1)]
+        path = os.path.join(self.DataFolder, 'General', 'SyncEgoVx.csv')
+        sync_ego_data.to_csv(path, index=False)
+        self.test_result['General']['sync_ego_data'] = self.get_relpath(path)
 
         # 将同步后的自车速度可视化
         fig = plt.figure(figsize=(10, 5.625))
@@ -326,18 +345,18 @@ class DataGrinderPilotOneCase:
         grid = plt.GridSpec(1, 1, wspace=0.2, hspace=0.25)
         ax = fig.add_subplot(grid[0, 0])
 
-        ax.plot(calibrated_data['time_stamp'].values + t_delta,
-                calibrated_data['ego_vx'].values * 3.6,
+        ax.plot(calibrated_data['time_stamp'],
+                calibrated_data['ego_vx'] * 3.6,
                 color='red', linestyle='dashed', linewidth=2,
                 label=f'ego_speed of {self.product}')
-        ax.plot(baseline_data['time_stamp'].values,
-                baseline_data['ego_vx'].values * 3.6,
+        ax.plot(baseline_data['time_stamp'],
+                baseline_data['ego_vx'] * 3.6,
                 color='green', linestyle='dashed', linewidth=2,
                 label=f'ego_speed of GroundTruth')
         ax.set_title(f'{self.scenario_id}  time_gap = {t_delta} sec', fontsize=font_size * 1.3)
         ax.set_xlabel('time[second]', fontdict=axis_font)
         ax.set_ylabel('ego_vx[km/h]', fontdict=axis_font)
-        ax.set_xlim(start_time, end_time)
+        ax.set_xlim(time_start, time_end)
         ax.set_ylim(0, 140)
         ax.set_yticks(np.arange(0, 141, 20))
         ax.grid('--', color='gainsboro')
@@ -347,22 +366,23 @@ class DataGrinderPilotOneCase:
         path = os.path.join(self.DataFolder, 'General', 'SyncEgoVx.png')
         canvas = FigureCanvas(fig)
         canvas.print_figure(path, facecolor='white', dpi=100)
-        self.test_result['General']['sync_ego_vx'] = self.get_relpath(path)
+        self.test_result['General']['sync_ego_figure'] = self.get_relpath(path)
         fig.clf()
         plt.close()
-        send_log(self, f'{path} 保存完毕')
 
-        self.save_test_result()
-
-    def promote_rawdata(self):
-        self.load_test_result()
+    @sync_test_result
+    def promote_additional(self):
         time_gap = self.test_result['General']['time_gap']
+        time_start = self.test_result['General']['time_start']
+        time_end = self.test_result['General']['time_end']
 
         for topic in self.test_result['Topics'].keys():
             raw = self.test_result['Topics'][topic]['raw']
             topic_tag = topic.replace('/', '')
             additional_folder = os.path.join(self.DataFolder, topic_tag, 'additional')
             create_folder(additional_folder)
+            if 'additional' not in self.test_result['Topics'][topic]:
+                self.test_result['Topics'][topic]['additional'] = {}
 
             attribution = get_topic_attribution(topic)
             topic_belonging = attribution['topic_belonging']
@@ -375,20 +395,72 @@ class DataGrinderPilotOneCase:
                 if 'csv' in v:
                     data = pd.read_csv(self.get_abspath(v), index_col=False)
 
+                    # 时间辍补齐
                     if 'pred' in k:
                         send_log(self, f'{topic} {k} 时间辍同步')
                         data['time_stamp'] += time_gap
 
+                    # 预处理原始数据，增加列
                     if 'timestamp' not in k:
                         ins = reprocess_cls(data)
                         send_log(self, f'{topic} {k} 预处理步骤 {ins.preprocess_types}')
                         data = ins.data[additional_column]
 
+                    data = data[(data['time_stamp'] <= time_end)
+                                & (data['time_stamp'] >= time_start)]
+
                     path = os.path.join(additional_folder, os.path.basename(v))
                     self.test_result['Topics'][topic]['additional'][k] = self.get_relpath(path)
                     data.to_csv(path, index=False)
 
-        self.save_test_result()
+    @sync_test_result
+    def match_timestamp(self):
+        for topic in self.test_result['Topics'].keys():
+            additional = self.test_result['Topics'][topic]['additional']
+            topic_tag = topic.replace('/', '')
+            match_folder = os.path.join(self.DataFolder, topic_tag, 'match')
+            create_folder(match_folder)
+            if 'match' not in self.test_result['Topics'][topic]:
+                self.test_result['Topics'][topic]['match'] = {}
+
+            pred_timestamp_path = self.get_abspath(additional['pred_timestamp'])
+            pred_timestamp = pd.read_csv(pred_timestamp_path, index_col=False)['time_stamp'].to_list()
+
+            gt_timestamp_path = self.get_abspath(additional['gt_timestamp'])
+            gt_timestamp = pd.read_csv(gt_timestamp_path, index_col=False)['time_stamp'].to_list()
+
+            pred_hz = self.test_result['Topics'][topic]['frequency']['pred_hz']
+            gt_hz = self.test_result['Topics'][topic]['frequency']['gt_hz']
+            match_tolerance = self.timestamp_matching_tolerance / max(pred_hz, gt_hz)
+            send_log(self, f'{topic} 时间差低于{match_tolerance} sec的尝试匹配，进一步选择局部最优')
+
+            match_pred_timestamp, match_gt_timestamp = MatchTool.match_timestamp(
+                pred_timestamp, gt_timestamp, match_tolerance)
+            send_log(self, f'{topic} Prediction 时间戳总计{len(pred_timestamp)}个, 对齐{len(match_pred_timestamp)}')
+            send_log(self, f'{topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, 对齐{len(match_gt_timestamp)}')
+
+            # 保存时间辍匹配数据
+            match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_gap'])
+            if len(match_pred_timestamp):
+                match_timestamp_data['gt_timestamp'] = match_gt_timestamp
+                match_timestamp_data['pred_timestamp'] = match_pred_timestamp
+                match_timestamp_data['match_gap'] = match_timestamp_data['pred_timestamp'] - match_timestamp_data[
+                    'gt_timestamp']
+
+            path = os.path.join(match_folder, 'match_timestamp.csv')
+            match_timestamp_data.to_csv(path, index=False)
+            self.test_result['Topics'][topic]['match']['match_timestamp'] = self.get_relpath(path)
+
+    def start(self):
+
+        if self.test_action['preprocess']:
+            self.load_pred_data()
+            self.load_gt_data()
+            self.sync_timestamp()
+            self.promote_additional()
+
+        if self.test_action['match']:
+            self.match_timestamp()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)
