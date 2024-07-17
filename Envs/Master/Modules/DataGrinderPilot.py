@@ -4,6 +4,7 @@
 """
 import glob
 import os
+import shutil
 import sys
 import time
 
@@ -57,7 +58,7 @@ def sync_test_result(method):
         self.save_test_result()
         method_end_time = time.time()
         print(f'{self.__class__.__name__}.{method.__name__} '
-              f'executed in {method_end_time - method_start_time:.2f} sec')
+              f'-> {method_end_time - method_start_time:.2f} sec')
         return result
 
     return wrapper
@@ -213,6 +214,11 @@ class DataGrinderPilotOneCase:
                     ]
                 self.test_result['General']['camera_position'][cam_name] = [x, y, z]
                 send_log(self, f'{cam_name} 位于({x}, {y}, {z})')
+
+        new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '01_ScenarioInfo')
+        if os.path.exists(new_scenario_info_folder):
+            shutil.rmtree(new_scenario_info_folder)
+        os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
 
     @sync_test_result
     def load_gt_data(self):
@@ -443,7 +449,8 @@ class DataGrinderPilotOneCase:
                     data = pd.read_csv(self.get_abspath(raw['gt_timestamp']), index_col=False)
                     data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
                     path = os.path.join(additional_folder, 'gt_timestamp.csv')
-                    self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(path)
+                    self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(
+                        path)
                     data.to_csv(path, index=False)
 
                     # 预处理原始数据, 增加列
@@ -471,7 +478,8 @@ class DataGrinderPilotOneCase:
             if topic_belonging == 'General':
                 continue
 
-            gt_timestamp_path = self.get_abspath(self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'])
+            gt_timestamp_path = self.get_abspath(
+                self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'])
             gt_timestamp = pd.read_csv(gt_timestamp_path, index_col=False)['time_stamp'].to_list()
             gt_hz = self.test_result[topic_belonging]['GroundTruth']['frequency']
 
@@ -491,20 +499,23 @@ class DataGrinderPilotOneCase:
                 pred_hz = self.test_result[topic_belonging][topic]['frequency']
 
                 match_tolerance = self.test_config['timestamp_matching_tolerance'] / max(pred_hz, gt_hz)
-                send_log(self, f'{topic_belonging} {topic} 时间差低于{match_tolerance} sec的尝试匹配, 进一步选择局部最优')
+                send_log(self,
+                         f'{topic_belonging} {topic} 时间差低于{match_tolerance} sec的尝试匹配, 进一步选择局部最优')
 
                 match_pred_timestamp, match_gt_timestamp = MatchTool.match_timestamp(
                     pred_timestamp, gt_timestamp, match_tolerance)
-                send_log(self, f'{topic_belonging} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, 对齐{len(match_pred_timestamp)}')
-                send_log(self, f'{topic_belonging} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, 对齐{len(match_gt_timestamp)}')
+                send_log(self,
+                         f'{topic_belonging} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, 对齐{len(match_pred_timestamp)}')
+                send_log(self,
+                         f'{topic_belonging} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, 对齐{len(match_gt_timestamp)}')
 
                 # 保存时间辍匹配数据
                 match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_gap'])
                 if len(match_pred_timestamp):
                     match_timestamp_data['gt_timestamp'] = match_gt_timestamp
                     match_timestamp_data['pred_timestamp'] = match_pred_timestamp
-                    match_timestamp_data['match_gap'] = match_timestamp_data['pred_timestamp'] - match_timestamp_data[
-                        'gt_timestamp']
+                    match_timestamp_data['match_time_gap'] = match_timestamp_data['pred_timestamp'] - \
+                                                             match_timestamp_data['gt_timestamp']
 
                 path = os.path.join(match_folder, 'match_timestamp.csv')
                 match_timestamp_data.to_csv(path, index=False)
@@ -512,19 +523,54 @@ class DataGrinderPilotOneCase:
 
     @sync_test_result
     def match_object(self):
-        for topic in self.test_result['Topics'].keys():
-            additional = self.test_result['Topics'][topic]['additional']
-            topic_tag = topic.replace('/', '')
-            match_timestamp_path = self.test_result['Topics'][topic]['match']['match_timestamp']
-            match_timestamp = pd.read_csv(self.get_abspath(match_timestamp_path), index_col=False)
-
-            if not len(match_timestamp):
-                send_log(self, f'{topic} 不存在匹配的时间戳, 请检查')
+        for topic_belonging in self.test_result.keys():
+            if topic_belonging == 'General':
                 continue
 
-            attribution = get_topic_attribution(topic)
-            topic_belonging = attribution['topic_belonging']
-            additional_column = attribution['additional_column']
+            additional_column = (test_encyclopaedia['Information'][topic_belonging]['raw_column']
+                                 + test_encyclopaedia['Information'][topic_belonging]['additional_column'])
+            send_log(self, f'{topic_belonging}, 使用{topic_belonging}Preprocess')
+            matchtool_ins = eval(f'MatchTool.{topic_belonging}MatchTool()')
+            match_column = ['corresponding_index', 'gt_flag', 'pred_flag']
+            for col in additional_column:
+                for kind in ['gt', 'pred']:
+                    match_column.append(f'{kind}_{col}')
+
+            gt_data_path = self.get_abspath(
+                self.test_result[topic_belonging]['GroundTruth']['additional']['gt_data'])
+            gt_data = (pd.read_csv(gt_data_path, index_col=False)
+                       .sort_values(by=['time_stamp'], ascending=True).reset_index(drop=True))
+
+            for topic in self.test_result[topic_belonging].keys():
+                if topic == 'GroundTruth':
+                    continue
+
+                topic_tag = topic.replace('/', '')
+                match_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'match')
+
+                match_timestamp_path = self.get_abspath(
+                    self.test_result[topic_belonging][topic]['match']['match_timestamp'])
+                match_timestamp = pd.read_csv(match_timestamp_path, index_col=False)
+
+                pred_data_path = self.get_abspath(
+                    self.test_result[topic_belonging][topic]['additional']['pred_data'])
+                pred_data = (pd.read_csv(pred_data_path, index_col=False)
+                             .sort_values(by=['time_stamp'], ascending=True).reset_index(drop=True))
+
+                input_parameter_container = {
+                    'object_matching_tolerance': self.test_config['object_matching_tolerance'],
+                }
+                input_data = {
+                    'match_timestamp': match_timestamp,
+                    'gt_data': gt_data,
+                    'pred_data': pred_data,
+                }
+
+                send_log(self, f'{topic_belonging} {topic} 目标匹配')
+                data = matchtool_ins.run(input_data, input_parameter_container)[match_column]
+                path = os.path.join(match_folder, 'match_data.csv')
+                self.test_result[topic_belonging][topic]['match']['match_data'] = self.get_relpath(path)
+                data.to_csv(path, index=False)
 
     def start(self):
 
@@ -536,7 +582,7 @@ class DataGrinderPilotOneCase:
 
         if self.test_action['match']:
             self.match_timestamp()
-        #     self.match_object()
+            self.match_object()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)
