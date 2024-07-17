@@ -25,7 +25,7 @@ from Utils.Logger import send_log
 
 # 导入评测api
 #1. 预处理Api
-from Envs.Master.Modules.PerceptMetrics import PreProcess, MatchTool
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool
 
 
 def get_test_project_root_path(path):
