@@ -2,28 +2,10 @@
 Created on 2024/7/5.  
 @author: Bu Yujun  
 """
-import copy
-import csv
-import datetime
-import glob
-import inspect
-import os.path
-import re
-import shutil
-import threading
-import time
-import uuid
-import warnings
 from typing import List
-from collections import OrderedDict
 
-import matplotlib.patches as pc
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import yaml
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from scipy.interpolate import interp1d
 from scipy.optimize import linear_sum_assignment
 
 
@@ -75,8 +57,8 @@ class ObstaclesMatchTool:
         gt_column = gt_data.columns
         pred_column = pred_data.columns
         total_column = (['gt_flag', 'pred_flag']
-                        + [f'gt_{col}' for col in gt_column]
-                        + [f'pred_{col}' for col in pred_column])
+                        + [f'gt.{col}' for col in gt_column]
+                        + [f'pred.{col}' for col in pred_column])
         match_data_rows = []
 
         for row_idx, row in match_timestamp.iterrows():
@@ -135,7 +117,7 @@ class ObstaclesMatchTool:
 
             no_match_gt_idx_list = [idx for idx in frame_gt_data.index if idx not in match_gt_idx_list]
             no_match_pred_idx_list = [idx for idx in frame_pred_data.index if idx not in match_pred_idx_list]
-            print(f'{row_idx}，{row["gt_timestamp"]}, 结算完毕, '
+            print(f'{row_idx}，{row["gt_timestamp"]:.3f}, 结算完毕, '
                   f'TP-{len(match_pred_idx_list)}, '
                   f'FN-{len(no_match_gt_idx_list)}, '
                   f'FP-{len(no_match_pred_idx_list)}')

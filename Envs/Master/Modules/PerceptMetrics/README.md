@@ -20,11 +20,6 @@ numpy
 pandas
 scipy
 
-# 你有一个包含物体检测数据的DataFrame
-```markdown  
-# data 来源于原始数据，不限于gt或者pred数据
-data = pd.read_csv(pred_data_path, index_col=False)
-```
 
 # 安装
 ```markdown  
@@ -39,6 +34,12 @@ from PerceptMetrics import PreProcess
 # 初始化预处理对象
 ```markdown  
 preprocess = PreProcess.ObstaclesPreprocess()  
+```
+
+# 你有一个包含物体检测数据的DataFrame
+```markdown  
+# data 来源于原始数据，不限于gt或者pred数据
+data = pd.read_csv(pred_data_path, index_col=False)
 ```
 
 # 运行预处理  

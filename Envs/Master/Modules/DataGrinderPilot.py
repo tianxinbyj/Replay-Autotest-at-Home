@@ -24,7 +24,6 @@ from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_f
 from Utils.Logger import send_log
 
 # 导入评测api
-#1. 预处理Api
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool
 
 
@@ -215,7 +214,7 @@ class DataGrinderPilotOneCase:
                 self.test_result['General']['camera_position'][cam_name] = [x, y, z]
                 send_log(self, f'{cam_name} 位于({x}, {y}, {z})')
 
-        new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '01_ScenarioInfo')
+        new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
         if os.path.exists(new_scenario_info_folder):
             shutil.rmtree(new_scenario_info_folder)
         os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
@@ -534,7 +533,7 @@ class DataGrinderPilotOneCase:
             match_column = ['corresponding_index', 'gt_flag', 'pred_flag']
             for col in additional_column:
                 for kind in ['gt', 'pred']:
-                    match_column.append(f'{kind}_{col}')
+                    match_column.append(f'{kind}.{col}')
 
             gt_data_path = self.get_abspath(
                 self.test_result[topic_belonging]['GroundTruth']['additional']['gt_data'])
