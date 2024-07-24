@@ -1,0 +1,161 @@
+product: 1J5
+version: V1.3.2.RC1
+data_folder:
+  pred: /home/zhangliwei01/ZONE/TestProject/1J5/Pilot/01_Prediction
+  gt: /home/zhangliwei01/ZONE/TestProject/1J5/Pilot/02_GroundTruth
+  scenario_unit: /home/zhangliwei01/ZONE/TestProject/1J5/Pilot/04_TestData/1-Obstacles/ScenarioUnit
+  combination: /home/zhangliwei01/ZONE/TestProject/1J5/Pilot/04_TestData/1-Obstacles/Combination
+test_action:
+  preprocess: 1
+  match: 1
+  metric: 1
+test_item:
+  /VA/Obstacles:
+  - recall&precision
+  - x_error
+  - y_error
+  - vx_error
+  - vy_error
+  - yaw_error
+  - length_error
+  - width_error
+  - height_error
+  /PI/FS/ObjTracksHorizon:
+  - recall&precision
+  - x_error
+  - y_error
+  - vx_error
+  - vy_error
+  - yaw_error
+  - length_error
+  - width_error
+  - height_error
+target_characteristic:
+- is_coverageValid
+- is_cipv
+- is_keyObj
+- is_sameDir
+- is_oppositeDir
+- is_crossingDir
+- is_moving
+- is_static
+scenario_tag:
+- tag:
+  - 晴天
+  - 高速,快速路
+  scenario_id:
+  - 20230602_144755_n000003
+  - 20230627_170934_n000001
+  - 20230703_103858_n000003
+  - 20230703_105701_n000001
+- tag:
+  - 晴天
+  - 城区道路
+  scenario_id:
+  - 20230602_144755_n000005
+  - 20230614_135643_n000001
+  - 20230614_142204_n000004
+  - 20230627_173157_n000001
+pred_ROI:
+  /VA/BevObstaclesDet:
+    x:
+    - -50
+    - 50
+    y:
+    - -20
+    - 20
+  /VA/FrontWideObstacles2dDet:
+    angle:
+    - - -45
+      - 45
+      - [2.1, 0, 1.4]
+    - - 150
+      - 210
+    - - [0, 0, 1.6]
+    x:
+    - -80
+    - 120
+    y:
+    - -30
+    - 30
+  /VA/Obstacles:
+  - x:
+    - -50
+    - 50
+    y:
+    - -20
+    - 20
+    angle:
+    - - -45
+      - 45
+      - [2.1, 0, 1.4]
+    - - 150
+      - 210
+    - - [0, 0, 1.6]
+    x:
+    - -80
+    - 120
+    y:
+    - -30
+    - 30
+  /PI/FS/ObjTracksHorizon:
+  - x:
+    - -50
+    - 50
+    y:
+    - -20
+    - 20
+    angle:
+    - - -45
+      - 45
+      - [2.1, 0, 1.4]
+    - - 150
+      - 210
+    - - [0, 0, 1.6]
+    x:
+    - -80
+    - 120
+    y:
+    - -30
+    - 30
+gt_ROI:
+  x:
+  - -80
+  - 120
+  y:
+  - -40
+  - 40
+region_division:
+- x:
+  - 0
+  - 30
+  y:
+  - -8
+  - 8
+- x:
+  - 0
+  - 30
+  y:
+  - - 8
+    - 20
+  - - -20
+    - -8
+- x:
+  - 30
+  - 60
+  y:
+  - -20
+  - 20
+coverage_reference_point:
+- 2
+- 0
+- 1
+timestamp_matching_tolerance: 0.5
+coverage_threshold: 0.6
+object_matching_tolerance:
+  x:
+  - 4
+  - 0.2
+  y:
+  - 2
+  - 0.1

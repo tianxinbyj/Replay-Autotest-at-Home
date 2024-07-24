@@ -378,6 +378,7 @@ class DruDirection:
             'is_oppositeDir',
             'is_crossingDir',
             'is_moving',
+            'is_static',
         ]
         self.type = 'by_row'
 
@@ -414,17 +415,19 @@ class DruDirection:
 
             if velocity >= self.moving_threshold:
                 is_moving = 1
+                is_static = 0
             else:
                 is_moving = 0
+                is_static = 1
 
             if -30 <= yaw_degree <= 30:
-                return 1, 0, 0, is_moving
+                return 1, 0, 0, is_moving, is_static
             elif -180 <= yaw_degree < -150 or 150 < yaw_degree <= 180:
-                return 0, 1, 0, is_moving
+                return 0, 1, 0, is_moving, is_static
             else:
-                return 0, 0, 1, is_moving
+                return 0, 0, 1, is_moving, is_static
 
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0, 0
 
 
 class IsKeyObj:

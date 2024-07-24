@@ -27,13 +27,6 @@ from Utils.Logger import send_log
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator
 
 
-def get_test_project_root_path(path):
-    while True:
-        if os.path.exists(os.path.join(path, '04_TestData')):
-            return path
-        path = os.path.dirname(path)
-
-
 def get_topic_attribution(topic):
     for topic_belonging in test_encyclopaedia['Information']:
         if 'topics' in test_encyclopaedia['Information'][topic_belonging]:
@@ -66,18 +59,10 @@ def sync_test_result(method):
 class DataGrinderPilotOneCase:
 
     def __init__(self, scenario_unit_folder):
-        # 变量初始化
-        send_log(self, '=' * 50)
-
-        # 同时要考虑文件文件路径发生变化, 需要修改yaml中的所有相关路径
+        print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
-            scenario_test_config = yaml.safe_load(file)
-        test_project_root_path = get_test_project_root_path(scenario_unit_folder)
-        self.test_config = replace_path_in_dict(
-            scenario_test_config,
-            scenario_test_config['root_path'], test_project_root_path
-        )
+            self.test_config = yaml.safe_load(file)
         self.scenario_unit_folder = scenario_unit_folder
 
         # 加载测试相关的参数
@@ -98,8 +83,8 @@ class DataGrinderPilotOneCase:
         self.topics_for_evaluation = self.test_item.keys()
 
         # 建立文件夹
-        self.pred_raw_folder = self.test_config['data_folder']['raw']['pred']
-        self.GT_raw_folder = self.test_config['data_folder']['raw']['GT']
+        self.pred_raw_folder = self.test_config['pred_folder']
+        self.gt_raw_folder = self.test_config['gt_folder']
         self.DataFolder = os.path.join(self.scenario_unit_folder, '01_Data')
 
         # 初始化测试配置
@@ -221,7 +206,7 @@ class DataGrinderPilotOneCase:
 
     @sync_test_result
     def load_gt_data(self):
-        gt_config_path = os.path.join(self.GT_raw_folder, 'yaml_management.yaml')
+        gt_config_path = os.path.join(self.gt_raw_folder, 'yaml_management.yaml')
         if not os.path.exists(gt_config_path):
             print('No yaml_management.yaml is found. Please check')
             return
@@ -261,7 +246,7 @@ class DataGrinderPilotOneCase:
             # 读取原始数据
             csv_data = []
             for csv_file in gt_config['{:s}_list'.format(gt_topic)]:
-                csv_path = os.path.join(self.GT_raw_folder, gt_topic, csv_file)
+                csv_path = os.path.join(self.gt_raw_folder, gt_topic, csv_file)
                 csv_data.append(pd.read_csv(csv_path, index_col=False))
             gt_data = pd.concat(csv_data).rename(columns={
                 'timestamp': 'time_stamp',
@@ -276,7 +261,7 @@ class DataGrinderPilotOneCase:
 
             # 读取时间辍, 用于时间辍匹配
             gt_timestamp_csv = \
-                glob.glob(os.path.join(self.GT_raw_folder, f'{timestamp_csv_tag}*hz.csv'))[0]
+                glob.glob(os.path.join(self.gt_raw_folder, f'{timestamp_csv_tag}*hz.csv'))[0]
             gt_timestamp = pd.read_csv(gt_timestamp_csv).sort_values(
                 by=['timestamp']).rename(columns={'timestamp': 'time_stamp'}) \
                 .drop_duplicates(subset=['time_stamp'], keep='first')
@@ -303,12 +288,12 @@ class DataGrinderPilotOneCase:
             self.test_result[gt_topic_belonging]['GroundTruth']['raw']['gt_timestamp'] = self.get_relpath(path)
 
         # 自车速度用于对齐
-        ego_data_path = os.path.join(self.GT_raw_folder, 'od_ego.csv')
+        ego_data_path = os.path.join(self.gt_raw_folder, 'od_ego.csv')
         if not os.path.exists(ego_data_path):
             send_log(self, 'GroundTruth未找到自车速度数据')
         else:
             send_log(self, f'GroundTruth 正在读取{os.path.basename(ego_data_path)}, 用于时间同步')
-            ego_data = pd.read_csv(os.path.join(self.GT_raw_folder, 'od_ego.csv'))[
+            ego_data = pd.read_csv(os.path.join(self.gt_raw_folder, 'od_ego.csv'))[
                 ['ego_timestamp', 'INS_Speed']].rename(
                 columns={'ego_timestamp': 'time_stamp', 'INS_Speed': 'ego_vx'})
             create_folder(os.path.join(self.DataFolder, 'General'), update=False)
@@ -579,6 +564,7 @@ class DataGrinderPilotOneCase:
 
             send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
             metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
+            metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
 
             for topic in self.test_result[topic_belonging].keys():
                 if topic == 'GroundTruth':
@@ -606,9 +592,33 @@ class DataGrinderPilotOneCase:
                 send_log(self, f'{topic_belonging} {topic} 指标评估')
                 data_dict = metric_evaluator.run(input_data, input_parameter_container)
                 for metric, data in data_dict.items():
-                    path = os.path.join(metric_folder, f'{metric}.csv')
-                    self.test_result[topic_belonging][topic]['metric'][metric] = self.get_relpath(path)
+                    total_folder = os.path.join(metric_folder, 'total')
+                    create_folder(total_folder, False)
+                    if 'total' not in self.test_result[topic_belonging][topic]['metric']:
+                        self.test_result[topic_belonging][topic]['metric']['total'] = {}
+
+                    path = os.path.join(total_folder, f'{metric}.csv')
+                    self.test_result[topic_belonging][topic]['metric']['total'][metric] = self.get_relpath(path)
                     data.to_csv(path, index=False)
+
+                    input_parameter_container = {
+                        'characteristic_type': self.test_config['target_characteristic'],
+                    }
+                    input_data = {
+                        'total_data': match_data,
+                        'data_to_filter': data,
+                    }
+                    characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
+                    for characteristic, characteristic_data in characteristic_data_dict.items():
+                        characteristic_folder = os.path.join(metric_folder, characteristic)
+                        create_folder(characteristic_folder, False)
+                        if characteristic not in self.test_result[topic_belonging][topic]['metric']:
+                            self.test_result[topic_belonging][topic]['metric'][characteristic] = {}
+
+                        path = os.path.join(characteristic_folder, f'{metric}.csv')
+                        self.test_result[topic_belonging][topic]['metric'][characteristic][metric] = self.get_relpath(
+                            path)
+                        characteristic_data.to_csv(path, index=False)
 
     def start(self):
 
@@ -639,3 +649,68 @@ class DataGrinderPilotOneCase:
     def load_test_result(self):
         with open(self.test_result_info_path) as f:
             self.test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+
+class DataGrinderPilotOneTask:
+
+    def __init__(self, task_folder):
+        print('=' * 25 + self.__class__.__name__ + '=' * 25)
+        scenario_config_yaml = os.path.join(task_folder, 'TestConfig.yaml')
+        with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
+            self.test_config = yaml.safe_load(file)
+        self.task_folder = task_folder
+
+        # 依次创建scenario_unit文件夹
+        self.scenario_run_list = {}
+        scenario_list = []
+        for scenario_tag in self.test_config['scenario_tag']:
+            tag = scenario_tag['tag']
+            for scenario_id in scenario_tag['scenario_id']:
+                if scenario_id in scenario_list:
+                    continue
+
+                scenario_list.append(scenario_id)
+                scenario_test_config = {
+                    'product': self.test_config['product'],
+                    'version': self.test_config['version'],
+                    'pred_folder': os.path.join(self.test_config['data_folder']['pred'], scenario_id),
+                    'gt_folder': os.path.join(self.test_config['data_folder']['gt'], scenario_id),
+                    'test_action': self.test_config['test_action'],
+                    'test_item': self.test_config['test_item'],
+                    'target_characteristic': self.test_config['target_characteristic'],
+                    'scenario_tag': tag,
+                    'scenario_id': scenario_id,
+                    'pred_ROI': self.test_config['pred_ROI'],
+                    'gt_ROI': self.test_config['gt_ROI'],
+                    'coverage_reference_point': self.test_config['coverage_reference_point'],
+                    'timestamp_matching_tolerance': self.test_config['timestamp_matching_tolerance'],
+                    'coverage_threshold': self.test_config['coverage_threshold'],
+                    'object_matching_tolerance': self.test_config['object_matching_tolerance'],
+                }
+
+                scenario_unit_folder = os.path.join(self.test_config['data_folder']['scenario_unit'], scenario_id)
+                self.scenario_run_list[scenario_id] = {
+                    'scenario_unit_folder': scenario_unit_folder,
+                    'scenario_test_config': scenario_test_config,
+                    'scenario_config_yaml': os.path.join(scenario_unit_folder, 'TestConfig.yaml')
+                }
+
+    def start(self):
+        for scenario_run_info in self.scenario_run_list.values():
+            create_folder(scenario_run_info['scenario_unit_folder'])
+            with open(scenario_run_info['scenario_config_yaml'], 'w', encoding='utf-8') as f:
+                yaml.dump(scenario_run_info['scenario_test_config'],
+                          f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+            DataGrinderPilotOneCase(scenario_run_info['scenario_unit_folder']).start()
+
+    def get_relpath(self, path: str) -> str:
+        return os.path.relpath(path, self.task_folder)
+
+    def get_abspath(self, path: str) -> str:
+        return os.path.join(self.task_folder, path)
+
+
+if __name__ == '__main__':
+    task_folder = '/home/zhangliwei01/ZONE/TestProject/1J5/Pilot/04_TestData/1-Obstacles'
+    ddd = DataGrinderPilotOneTask(task_folder)
+    ddd.start()

@@ -1,0 +1,124 @@
+product: 1J5
+version: V1.3.2.RC1
+pred_folder: /home/zhangliwei01/ZONE/TestProject/1J5/Pilot/01_Prediction/20230602_144755_n000003
+gt_folder: /home/zhangliwei01/ZONE/TestProject/1J5/Pilot/02_GroundTruth/20230602_144755_n000003
+test_action:
+  preprocess: 1
+  match: 1
+  metric: 1
+test_item:
+  /VA/Obstacles:
+  - recall&precision
+  - x_error
+  - y_error
+  - vx_error
+  - vy_error
+  - yaw_error
+  - length_error
+  - width_error
+  - height_error
+  /PI/FS/ObjTracksHorizon:
+  - recall&precision
+  - x_error
+  - y_error
+  - vx_error
+  - vy_error
+  - yaw_error
+  - length_error
+  - width_error
+  - height_error
+target_characteristic:
+- is_coverageValid
+- is_cipv
+- is_keyObj
+- is_sameDir
+- is_oppositeDir
+- is_crossingDir
+- is_moving
+- is_static
+scenario_tag:
+- 晴天
+- 高速,快速路
+scenario_id: 20230602_144755_n000003
+pred_ROI:
+  /VA/BevObstaclesDet:
+    x:
+    - -50
+    - 50
+    y:
+    - -20
+    - 20
+  /VA/FrontWideObstacles2dDet:
+    angle:
+    - - -45
+      - 45
+      - - 2.1
+        - 0
+        - 1.4
+    - - 150
+      - 210
+    - - - 0
+        - 0
+        - 1.6
+    x:
+    - -80
+    - 120
+    y:
+    - -30
+    - 30
+  /VA/Obstacles:
+  - x:
+    - -80
+    - 120
+    y:
+    - -30
+    - 30
+    angle:
+    - - -45
+      - 45
+      - - 2.1
+        - 0
+        - 1.4
+    - - 150
+      - 210
+    - - - 0
+        - 0
+        - 1.6
+  /PI/FS/ObjTracksHorizon:
+  - x:
+    - -80
+    - 120
+    y:
+    - -30
+    - 30
+    angle:
+    - - -45
+      - 45
+      - - 2.1
+        - 0
+        - 1.4
+    - - 150
+      - 210
+    - - - 0
+        - 0
+        - 1.6
+gt_ROI:
+  x:
+  - -80
+  - 120
+  y:
+  - -40
+  - 40
+coverage_reference_point:
+- 2
+- 0
+- 1
+timestamp_matching_tolerance: 0.5
+coverage_threshold: 0.6
+object_matching_tolerance:
+  x:
+  - 4
+  - 0.2
+  y:
+  - 2
+  - 0.1
