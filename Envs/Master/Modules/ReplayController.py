@@ -3,7 +3,6 @@ Created on 2024/6/28.
 @author: Bu Yujun  
 """
 
-import csv
 import glob
 import os
 import shutil
@@ -11,7 +10,6 @@ import sys
 import threading
 import time
 
-import numpy as np
 import pandas as pd
 import yaml
 
@@ -36,12 +34,12 @@ class ReplayController:
 
         # 读取参数
         self.replay_end = replay_config['replay_end']
-        self.bag_update = replay_config['bag_update']
         self.scenario_ids = replay_config['scenario_id']
         self.pred_raw_folder = replay_config['data_folder']['raw']['pred']
         self.gt_raw_folder = replay_config['data_folder']['raw']['gt']
         self.workspace = replay_config['data_folder']['workspace']
         self.replay_action = replay_config['replay_action']
+        self.bag_update = self.replay_action['bag_update']
 
         product = replay_config['product']
         test_type = replay_config['test_type']
@@ -331,36 +329,35 @@ class ReplayController:
 if __name__ == '__main__':
     replay_config = {
         'replay_end': 95,
-        'bag_update': True,
         'scenario_id': [
             '20230602_144755_n000003',
-            '20230627_170934_n000001',
-            '20230703_103858_n000003',
-            '20230703_105701_n000001',
+            # '20230627_170934_n000001',
+            # '20230703_103858_n000003',
+            # '20230703_105701_n000001',
             # '20230706_160503_n000001',
             # '20230706_161116_n000001',
             # '20230706_162037_n000001',
-            '20230602_144755_n000005',
-            '20230614_135643_n000001',
-            '20230614_142204_n000004',
-            '20230627_173157_n000001',
+            # '20230602_144755_n000005',
+            # '20230614_135643_n000001',
+            # '20230614_142204_n000004',
+            # '20230627_173157_n000001',
             # '20230706_165109_n000002',
             # '20230706_184054_n000001',
         ],
         'data_folder': {
             'raw': {
-                'pred': '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/01_Rosbag',
-                'gt': '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/02_Annotation',
+                'pred': '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/01_Prediction',
+                'gt': '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/02_GroundTruth',
             },
-            'workspace': '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/V1.3.2_DEBUG/03_Workspace',
+            'workspace': '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace',
         },
         'replay_action': {
-            'calib': True,
+            'calib': False,
             'record': True,
+            'get_gt': True,
             'bag_update': True,
-            'get_gt': False,
         },
-        'product': '1J5',
+        'product': 'ES37',
         'test_type': 'pilot',
     }
 

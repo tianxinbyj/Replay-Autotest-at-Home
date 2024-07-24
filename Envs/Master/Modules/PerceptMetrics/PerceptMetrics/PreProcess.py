@@ -624,6 +624,7 @@ class ObstaclesPreprocess:
         data['age'] = data['id'].map(id_counts)
 
         for preprocess_type in self.preprocess_types:
+            print(f'正在预处理 {preprocess_type}')
             func = eval(f'{preprocess_type}(input_parameter_container)')
             if func.type == 'by_row':
                 result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')

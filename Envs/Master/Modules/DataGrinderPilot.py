@@ -24,7 +24,7 @@ from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_f
 from Utils.Logger import send_log
 
 # 导入评测api
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator
 
 
 def get_test_project_root_path(path):
@@ -397,7 +397,7 @@ class DataGrinderPilotOneCase:
             additional_column = (test_encyclopaedia['Information'][topic_belonging]['raw_column']
                                  + test_encyclopaedia['Information'][topic_belonging]['additional_column'])
             send_log(self, f'{topic_belonging}, 使用{topic_belonging}Preprocess')
-            preprocess_ins = eval(f'PreProcess.{topic_belonging}Preprocess()')
+            preprocess_instance = eval(f'PreProcess.{topic_belonging}Preprocess()')
 
             for topic in self.test_result[topic_belonging].keys():
                 if topic != 'GroundTruth':
@@ -418,7 +418,7 @@ class DataGrinderPilotOneCase:
                     data.to_csv(path, index=False)
 
                     # 预处理原始数据, 增加列
-                    send_log(self, f'{topic_belonging} {topic} 预处理步骤 {preprocess_ins.preprocess_types}')
+                    send_log(self, f'{topic_belonging} {topic} 预处理步骤 {preprocess_instance.preprocess_types}')
                     data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
                     data['time_stamp'] += time_gap
                     data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
@@ -431,7 +431,7 @@ class DataGrinderPilotOneCase:
                         'moving_threshold': 2,
                         'key_coverage_threshold': 0.1,
                     }
-                    data = preprocess_ins.run(data, input_parameter_container)[additional_column]
+                    data = preprocess_instance.run(data, input_parameter_container)[additional_column]
                     path = os.path.join(additional_folder, 'pred_data.csv')
                     self.test_result[topic_belonging][topic]['additional']['pred_data'] = self.get_relpath(path)
                     data.to_csv(path, index=False)
@@ -453,7 +453,7 @@ class DataGrinderPilotOneCase:
                     data.to_csv(path, index=False)
 
                     # 预处理原始数据, 增加列
-                    send_log(self, f'{topic_belonging} GroundTruth 预处理步骤 {preprocess_ins.preprocess_types}')
+                    send_log(self, f'{topic_belonging} GroundTruth 预处理步骤 {preprocess_instance.preprocess_types}')
                     data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
                     data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
 
@@ -465,7 +465,7 @@ class DataGrinderPilotOneCase:
                         'moving_threshold': 2,
                         'key_coverage_threshold': 0.1,
                     }
-                    data = preprocess_ins.run(data, input_parameter_container)[additional_column]
+                    data = preprocess_instance.run(data, input_parameter_container)[additional_column]
 
                     path = os.path.join(additional_folder, 'gt_data.csv')
                     self.test_result[topic_belonging]['GroundTruth']['additional']['gt_data'] = self.get_relpath(path)
@@ -528,9 +528,9 @@ class DataGrinderPilotOneCase:
 
             additional_column = (test_encyclopaedia['Information'][topic_belonging]['raw_column']
                                  + test_encyclopaedia['Information'][topic_belonging]['additional_column'])
-            send_log(self, f'{topic_belonging}, 使用{topic_belonging}Preprocess')
-            matchtool_ins = eval(f'MatchTool.{topic_belonging}MatchTool()')
-            match_column = ['corresponding_index', 'gt_flag', 'pred_flag']
+            send_log(self, f'{topic_belonging}, 使用{topic_belonging}MatchTool')
+            match_tool = eval(f'MatchTool.{topic_belonging}MatchTool()')
+            match_column = ['corresponding_index', 'gt.flag', 'pred.flag']
             for col in additional_column:
                 for kind in ['gt', 'pred']:
                     match_column.append(f'{kind}.{col}')
@@ -566,10 +566,49 @@ class DataGrinderPilotOneCase:
                 }
 
                 send_log(self, f'{topic_belonging} {topic} 目标匹配')
-                data = matchtool_ins.run(input_data, input_parameter_container)[match_column]
+                data = match_tool.run(input_data, input_parameter_container)[match_column]
                 path = os.path.join(match_folder, 'match_data.csv')
                 self.test_result[topic_belonging][topic]['match']['match_data'] = self.get_relpath(path)
                 data.to_csv(path, index=False)
+
+    @sync_test_result
+    def evaluate_metrics(self):
+        for topic_belonging in self.test_result.keys():
+            if topic_belonging == 'General':
+                continue
+
+            send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
+            metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
+
+            for topic in self.test_result[topic_belonging].keys():
+                if topic == 'GroundTruth':
+                    continue
+
+                if topic not in self.test_config['test_item']:
+                    send_log(self, f'{topic}没有在test_item中')
+                    continue
+
+                topic_tag = topic.replace('/', '')
+                metric_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'metric')
+                create_folder(metric_folder)
+                if 'metric' not in self.test_result[topic_belonging][topic]:
+                    self.test_result[topic_belonging][topic]['metric'] = {}
+
+                match_data_path = self.test_result[topic_belonging][topic]['match']['match_data']
+                match_data = pd.read_csv(self.get_abspath(match_data_path), index_col=False)
+                input_parameter_container = {
+                    'metric_type': self.test_config['test_item'][topic],
+                }
+                input_data = {
+                    'data': match_data,
+                }
+
+                send_log(self, f'{topic_belonging} {topic} 指标评估')
+                data_dict = metric_evaluator.run(input_data, input_parameter_container)
+                for metric, data in data_dict.items():
+                    path = os.path.join(metric_folder, f'{metric}.csv')
+                    self.test_result[topic_belonging][topic]['metric'][metric] = self.get_relpath(path)
+                    data.to_csv(path, index=False)
 
     def start(self):
 
@@ -582,6 +621,9 @@ class DataGrinderPilotOneCase:
         if self.test_action['match']:
             self.match_timestamp()
             self.match_object()
+
+        if self.test_action['metric']:
+            self.evaluate_metrics()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)

@@ -807,6 +807,34 @@ Information:
     - is_oppositeDir
     - is_crossingDir
     - is_moving
+    metrics:
+      recall&precision:
+        name: 准召信息
+        description: 包括准确率，召回率，类型准确率，TP/FP/FN目标个数
+      x_error:
+        name: 纵向距离误差
+        description: 评价对目标的纵向距离的感知能力
+      y_error:
+        name: 横向距离误差
+        description: 评价对目标的横向距离的感知能力
+      vx_error:
+        name: 纵向速度误差
+        description: 评价对目标的纵向速度的感知能力
+      vy_error:
+        name: 纵向速度误差
+        description: 评价对目标的横向速度的感知能力
+      yaw_error:
+        name: 航向角误差
+        description: 评价对目标的行驶方向的感知能力
+      length_error:
+        name: 长度误差
+        description: 评价对目标的长度的感知能力
+      width_error:
+        name: 宽度误差
+        description: 评价对目标的宽度的感知能力
+      height_error:
+        name: 高度误差
+        description: 评价对目标的高度的感知能力
   Lines:
     name: 车道线
     topics:

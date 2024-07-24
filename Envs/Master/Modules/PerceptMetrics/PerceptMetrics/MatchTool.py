@@ -56,7 +56,7 @@ class ObstaclesMatchTool:
         pred_data = input_data['pred_data']
         gt_column = gt_data.columns
         pred_column = pred_data.columns
-        total_column = (['gt_flag', 'pred_flag']
+        total_column = (['gt.flag', 'pred.flag']
                         + [f'gt.{col}' for col in gt_column]
                         + [f'pred.{col}' for col in pred_column])
         match_data_rows = []
@@ -167,10 +167,3 @@ class ObstaclesMatchTool:
             return True
 
         return False
-
-
-if __name__ == '__main__':
-    OBT = ObstaclesMatchTool()
-
-    gt_type, gt_x, gt_y, pred_type, pred_x, pred_y = 1, 10, -3, 1, 11, -4
-    print(OBT.get_match_flag(gt_type, gt_x, gt_y, pred_type, pred_x, pred_y))
