@@ -591,7 +591,7 @@ class DataGrinderPilotOneCase:
 
                 send_log(self, f'{topic_belonging} {topic} 指标评估')
                 data_dict = metric_evaluator.run(input_data, input_parameter_container)
-                for metric, data in data_dict.items():
+                for metric, metric_data in data_dict.items():
                     total_folder = os.path.join(metric_folder, 'total')
                     create_folder(total_folder, False)
                     if 'total' not in self.test_result[topic_belonging][topic]['metric']:
@@ -599,14 +599,14 @@ class DataGrinderPilotOneCase:
 
                     path = os.path.join(total_folder, f'{metric}.csv')
                     self.test_result[topic_belonging][topic]['metric']['total'][metric] = self.get_relpath(path)
-                    data.to_csv(path, index=False)
+                    metric_data.to_csv(path, index=False)
 
                     input_parameter_container = {
                         'characteristic_type': self.test_config['target_characteristic'],
                     }
                     input_data = {
                         'total_data': match_data,
-                        'data_to_filter': data,
+                        'data_to_filter': metric_data,
                     }
                     characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
                     for characteristic, characteristic_data in characteristic_data_dict.items():
