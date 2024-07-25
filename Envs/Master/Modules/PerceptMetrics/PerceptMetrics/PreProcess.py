@@ -111,6 +111,54 @@ def calculate_angle(x, y, z=None):
     return azimuth, elevation
 
 
+class ObstaclesTypeClassification:
+    """
+    对车辆进行分类，分为大巴，货车，小车，行人，自行车
+    行人=2， 自行车=18， 小车=1，大巴=4，货车=5，
+
+    """
+
+    def __init__(self, input_parameter_container=None):
+        self.columns = [
+            'reserved',
+            'type_classification'
+        ]
+        self.type = 'by_row'
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            type_ = input_data['type']
+            sub_type = input_data['sub_type']
+            length = input_data['length']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 3):
+            type_, sub_type, length = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        # 第一个为保留位
+        if type_ in [2, 18]:
+            return 0, type_
+
+        elif type_ == 1:
+            if sub_type in [1, 3, 9, 11]:
+                return 0, 1
+            elif sub_type in [5, 12]:
+                return 0, 5
+            elif sub_type == 4:
+                return 0, 4
+            else:
+                if length <= 5.99:
+                    return 0, 1
+                else:
+                    return 0, 5
+
+        return 0, 0
+
+
 class RectPoints:
     """
     计算距离和四个角点
@@ -615,6 +663,7 @@ class ObstaclesPreprocess:
     def __init__(self, preprocess_types=None):
         if preprocess_types is None:
             self.preprocess_types = [
+                'ObstaclesTypeClassification',
                 'RectPoints', 'VisionAngleRange', 'IsObstaclesDetectedValid',
                 'IsCoverageValid', 'IsKeyObj', 'DruDirection'
             ]

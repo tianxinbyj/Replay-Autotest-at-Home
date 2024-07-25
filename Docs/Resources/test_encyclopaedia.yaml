@@ -788,6 +788,7 @@ Information:
     - width
     - height
     additional_column:
+    - type_classification
     - distance
     - pt_0_x
     - pt_0_y
