@@ -3,7 +3,6 @@ Created on 2024/7/24.
 @author: Bu Yujun  
 """
 import numpy as np
-import pandas as pd
 
 
 def change_name(var):
@@ -383,6 +382,7 @@ class ObstaclesMetricFilter:
 
         characteristic_data_dict = {}
         for characteristic in self.characteristic_type:
+            print(f'正在评估特征 {characteristic}')
             characteristic_data_dict[characteristic] = data[data['corresponding_index'].isin(corresponding_index_dict[characteristic])]
 
         return characteristic_data_dict

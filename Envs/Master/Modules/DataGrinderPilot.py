@@ -3,6 +3,7 @@
 @Date: 2024/7/8 上午10:00  
 """
 import glob
+import json
 import os
 import shutil
 import sys
@@ -24,7 +25,7 @@ from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_f
 from Utils.Logger import send_log
 
 # 导入评测api
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics
 
 
 def get_topic_attribution(topic):
@@ -88,8 +89,8 @@ class DataGrinderPilotOneCase:
         self.DataFolder = os.path.join(self.scenario_unit_folder, '01_Data')
 
         # 初始化测试配置
-        self.test_result_info_path = os.path.join(self.scenario_unit_folder, 'TestResultInfo.yaml')
-        if not os.path.exists(self.test_result_info_path):
+        self.test_result_yaml = os.path.join(self.scenario_unit_folder, 'TestResult.yaml')
+        if not os.path.exists(self.test_result_yaml):
             self.test_result = {'General': {}}
             for topic in self.topics_for_evaluation:
                 attribution = get_topic_attribution(topic)
@@ -608,6 +609,7 @@ class DataGrinderPilotOneCase:
                         'total_data': match_data,
                         'data_to_filter': metric_data,
                     }
+
                     characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
                     for characteristic, characteristic_data in characteristic_data_dict.items():
                         characteristic_folder = os.path.join(metric_folder, characteristic)
@@ -616,8 +618,8 @@ class DataGrinderPilotOneCase:
                             self.test_result[topic_belonging][topic]['metric'][characteristic] = {}
 
                         path = os.path.join(characteristic_folder, f'{metric}.csv')
-                        self.test_result[topic_belonging][topic]['metric'][characteristic][metric] = self.get_relpath(
-                            path)
+                        self.test_result[topic_belonging][topic]['metric'][characteristic][
+                            metric] = self.get_relpath(path)
                         characteristic_data.to_csv(path, index=False)
 
     def start(self):
@@ -642,12 +644,12 @@ class DataGrinderPilotOneCase:
         return os.path.join(self.scenario_unit_folder, path)
 
     def save_test_result(self):
-        with open(self.test_result_info_path, 'w', encoding='utf-8') as f:
+        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
             yaml.dump(self.test_result,
                       f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
     def load_test_result(self):
-        with open(self.test_result_info_path) as f:
+        with open(self.test_result_yaml) as f:
             self.test_result = yaml.load(f, Loader=yaml.FullLoader)
 
 
@@ -660,11 +662,36 @@ class DataGrinderPilotOneTask:
             self.test_config = yaml.safe_load(file)
         self.task_folder = task_folder
 
-        # 依次创建scenario_unit文件夹
-        self.scenario_run_list = {}
+        # 加载测试相关的参数
+        self.product = self.test_config['product']
+        self.version = self.test_config['version']
+        self.test_encyclopaedia = test_encyclopaedia[self.product]
+        self.test_action = self.test_config['test_action']
+        self.scenario_unit_folder = self.test_config['data_path']['intermediate']['scenario_unit']
+        self.tag_combination_folder = self.test_config['data_path']['intermediate']['tag_combination']
+        self.result_folder = self.test_config['data_path']['result']
+        self.region_division = self.test_config['region_division']
+
+        self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
+        if not os.path.exists(self.test_result_yaml):
+            self.test_result = {}
+            for scenario_tag in self.test_config['scenario_tag']:
+                tag_key = '&'.join(scenario_tag['tag'].values())
+                self.test_result[tag_key] = {
+                    'tag': scenario_tag['tag'], 'scenario_unit': {}, 'tag_combination': {}
+                }
+                for scenario_id in scenario_tag['scenario_id']:
+                    self.test_result[tag_key]['scenario_unit'][scenario_id] = self.get_relpath(os.path.join(
+                        self.scenario_unit_folder, scenario_id, 'TestResult.yaml'))
+
+            self.save_test_result()
+
+    @sync_test_result
+    def analyze_scenario_unit(self):
+        # 依次创建scenario_unit测试信息
+        scenario_run_list = {}
         scenario_list = []
         for scenario_tag in self.test_config['scenario_tag']:
-            tag = scenario_tag['tag']
             for scenario_id in scenario_tag['scenario_id']:
                 if scenario_id in scenario_list:
                     continue
@@ -673,12 +700,12 @@ class DataGrinderPilotOneTask:
                 scenario_test_config = {
                     'product': self.test_config['product'],
                     'version': self.test_config['version'],
-                    'pred_folder': os.path.join(self.test_config['data_folder']['pred'], scenario_id),
-                    'gt_folder': os.path.join(self.test_config['data_folder']['gt'], scenario_id),
-                    'test_action': self.test_config['test_action'],
+                    'pred_folder': os.path.join(self.test_config['data_path']['raw']['pred'], scenario_id),
+                    'gt_folder': os.path.join(self.test_config['data_path']['raw']['gt'], scenario_id),
+                    'test_action': self.test_action['scenario_unit'],
                     'test_item': self.test_config['test_item'],
-                    'target_characteristic': self.test_config['target_characteristic'],
-                    'scenario_tag': tag,
+                    'target_characteristic': ['is_keyObj'],
+                    'scenario_tag': scenario_tag['tag'],
                     'scenario_id': scenario_id,
                     'pred_ROI': self.test_config['pred_ROI'],
                     'gt_ROI': self.test_config['gt_ROI'],
@@ -688,20 +715,165 @@ class DataGrinderPilotOneTask:
                     'object_matching_tolerance': self.test_config['object_matching_tolerance'],
                 }
 
-                scenario_unit_folder = os.path.join(self.test_config['data_folder']['scenario_unit'], scenario_id)
-                self.scenario_run_list[scenario_id] = {
-                    'scenario_unit_folder': scenario_unit_folder,
+                scenario_run_list[scenario_id] = {
+                    'scenario_unit_folder': os.path.join(self.scenario_unit_folder, scenario_id),
                     'scenario_test_config': scenario_test_config,
-                    'scenario_config_yaml': os.path.join(scenario_unit_folder, 'TestConfig.yaml')
+                    'scenario_config_yaml': os.path.join(self.scenario_unit_folder, scenario_id, 'TestConfig.yaml')
                 }
 
-    def start(self):
-        for scenario_run_info in self.scenario_run_list.values():
-            create_folder(scenario_run_info['scenario_unit_folder'])
+        for scenario_run_info in scenario_run_list.values():
+            create_folder(scenario_run_info['scenario_unit_folder'], False)
             with open(scenario_run_info['scenario_config_yaml'], 'w', encoding='utf-8') as f:
                 yaml.dump(scenario_run_info['scenario_test_config'],
                           f, encoding='utf-8', allow_unicode=True, sort_keys=False)
             DataGrinderPilotOneCase(scenario_run_info['scenario_unit_folder']).start()
+
+    @sync_test_result
+    def combine_scenario_tag(self):
+        # 合并各个场景的match_data, 重新corresponding_index编号
+        # 获得每一种特征的分类结果
+        match_data_dict = {}
+        for tag_key in self.test_result.keys():
+            tag_combination_folder = os.path.join(self.tag_combination_folder, tag_key)
+            create_folder(tag_combination_folder)
+            match_data_dict[tag_key] = {}
+
+            for scenario_id, scenario_test_result in self.test_result[tag_key]['scenario_unit'].items():
+                scenario_unit_folder = os.path.join(self.scenario_unit_folder, scenario_id)
+                with open(self.get_abspath(scenario_test_result)) as f:
+                    scenario_test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+                # 遍历全部测试结果，按照topic和metrics合并
+                for topic_belonging in scenario_test_result.keys():
+                    if topic_belonging == 'General':
+                        continue
+
+                    if topic_belonging not in self.test_result[tag_key]['tag_combination']:
+                        self.test_result[tag_key]['tag_combination'][topic_belonging] = {}
+                    if topic_belonging not in match_data_dict[tag_key]:
+                        match_data_dict[tag_key][topic_belonging] = {}
+
+                    for topic in scenario_test_result[topic_belonging].keys():
+                        if topic == 'GroundTruth':
+                            continue
+
+                        topic_tag = topic.replace('/', '')
+                        if topic not in self.test_result[tag_key]['tag_combination'][topic_belonging]:
+                            self.test_result[tag_key]['tag_combination'][topic_belonging][topic] = {}
+                            topic_folder = os.path.join(tag_combination_folder, topic_belonging, topic_tag)
+                            create_folder(topic_folder)
+
+                        if topic not in match_data_dict[tag_key][topic_belonging]:
+                            match_data_dict[tag_key][topic_belonging][topic] = []
+
+                        match_data_path = scenario_test_result[topic_belonging][topic]['match']['match_data']
+                        match_data = pd.read_csv(os.path.join(scenario_unit_folder, match_data_path), index_col=False)
+                        match_data_dict[tag_key][topic_belonging][topic].append(match_data)
+
+        for tag_key in match_data_dict.keys():
+            for topic_belonging in match_data_dict[tag_key].keys():
+
+                send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
+                metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
+                metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
+
+                for topic, df_list in match_data_dict[tag_key][topic_belonging].items():
+                    topic_tag = topic.replace('/', '')
+                    total_match_data = pd.concat(df_list).reset_index(drop=True)
+                    total_match_data['corresponding_index'] = total_match_data.index
+
+                    input_parameter_container = {
+                        'metric_type': self.test_config['test_item'][topic],
+                    }
+                    input_data = {
+                        'data': total_match_data,
+                    }
+
+                    send_log(self, f'{topic_belonging} {topic} 指标评估')
+                    data_dict = metric_evaluator.run(input_data, input_parameter_container)
+
+                    for metric, metric_data in data_dict.items():
+                        total_folder = os.path.join(self.tag_combination_folder,
+                                                    tag_key, topic_belonging, topic_tag, 'total')
+                        create_folder(total_folder, False)
+                        if 'total' not in self.test_result[tag_key]['tag_combination'][topic_belonging][topic]:
+                            self.test_result[tag_key]['tag_combination'][topic_belonging][topic]['total'] = {}
+
+                        path = os.path.join(total_folder, f'{metric}.csv')
+                        self.test_result[tag_key]['tag_combination'][topic_belonging][topic]['total'][
+                            metric] = self.get_relpath(path)
+                        metric_data.to_csv(path, index=False)
+
+                        input_parameter_container = {
+                            'characteristic_type': self.test_config['target_characteristic'],
+                        }
+                        input_data = {
+                            'total_data': total_match_data,
+                            'data_to_filter': metric_data,
+                        }
+
+                        characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
+                        for characteristic, characteristic_data in characteristic_data_dict.items():
+                            characteristic_folder = os.path.join(self.tag_combination_folder,
+                                                                 tag_key, topic_belonging, topic_tag, characteristic)
+                            create_folder(characteristic_folder, False)
+                            if characteristic not in self.test_result[tag_key]['tag_combination'][topic_belonging][
+                                topic]:
+                                self.test_result[tag_key]['tag_combination'][topic_belonging][topic][
+                                    characteristic] = {}
+
+                            path = os.path.join(characteristic_folder, f'{metric}.csv')
+                            self.test_result[tag_key]['tag_combination'][topic_belonging][topic][characteristic][
+                                metric] = self.get_relpath(path)
+                            characteristic_data.to_csv(path, index=False)
+
+    @sync_test_result
+    def output_result(self):
+        # 按照数据库数据单元的方式保存数据
+        # 格式为json，在文件夹内平铺
+        for tag_key in self.test_result.keys():
+            tag = self.test_result[tag_key]['tag']
+            scenario_list = list(self.test_result[tag_key]['scenario_unit'].keys())
+
+            for topic_belonging in self.test_result[tag_key]['tag_combination'].keys():
+
+                metric_statistics = eval(f'MetricEvaluator.{topic_belonging}MetricStatistics()')
+
+                for topic in self.test_result[tag_key]['tag_combination'][topic_belonging].keys():
+                    for characteristic in self.test_config['target_characteristic']:
+                        test_result = self.test_result[tag_key]['tag_combination'][topic_belonging][topic][
+                            characteristic]
+
+                        data = {
+                            test_item: pd.read_csv(self.get_abspath(data_path), index_col=False)
+                            for test_item, data_path in test_result.items()
+                        }
+
+                        input_parameter_container = {
+                            'region_division': self.region_division,
+                        }
+
+                        metric_statistics.run(data, input_parameter_container)
+
+                        json_name = f'{"&".join(tag.values())}.json'
+                        json_path = os.path.join(self.result_folder, json_name)
+                        json_data = {tag_type: tag_value for tag_type, tag_value in tag.items()}
+                        json_data['scenario_list'] = scenario_list
+                        json_data['topic'] = topic
+                        json_data['characteristic'] = characteristic
+                        json_data['test_item'] = test_item
+                        with open(json_path, 'w') as f:
+                            json.dump(json_data, f)
+
+    def start(self):
+        if any([value for value in self.test_action['scenario_unit'].values()]):
+            self.analyze_scenario_unit()
+
+        if self.test_action['tag_combination']:
+            self.combine_scenario_tag()
+
+        if self.test_action['statistics']:
+            self.output_result()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.task_folder)
@@ -709,8 +881,11 @@ class DataGrinderPilotOneTask:
     def get_abspath(self, path: str) -> str:
         return os.path.join(self.task_folder, path)
 
+    def save_test_result(self):
+        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
+            yaml.dump(self.test_result,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
-if __name__ == '__main__':
-    task_folder = '/home/zhangliwei01/ZONE/TestProject/1J5/Pilot/04_TestData/1-Obstacles'
-    ddd = DataGrinderPilotOneTask(task_folder)
-    ddd.start()
+    def load_test_result(self):
+        with open(self.test_result_yaml) as f:
+            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
