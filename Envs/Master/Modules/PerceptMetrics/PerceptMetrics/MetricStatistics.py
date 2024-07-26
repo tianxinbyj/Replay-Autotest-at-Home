@@ -2,8 +2,11 @@
 @Author: BU YUJUN
 @Date: 2024/7/25 下午3:27  
 """
+import warnings
 import pandas as pd
-import numpy as np
+
+# 屏蔽特定的警告
+warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
 
 
 def change_name(var):
@@ -30,8 +33,10 @@ class RecallPrecision:
         gt_count = TP + FN
         pred_count = TP + FP
 
-        input_data['CTP'] = input_data.apply(lambda row: self.check_CTP(row.to_dict()), axis=1, result_type='expand')
+        result_series = input_data.apply(lambda row: self.check_CTP(row.to_dict()), axis=1)
+        data.loc[:, 'CTP'] = result_series
         CTP = len(data[(data['gt.flag'] == 1) & (data['pred.flag'] == 1) & (data['CTP'] == 1)])
+
         recall = TP / (TP + FN) if gt_count != 0 else 0
         precision = TP / (TP + FP) if pred_count != 0 else 0
         type_accuracy = CTP / TP if TP != 0 else 0

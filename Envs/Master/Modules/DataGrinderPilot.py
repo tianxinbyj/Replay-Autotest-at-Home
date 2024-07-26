@@ -831,6 +831,8 @@ class DataGrinderPilotOneTask:
     def output_statistics(self):
         # 按照数据库数据单元的方式保存数据
         # 格式为json，在文件夹内平铺
+        json_count = 0
+        create_folder(self.result_folder)
         for tag_key in self.test_result.keys():
             tag = self.test_result[tag_key]['tag']
             scenario_list = list(self.test_result[tag_key]['scenario_unit'].keys())
@@ -869,10 +871,11 @@ class DataGrinderPilotOneTask:
                             json_name = (f'{tag_key}-{topic_tag}-{int(json_data["type"])}'
                                          f'-{json_data["region"]}-{json_data["metric"]}.json')
                             json_path = os.path.join(self.result_folder, json_name)
+                            json_count += 1
 
-                            print(json_name)
-                            with open(json_path, 'w') as f:
-                                json.dump(json_data, f)
+                            print(json_count, json_name, '已保存')
+                            with open(json_path, 'w', encoding='utf-8') as f:
+                                json.dump(json_data, f, ensure_ascii=False, indent=4)
 
     def start(self):
         if any([value for value in self.test_action['scenario_unit'].values()]):
