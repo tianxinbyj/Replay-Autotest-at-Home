@@ -828,7 +828,7 @@ class DataGrinderPilotOneTask:
                             characteristic_data.to_csv(path, index=False)
 
     @sync_test_result
-    def output_result(self):
+    def output_statistics(self):
         # 按照数据库数据单元的方式保存数据
         # 格式为json，在文件夹内平铺
         for tag_key in self.test_result.keys():
@@ -837,33 +837,42 @@ class DataGrinderPilotOneTask:
 
             for topic_belonging in self.test_result[tag_key]['tag_combination'].keys():
 
-                metric_statistics = eval(f'MetricEvaluator.{topic_belonging}MetricStatistics()')
+                metric_statistics = eval(f'MetricStatistics.{topic_belonging}MetricStatistics()')
 
                 for topic in self.test_result[tag_key]['tag_combination'][topic_belonging].keys():
+
+                    topic_tag = topic.replace('/', '')
+
                     for characteristic in self.test_config['target_characteristic']:
                         test_result = self.test_result[tag_key]['tag_combination'][topic_belonging][topic][
                             characteristic]
 
+                        info_json_data = {tag_type: tag_value for tag_type, tag_value in tag.items()}
+                        info_json_data['scenario_list'] = scenario_list
+                        info_json_data['topic'] = topic
+                        info_json_data['characteristic'] = characteristic
+
                         data = {
-                            test_item: pd.read_csv(self.get_abspath(data_path), index_col=False)
-                            for test_item, data_path in test_result.items()
+                            metric: pd.read_csv(self.get_abspath(data_path), index_col=False)
+                            for metric, data_path in test_result.items()
                         }
 
                         input_parameter_container = {
                             'region_division': self.region_division,
                         }
 
-                        metric_statistics.run(data, input_parameter_container)
+                        json_datas = metric_statistics.run(data, input_parameter_container)
 
-                        json_name = f'{"&".join(tag.values())}.json'
-                        json_path = os.path.join(self.result_folder, json_name)
-                        json_data = {tag_type: tag_value for tag_type, tag_value in tag.items()}
-                        json_data['scenario_list'] = scenario_list
-                        json_data['topic'] = topic
-                        json_data['characteristic'] = characteristic
-                        json_data['test_item'] = test_item
-                        with open(json_path, 'w') as f:
-                            json.dump(json_data, f)
+                        for json_data in json_datas:
+                            json_data = {**info_json_data, **json_data}
+
+                            json_name = (f'{tag_key}-{topic_tag}-{int(json_data["type"])}'
+                                         f'-{json_data["region"]}-{json_data["metric"]}.json')
+                            json_path = os.path.join(self.result_folder, json_name)
+
+                            print(json_name)
+                            with open(json_path, 'w') as f:
+                                json.dump(json_data, f)
 
     def start(self):
         if any([value for value in self.test_action['scenario_unit'].values()]):
@@ -873,7 +882,7 @@ class DataGrinderPilotOneTask:
             self.combine_scenario_tag()
 
         if self.test_action['statistics']:
-            self.output_result()
+            self.output_statistics()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.task_folder)

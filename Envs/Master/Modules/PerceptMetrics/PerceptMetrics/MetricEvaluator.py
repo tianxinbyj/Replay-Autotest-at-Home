@@ -97,9 +97,6 @@ class XError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         x_error = pred_x - gt_x
-        # 误差需要取反
-        if pred_x < 0 and gt_x < 0:
-            x_error *= -1
         x_error_abs = abs(x_error)
         x_error_p = x_error / max(20, abs(gt_x))
         x_error_p_abs = abs(x_error_p)
@@ -136,9 +133,6 @@ class YError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         y_error = pred_y - gt_y
-        # 误差需要取反
-        if pred_y < 0 and gt_y < 0:
-            y_error *= -1
         y_error_abs = abs(y_error)
         y_error_p = y_error / max(10, abs(gt_y))
         y_error_p_abs = abs(y_error_p)
@@ -175,9 +169,6 @@ class VxError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         vx_error = pred_vx - gt_vx
-        # 误差需要取反
-        if pred_vx < 0 and gt_vx < 0:
-            vx_error *= -1
         vx_error_abs = abs(vx_error)
         vx_error_p = vx_error / max(2, abs(gt_vx))
         vx_error_p_abs = abs(vx_error_p)
@@ -214,9 +205,6 @@ class VyError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         vy_error = pred_vy - gt_vy
-        # 误差需要取反
-        if pred_vy < 0 and gt_vy < 0:
-            vy_error *= -1
         vy_error_abs = abs(vy_error)
         vy_error_p = vy_error / max(2, abs(gt_vy))
         vy_error_p_abs = abs(vy_error_p)
@@ -312,7 +300,7 @@ class ObstaclesMetricEvaluator:
 
     def __init__(self):
         self.metric_type = [
-            'recall&precision',
+            'recall_precision',
             'x_error', 'y_error',
             'vx_error', 'vy_error',
             'yaw_error', 'length_error',
@@ -329,11 +317,11 @@ class ObstaclesMetricEvaluator:
 
         for metric in self.metric_type:
             print(f'正在评估指标 {metric}')
-            if metric == 'recall&precision':
-                data_dict['recall&precision'] = data
+            if metric == 'recall_precision':
+                data_dict['recall_precision'] = data
             else:
-                var_class = change_name(metric)
-                func = eval(f'{var_class}()')
+                metric_class = change_name(metric)
+                func = eval(f'{metric_class}()')
                 result_df = tp_data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
                 result_df.columns = func.columns
                 result_df['corresponding_index'] = tp_data['corresponding_index']
@@ -360,7 +348,7 @@ class ObstaclesMetricFilter:
         if input_parameter_container is not None:
             self.characteristic_type = input_parameter_container['characteristic_type']
 
-        # 有效探测范围且符合遮挡率要求的数据
+        # 符合有效探测范围的数据
         total_data = input_data['total_data']
         total_data.drop(total_data[(total_data['gt.is_detectedValid'] == 0)
                                    | (total_data['pred.is_detectedValid'] == 0)].index, axis=0, inplace=True)

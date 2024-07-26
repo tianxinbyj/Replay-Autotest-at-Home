@@ -810,7 +810,7 @@ Information:
     - is_moving
     - is_static
     metrics:
-      recall&precision:
+      recall_precision:
         name: 准召信息
         description: 包括准确率，召回率，类型准确率，TP/FP/FN目标个数
       x_error:

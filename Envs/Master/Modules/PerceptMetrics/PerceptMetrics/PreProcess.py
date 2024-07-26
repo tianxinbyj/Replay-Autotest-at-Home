@@ -290,6 +290,7 @@ class IsCoverageValid:
             self.threshold = parameter_container['coverage_threshold']
 
     def __call__(self, input_data):
+
         if isinstance(input_data, pd.DataFrame):
             data = input_data.sort_values(by=['time_stamp', 'distance'], ascending=[True, False]).reset_index(drop=True)
 
@@ -495,6 +496,7 @@ class IsKeyObj:
             self.key_coverage_threshold = parameter_container['key_coverage_threshold']
 
     def __call__(self, input_data):
+
         if isinstance(input_data, pd.DataFrame):
             data = input_data.sort_values(by=['time_stamp'], ascending=[True]).reset_index(drop=True)
 
