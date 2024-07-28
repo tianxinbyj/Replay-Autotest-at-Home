@@ -852,7 +852,6 @@ class DataGrinderPilotOneTask:
                         info_json_data = {tag_type: tag_value for tag_type, tag_value in tag.items()}
                         info_json_data['scenario_list'] = scenario_list
                         info_json_data['topic'] = topic
-                        info_json_data['characteristic'] = characteristic
 
                         data = {
                             metric: pd.read_csv(self.get_abspath(data_path), index_col=False)
@@ -861,6 +860,7 @@ class DataGrinderPilotOneTask:
 
                         input_parameter_container = {
                             'region_division': self.region_division,
+                            'characteristic': characteristic,
                         }
 
                         json_datas = metric_statistics.run(data, input_parameter_container)
@@ -868,10 +868,10 @@ class DataGrinderPilotOneTask:
                         for json_data in json_datas:
                             json_data = {**info_json_data, **json_data}
 
-                            json_name = (f'{tag_key}-{topic_tag}-{int(json_data["type"])}'
-                                         f'-{json_data["region"]}-{json_data["metric"]}.json')
-                            json_path = os.path.join(self.result_folder, json_name)
                             json_count += 1
+                            json_name = (f'{json_count:06d}--{tag_key}--{topic_tag}--{json_data["type"]}'
+                                         f'--{json_data["region"]}--{json_data["characteristic"]}--{json_data["metric"]}.json')
+                            json_path = os.path.join(self.result_folder, json_name)
 
                             print(json_count, json_name, '已保存')
                             with open(json_path, 'w', encoding='utf-8') as f:

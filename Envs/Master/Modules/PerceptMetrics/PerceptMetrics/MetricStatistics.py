@@ -8,6 +8,20 @@ import pandas as pd
 # 屏蔽特定的警告
 warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
 
+# 对车辆进行分类，分为大巴，货车，小车，行人，自行车
+# 行人 = 2， 自行车 = 18， 小车 = 1，大巴 = 4，货车 = 5，
+type_classification_text = {
+    1: '小车',
+    2: '行人',
+    4: '大巴',
+    5: '货车',
+    18: '自行车',
+}
+
+characteristic_text = {
+
+}
+
 
 def change_name(var):
     return ''.join([v.title() for v in var.split('_')])
@@ -338,9 +352,12 @@ class ObstaclesMetricStatistics:
             {'x': [60, 120], 'y': [[--20, -8], [8, 20]]},
         ]
 
+        self.characteristic = 'is_coverageValid'
+
     def run(self, input_data, input_parameter_container=None):
         if input_parameter_container is not None:
             self.region_division = input_parameter_container['region_division']
+            self.characteristic = input_parameter_container['characteristic']
 
         total_data = input_data['recall_precision']
         total_data.index = total_data['corresponding_index'].to_list()
@@ -382,7 +399,7 @@ class ObstaclesMetricStatistics:
                 for type_classification, type_index in type_corresponding_index_dict.items():
 
                     # 获取共同的index
-                    common_index = set(region_index) & set(type_index)
+                    common_index = sorted(list(set(region_index) & set(type_index)))
                     selected_data = data[data['corresponding_index'].isin(common_index)]
                     if len(selected_data) == 0:
                         continue
@@ -393,8 +410,9 @@ class ObstaclesMetricStatistics:
 
                     json_datas.append(
                         {
+                            'characteristic': self.characteristic,
                             'region': region_text,
-                            'type': type_classification,
+                            'type': type_classification_text[type_classification],
                             'metric': metric,
                             'result': res,
                         })
