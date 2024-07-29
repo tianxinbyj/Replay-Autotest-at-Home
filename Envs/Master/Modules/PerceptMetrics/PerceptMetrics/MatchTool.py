@@ -147,6 +147,15 @@ class ObstaclesMatchTool:
                 match_data_rows.append(this_row)
 
         data = pd.DataFrame(match_data_rows, columns=total_column)
+
+        # 进一步过滤极端异常数据
+        # 过滤内容为速度和位置
+        data.drop(data[
+                      (data['gt.vx'] > 200) | (data['gt.vx'] < -200)
+                      | (data['gt.vy'] > 100) | (data['gt.vy'] < -100)
+                      | (data['gt.x'] > 300) | (data['gt.x'] < -300)
+                      | (data['gt.y'] > 200) | (data['gt.y'] < -200)
+                  ].index, axis=0, inplace=True)
         data.insert(0, 'corresponding_index', range(len(data)))
         return data
 

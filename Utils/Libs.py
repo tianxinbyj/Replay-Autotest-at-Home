@@ -28,6 +28,25 @@ def get_project_path():
         folder = parent_folder
 
 
+def contains_chinese(s):
+    for char in s:
+        if '\u4e00' <= char <= '\u9fff':
+            return True
+    return False
+
+
+def get_string_display_length(s):
+    """计算字符串的大致显示长度"""
+    length = 0
+    for char in s:
+        # 假设中文字符和全角字符占据两个显示单位，其他占据一个
+        if '\u4e00' <= char <= '\u9fff' or '\uff00' <= char <= '\uffef':
+            length += 2
+        else:
+            length += 1
+    return length
+
+
 def kill_tmux_session_if_exists(session_name):
     try:
         result = subprocess.run(['tmux', 'ls'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -249,6 +268,4 @@ mpl_colors = ['#3682be', '#45a776', '#f05326', '#eed777', '#334f65', '#b3974e', 
 
 
 if __name__ == '__main__':
-    with open('123.yaml', 'w', encoding='utf-8') as f:
-        yaml.dump(test_encyclopaedia,
-                  f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+    print(get_string_display_length('Obstacle_type'))

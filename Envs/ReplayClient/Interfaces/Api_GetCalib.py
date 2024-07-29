@@ -7,7 +7,6 @@ import glob
 import os
 import shutil
 import sys
-from pathlib import Path
 
 from Libs import get_project_path
 
