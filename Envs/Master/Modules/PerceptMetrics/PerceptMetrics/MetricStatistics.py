@@ -128,8 +128,8 @@ class XError:
         x_p_origin_std = data['x.error%'].std()
 
         res = {
-            'x_abs_mean': x_abs_mean, 'x_abs_90': x_abs_90, 'x_abs_95': x_abs_95,
-            'x_origin_mean': x_origin_mean, 'x_origin_std': x_origin_std,
+            'x_abs_mean[m]': x_abs_mean, 'x_abs_90[m]': x_abs_90, 'x_abs_95[m]': x_abs_95,
+            'x_origin_mean[m]': x_origin_mean, 'x_origin_std[m]': x_origin_std,
             'x%_abs_mean': x_p_abs_mean, 'x%_abs_90': x_p_abs_90, 'x%_abs_95': x_p_abs_95,
             'x%_origin_mean': x_p_origin_mean, 'x%_origin_std': x_p_origin_std,
             'sample_count': len(data),
@@ -165,8 +165,8 @@ class YError:
         y_p_origin_std = data['y.error%'].std()
 
         res = {
-            'y_abs_mean': y_abs_mean, 'y_abs_90': y_abs_90, 'y_abs_95': y_abs_95,
-            'y_origin_mean': y_origin_mean, 'y_origin_std': y_origin_std,
+            'y_abs_mean[m]': y_abs_mean, 'y_abs_90[m]': y_abs_90, 'y_abs_95[m]': y_abs_95,
+            'y_origin_mean[m]': y_origin_mean, 'y_origin_std[m]': y_origin_std,
             'y%_abs_mean': y_p_abs_mean, 'y%_abs_90': y_p_abs_90, 'y%_abs_95': y_p_abs_95,
             'y%_origin_mean': y_p_origin_mean, 'y%_origin_std': y_p_origin_std,
             'sample_count': len(data),
@@ -202,8 +202,8 @@ class VxError:
         vx_p_origin_std = data['vx.error%'].std()
 
         res = {
-            'vx_abs_mean': vx_abs_mean, 'vx_abs_90': vx_abs_90, 'vx_abs_95': vx_abs_95,
-            'vx_origin_mean': vx_origin_mean, 'vx_origin_std': vx_origin_std,
+            'vx_abs_mean[m/s]': vx_abs_mean, 'vx_abs_90[m/s]': vx_abs_90, 'vx_abs_95[m/s]': vx_abs_95,
+            'vx_origin_mean[m/s]': vx_origin_mean, 'vx_origin_std[m/s]': vx_origin_std,
             'vx%_abs_mean': vx_p_abs_mean, 'vx%_abs_90': vx_p_abs_90, 'vx%_abs_95': vx_p_abs_95,
             'vx%_origin_mean': vx_p_origin_mean, 'vx%_origin_std': vx_p_origin_std,
             'sample_count': len(data),
@@ -239,8 +239,8 @@ class VyError:
         vy_p_origin_std = data['vy.error%'].std()
 
         res = {
-            'vy_abs_mean': vy_abs_mean, 'vy_abs_90': vy_abs_90, 'vy_abs_95': vy_abs_95,
-            'vy_origin_mean': vy_origin_mean, 'vy_origin_std': vy_origin_std,
+            'vy_abs_mean[m/s]': vy_abs_mean, 'vy_abs_90[m/s]': vy_abs_90, 'vy_abs_95[m/s]': vy_abs_95,
+            'vy_origin_mean[m/s]': vy_origin_mean, 'vy_origin_std[m/s]': vy_origin_std,
             'vy%_abs_mean': vy_p_abs_mean, 'vy%_abs_90': vy_p_abs_90, 'vy%_abs_95': vy_p_abs_95,
             'vy%_origin_mean': vy_p_origin_mean, 'vy%_origin_std': vy_p_origin_std,
             'sample_count': len(data),
@@ -271,8 +271,8 @@ class YawError:
         reverse_ratio = data['yaw.is_reverse'].sum() / len(data)
 
         res = {
-            'yaw_abs_mean': yaw_abs_mean, 'yaw_abs_90': yaw_abs_90, 'yaw_abs_95': yaw_abs_95,
-            'yaw_origin_mean': yaw_origin_mean, 'yaw_origin_std': yaw_origin_std,
+            'yaw_abs_mean[deg]': yaw_abs_mean, 'yaw_abs_90[deg]': yaw_abs_90, 'yaw_abs_95[deg]': yaw_abs_95,
+            'yaw_origin_mean[deg]': yaw_origin_mean, 'yaw_origin_std[deg]': yaw_origin_std,
             'reverse%': reverse_ratio,
             'sample_count': len(data),
         }
@@ -300,8 +300,8 @@ class LengthError:
         length_origin_std = data['length.error'].std()
 
         res = {
-            'length_abs_mean': length_abs_mean, 'length_abs_90': length_abs_90, 'length_abs_95': length_abs_95,
-            'length_origin_mean': length_origin_mean, 'length_origin_std': length_origin_std,
+            'length_abs_mean[m]': length_abs_mean, 'length_abs_90[m]': length_abs_90, 'length_abs_95[m]': length_abs_95,
+            'length_origin_mean[m]': length_origin_mean, 'length_origin_std[m]': length_origin_std,
             'sample_count': len(data),
         }
 
@@ -328,8 +328,8 @@ class WidthError:
         width_origin_std = data['width.error'].std()
 
         res = {
-            'width_abs_mean': width_abs_mean, 'width_abs_90': width_abs_90, 'width_abs_95': width_abs_95,
-            'width_origin_mean': width_origin_mean, 'width_origin_std': width_origin_std,
+            'width_abs_mean[m]': width_abs_mean, 'width_abs_90[m]': width_abs_90, 'width_abs_95[m]': width_abs_95,
+            'width_origin_mean[m]': width_origin_mean, 'width_origin_std[m]': width_origin_std,
             'sample_count': len(data),
         }
 
@@ -356,8 +356,8 @@ class HeightError:
         height_origin_std = data['height.error'].std()
 
         res = {
-            'height_abs_mean': height_abs_mean, 'height_abs_90': height_abs_90, 'height_abs_95': height_abs_95,
-            'height_origin_mean': height_origin_mean, 'height_origin_std': height_origin_std,
+            'height_abs_mean[m]': height_abs_mean, 'height_abs_90[m]': height_abs_90, 'height_abs_95[m]': height_abs_95,
+            'height_origin_mean[m]': height_origin_mean, 'height_origin_std[m]': height_origin_std,
             'sample_count': len(data),
         }
 

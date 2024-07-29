@@ -13,14 +13,18 @@ import pandas as pd
 import numpy as np
 import yaml
 from matplotlib import pyplot as plt
+from matplotlib import patches as pc
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from Libs import get_project_path, replace_path_in_dict, copy_to_destination
+from Libs import get_project_path, copy_to_destination
 
 sys.path.append(get_project_path())
 
-from Utils.Libs import test_encyclopaedia, create_folder
+from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length
 from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_font, legend_font, mpl_colors
 from Utils.Logger import send_log
 
@@ -155,11 +159,11 @@ class DataGrinderPilotOneCase:
                 }
 
                 path = os.path.join(raw_folder, 'pred_data.csv')
-                pred_data.to_csv(path, index=False)
+                pred_data.to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result[topic_belonging][topic]['raw']['pred_data'] = self.get_relpath(path)
 
                 path = os.path.join(raw_folder, 'pred_timestamp.csv')
-                pred_timestamp.to_csv(path, index=False)
+                pred_timestamp.to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result[topic_belonging][topic]['raw']['pred_timestamp'] = self.get_relpath(path)
 
             elif topic == '/PI/EG/EgoMotionInfo':
@@ -174,7 +178,7 @@ class DataGrinderPilotOneCase:
                 pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
                 create_folder(os.path.join(self.DataFolder, 'General'), update=False)
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
-                pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False)
+                pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result['General']['pred_ego'] = self.get_relpath(path)
 
         # 复制场景相关的信息, 解析相机参数
@@ -281,11 +285,11 @@ class DataGrinderPilotOneCase:
             }
 
             path = os.path.join(raw_folder, 'gt_data.csv')
-            gt_data[raw_column].to_csv(path, index=False)
+            gt_data[raw_column].to_csv(path, index=False, encoding='utf_8_sig')
             self.test_result[gt_topic_belonging]['GroundTruth']['raw']['gt_data'] = self.get_relpath(path)
 
             path = os.path.join(raw_folder, 'gt_timestamp.csv')
-            gt_timestamp.to_csv(path, index=False)
+            gt_timestamp.to_csv(path, index=False, encoding='utf_8_sig')
             self.test_result[gt_topic_belonging]['GroundTruth']['raw']['gt_timestamp'] = self.get_relpath(path)
 
         # 自车速度用于对齐
@@ -299,7 +303,7 @@ class DataGrinderPilotOneCase:
                 columns={'ego_timestamp': 'time_stamp', 'INS_Speed': 'ego_vx'})
             create_folder(os.path.join(self.DataFolder, 'General'), update=False)
             path = os.path.join(self.DataFolder, 'General', 'gt_ego.csv')
-            ego_data.to_csv(path, index=False)
+            ego_data.to_csv(path, index=False, encoding='utf_8_sig')
             self.test_result['General']['gt_ego'] = self.get_relpath(path)
 
     @sync_test_result
@@ -335,7 +339,7 @@ class DataGrinderPilotOneCase:
         sync_ego_data = calibrated_data[(calibrated_data['time_stamp'] <= time_end + 1)
                                         & (calibrated_data['time_stamp'] >= time_start - 1)]
         path = os.path.join(self.DataFolder, 'General', 'SyncEgoVx.csv')
-        sync_ego_data.to_csv(path, index=False)
+        sync_ego_data.to_csv(path, index=False, encoding='utf_8_sig')
         self.test_result['General']['sync_ego_data'] = self.get_relpath(path)
 
         # 将同步后的自车速度可视化
@@ -401,7 +405,7 @@ class DataGrinderPilotOneCase:
                     data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
                     path = os.path.join(additional_folder, 'pred_timestamp.csv')
                     self.test_result[topic_belonging][topic]['additional']['pred_timestamp'] = self.get_relpath(path)
-                    data.to_csv(path, index=False)
+                    data.to_csv(path, index=False, encoding='utf_8_sig')
 
                     # 预处理原始数据, 增加列
                     send_log(self, f'{topic_belonging} {topic} 预处理步骤 {preprocess_instance.preprocess_types}')
@@ -420,7 +424,7 @@ class DataGrinderPilotOneCase:
                     data = preprocess_instance.run(data, input_parameter_container)[additional_column]
                     path = os.path.join(additional_folder, 'pred_data.csv')
                     self.test_result[topic_belonging][topic]['additional']['pred_data'] = self.get_relpath(path)
-                    data.to_csv(path, index=False)
+                    data.to_csv(path, index=False, encoding='utf_8_sig')
 
                 else:
                     raw = self.test_result[topic_belonging]['GroundTruth']['raw']
@@ -436,7 +440,7 @@ class DataGrinderPilotOneCase:
                     path = os.path.join(additional_folder, 'gt_timestamp.csv')
                     self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(
                         path)
-                    data.to_csv(path, index=False)
+                    data.to_csv(path, index=False, encoding='utf_8_sig')
 
                     # 预处理原始数据, 增加列
                     send_log(self, f'{topic_belonging} GroundTruth 预处理步骤 {preprocess_instance.preprocess_types}')
@@ -455,7 +459,7 @@ class DataGrinderPilotOneCase:
 
                     path = os.path.join(additional_folder, 'gt_data.csv')
                     self.test_result[topic_belonging]['GroundTruth']['additional']['gt_data'] = self.get_relpath(path)
-                    data.to_csv(path, index=False)
+                    data.to_csv(path, index=False, encoding='utf_8_sig')
 
     @sync_test_result
     def match_timestamp(self):
@@ -503,7 +507,7 @@ class DataGrinderPilotOneCase:
                                                              match_timestamp_data['gt_timestamp']
 
                 path = os.path.join(match_folder, 'match_timestamp.csv')
-                match_timestamp_data.to_csv(path, index=False)
+                match_timestamp_data.to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result[topic_belonging][topic]['match']['match_timestamp'] = self.get_relpath(path)
 
     @sync_test_result
@@ -555,7 +559,7 @@ class DataGrinderPilotOneCase:
                 data = match_tool.run(input_data, input_parameter_container)[match_column]
                 path = os.path.join(match_folder, 'match_data.csv')
                 self.test_result[topic_belonging][topic]['match']['match_data'] = self.get_relpath(path)
-                data.to_csv(path, index=False)
+                data.to_csv(path, index=False, encoding='utf_8_sig')
 
     @sync_test_result
     def evaluate_metrics(self):
@@ -600,7 +604,7 @@ class DataGrinderPilotOneCase:
 
                     path = os.path.join(total_folder, f'{metric}.csv')
                     self.test_result[topic_belonging][topic]['metric']['total'][metric] = self.get_relpath(path)
-                    metric_data.to_csv(path, index=False)
+                    metric_data.to_csv(path, index=False, encoding='utf_8_sig')
 
                     input_parameter_container = {
                         'characteristic_type': self.test_config['target_characteristic'],
@@ -620,7 +624,7 @@ class DataGrinderPilotOneCase:
                         path = os.path.join(characteristic_folder, f'{metric}.csv')
                         self.test_result[topic_belonging][topic]['metric'][characteristic][
                             metric] = self.get_relpath(path)
-                        characteristic_data.to_csv(path, index=False)
+                        characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
 
     def start(self):
 
@@ -669,7 +673,7 @@ class DataGrinderPilotOneTask:
         self.test_action = self.test_config['test_action']
         self.scenario_unit_folder = self.test_config['data_path']['intermediate']['scenario_unit']
         self.tag_combination_folder = self.test_config['data_path']['intermediate']['tag_combination']
-        self.result_folder = self.test_config['data_path']['result']
+        self.result_folder = self.test_config['data_path']['output_result']
         self.region_division = self.test_config['region_division']
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
@@ -681,8 +685,8 @@ class DataGrinderPilotOneTask:
                     'tag': scenario_tag['tag'], 'scenario_unit': {}, 'tag_combination': {}
                 }
                 for scenario_id in scenario_tag['scenario_id']:
-                    self.test_result[tag_key]['scenario_unit'][scenario_id] = self.get_relpath(os.path.join(
-                        self.scenario_unit_folder, scenario_id, 'TestResult.yaml'))
+                    self.test_result[tag_key]['scenario_unit'][scenario_id] = self.get_relpath(
+                        os.path.join(self.scenario_unit_folder, scenario_id, 'TestResult.yaml'))
 
             self.save_test_result()
 
@@ -734,6 +738,9 @@ class DataGrinderPilotOneTask:
         # 获得每一种特征的分类结果
         match_data_dict = {}
         for tag_key in self.test_result.keys():
+            if tag_key == 'OutputResult':
+                continue
+
             tag_combination_folder = os.path.join(self.tag_combination_folder, tag_key)
             create_folder(tag_combination_folder)
             match_data_dict[tag_key] = {}
@@ -755,6 +762,12 @@ class DataGrinderPilotOneTask:
 
                     for topic in scenario_test_result[topic_belonging].keys():
                         if topic == 'GroundTruth':
+                            frequency = round(scenario_test_result[topic_belonging][topic]['frequency'])
+                            if 'frequency' not in self.test_result[tag_key]:
+                                self.test_result[tag_key]['frequency'] = frequency
+                            else:
+                                self.test_result[tag_key]['frequency'] = (
+                                    min(self.test_result[tag_key]['frequency'], frequency))
                             continue
 
                         topic_tag = topic.replace('/', '')
@@ -802,7 +815,7 @@ class DataGrinderPilotOneTask:
                         path = os.path.join(total_folder, f'{metric}.csv')
                         self.test_result[tag_key]['tag_combination'][topic_belonging][topic]['total'][
                             metric] = self.get_relpath(path)
-                        metric_data.to_csv(path, index=False)
+                        metric_data.to_csv(path, index=False, encoding='utf_8_sig')
 
                         input_parameter_container = {
                             'characteristic_type': self.test_config['target_characteristic'],
@@ -825,24 +838,28 @@ class DataGrinderPilotOneTask:
                             path = os.path.join(characteristic_folder, f'{metric}.csv')
                             self.test_result[tag_key]['tag_combination'][topic_belonging][topic][characteristic][
                                 metric] = self.get_relpath(path)
-                            characteristic_data.to_csv(path, index=False)
+                            characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
 
     @sync_test_result
-    def output_statistics(self):
+    def compile_statistics(self):
         # 按照数据库数据单元的方式保存数据
         # 格式为json，在文件夹内平铺
+        json_folder = os.path.join(self.result_folder, 'statistics')
+        create_folder(json_folder)
         json_count = 0
-        create_folder(self.result_folder)
+        json_rows = []
+        self.test_result['OutputResult'] = {}
         for tag_key in self.test_result.keys():
+            if tag_key == 'OutputResult':
+                continue
+
             tag = self.test_result[tag_key]['tag']
             scenario_list = list(self.test_result[tag_key]['scenario_unit'].keys())
 
             for topic_belonging in self.test_result[tag_key]['tag_combination'].keys():
-
                 metric_statistics = eval(f'MetricStatistics.{topic_belonging}MetricStatistics()')
 
                 for topic in self.test_result[tag_key]['tag_combination'][topic_belonging].keys():
-
                     topic_tag = topic.replace('/', '')
 
                     for characteristic in self.test_config['target_characteristic']:
@@ -868,14 +885,215 @@ class DataGrinderPilotOneTask:
                         for json_data in json_datas:
                             json_data = {**info_json_data, **json_data}
 
+                            # 保存单个json文件
                             json_count += 1
                             json_name = (f'{json_count:06d}--{tag_key}--{topic_tag}--{json_data["type"]}'
                                          f'--{json_data["region"]}--{json_data["characteristic"]}--{json_data["metric"]}.json')
-                            json_path = os.path.join(self.result_folder, json_name)
+                            json_path = os.path.join(json_folder, json_name)
 
-                            print(json_count, json_name, '已保存')
+                            if json_data['result']['sample_count'] < self.test_result[tag_key]['frequency'] * 2:
+                                print(f'{json_count} {json_name} 样本少于{self.test_result[tag_key]["frequency"] * 2}，不保存')
+                                continue
+
+                            print(f'{json_count} {json_name} 已保存')
                             with open(json_path, 'w', encoding='utf-8') as f:
                                 json.dump(json_data, f, ensure_ascii=False, indent=4)
+
+                            # 保存json文件的目录
+                            json_rows.append(
+                                [
+                                    json_count, tag_key, topic, json_data['type'], json_data['region'],
+                                    json_data['characteristic'], json_data['metric'],
+                                    json_data['result']['sample_count'], json.dumps(json_data['result'])
+                                ]
+                            )
+
+        path = os.path.join(json_folder, 'output_result.csv')
+        pd.DataFrame(json_rows, columns=[
+            'result_index', 'scenario_tag', 'topic', 'obstacle_type', 'region',
+            'characteristic', 'metric', 'sample_count', 'result'
+        ]).to_csv(path, index=False, encoding='utf_8_sig')
+        self.test_result['OutputResult']['statistics'] = self.get_relpath(path)
+
+    @sync_test_result
+    def visualize_output(self):
+
+        def plot_table(axes, columns, columns_width, values, index=None, index_width=0):
+            if index is None:
+                index = []
+            axes.patch.set_facecolor('white')
+            axes.patch.set_alpha(0.3)
+            for pos in ['right', 'top', 'left', 'bottom']:
+                axes.spines[pos].set_visible(False)
+
+            # 画index
+            if index_width and len(index):
+                axes.add_patch(pc.Rectangle(
+                    xy=(-index_width, 0),
+                    width=index_width, height=1,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=True,
+                    edgecolor='grey',
+                    facecolor='bisque',
+                    linewidth=1))
+                axes.text(-index_width / 2, 0.5, 'Test Case',
+                          va='center', ha='center',
+                          fontdict={
+                              'family': 'Ubuntu',
+                              'style': 'normal',
+                              'weight': 'bold',
+                              'color': 'black',
+                              'size': font_size * 1.5,
+                          })
+
+                for i, idx in enumerate(index):
+                    axes.add_patch(pc.Rectangle(
+                        xy=(-index_width, -1 - i),
+                        width=index_width, height=1,
+                        angle=0, alpha=1,
+                        rotation_point='xy',
+                        fill=True,
+                        edgecolor='grey',
+                        facecolor='linen',
+                        linewidth=1))
+
+                    axes.text(-index_width * 0.95, -1 - i + 0.5, idx,
+                              va='center', ha='left',
+                              fontdict={
+                                  'family': 'sans-serif',
+                                  'style': 'normal',
+                                  'weight': 'normal',
+                                  'color': 'black',
+                                  'size': font_size * 1.5,
+                              })
+
+            # 画columns
+            current_x = 0
+            for i, (col, width) in enumerate(zip(columns, columns_width)):
+                axes.add_patch(pc.Rectangle(
+                    xy=(current_x, 0),
+                    width=width, height=1,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=True,
+                    edgecolor='grey',
+                    facecolor='lightsteelblue',
+                    linewidth=1))
+
+                axes.text(current_x + width * 0.5, 0.5, col,
+                          va='center', ha='center',
+                          fontdict={
+                              'family': 'Ubuntu',
+                              'style': 'normal',
+                              'weight': 'bold',
+                              'color': 'black',
+                              'size': font_size * 1.5,
+                          })
+
+                current_x += width
+
+            # 画values
+            ii, jj = values.shape
+            for i in range(ii):
+                current_x = 0
+                for j in range(jj):
+                    width = columns_width[j]
+                    color = 'white'
+
+                    value = values[i, j]
+                    if '%' in columns[j]:
+                        value = '{:.2%}'.format(value)
+                    elif isinstance(value, float):
+                        if int(value) == value:
+                            value = int(value)
+                        else:
+                            value = round(value, 4)
+
+                    if contains_chinese(str(value)):
+                        fontdict = {
+                            'family': 'sans-serif',
+                            'style': 'normal',
+                            'weight': 'normal',
+                            'color': 'black',
+                            'size': font_size * 1.5,
+                        }
+                    else:
+                        fontdict = {
+                            'family': 'Ubuntu',
+                            'style': 'normal',
+                            'weight': 'normal',
+                            'color': 'black',
+                            'size': font_size * 1.5,
+                        }
+
+                    axes.add_patch(pc.Rectangle(
+                        xy=(current_x, -i - 1),
+                        width=width, height=1,
+                        angle=0, alpha=1,
+                        rotation_point='xy',
+                        fill=True,
+                        edgecolor='grey',
+                        facecolor=color,
+                        linewidth=1))
+                    axes.text(current_x + width * 0.5, -i - 1 + 0.5, value,
+                              va='center', ha='center',
+                              fontdict=fontdict)
+
+                    current_x += width
+
+            axes.set_xlim(-index_width - 0.1, np.sum(columns_width) + 0.1)
+            axes.set_ylim(-len(df) - 0.1, 2.1)
+            axes.set_xticks([])
+            axes.set_yticks([])
+
+        visualization_folder = os.path.join(self.result_folder, 'visualization')
+        create_folder(visualization_folder)
+        statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
+        group_columns = ['scenario_tag', 'topic', 'obstacle_type', 'characteristic', 'metric']
+        stat_group = statistics.groupby(group_columns)
+
+        for df_name, df in stat_group:
+            scenario_tag, topic, obstacle_type, characteristic, metric = df_name
+
+            if characteristic == '静止目标' and '速度' in metric:
+                continue
+
+            for index, row in df.iterrows():
+                result_dict = json.loads(row['result'])
+                for key, value in result_dict.items():
+                    df.at[index, key] = value
+            df['type_cate'] = pd.Categorical(df['obstacle_type'],
+                                             categories=['小车', '大巴', '货车', '自行车', '行人'], ordered=True)
+            df.sort_values(by=['type_cate', 'region'], inplace=True)
+            drop_columns = group_columns + ['result_index', 'type_cate', 'result']
+            df.drop(drop_columns, axis=1, inplace=True)
+            df.insert(0, 'obstacle_type', obstacle_type)
+
+            columns = list(df.columns)
+            columns[1] = 'grid area division[m]'
+            columns_width = [max(get_string_display_length(c) / 5.2, 2) for c in columns]
+            values = df.values
+
+            fig_size = (np.sum(columns_width) + 0.1, (len(df) + 2) + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+            plt.axis('off')
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            plot_table(ax, columns, columns_width, values)
+            ax.text(np.sum(columns_width) / 2, 1.5, '-'.join(
+                [topic, scenario_tag, obstacle_type, characteristic, metric]),
+                    va='center', ha='center', fontsize=font_size * 2)
+
+            pic_name = '--'.join([topic, scenario_tag, obstacle_type, characteristic, metric]).replace('/', '') + '.jpg'
+            pic_path = os.path.join(visualization_folder, pic_name)
+            print(f'{pic_path} 已保存')
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(pic_path, facecolor='white', dpi=100)
+            fig.clf()
+            plt.close()
 
     def start(self):
         if any([value for value in self.test_action['scenario_unit'].values()]):
@@ -884,8 +1102,9 @@ class DataGrinderPilotOneTask:
         if self.test_action['tag_combination']:
             self.combine_scenario_tag()
 
-        if self.test_action['statistics']:
-            self.output_statistics()
+        if self.test_action['output_result']:
+            # self.compile_statistics()
+            self.visualize_output()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.task_folder)
