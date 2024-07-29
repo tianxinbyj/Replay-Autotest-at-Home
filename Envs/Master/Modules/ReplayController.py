@@ -353,9 +353,9 @@ if __name__ == '__main__':
         },
         'replay_action': {
             'calib': False,
-            'record': True,
+            'record': False,
             'get_gt': True,
-            'bag_update': True,
+            'bag_update': False,
         },
         'product': 'ES37',
         'test_type': 'pilot',

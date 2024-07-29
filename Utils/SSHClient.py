@@ -244,10 +244,13 @@ class SSHClient:
 
 if __name__ == '__main__':
     ss = SSHClient()
-    scenario_id = '20240123_143218_n000001'
+    scenario_id = '20230602_144755_n000003'
     # ss.start_replay(scenario_id)
     # ss.stop_replay()
-    local_folder = '/home/caobingqi/ZONE/Data/TestProject/temp/01_Rosbag'
+    # ss.stop_replay()
+
+    remote_folder = '/media/data/annotation/20230602_144755_n000003'
+    local_folder = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/ddddd'
+    ss.scp_folder_remote_to_local(local_folder, remote_folder)
     # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
-    ss.get_scenario_info(scenario_id, 'VideoInfo', local_folder)
     # ss.clear_temp_folder()

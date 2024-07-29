@@ -2510,7 +2510,7 @@ class Ros2bagPretreatment:
 
 
 if __name__ == "__main__":
-    J5_workspace = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug/03_WorkSpace'
+    J5_workspace = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace'
     J5_topic_list = [
         '/PI/EG/EgoMotionInfo',
         '/VA/Obstacles',
@@ -2520,8 +2520,8 @@ if __name__ == "__main__":
         # '/VA/Objects',
     ]
 
-    folder = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug/01_RosBag/20230602_144755_n000003/RawData'
-    bag_path = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug/01_RosBag/20230602_144755_n000003/20230602_144755_n000003_2024-05-10-16-28-31'
+    folder = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace/0726_30fps_full'
+    bag_path = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace/rosbag2_2024_07_26-16_15_11'
     RBP = Ros2BagParser(J5_workspace)
     RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
 
