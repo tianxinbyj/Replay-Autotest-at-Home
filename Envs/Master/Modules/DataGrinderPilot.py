@@ -1014,10 +1014,18 @@ class DataGrinderPilotOneTask:
                 for j in range(jj):
                     width = columns_width[j]
                     color = 'white'
-
                     value = values[i, j]
+
+                    # if columns[j] == 'pass_ratio%':
+                    #     sizes = [value, 1 - value]
+                    #     labels = ['PASSED', 'FAILED']
+                    #     colors = ['limegreen', 'lightcoral']
+                    #     new_ax = fig.add_axes([current_x + width * 0.5, -i - 1 + 0.5, 0.5, 0.5])  # [x, y, width, height]
+                    #     new_ax.pie(sizes, labels=labels, colors=colors, radius=0.4)
+
                     if '%' in columns[j]:
                         value = '{:.2%}'.format(value)
+
                     elif isinstance(value, float):
                         if int(value) == value:
                             value = int(value)
@@ -1066,7 +1074,9 @@ class DataGrinderPilotOneTask:
         statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
         group_columns = ['scenario_tag', 'topic', 'obstacle_type', 'characteristic', 'metric']
         stat_group = statistics.groupby(group_columns)
+        self.test_result['OutputResult']['visualization'] = {}
 
+        df_tp_error = {}
         for df_name, df in stat_group:
             scenario_tag, topic, obstacle_type, characteristic, metric = df_name
 
@@ -1083,9 +1093,9 @@ class DataGrinderPilotOneTask:
             drop_columns = group_columns + ['result_index', 'type_cate', 'result']
             df.drop(drop_columns, axis=1, inplace=True)
             df.insert(0, 'obstacle_type', obstacle_type)
+            df.rename(columns={'region': 'grid area division[m]'}, inplace=True)
 
             columns = list(df.columns)
-            columns[1] = 'grid area division[m]'
             columns_width = [max(get_string_display_length(c) / 5.2, 2) for c in columns]
             values = df.values
 
@@ -1098,17 +1108,62 @@ class DataGrinderPilotOneTask:
             ax = fig.add_subplot(grid[0, 0])
             plot_table(ax, columns, columns_width, values)
             ax.text(np.sum(columns_width) / 2, 1.5, '-'.join(
-                [topic, scenario_tag, obstacle_type, characteristic, metric]),
+                [topic, scenario_tag, characteristic, obstacle_type, metric]),
                     va='center', ha='center', fontsize=font_size * 2)
 
             pic_name = '--'.join(
-                [topic, scenario_tag, obstacle_type, characteristic, metric]).replace('/', '') + '.jpg'
-            pic_path = os.path.join(visualization_folder, pic_name)
+                [topic, scenario_tag, characteristic, obstacle_type, metric]).replace('/', '')
+            pic_path = os.path.join(visualization_folder, f'{pic_name}.jpg')
             print(f'{pic_path} 已保存')
             canvas = FigureCanvas(fig)
             canvas.print_figure(pic_path, facecolor='white', dpi=100)
             fig.clf()
             plt.close()
+
+            # 汇总tp_error
+            if metric == '准召信息':
+                continue
+
+            if topic not in df_tp_error.keys():
+                df_tp_error[topic] = {}
+            if scenario_tag not in df_tp_error[topic].keys():
+                df_tp_error[topic][scenario_tag] = {}
+            if characteristic not in df_tp_error[topic][scenario_tag].keys():
+                df_tp_error[topic][scenario_tag][characteristic] = {}
+            if obstacle_type not in df_tp_error[topic][scenario_tag][characteristic].keys():
+                df_tp_error[topic][scenario_tag][characteristic][obstacle_type] = []
+
+            df.rename(columns={'pass_ratio%': metric}, inplace=True)
+            df_tp_error[topic][scenario_tag][characteristic][obstacle_type].append(
+                df[['grid area division[m]', metric]])
+
+        # 合并tp_error的metric数据，以及可视化为饼图
+        for topic in df_tp_error.keys():
+            if topic not in self.test_result['OutputResult']['visualization'].keys():
+                self.test_result['OutputResult']['visualization'][topic] = {}
+
+            for scenario_tag in df_tp_error[topic].keys():
+                if scenario_tag not in self.test_result['OutputResult']['visualization'][topic].keys():
+                    self.test_result['OutputResult']['visualization'][topic][scenario_tag] = {}
+
+                for characteristic in df_tp_error[topic][scenario_tag].keys():
+                    if characteristic not in self.test_result['OutputResult']['visualization'][topic][scenario_tag].keys():
+                        self.test_result['OutputResult']['visualization'][topic][scenario_tag][characteristic] = {}
+
+                    for obstacle_type in df_tp_error[topic][scenario_tag][characteristic].keys():
+                        if obstacle_type not in self.test_result['OutputResult']['visualization'][topic][scenario_tag][characteristic].keys():
+                            self.test_result['OutputResult']['visualization'][topic][scenario_tag][characteristic][obstacle_type] = {}
+
+                        merged_df = pd.DataFrame(columns=['grid area division[m]'])
+                        for one_df in df_tp_error[topic][scenario_tag][characteristic][obstacle_type]:
+                            merged_df = merged_df.merge(one_df, on='grid area division[m]', how='outer')
+                        csv_name = '--'.join([topic, scenario_tag, characteristic, obstacle_type]).replace('/', '')
+                        csv_path = os.path.join(visualization_folder, f'{csv_name}.csv')
+                        (merged_df.sort_values(by=['grid area division[m]'])
+                         .to_csv(csv_path, index=False, encoding='utf_8_sig'))
+
+                        self.test_result['OutputResult']['visualization'][topic][scenario_tag][characteristic][
+                            obstacle_type]['data'] = self.get_relpath(csv_path)
 
     def start(self):
         if any([value for value in self.test_action['scenario_unit'].values()]):
@@ -1118,7 +1173,7 @@ class DataGrinderPilotOneTask:
             self.combine_scenario_tag()
 
         if self.test_action['output_result']:
-            self.compile_statistics()
+            # self.compile_statistics()
             self.visualize_output()
 
     def get_relpath(self, path: str) -> str:

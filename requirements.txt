@@ -17,3 +17,4 @@ pyserial
 moviepy
 Pillow
 pexpect
+openpyxl
