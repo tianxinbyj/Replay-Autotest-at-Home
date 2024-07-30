@@ -488,27 +488,32 @@ class DataGrinderPilotOneCase:
                 pred_hz = self.test_result[topic_belonging][topic]['frequency']
 
                 match_tolerance = self.test_config['timestamp_matching_tolerance'] / max(pred_hz, gt_hz)
-                send_log(self,
-                         f'{topic_belonging} {topic} 时间差低于{match_tolerance} sec的尝试匹配, 进一步选择局部最优')
+                send_log(self, f'{topic_belonging} {topic} 时间差低于{match_tolerance} sec的尝试匹配, '
+                               f'进一步选择局部最优')
 
                 match_pred_timestamp, match_gt_timestamp = MatchTool.match_timestamp(
                     pred_timestamp, gt_timestamp, match_tolerance)
-                send_log(self,
-                         f'{topic_belonging} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, 对齐{len(match_pred_timestamp)}')
-                send_log(self,
-                         f'{topic_belonging} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, 对齐{len(match_gt_timestamp)}')
+                send_log(self, f'{topic_belonging} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, '
+                               f'对齐{len(match_gt_timestamp)} '
+                               f'比例{len(match_gt_timestamp) / len(gt_timestamp):.2%}')
+                send_log(self, f'{topic_belonging} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, '
+                               f'对齐{len(match_pred_timestamp)} '
+                               f'比例{len(match_pred_timestamp) / len(pred_timestamp):.2%}')
 
                 # 保存时间辍匹配数据
                 match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_gap'])
                 if len(match_pred_timestamp):
                     match_timestamp_data['gt_timestamp'] = match_gt_timestamp
                     match_timestamp_data['pred_timestamp'] = match_pred_timestamp
-                    match_timestamp_data['match_time_gap'] = match_timestamp_data['pred_timestamp'] - \
-                                                             match_timestamp_data['gt_timestamp']
+                    match_timestamp_data['match_time_gap'] = (match_timestamp_data['pred_timestamp']
+                                                              - match_timestamp_data['gt_timestamp'])
 
                 path = os.path.join(match_folder, 'match_timestamp.csv')
                 match_timestamp_data.to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result[topic_belonging][topic]['match']['match_timestamp'] = self.get_relpath(path)
+                self.test_result[topic_belonging][topic]['match_frequency'] \
+                    = round(self.test_result[topic_belonging][topic]['frequency']
+                            * len(match_pred_timestamp) / len(pred_timestamp), 2)
 
     @sync_test_result
     def match_object(self):
@@ -570,6 +575,8 @@ class DataGrinderPilotOneCase:
             send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
             metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
             metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
+            evaluate_range = {metric: v['evaluate_range']
+                              for metric, v in test_encyclopaedia['Information'][topic_belonging]['metrics'].items()}
 
             for topic in self.test_result[topic_belonging].keys():
                 if topic == 'GroundTruth':
@@ -589,6 +596,7 @@ class DataGrinderPilotOneCase:
                 match_data = pd.read_csv(self.get_abspath(match_data_path), index_col=False)
                 input_parameter_container = {
                     'metric_type': self.test_config['test_item'][topic],
+                    'evaluate_range': evaluate_range,
                 }
                 input_data = {
                     'data': match_data,
@@ -708,7 +716,7 @@ class DataGrinderPilotOneTask:
                     'gt_folder': os.path.join(self.test_config['data_path']['raw']['gt'], scenario_id),
                     'test_action': self.test_action['scenario_unit'],
                     'test_item': self.test_config['test_item'],
-                    'target_characteristic': ['is_keyObj'],
+                    'target_characteristic': ['is_coverageValid', 'is_keyObj'],
                     'scenario_tag': scenario_tag['tag'],
                     'scenario_id': scenario_id,
                     'pred_ROI': self.test_config['pred_ROI'],
@@ -781,6 +789,7 @@ class DataGrinderPilotOneTask:
 
                         match_data_path = scenario_test_result[topic_belonging][topic]['match']['match_data']
                         match_data = pd.read_csv(os.path.join(scenario_unit_folder, match_data_path), index_col=False)
+                        match_data.insert(0, 'scenario_id', scenario_id)
                         match_data_dict[tag_key][topic_belonging][topic].append(match_data)
 
         for tag_key in match_data_dict.keys():
@@ -789,6 +798,9 @@ class DataGrinderPilotOneTask:
                 send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
                 metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
                 metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
+                evaluate_range = {metric: v['evaluate_range']
+                                  for metric, v in
+                                  test_encyclopaedia['Information'][topic_belonging]['metrics'].items()}
 
                 for topic, df_list in match_data_dict[tag_key][topic_belonging].items():
                     topic_tag = topic.replace('/', '')
@@ -797,6 +809,7 @@ class DataGrinderPilotOneTask:
 
                     input_parameter_container = {
                         'metric_type': self.test_config['test_item'][topic],
+                        'evaluate_range': evaluate_range,
                     }
                     input_data = {
                         'data': total_match_data,
@@ -892,7 +905,8 @@ class DataGrinderPilotOneTask:
                             json_path = os.path.join(json_folder, json_name)
 
                             if json_data['result']['sample_count'] < self.test_result[tag_key]['frequency'] * 2:
-                                print(f'{json_count} {json_name} 样本少于{self.test_result[tag_key]["frequency"] * 2}，不保存')
+                                print(
+                                    f'{json_count} {json_name} 样本少于{self.test_result[tag_key]["frequency"] * 2}，不保存')
                                 continue
 
                             print(f'{json_count} {json_name} 已保存')
@@ -1103,7 +1117,7 @@ class DataGrinderPilotOneTask:
             self.combine_scenario_tag()
 
         if self.test_action['output_result']:
-            # self.compile_statistics()
+            self.compile_statistics()
             self.visualize_output()
 
     def get_relpath(self, path: str) -> str:
