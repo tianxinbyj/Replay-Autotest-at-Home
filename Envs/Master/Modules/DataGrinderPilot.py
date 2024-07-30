@@ -1101,7 +1101,8 @@ class DataGrinderPilotOneTask:
                 [topic, scenario_tag, obstacle_type, characteristic, metric]),
                     va='center', ha='center', fontsize=font_size * 2)
 
-            pic_name = '--'.join([topic, scenario_tag, obstacle_type, characteristic, metric]).replace('/', '') + '.jpg'
+            pic_name = '--'.join(
+                [topic, scenario_tag, obstacle_type, characteristic, metric]).replace('/', '') + '.jpg'
             pic_path = os.path.join(visualization_folder, pic_name)
             print(f'{pic_path} 已保存')
             canvas = FigureCanvas(fig)

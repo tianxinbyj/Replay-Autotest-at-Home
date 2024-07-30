@@ -29,7 +29,6 @@ class XError:
             'is_valid',
         ]
         self.evaluate_range = evaluate_range
-        self.invalid_res = (0,) * len(self.columns)
 
     def __call__(self, input_data):
 
@@ -46,15 +45,14 @@ class XError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        if gt_type not in self.evaluate_range:
-            return self.invalid_res
-
-        x_range = self.evaluate_range[gt_type]['x']
-        y_range = self.evaluate_range[gt_type]['y']
-        if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-            return self.invalid_res
-
         is_valid = 1
+        if gt_type not in self.evaluate_range:
+            is_valid = 0
+        else:
+            x_range = self.evaluate_range[gt_type]['x']
+            y_range = self.evaluate_range[gt_type]['y']
+            if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
+                is_valid = 0
 
         x_error = pred_x - gt_x
         x_error_abs = abs(x_error)
@@ -94,7 +92,6 @@ class YError:
             'is_valid',
         ]
         self.evaluate_range = evaluate_range
-        self.invalid_res = (0,) * len(self.columns)
 
     def __call__(self, input_data):
 
@@ -111,15 +108,14 @@ class YError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        if gt_type not in self.evaluate_range:
-            return self.invalid_res
-
-        x_range = self.evaluate_range[gt_type]['x']
-        y_range = self.evaluate_range[gt_type]['y']
-        if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-            return self.invalid_res
-
         is_valid = 1
+        if gt_type not in self.evaluate_range:
+            is_valid = 0
+        else:
+            x_range = self.evaluate_range[gt_type]['x']
+            y_range = self.evaluate_range[gt_type]['y']
+            if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
+                is_valid = 0
 
         y_error = pred_y - gt_y
         y_error_abs = abs(y_error)
@@ -160,7 +156,6 @@ class VxError:
             'is_valid',
         ]
         self.evaluate_range = evaluate_range
-        self.invalid_res = (0,) * len(self.columns)
 
     def __call__(self, input_data):
 
@@ -177,15 +172,14 @@ class VxError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        if gt_type not in self.evaluate_range:
-            return self.invalid_res
-
-        x_range = self.evaluate_range[gt_type]['x']
-        y_range = self.evaluate_range[gt_type]['y']
-        if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-            return self.invalid_res
-
         is_valid = 1
+        if gt_type not in self.evaluate_range:
+            is_valid = 0
+        else:
+            x_range = self.evaluate_range[gt_type]['x']
+            y_range = self.evaluate_range[gt_type]['y']
+            if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
+                is_valid = 0
 
         vx_error = pred_vx - gt_vx
         vx_error_abs = abs(vx_error)
@@ -226,7 +220,6 @@ class VyError:
             'is_valid',
         ]
         self.evaluate_range = evaluate_range
-        self.invalid_res = (0,) * len(self.columns)
 
     def __call__(self, input_data):
 
@@ -243,15 +236,14 @@ class VyError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        if gt_type not in self.evaluate_range:
-            return self.invalid_res
-
-        x_range = self.evaluate_range[gt_type]['x']
-        y_range = self.evaluate_range[gt_type]['y']
-        if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-            return self.invalid_res
-
         is_valid = 1
+        if gt_type not in self.evaluate_range:
+            is_valid = 0
+        else:
+            x_range = self.evaluate_range[gt_type]['x']
+            y_range = self.evaluate_range[gt_type]['y']
+            if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
+                is_valid = 0
 
         vy_error = pred_vy - gt_vy
         vy_error_abs = abs(vy_error)
@@ -291,7 +283,6 @@ class YawError:
             'is_valid',
         ]
         self.evaluate_range = evaluate_range
-        self.invalid_res = (0,) * len(self.columns)
 
     def __call__(self, input_data):
 
@@ -308,15 +299,14 @@ class YawError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        if gt_type not in self.evaluate_range:
-            return self.invalid_res
-
-        x_range = self.evaluate_range[gt_type]['x']
-        y_range = self.evaluate_range[gt_type]['y']
-        if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-            return self.invalid_res
-
         is_valid = 1
+        if gt_type not in self.evaluate_range:
+            is_valid = 0
+        else:
+            x_range = self.evaluate_range[gt_type]['x']
+            y_range = self.evaluate_range[gt_type]['y']
+            if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
+                is_valid = 0
 
         # 将角度修正到-pi到pi之间
         pred_yaw = self.make_yaw_pi(pred_yaw)
@@ -378,7 +368,6 @@ class LengthError:
             'is_valid',
         ]
         self.evaluate_range = evaluate_range
-        self.invalid_res = (0,) * len(self.columns)
 
     def __call__(self, input_data):
 
@@ -395,15 +384,14 @@ class LengthError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        if gt_type not in self.evaluate_range:
-            return self.invalid_res
-
-        x_range = self.evaluate_range[gt_type]['x']
-        y_range = self.evaluate_range[gt_type]['y']
-        if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-            return self.invalid_res
-
         is_valid = 1
+        if gt_type not in self.evaluate_range:
+            is_valid = 0
+        else:
+            x_range = self.evaluate_range[gt_type]['x']
+            y_range = self.evaluate_range[gt_type]['y']
+            if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
+                is_valid = 0
 
         length_error = pred_length - gt_length
         length_error_abs = abs(length_error)
@@ -436,7 +424,6 @@ class WidthError:
             'is_valid',
         ]
         self.evaluate_range = evaluate_range
-        self.invalid_res = (0,) * len(self.columns)
 
     def __call__(self, input_data):
 
@@ -453,15 +440,14 @@ class WidthError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        if gt_type not in self.evaluate_range:
-            return self.invalid_res
-
-        x_range = self.evaluate_range[gt_type]['x']
-        y_range = self.evaluate_range[gt_type]['y']
-        if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-            return self.invalid_res
-
         is_valid = 1
+        if gt_type not in self.evaluate_range:
+            is_valid = 0
+        else:
+            x_range = self.evaluate_range[gt_type]['x']
+            y_range = self.evaluate_range[gt_type]['y']
+            if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
+                is_valid = 0
 
         width_error = pred_width - gt_width
         width_error_abs = abs(width_error)
@@ -494,7 +480,6 @@ class HeightError:
             'is_valid',
         ]
         self.evaluate_range = evaluate_range
-        self.invalid_res = (0,) * len(self.columns)
 
     def __call__(self, input_data):
 
@@ -511,15 +496,14 @@ class HeightError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        if gt_type not in self.evaluate_range:
-            return self.invalid_res
-
-        x_range = self.evaluate_range[gt_type]['x']
-        y_range = self.evaluate_range[gt_type]['y']
-        if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-            return self.invalid_res
-
         is_valid = 1
+        if gt_type not in self.evaluate_range:
+            is_valid = 0
+        else:
+            x_range = self.evaluate_range[gt_type]['x']
+            y_range = self.evaluate_range[gt_type]['y']
+            if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
+                is_valid = 0
 
         height_error = pred_height - gt_height
         height_error_abs = abs(height_error)
