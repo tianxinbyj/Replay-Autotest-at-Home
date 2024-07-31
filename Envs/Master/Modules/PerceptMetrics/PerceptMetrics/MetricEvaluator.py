@@ -9,6 +9,54 @@ def change_name(var):
     return ''.join([v.title() for v in var.split('_')])
 
 
+class RecallPrecision:
+    """
+    为准召信息表格增加range筛选的is_statistics_valid
+
+    """
+
+    def __init__(self, evaluate_range):
+        self.columns = 'is_statistics_valid'
+        self.evaluate_range = evaluate_range
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            gt_flag, gt_x, gt_y, gt_type,  pred_flag, pred_x, pred_y, pred_type = (
+                input_data['gt.flag'], input_data['gt.x'], input_data['gt.y'],
+                input_data['gt.type_classification'],
+                input_data['pred.flag'], input_data['pred.x'], input_data['pred.y'],
+                input_data['pred.type_classification'])
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 8):
+            gt_flag, gt_x, gt_y, gt_type,  pred_flag, pred_x, pred_y, pred_type = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        # 判断是否需要计算该指标
+        is_statistics_valid = 1
+        if gt_flag:
+            if gt_type not in self.evaluate_range:
+                is_statistics_valid = 0
+            else:
+                x_range = self.evaluate_range[gt_type]['x']
+                y_range = self.evaluate_range[gt_type]['y']
+                if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
+                    is_statistics_valid = 0
+        else:
+            if pred_type not in self.evaluate_range:
+                is_statistics_valid = 0
+            else:
+                x_range = self.evaluate_range[pred_type]['x']
+                y_range = self.evaluate_range[pred_type]['y']
+                if not (x_range[0] <= pred_x <= x_range[1] and y_range[0] <= pred_y <= y_range[1]):
+                    is_statistics_valid = 0
+
+        return is_statistics_valid
+
+
 class XError:
     """
     计算物体的纵向距离偏差
@@ -26,7 +74,7 @@ class XError:
             'x.error%',
             'x.error%_abs',
             'x.is_abnormal',
-            'is_valid',
+            'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
 
@@ -45,14 +93,14 @@ class XError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        is_valid = 1
+        is_statistics_valid = 1
         if gt_type not in self.evaluate_range:
-            is_valid = 0
+            is_statistics_valid = 0
         else:
             x_range = self.evaluate_range[gt_type]['x']
             y_range = self.evaluate_range[gt_type]['y']
             if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-                is_valid = 0
+                is_statistics_valid = 0
 
         x_error = pred_x - gt_x
         x_error_abs = abs(x_error)
@@ -69,7 +117,7 @@ class XError:
 
         return (gt_x, gt_y, gt_type,
                 pred_x, x_error, x_error_abs, x_error_p, x_error_p_abs,
-                is_abnormal, is_valid)
+                is_abnormal, is_statistics_valid)
 
 
 class YError:
@@ -89,7 +137,7 @@ class YError:
             'y.error%',
             'y.error%_abs',
             'y.is_abnormal',
-            'is_valid',
+            'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
 
@@ -108,14 +156,14 @@ class YError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        is_valid = 1
+        is_statistics_valid = 1
         if gt_type not in self.evaluate_range:
-            is_valid = 0
+            is_statistics_valid = 0
         else:
             x_range = self.evaluate_range[gt_type]['x']
             y_range = self.evaluate_range[gt_type]['y']
             if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-                is_valid = 0
+                is_statistics_valid = 0
 
         y_error = pred_y - gt_y
         y_error_abs = abs(y_error)
@@ -132,7 +180,7 @@ class YError:
 
         return (gt_x, gt_y, gt_type,
                 pred_y, y_error, y_error_abs, y_error_p, y_error_p_abs,
-                is_abnormal, is_valid)
+                is_abnormal, is_statistics_valid)
 
 
 class VxError:
@@ -153,7 +201,7 @@ class VxError:
             'vx.error%',
             'vx.error%_abs',
             'vx.is_abnormal',
-            'is_valid',
+            'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
 
@@ -172,14 +220,14 @@ class VxError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        is_valid = 1
+        is_statistics_valid = 1
         if gt_type not in self.evaluate_range:
-            is_valid = 0
+            is_statistics_valid = 0
         else:
             x_range = self.evaluate_range[gt_type]['x']
             y_range = self.evaluate_range[gt_type]['y']
             if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-                is_valid = 0
+                is_statistics_valid = 0
 
         vx_error = pred_vx - gt_vx
         vx_error_abs = abs(vx_error)
@@ -196,7 +244,7 @@ class VxError:
 
         return (gt_x, gt_y, gt_type,
                 gt_vx, pred_vx, vx_error, vx_error_abs, vx_error_p, vx_error_p_abs,
-                is_abnormal, is_valid)
+                is_abnormal, is_statistics_valid)
 
 
 class VyError:
@@ -217,7 +265,7 @@ class VyError:
             'vy.error%',
             'vy.error%_abs',
             'vy.is_abnormal',
-            'is_valid',
+            'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
 
@@ -236,14 +284,14 @@ class VyError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        is_valid = 1
+        is_statistics_valid = 1
         if gt_type not in self.evaluate_range:
-            is_valid = 0
+            is_statistics_valid = 0
         else:
             x_range = self.evaluate_range[gt_type]['x']
             y_range = self.evaluate_range[gt_type]['y']
             if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-                is_valid = 0
+                is_statistics_valid = 0
 
         vy_error = pred_vy - gt_vy
         vy_error_abs = abs(vy_error)
@@ -260,7 +308,7 @@ class VyError:
 
         return (gt_x, gt_y, gt_type,
                 gt_vy, pred_vy, vy_error, vy_error_abs, vy_error_p, vy_error_p_abs,
-                is_abnormal, is_valid)
+                is_abnormal, is_statistics_valid)
 
 
 class YawError:
@@ -280,7 +328,7 @@ class YawError:
             'yaw.error_abs',
             'yaw.is_reverse',
             'yaw.is_abnormal',
-            'is_valid',
+            'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
 
@@ -299,14 +347,14 @@ class YawError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        is_valid = 1
+        is_statistics_valid = 1
         if gt_type not in self.evaluate_range:
-            is_valid = 0
+            is_statistics_valid = 0
         else:
             x_range = self.evaluate_range[gt_type]['x']
             y_range = self.evaluate_range[gt_type]['y']
             if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-                is_valid = 0
+                is_statistics_valid = 0
 
         # 将角度修正到-pi到pi之间
         pred_yaw = self.make_yaw_pi(pred_yaw)
@@ -337,7 +385,7 @@ class YawError:
 
         return (gt_x, gt_y, gt_type,
                 np.rad2deg(gt_yaw), np.rad2deg(pred_yaw), np.rad2deg(yaw_error), np.rad2deg(abs(yaw_error)),
-                is_reverse, is_abnormal, is_valid)
+                is_reverse, is_abnormal, is_statistics_valid)
 
     def make_yaw_pi(self, yaw):
         while True:
@@ -365,7 +413,7 @@ class LengthError:
             'length.error',
             'length.error_abs',
             'length.is_abnormal',
-            'is_valid',
+            'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
 
@@ -384,14 +432,14 @@ class LengthError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        is_valid = 1
+        is_statistics_valid = 1
         if gt_type not in self.evaluate_range:
-            is_valid = 0
+            is_statistics_valid = 0
         else:
             x_range = self.evaluate_range[gt_type]['x']
             y_range = self.evaluate_range[gt_type]['y']
             if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-                is_valid = 0
+                is_statistics_valid = 0
 
         length_error = pred_length - gt_length
         length_error_abs = abs(length_error)
@@ -406,7 +454,7 @@ class LengthError:
 
         return (gt_x, gt_y, gt_type,
                 gt_length, pred_length, length_error, length_error_abs,
-                is_abnormal, is_valid)
+                is_abnormal, is_statistics_valid)
 
 
 class WidthError:
@@ -421,7 +469,7 @@ class WidthError:
             'width.error',
             'width.error_abs',
             'width.is_abnormal',
-            'is_valid',
+            'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
 
@@ -440,14 +488,14 @@ class WidthError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        is_valid = 1
+        is_statistics_valid = 1
         if gt_type not in self.evaluate_range:
-            is_valid = 0
+            is_statistics_valid = 0
         else:
             x_range = self.evaluate_range[gt_type]['x']
             y_range = self.evaluate_range[gt_type]['y']
             if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-                is_valid = 0
+                is_statistics_valid = 0
 
         width_error = pred_width - gt_width
         width_error_abs = abs(width_error)
@@ -462,7 +510,7 @@ class WidthError:
 
         return (gt_x, gt_y, gt_type,
                 gt_width, pred_width, width_error, width_error_abs,
-                is_abnormal, is_valid)
+                is_abnormal, is_statistics_valid)
 
 
 class HeightError:
@@ -477,7 +525,7 @@ class HeightError:
             'height.error',
             'height.error_abs',
             'height.is_abnormal',
-            'is_valid',
+            'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
 
@@ -496,14 +544,14 @@ class HeightError:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 判断是否需要计算该指标
-        is_valid = 1
+        is_statistics_valid = 1
         if gt_type not in self.evaluate_range:
-            is_valid = 0
+            is_statistics_valid = 0
         else:
             x_range = self.evaluate_range[gt_type]['x']
             y_range = self.evaluate_range[gt_type]['y']
             if not (x_range[0] <= gt_x <= x_range[1] and y_range[0] <= gt_y <= y_range[1]):
-                is_valid = 0
+                is_statistics_valid = 0
 
         height_error = pred_height - gt_height
         height_error_abs = abs(height_error)
@@ -518,7 +566,7 @@ class HeightError:
 
         return (gt_x, gt_y, gt_type,
                 gt_height, pred_height, height_error, height_error_abs,
-                is_abnormal, is_valid)
+                is_abnormal, is_statistics_valid)
 
 
 class ObstaclesMetricEvaluator:
@@ -531,30 +579,59 @@ class ObstaclesMetricEvaluator:
             'yaw_error', 'length_error',
             'width_error', 'height_error',
         ]
-        self.evaluate_range = {'x_error': {1: {'x': [-100, 150], 'y': [-30, 30]}, 2: {'x': [-20, 60], 'y': [-20, 20]},
-                                           4: {'x': [-100, 150], 'y': [-30, 30]}, 5: {'x': [-100, 150], 'y': [-30, 30]},
-                                           18: {'x': [-20, 60], 'y': [-20, 20]}},
-                               'y_error': {1: {'x': [-100, 150], 'y': [-30, 30]}, 2: {'x': [-20, 60], 'y': [-20, 20]},
-                                           4: {'x': [-100, 150], 'y': [-30, 30]}, 5: {'x': [-100, 150], 'y': [-30, 30]},
-                                           18: {'x': [-20, 60], 'y': [-20, 20]}},
-                               'vx_error': {1: {'x': [-20, 60], 'y': [-20, 20]}, 2: {'x': [-20, 60], 'y': [-20, 20]},
-                                            4: {'x': [-20, 60], 'y': [-20, 20]}, 5: {'x': [-20, 60], 'y': [-20, 20]},
-                                            18: {'x': [-20, 60], 'y': [-20, 20]}},
-                               'vy_error': {1: {'x': [-60, 60], 'y': [-20, 20]}, 2: {'x': [-20, 60], 'y': [-20, 20]},
-                                            4: {'x': [-60, 60], 'y': [-20, 20]}, 5: {'x': [-60, 60], 'y': [-20, 20]},
-                                            18: {'x': [-20, 60], 'y': [-20, 20]}},
-                               'yaw_error': {1: {'x': [-60, 60], 'y': [-20, 20]}, 4: {'x': [-60, 60], 'y': [-20, 20]},
-                                             5: {'x': [-60, 60], 'y': [-20, 20]}, 18: {'x': [-20, 60], 'y': [-20, 20]}},
-                               'length_error': {1: {'x': [-60, 60], 'y': [-20, 20]},
-                                                4: {'x': [-60, 60], 'y': [-20, 20]},
-                                                5: {'x': [-60, 60], 'y': [-20, 20]},
-                                                18: {'x': [-20, 60], 'y': [-20, 20]}},
-                               'width_error': {1: {'x': [-60, 60], 'y': [-20, 20]}, 4: {'x': [-60, 60], 'y': [-20, 20]},
-                                               5: {'x': [-60, 60], 'y': [-20, 20]},
-                                               18: {'x': [-20, 60], 'y': [-20, 20]}},
-                               'height_error': {1: {'x': [-60, 60], 'y': [-20, 20]},
-                                                4: {'x': [-60, 60], 'y': [-20, 20]},
-                                                5: {'x': [-60, 60], 'y': [-20, 20]}}}
+        self.evaluate_range = {
+            'recall_precision': {
+                1: {'x': [-100, 150], 'y': [-30, 30]},
+                2: {'x': [-20, 60], 'y': [-20, 20]},
+                4: {'x': [-100, 150], 'y': [-30, 30]},
+                5: {'x': [-100, 150], 'y': [-30, 30]},
+                18: {'x': [-20, 60], 'y': [-20, 20]}},
+            'x_error': {
+                1: {'x': [-100, 150], 'y': [-30, 30]},
+                2: {'x': [-20, 60], 'y': [-20, 20]},
+                4: {'x': [-100, 150], 'y': [-30, 30]},
+                5: {'x': [-100, 150], 'y': [-30, 30]},
+                18: {'x': [-20, 60], 'y': [-20, 20]}},
+            'y_error': {
+                1: {'x': [-100, 150], 'y': [-30, 30]},
+                2: {'x': [-20, 60], 'y': [-20, 20]},
+                4: {'x': [-100, 150], 'y': [-30, 30]},
+                5: {'x': [-100, 150], 'y': [-30, 30]},
+                18: {'x': [-20, 60], 'y': [-20, 20]}},
+            'vx_error': {
+                1: {'x': [-60, 60], 'y': [-20, 20]},
+                2: {'x': [-20, 60], 'y': [-20, 20]},
+                4: {'x': [-60, 60], 'y': [-20, 20]},
+                5: {'x': [-60, 60], 'y': [-20, 20]},
+                18: {'x': [-20, 60], 'y': [-20, 20]}},
+            'vy_error': {
+                1: {'x': [-60, 60], 'y': [-20, 20]},
+                2: {'x': [-20, 60], 'y': [-20, 20]},
+                4: {'x': [-60, 60], 'y': [-20, 20]},
+                5: {'x': [-60, 60], 'y': [-20, 20]},
+                18: {'x': [-20, 60], 'y': [-20, 20]}},
+            'yaw_error': {
+                1: {'x': [-60, 60], 'y': [-20, 20]},
+                4: {'x': [-60, 60], 'y': [-20, 20]},
+                5: {'x': [-60, 60], 'y': [-20, 20]},
+                18: {'x': [-20, 60], 'y': [-20, 20]}},
+            'length_error': {
+                1: {'x': [-60, 60], 'y': [-20, 20]},
+                4: {'x': [-60, 60], 'y': [-20, 20]},
+                5: {'x': [-60, 60], 'y': [-20, 20]},
+                18: {'x': [-20, 60], 'y': [-20, 20]}},
+            'width_error': {
+                1: {'x': [-60, 60], 'y': [-20, 20]},
+                4: {'x': [-60, 60], 'y': [-20, 20]},
+                5: {'x': [-60, 60], 'y': [-20, 20]},
+                18: {'x': [-20, 60], 'y': [-20, 20]}},
+            'height_error': {
+                1: {'x': [-60, 60], 'y': [-20, 20]},
+                4: {'x': [-60, 60], 'y': [-20, 20]},
+                5: {'x': [-60, 60], 'y': [-20, 20]},
+                18: {'x': [-20, 60], 'y': [-20, 20]}},
+        }
+
 
     def run(self, input_data, input_parameter_container=None):
         if input_parameter_container is not None:
@@ -567,11 +644,13 @@ class ObstaclesMetricEvaluator:
 
         for metric in self.metric_type:
             print(f'正在评估指标 {metric}')
+            metric_class = change_name(metric)
+            func = eval(f'{metric_class}(self.evaluate_range[metric])')
             if metric == 'recall_precision':
-                data_dict['recall_precision'] = data
+                result_df = data.apply(lambda row: func(row.to_dict()), axis=1)
+                data.insert(len(data.columns), func.columns, result_df)
+                data_dict[metric] = data
             else:
-                metric_class = change_name(metric)
-                func = eval(f'{metric_class}(self.evaluate_range[metric])')
                 result_df = tp_data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
                 result_df.columns = func.columns
                 result_df['corresponding_index'] = tp_data['corresponding_index']

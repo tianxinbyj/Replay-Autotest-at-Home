@@ -439,9 +439,9 @@ class ObstaclesMetricStatistics:
         json_datas = []
         for metric, data in input_data.items():
 
-            # is_valid是MetricEvaluator中生成的用于判断该样本是否用于评价指标
-            if 'is_valid' in data.columns:
-                data = data[data['is_valid'] == 1]
+            # is_statistics_valid是MetricEvaluator中生成的用于判断该样本是否用于评价指标
+            if 'is_statistics_valid' in data.columns:
+                data = data[data['is_statistics_valid'] == 1]
 
             for region_text, region_index in region_corresponding_index_dict.items():
                 for type_classification, type_index in type_corresponding_index_dict.items():

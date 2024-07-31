@@ -809,11 +809,67 @@ Information:
     - is_crossingDir
     - is_moving
     - is_static
+    result_column:
+    - 召回率
+    - 准确率
+    - 类型准确率
+    - 横向距离误差
+    - 纵向距离误差
+    - 横向速度误差
+    - 纵向速度误差
+    - 航向角误差
+    - 长度误差
+    - 宽度误差
+    - 高度误差
+    characteristic:
+      is_coverageValid: 全局目标
+      is_cipv: cipv目标
+      is_keyObj: 关键目标
+      is_sameDir: 同向目标
+      is_oppositeDir: 对向目标
+      is_crossingDir: 横向目标
+      is_moving: 运动目标
+      is_static: 静止目标
     metrics:
       recall_precision:
         name: 准召信息
         description: 包括准确率，召回率，类型准确率，TP/FP/FN目标个数
-        evaluate_range: null
+        evaluate_range:
+          1:
+            x:
+              - -100
+              - 150
+            y:
+              - -30
+              - 30
+          2:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
+          4:
+            x:
+              - -100
+              - 150
+            y:
+              - -30
+              - 30
+          5:
+            x:
+              - -100
+              - 150
+            y:
+              - -30
+              - 30
+          18:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
       x_error:
         name: 纵向距离误差
         description: 评价对目标的纵向距离的感知能力

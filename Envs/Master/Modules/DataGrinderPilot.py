@@ -15,6 +15,7 @@ import yaml
 from matplotlib import pyplot as plt
 from matplotlib import patches as pc
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.colors import LinearSegmentedColormap
 
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
@@ -25,6 +26,7 @@ from Libs import get_project_path, copy_to_destination
 sys.path.append(get_project_path())
 
 from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length
+from Utils.Libs import generate_unique_id
 from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_font, legend_font, mpl_colors
 from Utils.Logger import send_log
 
@@ -677,6 +679,9 @@ class DataGrinderPilotOneTask:
         # 加载测试相关的参数
         self.product = self.test_config['product']
         self.version = self.test_config['version']
+        self.test_date = self.test_config['test_date']
+        self.test_db_id = generate_unique_id(''.join([self.product, self.version, str(self.test_date)]))
+
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_action = self.test_config['test_action']
         self.scenario_unit_folder = self.test_config['data_path']['intermediate']['scenario_unit']
@@ -770,6 +775,7 @@ class DataGrinderPilotOneTask:
 
                     for topic in scenario_test_result[topic_belonging].keys():
                         if topic == 'GroundTruth':
+                            # 用于设置评判样本量最小限度的帧数阈值
                             frequency = round(scenario_test_result[topic_belonging][topic]['frequency'])
                             if 'frequency' not in self.test_result[tag_key]:
                                 self.test_result[tag_key]['frequency'] = frequency
@@ -879,9 +885,14 @@ class DataGrinderPilotOneTask:
                         test_result = self.test_result[tag_key]['tag_combination'][topic_belonging][topic][
                             characteristic]
 
-                        info_json_data = {tag_type: tag_value for tag_type, tag_value in tag.items()}
-                        info_json_data['scenario_list'] = scenario_list
-                        info_json_data['topic'] = topic
+                        info_json_data = {
+                            'test_db_id': self.test_db_id,
+                            'product': self.product,
+                            'version': self.version,
+                            'test_date': str(self.test_date),
+                            **{tag_type: tag_value for tag_type, tag_value in tag.items()},
+                            'scenario_list': scenario_list,
+                            'topic': topic}
 
                         data = {
                             metric: pd.read_csv(self.get_abspath(data_path), index_col=False)
@@ -904,9 +915,9 @@ class DataGrinderPilotOneTask:
                                          f'--{json_data["region"]}--{json_data["characteristic"]}--{json_data["metric"]}.json')
                             json_path = os.path.join(json_folder, json_name)
 
-                            if json_data['result']['sample_count'] < self.test_result[tag_key]['frequency'] * 2:
-                                print(
-                                    f'{json_count} {json_name} 样本少于{self.test_result[tag_key]["frequency"] * 2}，不保存')
+                            frequency_threshold = self.test_result[tag_key]['frequency'] * 2
+                            if json_data['result']['sample_count'] < frequency_threshold:
+                                print(f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
                                 continue
 
                             print(f'{json_count} {json_name} 已保存')
@@ -1016,13 +1027,6 @@ class DataGrinderPilotOneTask:
                     color = 'white'
                     value = values[i, j]
 
-                    # if columns[j] == 'pass_ratio%':
-                    #     sizes = [value, 1 - value]
-                    #     labels = ['PASSED', 'FAILED']
-                    #     colors = ['limegreen', 'lightcoral']
-                    #     new_ax = fig.add_axes([current_x + width * 0.5, -i - 1 + 0.5, 0.5, 0.5])  # [x, y, width, height]
-                    #     new_ax.pie(sizes, labels=labels, colors=colors, radius=0.4)
-
                     if '%' in columns[j]:
                         value = '{:.2%}'.format(value)
 
@@ -1069,6 +1073,9 @@ class DataGrinderPilotOneTask:
             axes.set_xticks([])
             axes.set_yticks([])
 
+        def plot_pie():
+            pass
+
         visualization_folder = os.path.join(self.result_folder, 'visualization')
         create_folder(visualization_folder)
         statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
@@ -1108,62 +1115,143 @@ class DataGrinderPilotOneTask:
             ax = fig.add_subplot(grid[0, 0])
             plot_table(ax, columns, columns_width, values)
             ax.text(np.sum(columns_width) / 2, 1.5, '-'.join(
-                [topic, scenario_tag, characteristic, obstacle_type, metric]),
+                [scenario_tag, topic, characteristic, obstacle_type, metric]),
                     va='center', ha='center', fontsize=font_size * 2)
 
             pic_name = '--'.join(
-                [topic, scenario_tag, characteristic, obstacle_type, metric]).replace('/', '')
+                [scenario_tag, topic, characteristic, obstacle_type, metric]).replace('/', '')
             pic_path = os.path.join(visualization_folder, f'{pic_name}.jpg')
-            print(f'{pic_path} 已保存')
+            print(f'{pic_name} 已保存')
             canvas = FigureCanvas(fig)
             canvas.print_figure(pic_path, facecolor='white', dpi=100)
             fig.clf()
             plt.close()
 
+            if scenario_tag not in df_tp_error.keys():
+                df_tp_error[scenario_tag] = {}
+            if topic not in df_tp_error[scenario_tag].keys():
+                df_tp_error[scenario_tag][topic] = {}
+            if characteristic not in df_tp_error[scenario_tag][topic].keys():
+                df_tp_error[scenario_tag][topic][characteristic] = {}
+            if obstacle_type not in df_tp_error[scenario_tag][topic][characteristic].keys():
+                df_tp_error[scenario_tag][topic][characteristic][obstacle_type] = []
+
+            # 汇总准召率
+            if '准召信息' in metric:
+                df.rename(columns={
+                    'recall%': '召回率',
+                    'precision%': '准确率',
+                    'type_accuracy%': '类型准确率'}, inplace=True)
+                df_tp_error[scenario_tag][topic][characteristic][obstacle_type].append(
+                    df[['grid area division[m]', '召回率', '准确率', '类型准确率']])
+
             # 汇总tp_error
-            if metric == '准召信息':
-                continue
-
-            if topic not in df_tp_error.keys():
-                df_tp_error[topic] = {}
-            if scenario_tag not in df_tp_error[topic].keys():
-                df_tp_error[topic][scenario_tag] = {}
-            if characteristic not in df_tp_error[topic][scenario_tag].keys():
-                df_tp_error[topic][scenario_tag][characteristic] = {}
-            if obstacle_type not in df_tp_error[topic][scenario_tag][characteristic].keys():
-                df_tp_error[topic][scenario_tag][characteristic][obstacle_type] = []
-
-            df.rename(columns={'pass_ratio%': metric}, inplace=True)
-            df_tp_error[topic][scenario_tag][characteristic][obstacle_type].append(
-                df[['grid area division[m]', metric]])
+            else:
+                df.rename(columns={'pass_ratio%': metric}, inplace=True)
+                df_tp_error[scenario_tag][topic][characteristic][obstacle_type].append(
+                    df[['grid area division[m]', metric]])
 
         # 合并tp_error的metric数据，以及可视化为饼图
-        for topic in df_tp_error.keys():
-            if topic not in self.test_result['OutputResult']['visualization'].keys():
-                self.test_result['OutputResult']['visualization'][topic] = {}
+        for scenario_tag in df_tp_error.keys():
+            if scenario_tag not in self.test_result['OutputResult']['visualization'].keys():
+                self.test_result['OutputResult']['visualization'][scenario_tag] = {}
 
-            for scenario_tag in df_tp_error[topic].keys():
-                if scenario_tag not in self.test_result['OutputResult']['visualization'][topic].keys():
-                    self.test_result['OutputResult']['visualization'][topic][scenario_tag] = {}
+            for topic in df_tp_error[scenario_tag].keys():
+                if topic not in self.test_result['OutputResult']['visualization'][scenario_tag].keys():
+                    self.test_result['OutputResult']['visualization'][scenario_tag][topic] = {}
 
-                for characteristic in df_tp_error[topic][scenario_tag].keys():
-                    if characteristic not in self.test_result['OutputResult']['visualization'][topic][scenario_tag].keys():
-                        self.test_result['OutputResult']['visualization'][topic][scenario_tag][characteristic] = {}
+                for characteristic in df_tp_error[scenario_tag][topic].keys():
+                    if characteristic not in self.test_result['OutputResult']['visualization'][scenario_tag][topic].keys():
+                        self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic] = {}
 
-                    for obstacle_type in df_tp_error[topic][scenario_tag][characteristic].keys():
-                        if obstacle_type not in self.test_result['OutputResult']['visualization'][topic][scenario_tag][characteristic].keys():
-                            self.test_result['OutputResult']['visualization'][topic][scenario_tag][characteristic][obstacle_type] = {}
+                    for obstacle_type in df_tp_error[scenario_tag][topic][characteristic].keys():
+                        if obstacle_type not in self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic].keys():
+                            self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][obstacle_type] = {}
 
+                        # 合并表格
                         merged_df = pd.DataFrame(columns=['grid area division[m]'])
-                        for one_df in df_tp_error[topic][scenario_tag][characteristic][obstacle_type]:
+                        for one_df in df_tp_error[scenario_tag][topic][characteristic][obstacle_type]:
                             merged_df = merged_df.merge(one_df, on='grid area division[m]', how='outer')
-                        csv_name = '--'.join([topic, scenario_tag, characteristic, obstacle_type]).replace('/', '')
+
+                        # 重新排列结果的顺序
+                        merged_df = merged_df.set_index('grid area division[m]', drop=True)
+                        topic_belonging = get_topic_attribution(topic)['topic_belonging']
+                        result_column = test_encyclopaedia['Information'][topic_belonging]['result_column']
+
+                        merged_df = merged_df[[c for c in result_column if c in merged_df.columns]]
+
+                        csv_name = '--'.join([scenario_tag, topic, characteristic, obstacle_type]).replace('/', '')
                         csv_path = os.path.join(visualization_folder, f'{csv_name}.csv')
                         (merged_df.sort_values(by=['grid area division[m]'])
-                         .to_csv(csv_path, index=False, encoding='utf_8_sig'))
+                         .to_csv(csv_path, index=True, encoding='utf_8_sig'))
+                        send_log(self, f'汇总百分比 {csv_name} 数据已保存')
 
-                        self.test_result['OutputResult']['visualization'][topic][scenario_tag][characteristic][
+                        self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
                             obstacle_type]['data'] = self.get_relpath(csv_path)
+
+                        # 画结果大饼图
+                        height_ratios = [1] + [3] * len(merged_df)  # 第一行高度是1/3，其余行高度是1
+                        width_ratios = [1] + [3] * len(merged_df.columns)  # 第一列宽度是1/3，其余列宽度是1
+                        fig = plt.figure(figsize=(sum(width_ratios), sum(height_ratios)))
+                        fig.tight_layout()
+                        plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+
+                        # 创建GridSpec对象
+                        grid = plt.GridSpec(len(height_ratios), len(width_ratios),
+                                            height_ratios=height_ratios, width_ratios=width_ratios,
+                                            wspace=0.05, hspace=0.05)
+
+                        # 先画index和columns
+                        for i, col in enumerate(merged_df.columns):
+                            ax = fig.add_subplot(grid[0, i+1])
+                            ax.xaxis.set_visible(False)
+                            ax.yaxis.set_visible(False)
+                            for spine in ax.spines.values():
+                                spine.set_edgecolor('black')
+                                spine.set_linewidth(2)
+
+                            ax.text(0.5, 0.5, col, va='center', ha='center',
+                                    fontsize=font_size * 2)
+
+                        for i, idx in enumerate(merged_df.index):
+                            ax = fig.add_subplot(grid[i+1, 0])
+                            ax.xaxis.set_visible(False)
+                            ax.yaxis.set_visible(False)
+                            for spine in ax.spines.values():
+                                spine.set_edgecolor('black')
+                                spine.set_linewidth(2)
+
+                            ax.text(0.5, 0.5, idx.replace(',', '\n'), va='center', ha='center',
+                                    rotation=90, fontsize=font_size * 2)
+
+                        # 画单独的饼图
+                        cmap = LinearSegmentedColormap.from_list('red_to_green', ['red', 'green'])
+                        value_shape = merged_df.values.shape
+                        for i in range(value_shape[0]):
+                            for j in range(value_shape[1]):
+                                value = merged_df.values[i, j]
+                                if not np.isnan(value):
+                                    ax = fig.add_subplot(grid[i + 1, j + 1])
+                                    ax.axis('off')
+                                    sizes = [value, 1-value]
+                                    colors = ['limegreen', 'lightcoral']
+                                    wedgeprops = {'width': 0.4}  # 设置扇区宽度为0.3，得到一个空心的效果
+                                    ax.pie(sizes, colors=colors, startangle=90, wedgeprops=wedgeprops)
+                                    ax.text(0, 0, f'{value:.2%}', va='center', ha='center',
+                                            fontsize=font_size * 2, color=cmap(value))
+
+                        pic_name = '--'.join(
+                            [scenario_tag, topic, characteristic, obstacle_type]).replace('/', '')
+                        pic_path = os.path.join(visualization_folder, f'{pic_name}.jpg')
+                        print(f'{pic_name} 已保存')
+                        canvas = FigureCanvas(fig)
+                        canvas.print_figure(pic_path, facecolor='white', dpi=100)
+                        fig.clf()
+                        plt.close()
+                        send_log(self, f'汇总百分比 {pic_name} 图片已保存')
+
+                        self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
+                            obstacle_type]['plot'] = self.get_relpath(pic_path)
 
     def start(self):
         if any([value for value in self.test_action['scenario_unit'].values()]):

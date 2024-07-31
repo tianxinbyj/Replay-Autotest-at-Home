@@ -11,6 +11,7 @@ import shutil
 import signal
 import subprocess
 import yaml
+import hashlib
 
 
 def get_project_path():
@@ -26,6 +27,10 @@ def get_project_path():
         if parent_folder == folder:
             raise Exception("未找到项目路径")
         folder = parent_folder
+
+
+def generate_unique_id(info):
+    return hashlib.sha256(info.encode()).hexdigest()[:16]
 
 
 def contains_chinese(s):
