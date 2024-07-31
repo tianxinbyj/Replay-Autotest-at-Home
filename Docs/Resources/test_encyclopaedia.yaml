@@ -742,15 +742,6 @@ ES37:
     - /SAFrontRadarObject
     - /PI/FS/ObjTracksHorizon
 Information:
-  ego_rect:
-  - - -1
-    - -0.95
-  - - 3.6
-    - -0.95
-  - - 3.6
-    - 0.95
-  - - -1
-    - 0.95
   Obstacles:
     name: 动态障碍物
     topics:
@@ -822,14 +813,30 @@ Information:
     - 宽度误差
     - 高度误差
     characteristic:
-      is_coverageValid: 全局目标
-      is_cipv: cipv目标
-      is_keyObj: 关键目标
-      is_sameDir: 同向目标
-      is_oppositeDir: 对向目标
-      is_crossingDir: 横向目标
-      is_moving: 运动目标
-      is_static: 静止目标
+      is_coverageValid:
+        name: 全局目标
+        description: 遮挡率低于设定阈值的目标
+      is_cipv:
+        name: cipv目标
+        description: 前方主车道内距离最近的目标
+      is_keyObj:
+        name: 关键目标
+        description: 主车道内距离最近的或相邻车道内无遮挡的目标
+      is_sameDir:
+        name: 同向目标
+        description: 航向角在-30°～30°内的目标
+      is_oppositeDir:
+        name: 对向目标
+        description: 航向角在150°～180°或-180°～-150°内的目标
+      is_crossingDir:
+        name: 横向目标
+        description: 航向角在30°～150°或-150°～-30°内的目标
+      is_moving:
+        name: 运动目标
+        description: 对地绝对速度大于2m/s的目标
+      is_static:
+        name: 静止目标
+        description: 对地绝对速度小于2m/s的目标
     metrics:
       recall_precision:
         name: 准召信息

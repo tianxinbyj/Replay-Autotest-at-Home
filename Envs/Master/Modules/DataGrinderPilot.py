@@ -29,6 +29,7 @@ from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_
 from Utils.Libs import generate_unique_id
 from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_font, legend_font, mpl_colors
 from Utils.Logger import send_log
+from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 
 # 导入评测api
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics
@@ -670,6 +671,9 @@ class DataGrinderPilotOneCase:
 class DataGrinderPilotOneTask:
 
     def __init__(self, task_folder):
+        # 参数初始化
+        self.report_path = None
+
         print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(task_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
@@ -679,8 +683,8 @@ class DataGrinderPilotOneTask:
         # 加载测试相关的参数
         self.product = self.test_config['product']
         self.version = self.test_config['version']
-        self.test_date = self.test_config['test_date']
-        self.test_db_id = generate_unique_id(''.join([self.product, self.version, str(self.test_date)]))
+        self.test_date = str(self.test_config['test_date'])
+        self.test_db_id = generate_unique_id(''.join([self.product, self.version, self.test_date]))
 
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_action = self.test_config['test_action']
@@ -1161,12 +1165,15 @@ class DataGrinderPilotOneTask:
                     self.test_result['OutputResult']['visualization'][scenario_tag][topic] = {}
 
                 for characteristic in df_tp_error[scenario_tag][topic].keys():
-                    if characteristic not in self.test_result['OutputResult']['visualization'][scenario_tag][topic].keys():
+                    if characteristic not in self.test_result['OutputResult']['visualization'][scenario_tag][
+                        topic].keys():
                         self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic] = {}
 
                     for obstacle_type in df_tp_error[scenario_tag][topic][characteristic].keys():
-                        if obstacle_type not in self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic].keys():
-                            self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][obstacle_type] = {}
+                        if obstacle_type not in self.test_result['OutputResult']['visualization'][scenario_tag][topic][
+                            characteristic].keys():
+                            self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
+                                obstacle_type] = {}
 
                         # 合并表格
                         merged_df = pd.DataFrame(columns=['grid area division[m]'])
@@ -1191,7 +1198,7 @@ class DataGrinderPilotOneTask:
 
                         # 画结果大饼图
                         height_ratios = [1] + [3] * len(merged_df)  # 第一行高度是1/3，其余行高度是1
-                        width_ratios = [1] + [3] * len(merged_df.columns)  # 第一列宽度是1/3，其余列宽度是1
+                        width_ratios = [2] + [3] * len(merged_df.columns)  # 第一列宽度是1/3，其余列宽度是1
                         fig = plt.figure(figsize=(sum(width_ratios), sum(height_ratios)))
                         fig.tight_layout()
                         plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
@@ -1199,11 +1206,11 @@ class DataGrinderPilotOneTask:
                         # 创建GridSpec对象
                         grid = plt.GridSpec(len(height_ratios), len(width_ratios),
                                             height_ratios=height_ratios, width_ratios=width_ratios,
-                                            wspace=0.05, hspace=0.05)
+                                            wspace=0, hspace=0)
 
                         # 先画index和columns
                         for i, col in enumerate(merged_df.columns):
-                            ax = fig.add_subplot(grid[0, i+1])
+                            ax = fig.add_subplot(grid[0, i + 1])
                             ax.xaxis.set_visible(False)
                             ax.yaxis.set_visible(False)
                             for spine in ax.spines.values():
@@ -1211,21 +1218,21 @@ class DataGrinderPilotOneTask:
                                 spine.set_linewidth(2)
 
                             ax.text(0.5, 0.5, col, va='center', ha='center',
-                                    fontsize=font_size * 2)
+                                    fontsize=font_size * 2.5)
 
                         for i, idx in enumerate(merged_df.index):
-                            ax = fig.add_subplot(grid[i+1, 0])
+                            ax = fig.add_subplot(grid[i + 1, 0])
                             ax.xaxis.set_visible(False)
                             ax.yaxis.set_visible(False)
                             for spine in ax.spines.values():
                                 spine.set_edgecolor('black')
-                                spine.set_linewidth(2)
+                                spine.set_linewidth(0)
 
                             ax.text(0.5, 0.5, idx.replace(',', '\n'), va='center', ha='center',
-                                    rotation=90, fontsize=font_size * 2)
+                                    rotation=45, fontsize=font_size * 2.5)
 
                         # 画单独的饼图
-                        cmap = LinearSegmentedColormap.from_list('red_to_green', ['red', 'green'])
+                        cmap = LinearSegmentedColormap.from_list('red_to_green', ['darkred', 'darkgreen'])
                         value_shape = merged_df.values.shape
                         for i in range(value_shape[0]):
                             for j in range(value_shape[1]):
@@ -1233,7 +1240,7 @@ class DataGrinderPilotOneTask:
                                 if not np.isnan(value):
                                     ax = fig.add_subplot(grid[i + 1, j + 1])
                                     ax.axis('off')
-                                    sizes = [value, 1-value]
+                                    sizes = [value, 1 - value]
                                     colors = ['limegreen', 'lightcoral']
                                     wedgeprops = {'width': 0.4}  # 设置扇区宽度为0.3，得到一个空心的效果
                                     ax.pie(sizes, colors=colors, startangle=90, wedgeprops=wedgeprops)
@@ -1253,6 +1260,137 @@ class DataGrinderPilotOneTask:
                         self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
                             obstacle_type]['plot'] = self.get_relpath(pic_path)
 
+    @sync_test_result
+    def gen_report(self):
+
+        def get_characteristic_description(characteristic):
+            for topic_belonging in test_encyclopaedia['Information']:
+                for characteristic_des in test_encyclopaedia['Information'][topic_belonging]['characteristic'].values():
+                    if characteristic_des['name'] == characteristic:
+                        return characteristic_des["description"]
+
+        report_title = f'{self.product}_Hil_DataReplay_TestReport'
+        send_log(self, f'开始生成报告 {report_title}')
+
+        title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'TitlePage.png')
+        logo = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'ZoneLogo.png')
+        report_generator = PDFReportTemplate(report_title=report_title,
+                                             test_time=self.test_date.split(' ')[0],
+                                             tester='Hil_DataReplay_TestStand',
+                                             version=self.version,
+                                             title_page=title_background,
+                                             title_summary_img=None,
+                                             logo=logo)
+
+        heading = '报告信息说明'
+        text_list = []
+        text_list.append('A.测试场景分类:')
+        for i, scenario_tag in enumerate(self.test_result['OutputResult']['visualization'].keys()):
+            text_list.append(f'     {i + 1}. {scenario_tag}')
+        text_list.append(' ')
+
+        text_list.append('B.目标特征分类:')
+        used_characteristics = ['全局目标', '关键目标']
+        for i, characteristic in enumerate(used_characteristics):
+            text_list.append(f'     {i+1}. {characteristic}: {get_characteristic_description(characteristic)}')
+        text_list.append(' ')
+
+        text_list.append('C. 测试topic:')
+        for i, topic in enumerate(self.test_config['test_item'].keys()):
+            text_list.append(f'     {i+1}. {topic}')
+        text_list.append(' ')
+
+        text_list.append('D. 测试数据查看方式:')
+        text_list.append('1. 测试结果以 Table+Pie Chart 的方式呈现，行索引为空间位置划分，列索引为测试指标')
+        text_list.append('2. 每组行索引和列索引的组合对应的图呈现为合格率，即空间内的目标的指标统计的合格率')
+        text_list.append('3. 空位置代表样本量不足以产生有统计学意义的结果')
+        text_list.append('4. 测试结果的维度: 场景分类 × 测试topic × 目标特征 × 目标分类')
+
+        send_log(self, f'生成页面 {heading}')
+        report_generator.addOnePage(
+            heading=heading,
+            text_list=text_list,
+            img_list=None,
+        )
+
+        for scenario_tag in self.test_result['OutputResult']['visualization'].keys():
+            for topic in self.test_result['OutputResult']['visualization'][scenario_tag].keys():
+                for characteristic in used_characteristics:
+
+                    report_generator.addTitlePage(
+                        title=scenario_tag,
+                        page_type='sequence',
+                        stamp=None,
+                        sub_title_list=[topic, characteristic],
+                        sub_color_list=['darkred', 'darkgreen'],
+                    )
+
+                    for obstacle_type, v in self.test_result['OutputResult']['visualization'][scenario_tag][topic][
+                        characteristic].items():
+                        df = pd.read_csv(self.get_abspath(v['data']), index_col=0)
+                        plot = self.get_abspath(v['plot'])
+
+                        text_list = []
+                        mean_sorted_columns = df.mean().sort_values().index[:3]
+                        small_mean_columns = [col for col in mean_sorted_columns if df[col].mean() < 0.85]
+                        small_values_columns = [col for col in small_mean_columns for val in df[col] if val < 0.85]
+                        small_values_columns = list(set(small_values_columns))  # 去除重复列名
+                        all_values = df.stack()
+                        smallest_values = all_values.nsmallest(3)
+                        small_values_info = [f'{idx[1]}@{idx[0]}' for idx, val in smallest_values.items() if val < 0.85]
+
+                        if len(small_values_columns):
+                            text_list.append(f'表现较差的指标为{",".join(small_values_columns)}')
+                        if len(small_values_info):
+                            text_list.append(f'表现较差区域和指标组合为{",".join(small_values_info)}')
+
+                        heading = f'{scenario_tag} {topic} {characteristic} {obstacle_type}'
+                        send_log(self, f'生成页面 {heading}')
+                        report_generator.addOnePage(
+                            heading=heading,
+                            text_list=text_list,
+                            img_list=[[plot]],
+                        )
+
+        report_generator.addTitlePage(title='附 录',
+                                      page_type='sequence',
+                                      stamp=None,
+                                      sub_title_list=None)
+
+        # 测试环境
+        heading = '测试环境——硬件在环 | 数采回灌'
+        text = ['将真实控制器部署在仿真测试台架中，将实车路采的传感器数据, '
+                '通过回灌测试设备回放及注入智驾控制器, 模拟运行场景和控制对象:',
+                'A. 实车路采数据: 实车运行时采集的视频图片, 总线Can, Lidar点云等实时数据.',
+                'B. 数据回灌设备: 数采数据后处理, 信号同步, 编码解码等, 模拟传感器输出, 将数据注入控制器.',
+                'C. 智驾控制器: 接收模拟传感器信号, 模拟实车运行场景, 输出算法感知结果.',
+                'D. ECU-Test，实现测试环境自动化运行及数据自动化分析，用于测试用例的执行和测试结果的生成.', ]
+        img = [
+            [os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'DataReplayTestEnv.png')]
+        ]
+        report_generator.addOnePage(heading=heading,
+                                    text_list=text,
+                                    img_list=img)
+
+        # 测试原理
+        heading = '测试原理——硬件在环 | 数采回灌'
+        text = ['对比感知算法结果与参考真值, 计算性能指标, 输出评价结果:',
+                'A. 以标注平台或具备更高感知能力的工具基于数采数据提供标注真值结果作为GroundTruth(GT).',
+                'B. 控制器感知节点订阅信息提供场景各要素特征测量值，MeasuredValue(MV).',
+                'C. 对比并评价感知信息是否符合预期，包括准召率，定位精度, 几何精度, 类型准确度等.',
+                '--------------------',
+                '测试结果局限性:',
+                'A. 测试结果的置信度受限于真值结果对于真实世界的准确程度.',
+                'B. 测试结果的全面性依赖于数采数据的样本规模, 需要时间的积累.']
+        img = [
+            [os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'DataReplayTestPrinciple.png')]
+        ]
+        report_generator.addOnePage(heading=heading,
+                                    text_list=text,
+                                    img_list=img)
+
+        self.report_path = report_generator.genReport(self.task_folder, 1)
+
     def start(self):
         if any([value for value in self.test_action['scenario_unit'].values()]):
             self.analyze_scenario_unit()
@@ -1261,8 +1399,11 @@ class DataGrinderPilotOneTask:
             self.combine_scenario_tag()
 
         if self.test_action['output_result']:
-            # self.compile_statistics()
+            self.compile_statistics()
             self.visualize_output()
+
+        if self.test_action['gen_report']:
+            self.gen_report()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.task_folder)
