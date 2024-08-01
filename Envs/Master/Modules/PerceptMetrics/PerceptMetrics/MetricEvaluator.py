@@ -3,6 +3,7 @@ Created on 2024/7/24.
 @author: Bu Yujun  
 """
 import numpy as np
+import pandas as pd
 
 
 def change_name(var):
@@ -16,13 +17,20 @@ class RecallPrecision:
     """
 
     def __init__(self, evaluate_range):
-        self.columns = 'is_statistics_valid'
+        self.columns = [
+            'TP',
+            'FP',
+            'FN',
+            'CTP',
+            'is_statistics_valid'
+        ]
         self.evaluate_range = evaluate_range
 
     def __call__(self, input_data):
 
         if isinstance(input_data, dict):
-            gt_flag, gt_x, gt_y, gt_type,  pred_flag, pred_x, pred_y, pred_type = (
+            (gt_flag, gt_x, gt_y, gt_type,
+             pred_flag, pred_x, pred_y, pred_type) = (
                 input_data['gt.flag'], input_data['gt.x'], input_data['gt.y'],
                 input_data['gt.type_classification'],
                 input_data['pred.flag'], input_data['pred.x'], input_data['pred.y'],
@@ -30,7 +38,8 @@ class RecallPrecision:
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
               and len(input_data) == 8):
-            gt_flag, gt_x, gt_y, gt_type,  pred_flag, pred_x, pred_y, pred_type = input_data
+            (gt_flag, gt_x, gt_y, gt_type,
+             pred_flag, pred_x, pred_y, pred_type) = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -54,7 +63,22 @@ class RecallPrecision:
                 if not (x_range[0] <= pred_x <= x_range[1] and y_range[0] <= pred_y <= y_range[1]):
                     is_statistics_valid = 0
 
-        return is_statistics_valid
+        CTP = 0
+        if gt_flag == 1 and pred_flag == 1:
+            TP, FP, FN = 1, 0, 0
+            if pred_type == gt_type:
+                CTP = 1
+
+        elif gt_flag == 0 and pred_flag == 1:
+            TP, FP, FN = 0, 1, 0
+
+        elif gt_flag == 1 and pred_flag == 0:
+            TP, FP, FN = 0, 0, 1
+
+        else:
+            TP, FP, FN = 0, 0, 0
+
+        return TP, FP, FN, CTP, is_statistics_valid
 
 
 class XError:
@@ -73,7 +97,7 @@ class XError:
             'x.error_abs',
             'x.error%',
             'x.error%_abs',
-            'x.is_abnormal',
+            'is_abnormal',
             'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
@@ -136,7 +160,7 @@ class YError:
             'y.error_abs',
             'y.error%',
             'y.error%_abs',
-            'y.is_abnormal',
+            'is_abnormal',
             'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
@@ -200,7 +224,7 @@ class VxError:
             'vx.error_abs',
             'vx.error%',
             'vx.error%_abs',
-            'vx.is_abnormal',
+            'is_abnormal',
             'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
@@ -264,7 +288,7 @@ class VyError:
             'vy.error_abs',
             'vy.error%',
             'vy.error%_abs',
-            'vy.is_abnormal',
+            'is_abnormal',
             'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
@@ -327,7 +351,7 @@ class YawError:
             'yaw.error',
             'yaw.error_abs',
             'yaw.is_reverse',
-            'yaw.is_abnormal',
+            'is_abnormal',
             'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
@@ -412,7 +436,7 @@ class LengthError:
             'pred.length',
             'length.error',
             'length.error_abs',
-            'length.is_abnormal',
+            'is_abnormal',
             'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
@@ -468,7 +492,7 @@ class WidthError:
             'pred.width',
             'width.error',
             'width.error_abs',
-            'width.is_abnormal',
+            'is_abnormal',
             'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
@@ -524,7 +548,7 @@ class HeightError:
             'pred.height',
             'height.error',
             'height.error_abs',
-            'height.is_abnormal',
+            'is_abnormal',
             'is_statistics_valid',
         ]
         self.evaluate_range = evaluate_range
@@ -632,7 +656,6 @@ class ObstaclesMetricEvaluator:
                 18: {'x': [-20, 60], 'y': [-20, 20]}},
         }
 
-
     def run(self, input_data, input_parameter_container=None):
         if input_parameter_container is not None:
             self.metric_type = input_parameter_container['metric_type']
@@ -646,15 +669,17 @@ class ObstaclesMetricEvaluator:
             print(f'正在评估指标 {metric}')
             metric_class = change_name(metric)
             func = eval(f'{metric_class}(self.evaluate_range[metric])')
+
             if metric == 'recall_precision':
-                result_df = data.apply(lambda row: func(row.to_dict()), axis=1)
-                data.insert(len(data.columns), func.columns, result_df)
-                data_dict[metric] = data
+                result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
+                result_df.columns = func.columns
+                result_df = pd.concat([data, result_df], axis=1)
             else:
                 result_df = tp_data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
                 result_df.columns = func.columns
                 result_df['corresponding_index'] = tp_data['corresponding_index']
-                data_dict[metric] = result_df
+
+            data_dict[metric] = result_df
 
         return data_dict
 

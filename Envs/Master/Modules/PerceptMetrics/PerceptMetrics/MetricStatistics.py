@@ -59,16 +59,12 @@ class RecallPrecision:
 
         data = input_data
 
-        TP = len(data[(data['gt.flag'] == 1) & (data['pred.flag'] == 1)])
-        FP = len(data[(data['gt.flag'] == 0) & (data['pred.flag'] == 1)])
-        FN = len(data[(data['gt.flag'] == 1) & (data['pred.flag'] == 0)])
-
+        TP = data['TP'].sum()
+        FP = data['FP'].sum()
+        FN = data['FN'].sum()
+        CTP = data['CTP'].sum()
         gt_count = TP + FN
         pred_count = TP + FP
-
-        result_series = input_data.apply(lambda row: self.check_CTP(row.to_dict()), axis=1)
-        data.loc[:, 'CTP'] = result_series
-        CTP = len(data[(data['gt.flag'] == 1) & (data['pred.flag'] == 1) & (data['CTP'] == 1)])
 
         recall = TP / (TP + FN) if gt_count != 0 else 0
         precision = TP / (TP + FP) if pred_count != 0 else 0
@@ -77,28 +73,10 @@ class RecallPrecision:
         res = {
             'TP': int(TP), 'FP': int(FP), 'FN': int(FN), 'CTP': int(CTP),
             'recall%': recall, 'precision%': precision, 'type_accuracy%': type_accuracy,
-            'sample_count': max(pred_count, gt_count),
+            'sample_count': int(max(pred_count, gt_count)),
         }
 
         return res
-
-    def check_CTP(self, row):
-
-        gt_type = row['gt.type']
-        pred_type = row['pred.type']
-        gt_sub_type = row['gt.sub_type']
-        pred_sub_type = row['pred.sub_type']
-
-        if gt_type != pred_type:
-            return 0
-        else:
-            if gt_type in [2, 18]:
-                return 1
-            else:
-                if gt_sub_type == pred_sub_type:
-                    return 1
-                else:
-                    return 0
 
 
 class XError:
@@ -127,7 +105,7 @@ class XError:
         x_p_origin_mean = data['x.error%'].mean()
         x_p_origin_std = data['x.error%'].std()
 
-        pass_ratio = 1 - data['x.is_abnormal'].sum() / len(data)
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'x_abs_mean[m]': x_abs_mean, 'x_abs_90[m]': x_abs_90, 'x_abs_95[m]': x_abs_95,
@@ -166,7 +144,7 @@ class YError:
         y_p_origin_mean = data['y.error%'].mean()
         y_p_origin_std = data['y.error%'].std()
 
-        pass_ratio = 1 - data['y.is_abnormal'].sum() / len(data)
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'y_abs_mean[m]': y_abs_mean, 'y_abs_90[m]': y_abs_90, 'y_abs_95[m]': y_abs_95,
@@ -205,7 +183,7 @@ class VxError:
         vx_p_origin_mean = data['vx.error%'].mean()
         vx_p_origin_std = data['vx.error%'].std()
 
-        pass_ratio = 1 - data['vx.is_abnormal'].sum() / len(data)
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'vx_abs_mean[m/s]': vx_abs_mean, 'vx_abs_90[m/s]': vx_abs_90, 'vx_abs_95[m/s]': vx_abs_95,
@@ -244,7 +222,7 @@ class VyError:
         vy_p_origin_mean = data['vy.error%'].mean()
         vy_p_origin_std = data['vy.error%'].std()
 
-        pass_ratio = 1 - data['vy.is_abnormal'].sum() / len(data)
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'vy_abs_mean[m/s]': vy_abs_mean, 'vy_abs_90[m/s]': vy_abs_90, 'vy_abs_95[m/s]': vy_abs_95,
@@ -277,7 +255,7 @@ class YawError:
         yaw_origin_std = data['yaw.error'].std()
 
         reverse_ratio = data['yaw.is_reverse'].sum() / len(data)
-        pass_ratio = 1 - data['yaw.is_abnormal'].sum() / len(data)
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'yaw_abs_mean[deg]': yaw_abs_mean, 'yaw_abs_90[deg]': yaw_abs_90, 'yaw_abs_95[deg]': yaw_abs_95,
@@ -308,7 +286,7 @@ class LengthError:
         length_origin_mean = data['length.error'].mean()
         length_origin_std = data['length.error'].std()
 
-        pass_ratio = 1 - data['length.is_abnormal'].sum() / len(data)
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'length_abs_mean[m]': length_abs_mean, 'length_abs_90[m]': length_abs_90, 'length_abs_95[m]': length_abs_95,
@@ -338,7 +316,7 @@ class WidthError:
         width_origin_mean = data['width.error'].mean()
         width_origin_std = data['width.error'].std()
 
-        pass_ratio = 1 - data['width.is_abnormal'].sum() / len(data)
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'width_abs_mean[m]': width_abs_mean, 'width_abs_90[m]': width_abs_90, 'width_abs_95[m]': width_abs_95,
@@ -368,7 +346,7 @@ class HeightError:
         height_origin_mean = data['height.error'].mean()
         height_origin_std = data['height.error'].std()
 
-        pass_ratio = 1 - data['height.is_abnormal'].sum() / len(data)
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'height_abs_mean[m]': height_abs_mean, 'height_abs_90[m]': height_abs_90, 'height_abs_95[m]': height_abs_95,
