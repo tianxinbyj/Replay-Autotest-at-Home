@@ -664,6 +664,9 @@ class DataGrinderPilotOneCase:
         ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
         self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
 
+        # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
+        timestamp_snap_list = []
+
         for topic_belonging in self.test_result.keys():
             if topic_belonging == 'General':
                 continue
@@ -713,7 +716,7 @@ class DataGrinderPilotOneCase:
                 # 使用total中的recall_precision数据可视化，但只抓去keyObj的bug
                 total_data_path = self.test_result[topic_belonging][topic]['metric']['total']['recall_precision']
                 total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
-                for bug_type,  corresponding_index in bug_index_dict.items():
+                for bug_type, corresponding_index in bug_index_dict.items():
                     bug_type_folder = os.path.join(sketch_folder, bug_type)
 
                     bug_data = total_data[total_data['corresponding_index'].isin(corresponding_index)]
@@ -727,11 +730,14 @@ class DataGrinderPilotOneCase:
                     for bug_corresponding_index in bug_corresponding_indices:
                         row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
 
-                        time_stamp = row[ 'gt.time_stamp']
+                        time_stamp = row['gt.time_stamp']
                         frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
                         # 如果这一书帧内没有gt或者没有pred，暂时先不提bug
                         if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
                             continue
+
+                        if time_stamp not in timestamp_snap_list:
+                            timestamp_snap_list.append(time_stamp)
 
                         one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
                         create_folder(one_bug_folder)
@@ -896,15 +902,15 @@ class DataGrinderPilotOneCase:
             ego_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
                                           markerfacecolor='limegreen', markersize=12, label='ego_car')
             car_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
-                                             mec='#3682be', mfc='lightgrey', markersize=12, label='small-medium car')
+                                          mec='#3682be', mfc='lightgrey', markersize=12, label='small-medium car')
             pedestrian_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
-                                             mec='#45a776', mfc='lightgrey', markersize=12, label='pedestrian')
+                                                 mec='#45a776', mfc='lightgrey', markersize=12, label='pedestrian')
             bus_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
-                                             mec='#f05326', mfc='lightgrey', markersize=12, label='bus')
+                                          mec='#f05326', mfc='lightgrey', markersize=12, label='bus')
             truck_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
-                                             mec='#800080', mfc='lightgrey', markersize=12, label='truck')
+                                            mec='#800080', mfc='lightgrey', markersize=12, label='truck')
             cyclist_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
-                                             mec='#334f65', mfc='lightgrey', markersize=12, label='cyclist')
+                                              mec='#334f65', mfc='lightgrey', markersize=12, label='cyclist')
 
             # 将这两个图形添加到图例中
             ax.legend(handles=[red_triangle, ego_rectangle, car_rectangle,
@@ -936,7 +942,7 @@ class DataGrinderPilotOneCase:
             bug_info = None
         time_stamp = data.iloc[0]['time_stamp']
         title = f'GroundTruth <{topic}@{round(time_stamp, 3)}s >'
-        plot_one_frame(ax, data, title,  self.ego_velocity_generator, bug_info)
+        plot_one_frame(ax, data, title, self.ego_velocity_generator, bug_info)
 
         ax = fig.add_subplot(grid[1, 0])
         data = pd.DataFrame()
@@ -953,7 +959,7 @@ class DataGrinderPilotOneCase:
             bug_info = None
         time_stamp = data.iloc[0]['time_stamp']
         title = f'Prediction <{topic}@{round(time_stamp, 3)}s >'
-        plot_one_frame(ax, data, title,  self.ego_velocity_generator, bug_info)
+        plot_one_frame(ax, data, title, self.ego_velocity_generator, bug_info)
 
         canvas = FigureCanvas(fig)
         canvas.print_figure(plot_path, facecolor='white', dpi=100)
@@ -1614,12 +1620,12 @@ class DataGrinderPilotOneTask:
         text_list.append('B.目标特征分类:')
         used_characteristics = ['全局目标', '关键目标']
         for i, characteristic in enumerate(used_characteristics):
-            text_list.append(f'     {i+1}. {characteristic}: {get_characteristic_description(characteristic)}')
+            text_list.append(f'     {i + 1}. {characteristic}: {get_characteristic_description(characteristic)}')
         text_list.append(' ')
 
         text_list.append('C. 测试topic:')
         for i, topic in enumerate(self.test_config['test_item'].keys()):
-            text_list.append(f'     {i+1}. {topic}')
+            text_list.append(f'     {i + 1}. {topic}')
         text_list.append(' ')
 
         text_list.append('D. 测试数据查看方式:')
