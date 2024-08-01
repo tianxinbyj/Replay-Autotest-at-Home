@@ -238,7 +238,7 @@ title_font = {
     'family': 'Ubuntu',
     'style': 'normal',
     'weight': 'normal',
-    'color': 'lightskyblue',
+    'color': 'steelblue',
     'size': font_size * 1.3,
 }
 axis_font = {

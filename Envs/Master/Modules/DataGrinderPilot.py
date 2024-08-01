@@ -14,8 +14,10 @@ import numpy as np
 import yaml
 from matplotlib import pyplot as plt
 from matplotlib import patches as pc
+import matplotlib.lines as mlines
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.colors import LinearSegmentedColormap
+from scipy.interpolate import interp1d
 
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
@@ -67,6 +69,9 @@ def sync_test_result(method):
 class DataGrinderPilotOneCase:
 
     def __init__(self, scenario_unit_folder):
+        # 变量初始化
+        self.ego_velocity_generator = None
+
         print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
@@ -94,6 +99,7 @@ class DataGrinderPilotOneCase:
         self.pred_raw_folder = self.test_config['pred_folder']
         self.gt_raw_folder = self.test_config['gt_folder']
         self.DataFolder = os.path.join(self.scenario_unit_folder, '01_Data')
+        self.BugFolder = os.path.join(self.scenario_unit_folder, '02_Bug')
 
         # 初始化测试配置
         self.test_result_yaml = os.path.join(self.scenario_unit_folder, 'TestResult.yaml')
@@ -637,6 +643,323 @@ class DataGrinderPilotOneCase:
                             metric] = self.get_relpath(path)
                         characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
 
+    @sync_test_result
+    def sketch_bug(self):
+
+        # 对于每个频繁的ID，找到时间戳位于中间的行的索引
+        def get_middle_index_for_bug(bug_data, sort_value, count_threshold):
+            id_counts = bug_data[sort_value].value_counts()
+            frequent_ids = id_counts[id_counts >= count_threshold].index
+
+            corresponding_indices = []
+            for id_ in frequent_ids:
+                id_df = bug_data[bug_data[sort_value] == id_]
+                id_df_sorted = id_df.sort_values(by='gt.time_stamp')
+                middle_index = len(id_df_sorted) // 2
+                corresponding_indices.append(id_df.at[id_df_sorted.index[middle_index], 'corresponding_index'])
+
+            return sorted(corresponding_indices)
+
+        # 获取一个自车速度插值器
+        ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+        self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
+
+        for topic_belonging in self.test_result.keys():
+            if topic_belonging == 'General':
+                continue
+
+            for topic in self.test_result[topic_belonging].keys():
+                if topic == 'GroundTruth':
+                    continue
+
+                if topic not in self.test_config['test_item']:
+                    send_log(self, f'{topic}没有在test_item中')
+                    continue
+
+                topic_tag = topic.replace('/', '')
+                sketch_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'sketch')
+                create_folder(sketch_folder)
+
+                #一场内容至少存在frame_threshold，才会被识别为bug用作分析
+                frame_threshold = round(self.test_result[topic_belonging][topic]['match_frequency'])
+                print(f'出现次数低于{frame_threshold}的bug会被忽视')
+
+                # 只用keyObj的目标分析bug
+                if 'is_keyObj' not in self.test_result[topic_belonging][topic]['metric']:
+                    continue
+
+                data_for_bug = self.test_result[topic_belonging][topic]['metric']['is_keyObj']
+                bug_index_dict = {}
+                for metric, data_path in data_for_bug.items():
+                    metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
+                    metric_data = metric_data[metric_data['is_statistics_valid'] == 1]
+                    if metric == 'recall_precision':
+                        FP_data = metric_data[(metric_data['gt.flag'] == 0)
+                                              & (metric_data['pred.flag'] == 1)]
+                        FN_data = metric_data[(metric_data['gt.flag'] == 1)
+                                              & (metric_data['pred.flag'] == 0)]
+                        NCTP_data = metric_data[(metric_data['CTP'] == 0)
+                                                & (metric_data['gt.flag'] == 1)
+                                                & (metric_data['pred.flag'] == 1)]
+
+                        bug_index_dict['false_positive'] = FP_data['corresponding_index'].to_list()
+                        bug_index_dict['false_negative'] = FN_data['corresponding_index'].to_list()
+                        bug_index_dict['false_type'] = NCTP_data['corresponding_index'].to_list()
+
+                    else:
+                        error_data = metric_data[metric_data['is_abnormal'] == 1]
+                        bug_index_dict[metric] = error_data['corresponding_index'].to_list()
+
+                # 使用total中的recall_precision数据可视化，但只抓去keyObj的bug
+                total_data_path = self.test_result[topic_belonging][topic]['metric']['total']['recall_precision']
+                total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
+                for bug_type,  corresponding_index in bug_index_dict.items():
+                    bug_type_folder = os.path.join(sketch_folder, bug_type)
+
+                    bug_data = total_data[total_data['corresponding_index'].isin(corresponding_index)]
+                    # 根据id的出现次数排序
+                    if bug_type == 'false_positive':
+                        sorted_id = 'pred.id'
+                    else:
+                        sorted_id = 'gt.id'
+
+                    bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
+                    for bug_corresponding_index in bug_corresponding_indices:
+                        row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
+
+                        time_stamp = row[ 'gt.time_stamp']
+                        frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
+                        # 如果这一书帧内没有gt或者没有pred，暂时先不提bug
+                        if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
+                            continue
+
+                        one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
+                        create_folder(one_bug_folder)
+
+                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        with open(os.path.join(one_bug_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
+                            json.dump(row.to_dict(), f, ensure_ascii=False, indent=4)
+
+                        plot_path = os.path.join(one_bug_folder, 'bug_sketch.jpg')
+                        frame_bug_info = {
+                            'gt': {bug_type: [row['gt.id']]}, 'pred': {bug_type: [row['pred.id']]},
+                        }
+                        print(f'保存 {topic} {bug_type} {time_stamp}的图片')
+                        self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info)
+
+    def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
+
+        def plot_rectangle(center_x, center_y, yaw, length, width, text, color, visibility, fill):
+            res = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+                [[-length / 2], [-width / 2]])
+            xy = (res[0][0] + center_x, res[1][0] + center_y)
+            rotation = yaw * 57.3
+
+            ax.add_patch(pc.Rectangle(
+                xy=xy,
+                width=length, height=width,
+                angle=rotation, alpha=visibility,
+                rotation_point='xy',
+                facecolor='lightgrey',
+                fill=fill,
+                edgecolor=color,
+                linewidth=2))
+
+            arrow_length = length / 2 + 2
+            dx, dy = arrow_length * np.cos(yaw) / 2, arrow_length * np.sin(yaw) / 2
+            ax.arrow(center_x + dx, center_y + dy, dx, dy,
+                     length_includes_head=True,
+                     head_width=0.5, head_length=1.3, fc='r', ec='r')
+
+            while rotation < -90:
+                rotation += 180
+            while rotation > 90:
+                rotation -= 180
+            ax.text(center_x, center_y, text, rotation=rotation,
+                    va='center', ha='center',
+                    fontdict={
+                        'family': 'Ubuntu',
+                        'style': 'normal',
+                        'weight': 'normal',
+                        'color': 'black',
+                        'size': 8,
+                    })
+
+        def plot_outline(center_x, center_y, yaw, length, width, text):
+            length += 3
+            width += 2
+
+            res = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+                [[-length / 2], [-width / 2]])
+            xy = (res[0][0] + center_x, res[1][0] + center_y)
+            rotation = yaw * 57.3
+
+            ax.add_patch(pc.Rectangle(
+                xy=xy,
+                width=length, height=width,
+                angle=rotation, alpha=1,
+                rotation_point='xy',
+                fill=False,
+                edgecolor='lightcoral',
+                linestyle='dashed',
+                linewidth=2))
+
+            while rotation < -90:
+                rotation += 180
+            while rotation > 90:
+                rotation -= 180
+            res = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+                [[0], [width / 2 + 1]])
+            ax.text(res[0][0] + center_x, res[1][0] + center_y, text, rotation=rotation,
+                    va='center', ha='center',
+                    fontdict={
+                        'family': 'Ubuntu',
+                        'style': 'normal',
+                        'weight': 'normal',
+                        'color': 'darkred',
+                        'size': 11,
+                    })
+
+        def plot_one_frame(ax, data, title, ego_velocity_generator=None, bug_info=None):
+            if bug_info is None:
+                bug_info = {}
+            ax.patch.set_facecolor('white')
+            for pos in ['right', 'left']:
+                ax.spines[pos].set_visible(False)
+
+            ax.add_patch(pc.Rectangle(
+                (-1.0, -0.95), 4.6, 1.9, edgecolor='mediumslateblue', facecolor='limegreen'))
+            ax.arrow(3, 0, 1.3, 0,
+                     length_includes_head=True,
+                     head_width=0.5, head_length=1.3, fc='r', ec='r')
+
+            time_stamp = data.iloc[0]['time_stamp']
+            if ego_velocity_generator is not None:
+                ego_velocity = ego_velocity_generator([time_stamp])[0]
+                ax.text(0, 20, f'{round(ego_velocity * 3.6)} km/h',
+                        va='center', ha='left',
+                        fontdict={
+                            'family': 'Ubuntu',
+                            'style': 'normal',
+                            'weight': 'bold',
+                            'color': 'orange',
+                            'size': 20
+                        })
+
+            for idx, row in data.iterrows():
+                if row['flag'] == 0:
+                    continue
+
+                color = color_type[row['type_classification']]
+                fill = False
+                if row['is_keyObj'] == 1:
+                    visibility = 1
+                    fill = True
+                elif row['is_coverageValid'] == 1:
+                    visibility = 0.5
+                elif row['is_detectedValid'] == 1:
+                    visibility = 0.3
+                else:
+                    visibility = 0.1
+
+                plot_rectangle(center_x=row['x'], center_y=row['y'],
+                               yaw=row['yaw'], length=row['length'],
+                               width=row['width'], text=int(row['id']),
+                               color=color, visibility=visibility, fill=fill)
+
+                # 画出cipv
+                if row['is_cipv'] == 1:
+                    ax.annotate('', xy=(row['x'], row['y'] + 1.2), xytext=(row['x'], row['y'] + 3),
+                                arrowprops=dict(facecolor='red', shrink=0.05))
+
+            for bug_type, id_list in bug_info.items():
+                for id_ in id_list:
+                    id_data = data[data['id'] == id_]
+                    if len(id_data):
+                        row = id_data.iloc[0]
+                        plot_outline(center_x=row['x'], center_y=row['y'],
+                                     yaw=row['yaw'], length=row['length'],
+                                     width=row['width'], text=bug_type)
+
+                        ax.plot([row['x'] - 7, row['x'] + 7], [row['y'], row['y']],
+                                linestyle='--', color='lightcoral', alpha=0.5)
+                        ax.plot([row['x'], row['x']], [row['y'] - 4, row['y'] + 4],
+                                linestyle='--', color='lightcoral', alpha=0.5)
+
+            ax.set_xlim(-100, 150)
+            ax.set_ylim(-25, 25)
+            ax.tick_params(direction='out', labelsize=font_size * 1.2, length=4)
+            ax.set_title(title, fontdict=title_font, y=0.9, loc='left')
+            red_triangle = mlines.Line2D([], [], color='red', marker='v', linestyle='None',
+                                         markersize=10, label='cipv')
+            ego_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                          markerfacecolor='limegreen', markersize=12, label='ego_car')
+            car_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                             mec='#3682be', mfc='lightgrey', markersize=12, label='small-medium car')
+            pedestrian_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                             mec='#45a776', mfc='lightgrey', markersize=12, label='pedestrian')
+            bus_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                             mec='#f05326', mfc='lightgrey', markersize=12, label='bus')
+            truck_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                             mec='#800080', mfc='lightgrey', markersize=12, label='truck')
+            cyclist_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                             mec='#334f65', mfc='lightgrey', markersize=12, label='cyclist')
+
+            # 将这两个图形添加到图例中
+            ax.legend(handles=[red_triangle, ego_rectangle, car_rectangle,
+                               pedestrian_rectangle, bus_rectangle, truck_rectangle, cyclist_rectangle], fontsize=13)
+
+        color_type = {
+            1: '#3682be', 2: '#45a776', 4: '#f05326', 5: '#800080', 18: '#334f65',
+        }
+
+        # 开始画图
+        fig = plt.figure(figsize=(25, 12))
+        fig.tight_layout()
+        plt.subplots_adjust(left=0.03, right=0.97, top=0.97, bottom=0.03)
+        grid = plt.GridSpec(2, 1, wspace=0.1, hspace=0.15)
+
+        # 上图为gt，下图为pred
+        ax = fig.add_subplot(grid[0, 0])
+        data = pd.DataFrame()
+        for col in frame_data.columns:
+            if 'pred.' in col:
+                continue
+            if 'gt.' in col:
+                data[col.split('.')[-1]] = frame_data[col]
+            else:
+                data[col] = frame_data[col]
+        if frame_bug_info is not None:
+            bug_info = frame_bug_info['gt']
+        else:
+            bug_info = None
+        time_stamp = data.iloc[0]['time_stamp']
+        title = f'GroundTruth <{topic}@{round(time_stamp, 3)}s >'
+        plot_one_frame(ax, data, title,  self.ego_velocity_generator, bug_info)
+
+        ax = fig.add_subplot(grid[1, 0])
+        data = pd.DataFrame()
+        for col in frame_data.columns:
+            if 'gt.' in col:
+                continue
+            if 'pred.' in col:
+                data[col.split('.')[-1]] = frame_data[col]
+            else:
+                data[col] = frame_data[col]
+        if frame_bug_info is not None:
+            bug_info = frame_bug_info['pred']
+        else:
+            bug_info = None
+        time_stamp = data.iloc[0]['time_stamp']
+        title = f'Prediction <{topic}@{round(time_stamp, 3)}s >'
+        plot_one_frame(ax, data, title,  self.ego_velocity_generator, bug_info)
+
+        canvas = FigureCanvas(fig)
+        canvas.print_figure(plot_path, facecolor='white', dpi=100)
+        fig.clf()
+        plt.close()
+
     def start(self):
 
         if self.test_action['preprocess']:
@@ -651,6 +974,9 @@ class DataGrinderPilotOneCase:
 
         if self.test_action['metric']:
             self.evaluate_metrics()
+
+        if self.test_action['bug']:
+            self.sketch_bug()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)
@@ -1077,9 +1403,6 @@ class DataGrinderPilotOneTask:
             axes.set_xticks([])
             axes.set_yticks([])
 
-        def plot_pie():
-            pass
-
         visualization_folder = os.path.join(self.result_folder, 'visualization')
         create_folder(visualization_folder)
         statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
@@ -1283,8 +1606,7 @@ class DataGrinderPilotOneTask:
                                              logo=logo)
 
         heading = '报告信息说明'
-        text_list = []
-        text_list.append('A.测试场景分类:')
+        text_list = ['A.测试场景分类:']
         for i, scenario_tag in enumerate(self.test_result['OutputResult']['visualization'].keys()):
             text_list.append(f'     {i + 1}. {scenario_tag}')
         text_list.append(' ')
