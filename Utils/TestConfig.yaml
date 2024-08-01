@@ -1,0 +1,164 @@
+product: ES37
+version: p_feature_daily_debug
+test_date: 2024-07-31 10:00:00
+data_path:
+  raw:
+    pred: /home/byj/ZONE/TestProject/Pilot/2J5/p_feature_debug/01_Prediction
+    gt: /home/byj/ZONE/TestProject/Pilot/2J5/p_feature_debug/02_GroundTruth
+  intermediate:
+    scenario_unit: /home/byj/ZONE/TestProject/Pilot/2J5/p_feature_debug/04_TestData/1-Obstacles/ScenarioUnit
+    tag_combination: /home/byj/ZONE/TestProject/Pilot/2J5/p_feature_debug/04_TestData/1-Obstacles/TagCombination
+  output_result: /home/byj/ZONE/TestProject/Pilot/2J5/p_feature_debug/04_TestData/1-Obstacles/OutputResult
+test_action:
+  scenario_unit:
+    preprocess: 0
+    match: 0
+    metric: 0
+    bug: 1
+  tag_combination: 0
+  output_result: 0
+  gen_report: 0
+test_item:
+  /VA/Obstacles:
+  - recall_precision
+  - x_error
+  - y_error
+  - vx_error
+  - vy_error
+  - yaw_error
+  - length_error
+  - width_error
+  - height_error
+target_characteristic:
+- is_coverageValid
+- is_cipv
+- is_keyObj
+- is_sameDir
+- is_oppositeDir
+- is_crossingDir
+- is_moving
+- is_static
+scenario_tag:
+- tag:
+    time: 白天
+    weather: 晴天
+    road: 高速,快速路
+  scenario_id:
+  - 20230602_144755_n000003
+  - 20230627_170934_n000001
+  - 20230703_103858_n000003
+  - 20230703_105701_n000001
+- tag:
+    time: 白天
+    weather: 晴天
+    road: 城区道路
+  scenario_id:
+  - 20230602_144755_n000005
+  - 20230614_135643_n000001
+  - 20230614_142204_n000004
+pred_ROI:
+  /VA/Obstacles:
+    x:
+    - -100
+    - 150
+    y:
+    - -30
+    - 30
+  /PI/FS/ObjTracksHorizon:
+    x:
+    - -100
+    - 150
+    y:
+    - -30
+    - 30
+gt_ROI:
+  x:
+  - -80
+  - 120
+  y:
+  - -40
+  - 40
+region_division:
+- x:
+  - -60
+  - -20
+  y:
+  - -8
+  - 8
+- x:
+  - -20
+  - 0
+  y:
+  - -8
+  - 8
+- x:
+  - 0
+  - 20
+  y:
+  - -8
+  - 8
+- x:
+  - 20
+  - 60
+  y:
+  - -8
+  - 8
+- x:
+  - 60
+  - 120
+  y:
+  - -8
+  - 8
+- x:
+  - -60
+  - -20
+  y:
+  - - 20
+    - -8
+  - - 8
+    - 20
+- x:
+  - -20
+  - 0
+  y:
+  - - 20
+    - -8
+  - - 8
+    - 20
+- x:
+  - 0
+  - 20
+  y:
+  - - 20
+    - -8
+  - - 8
+    - 20
+- x:
+  - 20
+  - 60
+  y:
+  - - 20
+    - -8
+  - - 8
+    - 20
+- x:
+  - 60
+  - 120
+  y:
+  - - 20
+    - -8
+  - - 8
+    - 20
+coverage_reference_point:
+- 2
+- 0
+- 1
+timestamp_matching_tolerance: 0.5
+coverage_threshold: 0.6
+object_matching_tolerance:
+  x:
+  - 4
+  - 0.2
+  y:
+  - 2
+  - 0.1
