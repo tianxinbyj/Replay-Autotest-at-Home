@@ -78,7 +78,7 @@ def main():
         image = Image.new('L', (1600, 900), color=128)
         draw = ImageDraw.Draw(image)
         draw.text((500, 360), 'map is missing', fill='black', font_size=100)
-        grey_map_path = os.path.join(get_project_path(), 'Temp', f'{args.scenario_id}_map.jpg')
+        grey_map_path = os.path.join(get_project_path(), 'Temp', f'{args.scenario_id}_map.png')
         image.save(grey_map_path)
         print('file', grey_map_path)
 

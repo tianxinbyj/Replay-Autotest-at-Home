@@ -2520,8 +2520,8 @@ if __name__ == "__main__":
         # '/VA/Objects',
     ]
 
-    folder = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace/0726_30fps_full'
-    bag_path = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace/rosbag2_2024_07_26-16_15_11'
+    folder = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace/ccc'
+    bag_path = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace/rosbag2_2024_08_01-17_04_19'
     RBP = Ros2BagParser(J5_workspace)
     RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
 

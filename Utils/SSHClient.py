@@ -133,6 +133,22 @@ class SSHClient:
         except:
             return None
 
+    def cut_frames(self, scenario_id, frame_index_list, camera='CAM_FRONT_120', local_folder=None):
+        frame_index_str = ' '.join([str(f) for f in frame_index_list])
+        command = (f'cd {self.interface_path} && python3 Api_CutFrames.py '
+                   f'-s {scenario_id} -f {frame_index_str} -c {camera}')
+        print(command)
+        res = self.send_cmd(command)
+        try:
+            remote_pic_path = res.strip().split('\n')[-1]
+            if local_folder:
+                self.scp_folder_remote_to_local(local_folder, remote_pic_path)
+                return local_folder
+            else:
+                return remote_pic_path
+        except:
+            return None
+
     def get_scenario_info(self, scenario_id, info_type, local_folder=None):
         if info_type == 'VideoInfo':
             command = f'cd {self.interface_path} && python3 Api_GetVideoInfo.py -s {scenario_id}'
@@ -249,8 +265,9 @@ if __name__ == '__main__':
     # ss.stop_replay()
     # ss.stop_replay()
 
-    remote_folder = '/media/data/annotation/20230602_144755_n000003'
-    local_folder = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/ddddd'
-    ss.scp_folder_remote_to_local(local_folder, remote_folder)
+    local_folder = '/home/zhangliwei01/ZONE/TestProject/2J5'
+    ss.cut_frames(scenario_id, frame_index_list=[5, 100, 235, 431], local_folder=local_folder)
+
+    # ss.scp_folder_remote_to_local(local_folder, remote_folder)
     # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
     # ss.clear_temp_folder()

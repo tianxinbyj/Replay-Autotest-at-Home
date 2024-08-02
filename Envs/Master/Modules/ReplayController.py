@@ -353,8 +353,8 @@ if __name__ == '__main__':
         },
         'replay_action': {
             'calib': False,
-            'record': False,
-            'get_gt': True,
+            'record': True,
+            'get_gt': False,
             'bag_update': False,
         },
         'product': 'ES37',
