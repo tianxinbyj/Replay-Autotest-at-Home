@@ -70,7 +70,7 @@ def main():
         print('file', pic_path)
 
     # 获取地图
-    map_path = os.path.join('/media/data/video_info', f'{args.scenario_id}_map.png')
+    map_path = os.path.join('/media/data/video_map', f'{args.scenario_id}_map.png')
     if os.path.exists(map_path):
         print('file', map_path)
     else:

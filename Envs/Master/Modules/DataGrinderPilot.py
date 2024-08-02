@@ -12,7 +12,8 @@ import time
 import pandas as pd
 import numpy as np
 import yaml
-from matplotlib import pyplot as plt
+from PIL import Image
+from matplotlib import pyplot as plt, image as mpimg
 from matplotlib import patches as pc
 import matplotlib.lines as mlines
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -644,6 +645,45 @@ class DataGrinderPilotOneCase:
                         characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
 
     @sync_test_result
+    def load_scenario_info(self):
+
+        def resize_image_by_height(image_path, height):
+            img = Image.open(image_path)
+            width = int(img.width * height / img.height)
+            img = img.resize((width, height))
+
+            return img
+
+        # 图片拼接: 预览图+地图+自车车速
+        overview_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_3000.png')
+        overview_img = resize_image_by_height(overview_pic_path, 900)
+        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.jpg')
+        map_pic = resize_image_by_height(map_pic_path, 900)
+        ego_vx_pic = self.get_abspath(self.test_result['General']['sync_ego_figure'])
+        ego_vx = resize_image_by_height(ego_vx_pic, 900)
+
+        # 创建一个新的空白图片用于拼接
+        total_width = overview_img.width + map_pic.width + ego_vx.width
+        concat_img = Image.new('RGB', (total_width, 900))
+
+        # 拼接图片
+        x_offset = 0
+        for resized_img in [overview_img, map_pic, ego_vx]:
+            concat_img.paste(resized_img, (x_offset, 0))
+            x_offset += resized_img.width
+
+        # 保存拼接后的图片
+        path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_Info.jpg')
+        concat_img.save(path)
+        img = mpimg.imread(path)
+        fig, ax = plt.subplots()
+        ax.axis('off')
+        ax.imshow(img)
+        ax.set_title(self.scenario_id, fontsize=6, color='black', pad=2)  # pad参数调整标题与图片之间的距离
+        plt.savefig(path, bbox_inches='tight', pad_inches=0, dpi=400)
+        self.test_result['General']['scenario_info'] = self.get_relpath(path)
+
+    @sync_test_result
     def sketch_bug(self):
 
         # 对于每个频繁的ID，找到时间戳位于中间的行的索引
@@ -982,7 +1022,8 @@ class DataGrinderPilotOneCase:
             self.evaluate_metrics()
 
         if self.test_action['bug']:
-            self.sketch_bug()
+            self.load_scenario_info()
+            # self.sketch_bug()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)
@@ -1090,6 +1131,7 @@ class DataGrinderPilotOneTask:
             if tag_key == 'OutputResult':
                 continue
 
+            # 汇总数据
             tag_combination_folder = os.path.join(self.tag_combination_folder, tag_key)
             create_folder(tag_combination_folder)
             match_data_dict[tag_key] = {}
@@ -1642,15 +1684,36 @@ class DataGrinderPilotOneTask:
         )
 
         for scenario_tag in self.test_result['OutputResult']['visualization'].keys():
+
+            report_generator.addTitlePage(
+                title=scenario_tag,
+                page_type='sequence',
+                stamp=None,
+                sub_title_list=list(self.test_result[scenario_tag]['scenario_unit'].keys()),
+            )
+
+            # 测试场景展示页面
+            img_count = 0
+            img_list = []
+            for scenario_id, scenario_test_result in self.test_result[scenario_tag]['scenario_unit'].items():
+                scenario_unit_folder = os.path.join(self.scenario_unit_folder, scenario_id)
+                scenario_info_img = os.path.join(scenario_unit_folder, '00_ScenarioInfo', f'{scenario_id}_Info.jpg')
+                img_list.append([scenario_info_img])
+                img_count += 1
+                if img_count == 3 or scenario_id == list(self.test_result[scenario_tag]['scenario_unit'].keys())[-1]:
+                    report_generator.addOnePage(heading=f'{scenario_tag} 场景列表',
+                                                text_list=None,
+                                                img_list=img_list)
+                    img_list = []
+                    img_count = 0
+
             for topic in self.test_result['OutputResult']['visualization'][scenario_tag].keys():
                 for characteristic in used_characteristics:
 
                     report_generator.addTitlePage(
-                        title=scenario_tag,
+                        title=f'{topic} - {characteristic}',
                         page_type='sequence',
                         stamp=None,
-                        sub_title_list=[topic, characteristic],
-                        sub_color_list=['darkred', 'darkgreen'],
                     )
 
                     for obstacle_type, v in self.test_result['OutputResult']['visualization'][scenario_tag][topic][
