@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 import yaml
 from PIL import Image
+from collections import OrderedDict
 from matplotlib import pyplot as plt, image as mpimg
 from matplotlib import patches as pc
 import matplotlib.lines as mlines
@@ -657,7 +658,7 @@ class DataGrinderPilotOneCase:
         # 图片拼接: 预览图+地图+自车车速
         overview_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_3000.png')
         overview_img = resize_image_by_height(overview_pic_path, 900)
-        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.jpg')
+        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.png')
         map_pic = resize_image_by_height(map_pic_path, 900)
         ego_vx_pic = self.get_abspath(self.test_result['General']['sync_ego_figure'])
         ego_vx = resize_image_by_height(ego_vx_pic, 900)
@@ -700,12 +701,36 @@ class DataGrinderPilotOneCase:
 
             return sorted(corresponding_indices)
 
+        def which_camera_saw_you(x, y):
+            if self.product == 'ES37':
+                if x >= 0:
+                    if y >= 0:
+                        return 'CAM_FRONT_120', 'CAM_FRONT_LEFT'
+                    elif y < 0:
+                        return 'CAM_FRONT_120', 'CAM_FRONT_RIGHT'
+                elif x < 0:
+                    if y >= 0:
+                        return 'CAM_BACK', 'CAM_BACK_LEFT'
+                    elif y < 0:
+                        return 'CAM_BACK', 'CAM_BACK_RIGHT'
+            else:
+                if x >= 0:
+                    if y >= 0:
+                        return 'CAM_FRONT_120', 'CAM_FISHEYE_LEFT'
+                    elif y < 0:
+                        return 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT'
+                elif x < 0:
+                    if y >= 0:
+                        return 'CAM_BACK', 'CAM_FISHEYE_LEFT'
+                    elif y < 0:
+                        return 'CAM_BACK', 'CAM_FISHEYE_RIGHT'
+
         # 获取一个自车速度插值器
         ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
         self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
 
         # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
-        timestamp_snap_list = []
+        video_snap_dict = {}
 
         for topic_belonging in self.test_result.keys():
             if topic_belonging == 'General':
@@ -723,7 +748,7 @@ class DataGrinderPilotOneCase:
                 sketch_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'sketch')
                 create_folder(sketch_folder)
 
-                #一场内容至少存在frame_threshold，才会被识别为bug用作分析
+                # 异常至少存在frame_threshold帧，才会被识别为bug用作分析
                 frame_threshold = round(self.test_result[topic_belonging][topic]['match_frequency'])
                 print(f'出现次数低于{frame_threshold}的bug会被忽视')
 
@@ -776,9 +801,6 @@ class DataGrinderPilotOneCase:
                         if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
                             continue
 
-                        if time_stamp not in timestamp_snap_list:
-                            timestamp_snap_list.append(time_stamp)
-
                         one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
                         create_folder(one_bug_folder)
 
@@ -793,6 +815,33 @@ class DataGrinderPilotOneCase:
                         }
                         print(f'保存 {topic} {bug_type} {time_stamp}的图片')
                         self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info)
+
+                        # 选择截图的相机
+                        if row['gt.flag'] == 1:
+                            cameras = which_camera_saw_you(row['gt.x'], row['gt.y'])
+                        else:
+                            cameras = which_camera_saw_you(row['pred.x'], row['pred.y'])
+
+                        for camera in cameras:
+                            if camera not in video_snap_dict:
+                                video_snap_dict[camera] = []
+                            if time_stamp not in video_snap_dict[camera]:
+                                video_snap_dict[camera].append(time_stamp)
+
+        # 时间戳换算为帧数，进行视频截图
+        video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
+        with open(video_info_path, 'r', encoding='utf-8') as file:
+            video_info = yaml.safe_load(file)
+        video_start_time, fps = video_info['start_time'], video_info['fps']
+        # 按照相机重新
+
+        for camera, t_list in video_snap_dict.items():
+            frame_index_snap_list = []
+            for t in t_list:
+                frame_index_snap_list.append(round((t - video_start_time) * fps))
+
+
+
 
     def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
 
