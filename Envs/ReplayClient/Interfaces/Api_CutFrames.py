@@ -3,7 +3,7 @@ Created on 2024/8/2.
 @author: Bu Yujun  
 """
 import argparse
-import os.path
+import os
 import sys
 
 from Libs import get_project_path

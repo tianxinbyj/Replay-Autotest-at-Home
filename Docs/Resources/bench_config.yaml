@@ -4,11 +4,13 @@ Replay02:
     username: zhangliwei01
     password: Pass1234
     py_path: /home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home
+    sys_interpreter: /usr/bin/python3
   ReplayClient:
     ip: 172.31.131.222
     username: vcar
     password: 123456
     py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
+    sys_interpreter: /usr/bin/python3
     ECU_product_preferred: ES37
 Replay01:
   master:
@@ -16,11 +18,13 @@ Replay01:
     username: caobingqi
     password: Pass1234
     py_path: /home/caobingqi/ZONE/PythonProject/Replay-Autotest-at-Home
+    sys_interpreter: /usr/bin/python3
   ReplayClient:
     ip: 172.31.131.222
     username: vcar
     password: 123456
     py_path: /home/vcar/work/pythonproject/HIL_test_at_home/Replay-Autotest-at-Home
+    sys_interpreter: /usr/bin/python3
     ECU_product_preferred: 1J5
 Replay00:
   master:
@@ -28,3 +32,4 @@ Replay00:
     username: byj
     password: 123456
     py_path: /home/byj/ZONE/PythonProject/Replay-Autotest-at-Home
+    sys_interpreter: /usr/bin/python3

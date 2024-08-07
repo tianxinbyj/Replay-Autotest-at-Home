@@ -257,8 +257,9 @@ if __name__ == '__main__':
 
     t0 = time.time()
     local_folder = '/home/zhangliwei01/ZONE/TestProject/2J5'
-    ss.cut_frames(scenario_id, frame_index_list=[5, 100, 235, 431], local_folder=local_folder)
-    print(time.time() - t0)
+    ss.get_scenario_info(scenario_id, info_type='dsdadsa', local_folder=local_folder)
+    # ss.cut_frames(scenario_id, frame_index_list=[5, 100, 235, 431], local_folder=local_folder)
+    # print(time.time() - t0)
     # ss.scp_folder_remote_to_local(local_folder, remote_folder)
     # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
     # ss.clear_temp_folder()

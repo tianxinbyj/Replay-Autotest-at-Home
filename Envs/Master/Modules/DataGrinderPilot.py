@@ -6,6 +6,7 @@ import glob
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 
@@ -30,9 +31,10 @@ from Libs import get_project_path, copy_to_destination
 sys.path.append(get_project_path())
 
 from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length
-from Utils.Libs import generate_unique_id
+from Utils.Libs import generate_unique_id, bench_config
 from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_font, legend_font, mpl_colors
 from Utils.Logger import send_log
+from Utils.SSHClient import SSHClient
 from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 
 # 导入评测api
@@ -86,10 +88,7 @@ class DataGrinderPilotOneCase:
         print('=' * 25 + self.scenario_id + '=' * 25)
         self.product = self.test_config['product']
         self.version = self.test_config['version']
-        self.test_info = {
-            'title': '{:s}-{:s}'.format(self.product, self.version),
-            'date': time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime(time.time()))
-        }
+        self.test_date = str(self.test_config['test_date'])
 
         self.scenario_tag = self.test_config['scenario_tag']
         self.test_action = self.test_config['test_action']
@@ -701,29 +700,11 @@ class DataGrinderPilotOneCase:
 
             return sorted(corresponding_indices)
 
-        def which_camera_saw_you(x, y):
-            if self.product == 'ES37':
-                if x >= 0:
-                    if y >= 0:
-                        return 'CAM_FRONT_120', 'CAM_FRONT_LEFT'
-                    elif y < 0:
-                        return 'CAM_FRONT_120', 'CAM_FRONT_RIGHT'
-                elif x < 0:
-                    if y >= 0:
-                        return 'CAM_BACK', 'CAM_BACK_LEFT'
-                    elif y < 0:
-                        return 'CAM_BACK', 'CAM_BACK_RIGHT'
-            else:
-                if x >= 0:
-                    if y >= 0:
-                        return 'CAM_FRONT_120', 'CAM_FISHEYE_LEFT'
-                    elif y < 0:
-                        return 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT'
-                elif x < 0:
-                    if y >= 0:
-                        return 'CAM_BACK', 'CAM_FISHEYE_LEFT'
-                    elif y < 0:
-                        return 'CAM_BACK', 'CAM_FISHEYE_RIGHT'
+        # 时间戳换算为帧数，进行视频截图
+        video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
+        with open(video_info_path, 'r', encoding='utf-8') as file:
+            video_info = yaml.safe_load(file)
+        video_start_time, fps = video_info['start_time'], video_info['fps']
 
         # 获取一个自车速度插值器
         ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
@@ -746,6 +727,7 @@ class DataGrinderPilotOneCase:
 
                 topic_tag = topic.replace('/', '')
                 sketch_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'sketch')
+                self.test_result[topic_belonging][topic]['bug'] = {}
                 create_folder(sketch_folder)
 
                 # 异常至少存在frame_threshold帧，才会被识别为bug用作分析
@@ -803,11 +785,8 @@ class DataGrinderPilotOneCase:
 
                         one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
                         create_folder(one_bug_folder)
-
-                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
-                        print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
-                        with open(os.path.join(one_bug_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
-                            json.dump(row.to_dict(), f, ensure_ascii=False, indent=4)
+                        if bug_type not in self.test_config['test_item']:
+                            self.test_result[topic_belonging][topic]['bug'][bug_type] = self.get_relpath(bug_type_folder)
 
                         plot_path = os.path.join(one_bug_folder, 'bug_sketch.jpg')
                         frame_bug_info = {
@@ -818,30 +797,169 @@ class DataGrinderPilotOneCase:
 
                         # 选择截图的相机
                         if row['gt.flag'] == 1:
-                            cameras = which_camera_saw_you(row['gt.x'], row['gt.y'])
+                            cameras = self.which_camera_saw_you(row['gt.x'], row['gt.y'])
                         else:
-                            cameras = which_camera_saw_you(row['pred.x'], row['pred.y'])
+                            cameras = self.which_camera_saw_you(row['pred.x'], row['pred.y'])
 
+                        frame_index = round((time_stamp - video_start_time) * fps)
                         for camera in cameras:
                             if camera not in video_snap_dict:
                                 video_snap_dict[camera] = []
-                            if time_stamp not in video_snap_dict[camera]:
-                                video_snap_dict[camera].append(time_stamp)
+                            if frame_index not in video_snap_dict[camera]:
+                                video_snap_dict[camera].append(frame_index)
 
-        # 时间戳换算为帧数，进行视频截图
-        video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
-        with open(video_info_path, 'r', encoding='utf-8') as file:
-            video_info = yaml.safe_load(file)
-        video_start_time, fps = video_info['start_time'], video_info['fps']
-        # 按照相机重新
+                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        bug_info = row.to_dict()
+                        bug_info['frame_index'] = frame_index
+                        bug_info['camera'] = cameras
+                        with open(os.path.join(one_bug_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
+                            json.dump(bug_info, f, ensure_ascii=False, indent=4)
 
-        for camera, t_list in video_snap_dict.items():
-            frame_index_snap_list = []
-            for t in t_list:
-                frame_index_snap_list.append(round((t - video_start_time) * fps))
+        # 启用ssh_client
+        replay_client = SSHClient()
+        video_snap_folder = os.path.join(self.BugFolder, 'General')
+        create_folder(video_snap_folder)
 
+        for camera, frame_index_snap_list in video_snap_dict.items():
+            camera_folder = os.path.join(video_snap_folder, camera)
+            create_folder(camera_folder)
 
+            replay_client.cut_frames(scenario_id=self.scenario_id,
+                                     frame_index_list=frame_index_snap_list,
+                                     camera=camera,
+                                     local_folder=camera_folder)
 
+    @sync_test_result
+    def bug_report(self):
+
+        # 第一步将bug需要加箭头的内容保存为一个json，批量处理
+        bug_arrow_list = []
+        for topic_belonging in self.test_result.keys():
+            if topic_belonging == 'General':
+                continue
+
+            for topic in self.test_result[topic_belonging].keys():
+                if topic == 'GroundTruth':
+                    continue
+
+                if topic not in self.test_config['test_item']:
+                    send_log(self, f'{topic}没有在test_item中')
+                    continue
+
+                for bug_type, bug_type_folder in self.test_result[topic_belonging][topic]['bug'].items():
+
+                    for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+                        one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
+                        bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
+                        with open(bug_info_json, 'r', encoding='utf-8') as f:
+                            bug_info = json.load(f)
+                        bug_info_for_arrow = {
+                            'bug_type': bug_type,
+                            'scenario_id': self.scenario_id,
+                            'camera': bug_info['camera'],
+                            'frame_index': bug_info['frame_index'],
+                        }
+                        if 'Obstacles' in topic_belonging:
+                            if bug_info['gt.flag'] == 1:
+                                if bug_info['gt.type_classification'] in [4, 5]:
+                                    height = 4
+                                else:
+                                    height = 2
+                                bug_info_for_arrow['gt'] = [bug_info['gt.x'], bug_info['gt.y'], height]
+                            if bug_info['pred.flag'] == 1:
+                                if bug_info['pred.type_classification'] in [4, 5]:
+                                    height = 4
+                                else:
+                                    height = 2
+                                bug_info_for_arrow['pred'] = [bug_info['pred.x'], bug_info['pred.y'], height]
+                        elif 'Lines' in topic_belonging:
+                            if bug_info['gt.flag'] == 1:
+                                bug_info_for_arrow['gt'] = [15, bug_info['gt.y_15'], 0]
+                            if bug_info['pred.flag'] == 1:
+                                bug_info_for_arrow['pred'] = [15, bug_info['pred.y_15'], 0]
+
+                        bug_info_for_arrow['origin_shot'] = [
+                            os.path.join(self.BugFolder, 'General', camera, f'{bug_info["frame_index"]}.jpg')
+                            for camera in bug_info['camera']
+                        ]
+                        bug_info_for_arrow['arrow_shot'] = [
+                            os.path.join(one_bug_folder, f'{camera}-{self.scenario_id}-{bug_info["frame_index"]}.jpg')
+                            for camera in bug_info['camera']
+                        ]
+
+                        bug_arrow_list.append(bug_info_for_arrow)
+
+        bug_arrow_json_path = os.path.join(self.BugFolder, 'General', 'bug_arrow.json')
+        with open(bug_arrow_json_path, 'w') as json_file:
+            json.dump(bug_arrow_list, json_file, ensure_ascii=False, indent=4)
+
+        calibration_json = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib', 'calibration.json')
+
+        # 调用端口
+        interface_path = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+        cmd = f'''
+        cd {interface_path}; {bench_config['master']['sys_interpreter']} Api_ProcessVideoShot.py -j {calibration_json} -a {bug_arrow_json_path}
+        '''
+        os.system(cmd)
+
+        for topic_belonging in self.test_result.keys():
+            if topic_belonging == 'General':
+                continue
+
+            for topic in self.test_result[topic_belonging].keys():
+                if topic == 'GroundTruth':
+                    continue
+
+                if topic not in self.test_config['test_item']:
+                    send_log(self, f'{topic}没有在test_item中')
+                    continue
+
+                topic_tag = topic.replace('/', '')
+                bug_report_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'bug_report')
+                create_folder(bug_report_folder)
+
+                for bug_type, bug_type_folder in self.test_result[topic_belonging][topic]['bug'].items():
+
+                    for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+                        one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
+
+                        bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
+                        with open(bug_info_json, 'r', encoding='utf-8') as f:
+                            bug_info = json.load(f)
+
+                        # 开始生成报告
+                        uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{time_stamp}')
+                        report_title = f'{self.product}_{bug_type}_测试异常报告({uuid[:6]})'
+                        send_log(self, f'开始生成测试异常报告 {report_title}')
+                        print(f'开始生成测试异常报告 {report_title}')
+
+                        title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure',
+                                                        'TitlePage.png')
+                        logo = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'ZoneLogo.png')
+                        report_generator = PDFReportTemplate(report_title=report_title,
+                                                             test_time=f'{topic} {bug_type}',
+                                                             tester=self.scenario_id,
+                                                             version=self.version,
+                                                             title_page=title_background,
+                                                             title_summary_img=None,
+                                                             logo=logo)
+
+                        img_list = [glob.glob(os.path.join(one_bug_folder, 'CAM_*.jpg'))]
+
+                        report_generator.addOnePage(
+                            heading=f'{bug_type} 视频截图@{time_stamp}',
+                            text_list=['实心箭头为truth，空心箭头为predicted'],
+                            img_list=img_list,
+                        )
+
+                        report_generator.addOnePage(
+                            heading=f'{bug_type} 真值与感知的对比@{time_stamp}',
+                            text_list=None,
+                            img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
+                        )
+
+                        report_generator.genReport(bug_report_folder, 1)
 
     def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
 
@@ -1071,8 +1189,33 @@ class DataGrinderPilotOneCase:
             self.evaluate_metrics()
 
         if self.test_action['bug']:
-            self.load_scenario_info()
+            # self.load_scenario_info()
             # self.sketch_bug()
+            self.bug_report()
+
+    def which_camera_saw_you(self, x, y):
+        if self.product == 'ES37':
+            if x >= 0:
+                if y >= 0:
+                    return 'CAM_FRONT_120', 'CAM_FRONT_LEFT'
+                elif y < 0:
+                    return 'CAM_FRONT_120', 'CAM_FRONT_RIGHT'
+            elif x < 0:
+                if y >= 0:
+                    return 'CAM_BACK', 'CAM_BACK_LEFT'
+                elif y < 0:
+                    return 'CAM_BACK', 'CAM_BACK_RIGHT'
+        else:
+            if x >= 0:
+                if y >= 0:
+                    return 'CAM_FRONT_120', 'CAM_FISHEYE_LEFT'
+                elif y < 0:
+                    return 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT'
+            elif x < 0:
+                if y >= 0:
+                    return 'CAM_BACK', 'CAM_FISHEYE_LEFT'
+                elif y < 0:
+                    return 'CAM_BACK', 'CAM_FISHEYE_RIGHT'
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)
@@ -1143,6 +1286,7 @@ class DataGrinderPilotOneTask:
                 scenario_test_config = {
                     'product': self.test_config['product'],
                     'version': self.test_config['version'],
+                    'test_date': str(self.test_config['test_date']),
                     'pred_folder': os.path.join(self.test_config['data_path']['raw']['pred'], scenario_id),
                     'gt_folder': os.path.join(self.test_config['data_path']['raw']['gt'], scenario_id),
                     'test_action': self.test_action['scenario_unit'],
@@ -1689,7 +1833,7 @@ class DataGrinderPilotOneTask:
                     if characteristic_des['name'] == characteristic:
                         return characteristic_des["description"]
 
-        report_title = f'{self.product}_Hil_DataReplay_TestReport'
+        report_title = f'{self.product}_Hil_DataReplay_TestReport_{self.test_date.split(" ")[0]}'
         send_log(self, f'开始生成报告 {report_title}')
 
         title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'TitlePage.png')
@@ -1829,6 +1973,7 @@ class DataGrinderPilotOneTask:
                                     text_list=text,
                                     img_list=img)
 
+        report_generator.page_count += 1
         self.report_path = report_generator.genReport(self.task_folder, 1)
 
     def start(self):
