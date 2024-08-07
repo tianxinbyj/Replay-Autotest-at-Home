@@ -51,17 +51,12 @@ def extract_frames(video_path, frame_list, pic_folder=None):
     if not cap.isOpened():
         sys.exit()
 
-    frame_count = 0
     saved_images = []
 
-    while True:
+    for frame_count in frame_list:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count)
         ret, frame = cap.read()
-        if not ret:
-            break  # 当无法读取更多帧时退出循环
-
-        frame_count += 1
-        if frame_count in frame_list:
-            # 根据帧数命名图片并保存
+        if ret:
             file_id = os.path.join(pic_folder, f'{frame_count}.jpg')
             cv2.imwrite(file_id, frame)
             saved_images.append(file_id)
