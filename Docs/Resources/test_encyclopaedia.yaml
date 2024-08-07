@@ -742,15 +742,6 @@ ES37:
     - /SAFrontRadarObject
     - /PI/FS/ObjTracksHorizon
 Information:
-  ego_rect:
-  - - -1
-    - -0.95
-  - - 3.6
-    - -0.95
-  - - 3.6
-    - 0.95
-  - - -1
-    - 0.95
   Obstacles:
     name: 动态障碍物
     topics:
@@ -788,6 +779,7 @@ Information:
     - width
     - height
     additional_column:
+    - type_classification
     - distance
     - pt_0_x
     - pt_0_y
@@ -807,6 +799,368 @@ Information:
     - is_oppositeDir
     - is_crossingDir
     - is_moving
+    - is_static
+    result_column:
+    - 召回率
+    - 准确率
+    - 类型准确率
+    - 横向距离误差
+    - 纵向距离误差
+    - 横向速度误差
+    - 纵向速度误差
+    - 航向角误差
+    - 长度误差
+    - 宽度误差
+    - 高度误差
+    characteristic:
+      is_coverageValid:
+        name: 全局目标
+        description: 遮挡率低于设定阈值的目标
+      is_cipv:
+        name: cipv目标
+        description: 前方主车道内距离最近的目标
+      is_keyObj:
+        name: 关键目标
+        description: 主车道内距离最近的或相邻车道内无遮挡的目标
+      is_sameDir:
+        name: 同向目标
+        description: 航向角在-30°～30°内的目标
+      is_oppositeDir:
+        name: 对向目标
+        description: 航向角在150°～180°或-180°～-150°内的目标
+      is_crossingDir:
+        name: 横向目标
+        description: 航向角在30°～150°或-150°～-30°内的目标
+      is_moving:
+        name: 运动目标
+        description: 对地绝对速度大于2m/s的目标
+      is_static:
+        name: 静止目标
+        description: 对地绝对速度小于2m/s的目标
+    metrics:
+      recall_precision:
+        name: 准召信息
+        description: 包括准确率，召回率，类型准确率，TP/FP/FN目标个数
+        evaluate_range:
+          1:
+            x:
+              - -100
+              - 150
+            y:
+              - -30
+              - 30
+          2:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
+          4:
+            x:
+              - -100
+              - 150
+            y:
+              - -30
+              - 30
+          5:
+            x:
+              - -100
+              - 150
+            y:
+              - -30
+              - 30
+          18:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
+      x_error:
+        name: 纵向距离误差
+        description: 评价对目标的纵向距离的感知能力
+        evaluate_range:
+          1:
+            x:
+            - -100
+            - 150
+            y:
+            - -30
+            - 30
+          2:
+            x:
+            - -20
+            - 60
+            y:
+            - -20
+            - 20
+          4:
+            x:
+            - -100
+            - 150
+            y:
+            - -30
+            - 30
+          5:
+            x:
+            - -100
+            - 150
+            y:
+            - -30
+            - 30
+          18:
+            x:
+            - -20
+            - 60
+            y:
+            - -20
+            - 20
+      y_error:
+        name: 横向距离误差
+        description: 评价对目标的横向距离的感知能力
+        evaluate_range:
+          1:
+            x:
+            - -100
+            - 150
+            y:
+            - -30
+            - 30
+          2:
+            x:
+            - -20
+            - 60
+            y:
+            - -20
+            - 20
+          4:
+            x:
+            - -100
+            - 150
+            y:
+            - -30
+            - 30
+          5:
+            x:
+            - -100
+            - 150
+            y:
+            - -30
+            - 30
+          18:
+            x:
+            - -20
+            - 60
+            y:
+            - -20
+            - 20
+      vx_error:
+        name: 纵向速度误差
+        description: 评价对目标的纵向速度的感知能力
+        evaluate_range:
+          1:
+            x:
+            - -60
+            - 60
+            y:
+            - -20
+            - 20
+          2:
+            x:
+            - -20
+            - 60
+            y:
+            - -20
+            - 20
+          4:
+            x:
+            - -60
+            - 60
+            y:
+            - -20
+            - 20
+          5:
+            x:
+            - -60
+            - 60
+            y:
+            - -20
+            - 20
+          18:
+            x:
+            - -20
+            - 60
+            y:
+            - -20
+            - 20
+      vy_error:
+        name: 纵向速度误差
+        description: 评价对目标的横向速度的感知能力
+        evaluate_range:
+          1:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          2:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
+          4:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          5:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          18:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
+      yaw_error:
+        name: 航向角误差
+        description: 评价对目标的行驶方向的感知能力
+        evaluate_range:
+          1:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          4:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          5:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          18:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
+      length_error:
+        name: 长度误差
+        description: 评价对目标的长度的感知能力
+        evaluate_range:
+          1:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          4:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          5:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          18:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
+      width_error:
+        name: 宽度误差
+        description: 评价对目标的宽度的感知能力
+        evaluate_range:
+          1:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          4:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          5:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          18:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
+      height_error:
+        name: 高度误差
+        description: 评价对目标的高度的感知能力
+        evaluate_range:
+          1:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          4:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          5:
+            x:
+              - -60
+              - 60
+            y:
+              - -20
+              - 20
+          18:
+            x:
+              - -20
+              - 60
+            y:
+              - -20
+              - 20
   Lines:
     name: 车道线
     topics:

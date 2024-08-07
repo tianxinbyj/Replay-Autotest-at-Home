@@ -3,6 +3,7 @@
 @Date: 2024/7/8 上午10:00  
 """
 import glob
+import json
 import os
 import shutil
 import sys
@@ -11,28 +12,31 @@ import time
 import pandas as pd
 import numpy as np
 import yaml
-from matplotlib import pyplot as plt
+from PIL import Image
+from collections import OrderedDict
+from matplotlib import pyplot as plt, image as mpimg
+from matplotlib import patches as pc
+import matplotlib.lines as mlines
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.colors import LinearSegmentedColormap
+from scipy.interpolate import interp1d
+
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from Libs import get_project_path, replace_path_in_dict, copy_to_destination
+from Libs import get_project_path, copy_to_destination
 
 sys.path.append(get_project_path())
 
-from Utils.Libs import test_encyclopaedia, create_folder
+from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length
+from Utils.Libs import generate_unique_id
 from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_font, legend_font, mpl_colors
 from Utils.Logger import send_log
+from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 
 # 导入评测api
-#1. 预处理Api
-from Envs.Master.Modules.PerceptMetrics import PreProcess, MatchTool
-
-
-def get_test_project_root_path(path):
-    while True:
-        if os.path.exists(os.path.join(path, '04_TestData')):
-            return path
-        path = os.path.dirname(path)
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics
 
 
 def get_topic_attribution(topic):
@@ -68,17 +72,12 @@ class DataGrinderPilotOneCase:
 
     def __init__(self, scenario_unit_folder):
         # 变量初始化
-        send_log(self, '=' * 50)
+        self.ego_velocity_generator = None
 
-        # 同时要考虑文件文件路径发生变化, 需要修改yaml中的所有相关路径
+        print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
-            scenario_test_config = yaml.safe_load(file)
-        test_project_root_path = get_test_project_root_path(scenario_unit_folder)
-        self.test_config = replace_path_in_dict(
-            scenario_test_config,
-            scenario_test_config['root_path'], test_project_root_path
-        )
+            self.test_config = yaml.safe_load(file)
         self.scenario_unit_folder = scenario_unit_folder
 
         # 加载测试相关的参数
@@ -99,13 +98,14 @@ class DataGrinderPilotOneCase:
         self.topics_for_evaluation = self.test_item.keys()
 
         # 建立文件夹
-        self.pred_raw_folder = self.test_config['data_folder']['raw']['pred']
-        self.GT_raw_folder = self.test_config['data_folder']['raw']['GT']
+        self.pred_raw_folder = self.test_config['pred_folder']
+        self.gt_raw_folder = self.test_config['gt_folder']
         self.DataFolder = os.path.join(self.scenario_unit_folder, '01_Data')
+        self.BugFolder = os.path.join(self.scenario_unit_folder, '02_Bug')
 
         # 初始化测试配置
-        self.test_result_info_path = os.path.join(self.scenario_unit_folder, 'TestResultInfo.yaml')
-        if not os.path.exists(self.test_result_info_path):
+        self.test_result_yaml = os.path.join(self.scenario_unit_folder, 'TestResult.yaml')
+        if not os.path.exists(self.test_result_yaml):
             self.test_result = {'General': {}}
             for topic in self.topics_for_evaluation:
                 attribution = get_topic_attribution(topic)
@@ -170,11 +170,11 @@ class DataGrinderPilotOneCase:
                 }
 
                 path = os.path.join(raw_folder, 'pred_data.csv')
-                pred_data.to_csv(path, index=False)
+                pred_data.to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result[topic_belonging][topic]['raw']['pred_data'] = self.get_relpath(path)
 
                 path = os.path.join(raw_folder, 'pred_timestamp.csv')
-                pred_timestamp.to_csv(path, index=False)
+                pred_timestamp.to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result[topic_belonging][topic]['raw']['pred_timestamp'] = self.get_relpath(path)
 
             elif topic == '/PI/EG/EgoMotionInfo':
@@ -189,7 +189,7 @@ class DataGrinderPilotOneCase:
                 pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
                 create_folder(os.path.join(self.DataFolder, 'General'), update=False)
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
-                pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False)
+                pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result['General']['pred_ego'] = self.get_relpath(path)
 
         # 复制场景相关的信息, 解析相机参数
@@ -215,14 +215,14 @@ class DataGrinderPilotOneCase:
                 self.test_result['General']['camera_position'][cam_name] = [x, y, z]
                 send_log(self, f'{cam_name} 位于({x}, {y}, {z})')
 
-        new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '01_ScenarioInfo')
+        new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
         if os.path.exists(new_scenario_info_folder):
             shutil.rmtree(new_scenario_info_folder)
         os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
 
     @sync_test_result
     def load_gt_data(self):
-        gt_config_path = os.path.join(self.GT_raw_folder, 'yaml_management.yaml')
+        gt_config_path = os.path.join(self.gt_raw_folder, 'yaml_management.yaml')
         if not os.path.exists(gt_config_path):
             print('No yaml_management.yaml is found. Please check')
             return
@@ -262,7 +262,7 @@ class DataGrinderPilotOneCase:
             # 读取原始数据
             csv_data = []
             for csv_file in gt_config['{:s}_list'.format(gt_topic)]:
-                csv_path = os.path.join(self.GT_raw_folder, gt_topic, csv_file)
+                csv_path = os.path.join(self.gt_raw_folder, gt_topic, csv_file)
                 csv_data.append(pd.read_csv(csv_path, index_col=False))
             gt_data = pd.concat(csv_data).rename(columns={
                 'timestamp': 'time_stamp',
@@ -277,7 +277,7 @@ class DataGrinderPilotOneCase:
 
             # 读取时间辍, 用于时间辍匹配
             gt_timestamp_csv = \
-                glob.glob(os.path.join(self.GT_raw_folder, f'{timestamp_csv_tag}*hz.csv'))[0]
+                glob.glob(os.path.join(self.gt_raw_folder, f'{timestamp_csv_tag}*hz.csv'))[0]
             gt_timestamp = pd.read_csv(gt_timestamp_csv).sort_values(
                 by=['timestamp']).rename(columns={'timestamp': 'time_stamp'}) \
                 .drop_duplicates(subset=['time_stamp'], keep='first')
@@ -296,25 +296,25 @@ class DataGrinderPilotOneCase:
             }
 
             path = os.path.join(raw_folder, 'gt_data.csv')
-            gt_data[raw_column].to_csv(path, index=False)
+            gt_data[raw_column].to_csv(path, index=False, encoding='utf_8_sig')
             self.test_result[gt_topic_belonging]['GroundTruth']['raw']['gt_data'] = self.get_relpath(path)
 
             path = os.path.join(raw_folder, 'gt_timestamp.csv')
-            gt_timestamp.to_csv(path, index=False)
+            gt_timestamp.to_csv(path, index=False, encoding='utf_8_sig')
             self.test_result[gt_topic_belonging]['GroundTruth']['raw']['gt_timestamp'] = self.get_relpath(path)
 
         # 自车速度用于对齐
-        ego_data_path = os.path.join(self.GT_raw_folder, 'od_ego.csv')
+        ego_data_path = os.path.join(self.gt_raw_folder, 'od_ego.csv')
         if not os.path.exists(ego_data_path):
             send_log(self, 'GroundTruth未找到自车速度数据')
         else:
             send_log(self, f'GroundTruth 正在读取{os.path.basename(ego_data_path)}, 用于时间同步')
-            ego_data = pd.read_csv(os.path.join(self.GT_raw_folder, 'od_ego.csv'))[
+            ego_data = pd.read_csv(os.path.join(self.gt_raw_folder, 'od_ego.csv'))[
                 ['ego_timestamp', 'INS_Speed']].rename(
                 columns={'ego_timestamp': 'time_stamp', 'INS_Speed': 'ego_vx'})
             create_folder(os.path.join(self.DataFolder, 'General'), update=False)
             path = os.path.join(self.DataFolder, 'General', 'gt_ego.csv')
-            ego_data.to_csv(path, index=False)
+            ego_data.to_csv(path, index=False, encoding='utf_8_sig')
             self.test_result['General']['gt_ego'] = self.get_relpath(path)
 
     @sync_test_result
@@ -350,7 +350,7 @@ class DataGrinderPilotOneCase:
         sync_ego_data = calibrated_data[(calibrated_data['time_stamp'] <= time_end + 1)
                                         & (calibrated_data['time_stamp'] >= time_start - 1)]
         path = os.path.join(self.DataFolder, 'General', 'SyncEgoVx.csv')
-        sync_ego_data.to_csv(path, index=False)
+        sync_ego_data.to_csv(path, index=False, encoding='utf_8_sig')
         self.test_result['General']['sync_ego_data'] = self.get_relpath(path)
 
         # 将同步后的自车速度可视化
@@ -398,7 +398,7 @@ class DataGrinderPilotOneCase:
             additional_column = (test_encyclopaedia['Information'][topic_belonging]['raw_column']
                                  + test_encyclopaedia['Information'][topic_belonging]['additional_column'])
             send_log(self, f'{topic_belonging}, 使用{topic_belonging}Preprocess')
-            preprocess_ins = eval(f'PreProcess.{topic_belonging}Preprocess()')
+            preprocess_instance = eval(f'PreProcess.{topic_belonging}Preprocess()')
 
             for topic in self.test_result[topic_belonging].keys():
                 if topic != 'GroundTruth':
@@ -416,10 +416,10 @@ class DataGrinderPilotOneCase:
                     data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
                     path = os.path.join(additional_folder, 'pred_timestamp.csv')
                     self.test_result[topic_belonging][topic]['additional']['pred_timestamp'] = self.get_relpath(path)
-                    data.to_csv(path, index=False)
+                    data.to_csv(path, index=False, encoding='utf_8_sig')
 
                     # 预处理原始数据, 增加列
-                    send_log(self, f'{topic_belonging} {topic} 预处理步骤 {preprocess_ins.preprocess_types}')
+                    send_log(self, f'{topic_belonging} {topic} 预处理步骤 {preprocess_instance.preprocess_types}')
                     data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
                     data['time_stamp'] += time_gap
                     data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
@@ -432,10 +432,10 @@ class DataGrinderPilotOneCase:
                         'moving_threshold': 2,
                         'key_coverage_threshold': 0.1,
                     }
-                    data = preprocess_ins.run(data, input_parameter_container)[additional_column]
+                    data = preprocess_instance.run(data, input_parameter_container)[additional_column]
                     path = os.path.join(additional_folder, 'pred_data.csv')
                     self.test_result[topic_belonging][topic]['additional']['pred_data'] = self.get_relpath(path)
-                    data.to_csv(path, index=False)
+                    data.to_csv(path, index=False, encoding='utf_8_sig')
 
                 else:
                     raw = self.test_result[topic_belonging]['GroundTruth']['raw']
@@ -451,10 +451,10 @@ class DataGrinderPilotOneCase:
                     path = os.path.join(additional_folder, 'gt_timestamp.csv')
                     self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(
                         path)
-                    data.to_csv(path, index=False)
+                    data.to_csv(path, index=False, encoding='utf_8_sig')
 
                     # 预处理原始数据, 增加列
-                    send_log(self, f'{topic_belonging} GroundTruth 预处理步骤 {preprocess_ins.preprocess_types}')
+                    send_log(self, f'{topic_belonging} GroundTruth 预处理步骤 {preprocess_instance.preprocess_types}')
                     data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
                     data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
 
@@ -466,11 +466,11 @@ class DataGrinderPilotOneCase:
                         'moving_threshold': 2,
                         'key_coverage_threshold': 0.1,
                     }
-                    data = preprocess_ins.run(data, input_parameter_container)[additional_column]
+                    data = preprocess_instance.run(data, input_parameter_container)[additional_column]
 
                     path = os.path.join(additional_folder, 'gt_data.csv')
                     self.test_result[topic_belonging]['GroundTruth']['additional']['gt_data'] = self.get_relpath(path)
-                    data.to_csv(path, index=False)
+                    data.to_csv(path, index=False, encoding='utf_8_sig')
 
     @sync_test_result
     def match_timestamp(self):
@@ -499,27 +499,32 @@ class DataGrinderPilotOneCase:
                 pred_hz = self.test_result[topic_belonging][topic]['frequency']
 
                 match_tolerance = self.test_config['timestamp_matching_tolerance'] / max(pred_hz, gt_hz)
-                send_log(self,
-                         f'{topic_belonging} {topic} 时间差低于{match_tolerance} sec的尝试匹配, 进一步选择局部最优')
+                send_log(self, f'{topic_belonging} {topic} 时间差低于{match_tolerance} sec的尝试匹配, '
+                               f'进一步选择局部最优')
 
                 match_pred_timestamp, match_gt_timestamp = MatchTool.match_timestamp(
                     pred_timestamp, gt_timestamp, match_tolerance)
-                send_log(self,
-                         f'{topic_belonging} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, 对齐{len(match_pred_timestamp)}')
-                send_log(self,
-                         f'{topic_belonging} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, 对齐{len(match_gt_timestamp)}')
+                send_log(self, f'{topic_belonging} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, '
+                               f'对齐{len(match_gt_timestamp)} '
+                               f'比例{len(match_gt_timestamp) / len(gt_timestamp):.2%}')
+                send_log(self, f'{topic_belonging} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, '
+                               f'对齐{len(match_pred_timestamp)} '
+                               f'比例{len(match_pred_timestamp) / len(pred_timestamp):.2%}')
 
                 # 保存时间辍匹配数据
                 match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_gap'])
                 if len(match_pred_timestamp):
                     match_timestamp_data['gt_timestamp'] = match_gt_timestamp
                     match_timestamp_data['pred_timestamp'] = match_pred_timestamp
-                    match_timestamp_data['match_time_gap'] = match_timestamp_data['pred_timestamp'] - \
-                                                             match_timestamp_data['gt_timestamp']
+                    match_timestamp_data['match_time_gap'] = (match_timestamp_data['pred_timestamp']
+                                                              - match_timestamp_data['gt_timestamp'])
 
                 path = os.path.join(match_folder, 'match_timestamp.csv')
-                match_timestamp_data.to_csv(path, index=False)
+                match_timestamp_data.to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result[topic_belonging][topic]['match']['match_timestamp'] = self.get_relpath(path)
+                self.test_result[topic_belonging][topic]['match_frequency'] \
+                    = round(self.test_result[topic_belonging][topic]['frequency']
+                            * len(match_pred_timestamp) / len(pred_timestamp), 2)
 
     @sync_test_result
     def match_object(self):
@@ -529,12 +534,12 @@ class DataGrinderPilotOneCase:
 
             additional_column = (test_encyclopaedia['Information'][topic_belonging]['raw_column']
                                  + test_encyclopaedia['Information'][topic_belonging]['additional_column'])
-            send_log(self, f'{topic_belonging}, 使用{topic_belonging}Preprocess')
-            matchtool_ins = eval(f'MatchTool.{topic_belonging}MatchTool()')
-            match_column = ['corresponding_index', 'gt_flag', 'pred_flag']
+            send_log(self, f'{topic_belonging}, 使用{topic_belonging}MatchTool')
+            match_tool = eval(f'MatchTool.{topic_belonging}MatchTool()')
+            match_column = ['corresponding_index', 'gt.flag', 'pred.flag']
             for col in additional_column:
                 for kind in ['gt', 'pred']:
-                    match_column.append(f'{kind}_{col}')
+                    match_column.append(f'{kind}.{col}')
 
             gt_data_path = self.get_abspath(
                 self.test_result[topic_belonging]['GroundTruth']['additional']['gt_data'])
@@ -567,10 +572,488 @@ class DataGrinderPilotOneCase:
                 }
 
                 send_log(self, f'{topic_belonging} {topic} 目标匹配')
-                data = matchtool_ins.run(input_data, input_parameter_container)[match_column]
+                data = match_tool.run(input_data, input_parameter_container)[match_column]
                 path = os.path.join(match_folder, 'match_data.csv')
                 self.test_result[topic_belonging][topic]['match']['match_data'] = self.get_relpath(path)
-                data.to_csv(path, index=False)
+                data.to_csv(path, index=False, encoding='utf_8_sig')
+
+    @sync_test_result
+    def evaluate_metrics(self):
+        for topic_belonging in self.test_result.keys():
+            if topic_belonging == 'General':
+                continue
+
+            send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
+            metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
+            metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
+            evaluate_range = {metric: v['evaluate_range']
+                              for metric, v in test_encyclopaedia['Information'][topic_belonging]['metrics'].items()}
+
+            for topic in self.test_result[topic_belonging].keys():
+                if topic == 'GroundTruth':
+                    continue
+
+                if topic not in self.test_config['test_item']:
+                    send_log(self, f'{topic}没有在test_item中')
+                    continue
+
+                topic_tag = topic.replace('/', '')
+                metric_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'metric')
+                create_folder(metric_folder)
+                if 'metric' not in self.test_result[topic_belonging][topic]:
+                    self.test_result[topic_belonging][topic]['metric'] = {}
+
+                match_data_path = self.test_result[topic_belonging][topic]['match']['match_data']
+                match_data = pd.read_csv(self.get_abspath(match_data_path), index_col=False)
+                input_parameter_container = {
+                    'metric_type': self.test_config['test_item'][topic],
+                    'evaluate_range': evaluate_range,
+                }
+                input_data = {
+                    'data': match_data,
+                }
+
+                send_log(self, f'{topic_belonging} {topic} 指标评估')
+                data_dict = metric_evaluator.run(input_data, input_parameter_container)
+                for metric, metric_data in data_dict.items():
+                    total_folder = os.path.join(metric_folder, 'total')
+                    create_folder(total_folder, False)
+                    if 'total' not in self.test_result[topic_belonging][topic]['metric']:
+                        self.test_result[topic_belonging][topic]['metric']['total'] = {}
+
+                    path = os.path.join(total_folder, f'{metric}.csv')
+                    self.test_result[topic_belonging][topic]['metric']['total'][metric] = self.get_relpath(path)
+                    metric_data.to_csv(path, index=False, encoding='utf_8_sig')
+
+                    input_parameter_container = {
+                        'characteristic_type': self.test_config['target_characteristic'],
+                    }
+                    input_data = {
+                        'total_data': match_data,
+                        'data_to_filter': metric_data,
+                    }
+
+                    characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
+                    for characteristic, characteristic_data in characteristic_data_dict.items():
+                        characteristic_folder = os.path.join(metric_folder, characteristic)
+                        create_folder(characteristic_folder, False)
+                        if characteristic not in self.test_result[topic_belonging][topic]['metric']:
+                            self.test_result[topic_belonging][topic]['metric'][characteristic] = {}
+
+                        path = os.path.join(characteristic_folder, f'{metric}.csv')
+                        self.test_result[topic_belonging][topic]['metric'][characteristic][
+                            metric] = self.get_relpath(path)
+                        characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
+
+    @sync_test_result
+    def load_scenario_info(self):
+
+        def resize_image_by_height(image_path, height):
+            img = Image.open(image_path)
+            width = int(img.width * height / img.height)
+            img = img.resize((width, height))
+
+            return img
+
+        # 图片拼接: 预览图+地图+自车车速
+        overview_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_3000.png')
+        overview_img = resize_image_by_height(overview_pic_path, 900)
+        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.png')
+        map_pic = resize_image_by_height(map_pic_path, 900)
+        ego_vx_pic = self.get_abspath(self.test_result['General']['sync_ego_figure'])
+        ego_vx = resize_image_by_height(ego_vx_pic, 900)
+
+        # 创建一个新的空白图片用于拼接
+        total_width = overview_img.width + map_pic.width + ego_vx.width
+        concat_img = Image.new('RGB', (total_width, 900))
+
+        # 拼接图片
+        x_offset = 0
+        for resized_img in [overview_img, map_pic, ego_vx]:
+            concat_img.paste(resized_img, (x_offset, 0))
+            x_offset += resized_img.width
+
+        # 保存拼接后的图片
+        path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_Info.jpg')
+        concat_img.save(path)
+        img = mpimg.imread(path)
+        fig, ax = plt.subplots()
+        ax.axis('off')
+        ax.imshow(img)
+        ax.set_title(self.scenario_id, fontsize=6, color='black', pad=2)  # pad参数调整标题与图片之间的距离
+        plt.savefig(path, bbox_inches='tight', pad_inches=0, dpi=400)
+        self.test_result['General']['scenario_info'] = self.get_relpath(path)
+
+    @sync_test_result
+    def sketch_bug(self):
+
+        # 对于每个频繁的ID，找到时间戳位于中间的行的索引
+        def get_middle_index_for_bug(bug_data, sort_value, count_threshold):
+            id_counts = bug_data[sort_value].value_counts()
+            frequent_ids = id_counts[id_counts >= count_threshold].index
+
+            corresponding_indices = []
+            for id_ in frequent_ids:
+                id_df = bug_data[bug_data[sort_value] == id_]
+                id_df_sorted = id_df.sort_values(by='gt.time_stamp')
+                middle_index = len(id_df_sorted) // 2
+                corresponding_indices.append(id_df.at[id_df_sorted.index[middle_index], 'corresponding_index'])
+
+            return sorted(corresponding_indices)
+
+        def which_camera_saw_you(x, y):
+            if self.product == 'ES37':
+                if x >= 0:
+                    if y >= 0:
+                        return 'CAM_FRONT_120', 'CAM_FRONT_LEFT'
+                    elif y < 0:
+                        return 'CAM_FRONT_120', 'CAM_FRONT_RIGHT'
+                elif x < 0:
+                    if y >= 0:
+                        return 'CAM_BACK', 'CAM_BACK_LEFT'
+                    elif y < 0:
+                        return 'CAM_BACK', 'CAM_BACK_RIGHT'
+            else:
+                if x >= 0:
+                    if y >= 0:
+                        return 'CAM_FRONT_120', 'CAM_FISHEYE_LEFT'
+                    elif y < 0:
+                        return 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT'
+                elif x < 0:
+                    if y >= 0:
+                        return 'CAM_BACK', 'CAM_FISHEYE_LEFT'
+                    elif y < 0:
+                        return 'CAM_BACK', 'CAM_FISHEYE_RIGHT'
+
+        # 获取一个自车速度插值器
+        ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+        self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
+
+        # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
+        video_snap_dict = {}
+
+        for topic_belonging in self.test_result.keys():
+            if topic_belonging == 'General':
+                continue
+
+            for topic in self.test_result[topic_belonging].keys():
+                if topic == 'GroundTruth':
+                    continue
+
+                if topic not in self.test_config['test_item']:
+                    send_log(self, f'{topic}没有在test_item中')
+                    continue
+
+                topic_tag = topic.replace('/', '')
+                sketch_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'sketch')
+                create_folder(sketch_folder)
+
+                # 异常至少存在frame_threshold帧，才会被识别为bug用作分析
+                frame_threshold = round(self.test_result[topic_belonging][topic]['match_frequency'])
+                print(f'出现次数低于{frame_threshold}的bug会被忽视')
+
+                # 只用keyObj的目标分析bug
+                if 'is_keyObj' not in self.test_result[topic_belonging][topic]['metric']:
+                    continue
+
+                data_for_bug = self.test_result[topic_belonging][topic]['metric']['is_keyObj']
+                bug_index_dict = {}
+                for metric, data_path in data_for_bug.items():
+                    metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
+                    metric_data = metric_data[metric_data['is_statistics_valid'] == 1]
+                    if metric == 'recall_precision':
+                        FP_data = metric_data[(metric_data['gt.flag'] == 0)
+                                              & (metric_data['pred.flag'] == 1)]
+                        FN_data = metric_data[(metric_data['gt.flag'] == 1)
+                                              & (metric_data['pred.flag'] == 0)]
+                        NCTP_data = metric_data[(metric_data['CTP'] == 0)
+                                                & (metric_data['gt.flag'] == 1)
+                                                & (metric_data['pred.flag'] == 1)]
+
+                        bug_index_dict['false_positive'] = FP_data['corresponding_index'].to_list()
+                        bug_index_dict['false_negative'] = FN_data['corresponding_index'].to_list()
+                        bug_index_dict['false_type'] = NCTP_data['corresponding_index'].to_list()
+
+                    else:
+                        error_data = metric_data[metric_data['is_abnormal'] == 1]
+                        bug_index_dict[metric] = error_data['corresponding_index'].to_list()
+
+                # 使用total中的recall_precision数据可视化，但只抓去keyObj的bug
+                total_data_path = self.test_result[topic_belonging][topic]['metric']['total']['recall_precision']
+                total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
+                for bug_type, corresponding_index in bug_index_dict.items():
+                    bug_type_folder = os.path.join(sketch_folder, bug_type)
+
+                    bug_data = total_data[total_data['corresponding_index'].isin(corresponding_index)]
+                    # 根据id的出现次数排序
+                    if bug_type == 'false_positive':
+                        sorted_id = 'pred.id'
+                    else:
+                        sorted_id = 'gt.id'
+
+                    bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
+                    for bug_corresponding_index in bug_corresponding_indices:
+                        row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
+
+                        time_stamp = row['gt.time_stamp']
+                        frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
+                        # 如果这一书帧内没有gt或者没有pred，暂时先不提bug
+                        if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
+                            continue
+
+                        one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
+                        create_folder(one_bug_folder)
+
+                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        with open(os.path.join(one_bug_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
+                            json.dump(row.to_dict(), f, ensure_ascii=False, indent=4)
+
+                        plot_path = os.path.join(one_bug_folder, 'bug_sketch.jpg')
+                        frame_bug_info = {
+                            'gt': {bug_type: [row['gt.id']]}, 'pred': {bug_type: [row['pred.id']]},
+                        }
+                        print(f'保存 {topic} {bug_type} {time_stamp}的图片')
+                        self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info)
+
+                        # 选择截图的相机
+                        if row['gt.flag'] == 1:
+                            cameras = which_camera_saw_you(row['gt.x'], row['gt.y'])
+                        else:
+                            cameras = which_camera_saw_you(row['pred.x'], row['pred.y'])
+
+                        for camera in cameras:
+                            if camera not in video_snap_dict:
+                                video_snap_dict[camera] = []
+                            if time_stamp not in video_snap_dict[camera]:
+                                video_snap_dict[camera].append(time_stamp)
+
+        # 时间戳换算为帧数，进行视频截图
+        video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
+        with open(video_info_path, 'r', encoding='utf-8') as file:
+            video_info = yaml.safe_load(file)
+        video_start_time, fps = video_info['start_time'], video_info['fps']
+        # 按照相机重新
+
+        for camera, t_list in video_snap_dict.items():
+            frame_index_snap_list = []
+            for t in t_list:
+                frame_index_snap_list.append(round((t - video_start_time) * fps))
+
+
+
+
+    def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
+
+        def plot_rectangle(center_x, center_y, yaw, length, width, text, color, visibility, fill):
+            res = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+                [[-length / 2], [-width / 2]])
+            xy = (res[0][0] + center_x, res[1][0] + center_y)
+            rotation = yaw * 57.3
+
+            ax.add_patch(pc.Rectangle(
+                xy=xy,
+                width=length, height=width,
+                angle=rotation, alpha=visibility,
+                rotation_point='xy',
+                facecolor='lightgrey',
+                fill=fill,
+                edgecolor=color,
+                linewidth=2))
+
+            arrow_length = length / 2 + 2
+            dx, dy = arrow_length * np.cos(yaw) / 2, arrow_length * np.sin(yaw) / 2
+            ax.arrow(center_x + dx, center_y + dy, dx, dy,
+                     length_includes_head=True,
+                     head_width=0.5, head_length=1.3, fc='r', ec='r')
+
+            while rotation < -90:
+                rotation += 180
+            while rotation > 90:
+                rotation -= 180
+            ax.text(center_x, center_y, text, rotation=rotation,
+                    va='center', ha='center',
+                    fontdict={
+                        'family': 'Ubuntu',
+                        'style': 'normal',
+                        'weight': 'normal',
+                        'color': 'black',
+                        'size': 8,
+                    })
+
+        def plot_outline(center_x, center_y, yaw, length, width, text):
+            length += 3
+            width += 2
+
+            res = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+                [[-length / 2], [-width / 2]])
+            xy = (res[0][0] + center_x, res[1][0] + center_y)
+            rotation = yaw * 57.3
+
+            ax.add_patch(pc.Rectangle(
+                xy=xy,
+                width=length, height=width,
+                angle=rotation, alpha=1,
+                rotation_point='xy',
+                fill=False,
+                edgecolor='lightcoral',
+                linestyle='dashed',
+                linewidth=2))
+
+            while rotation < -90:
+                rotation += 180
+            while rotation > 90:
+                rotation -= 180
+            res = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+                [[0], [width / 2 + 1]])
+            ax.text(res[0][0] + center_x, res[1][0] + center_y, text, rotation=rotation,
+                    va='center', ha='center',
+                    fontdict={
+                        'family': 'Ubuntu',
+                        'style': 'normal',
+                        'weight': 'normal',
+                        'color': 'darkred',
+                        'size': 11,
+                    })
+
+        def plot_one_frame(ax, data, title, ego_velocity_generator=None, bug_info=None):
+            if bug_info is None:
+                bug_info = {}
+            ax.patch.set_facecolor('white')
+            for pos in ['right', 'left']:
+                ax.spines[pos].set_visible(False)
+
+            ax.add_patch(pc.Rectangle(
+                (-1.0, -0.95), 4.6, 1.9, edgecolor='mediumslateblue', facecolor='limegreen'))
+            ax.arrow(3, 0, 1.3, 0,
+                     length_includes_head=True,
+                     head_width=0.5, head_length=1.3, fc='r', ec='r')
+
+            time_stamp = data.iloc[0]['time_stamp']
+            if ego_velocity_generator is not None:
+                ego_velocity = ego_velocity_generator([time_stamp])[0]
+                ax.text(0, 20, f'{round(ego_velocity * 3.6)} km/h',
+                        va='center', ha='left',
+                        fontdict={
+                            'family': 'Ubuntu',
+                            'style': 'normal',
+                            'weight': 'bold',
+                            'color': 'orange',
+                            'size': 20
+                        })
+
+            for idx, row in data.iterrows():
+                if row['flag'] == 0:
+                    continue
+
+                color = color_type[row['type_classification']]
+                fill = False
+                if row['is_keyObj'] == 1:
+                    visibility = 1
+                    fill = True
+                elif row['is_coverageValid'] == 1:
+                    visibility = 0.5
+                elif row['is_detectedValid'] == 1:
+                    visibility = 0.3
+                else:
+                    visibility = 0.1
+
+                plot_rectangle(center_x=row['x'], center_y=row['y'],
+                               yaw=row['yaw'], length=row['length'],
+                               width=row['width'], text=int(row['id']),
+                               color=color, visibility=visibility, fill=fill)
+
+                # 画出cipv
+                if row['is_cipv'] == 1:
+                    ax.annotate('', xy=(row['x'], row['y'] + 1.2), xytext=(row['x'], row['y'] + 3),
+                                arrowprops=dict(facecolor='red', shrink=0.05))
+
+            for bug_type, id_list in bug_info.items():
+                for id_ in id_list:
+                    id_data = data[data['id'] == id_]
+                    if len(id_data):
+                        row = id_data.iloc[0]
+                        plot_outline(center_x=row['x'], center_y=row['y'],
+                                     yaw=row['yaw'], length=row['length'],
+                                     width=row['width'], text=bug_type)
+
+                        ax.plot([row['x'] - 7, row['x'] + 7], [row['y'], row['y']],
+                                linestyle='--', color='lightcoral', alpha=0.5)
+                        ax.plot([row['x'], row['x']], [row['y'] - 4, row['y'] + 4],
+                                linestyle='--', color='lightcoral', alpha=0.5)
+
+            ax.set_xlim(-100, 150)
+            ax.set_ylim(-25, 25)
+            ax.tick_params(direction='out', labelsize=font_size * 1.2, length=4)
+            ax.set_title(title, fontdict=title_font, y=0.9, loc='left')
+            red_triangle = mlines.Line2D([], [], color='red', marker='v', linestyle='None',
+                                         markersize=10, label='cipv')
+            ego_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                          markerfacecolor='limegreen', markersize=12, label='ego_car')
+            car_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                          mec='#3682be', mfc='lightgrey', markersize=12, label='small-medium car')
+            pedestrian_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                                 mec='#45a776', mfc='lightgrey', markersize=12, label='pedestrian')
+            bus_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                          mec='#f05326', mfc='lightgrey', markersize=12, label='bus')
+            truck_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                            mec='#800080', mfc='lightgrey', markersize=12, label='truck')
+            cyclist_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                              mec='#334f65', mfc='lightgrey', markersize=12, label='cyclist')
+
+            # 将这两个图形添加到图例中
+            ax.legend(handles=[red_triangle, ego_rectangle, car_rectangle,
+                               pedestrian_rectangle, bus_rectangle, truck_rectangle, cyclist_rectangle], fontsize=13)
+
+        color_type = {
+            1: '#3682be', 2: '#45a776', 4: '#f05326', 5: '#800080', 18: '#334f65',
+        }
+
+        # 开始画图
+        fig = plt.figure(figsize=(25, 12))
+        fig.tight_layout()
+        plt.subplots_adjust(left=0.03, right=0.97, top=0.97, bottom=0.03)
+        grid = plt.GridSpec(2, 1, wspace=0.1, hspace=0.15)
+
+        # 上图为gt，下图为pred
+        ax = fig.add_subplot(grid[0, 0])
+        data = pd.DataFrame()
+        for col in frame_data.columns:
+            if 'pred.' in col:
+                continue
+            if 'gt.' in col:
+                data[col.split('.')[-1]] = frame_data[col]
+            else:
+                data[col] = frame_data[col]
+        if frame_bug_info is not None:
+            bug_info = frame_bug_info['gt']
+        else:
+            bug_info = None
+        time_stamp = data.iloc[0]['time_stamp']
+        title = f'GroundTruth <{topic}@{round(time_stamp, 3)}s >'
+        plot_one_frame(ax, data, title, self.ego_velocity_generator, bug_info)
+
+        ax = fig.add_subplot(grid[1, 0])
+        data = pd.DataFrame()
+        for col in frame_data.columns:
+            if 'gt.' in col:
+                continue
+            if 'pred.' in col:
+                data[col.split('.')[-1]] = frame_data[col]
+            else:
+                data[col] = frame_data[col]
+        if frame_bug_info is not None:
+            bug_info = frame_bug_info['pred']
+        else:
+            bug_info = None
+        time_stamp = data.iloc[0]['time_stamp']
+        title = f'Prediction <{topic}@{round(time_stamp, 3)}s >'
+        plot_one_frame(ax, data, title, self.ego_velocity_generator, bug_info)
+
+        canvas = FigureCanvas(fig)
+        canvas.print_figure(plot_path, facecolor='white', dpi=100)
+        fig.clf()
+        plt.close()
 
     def start(self):
 
@@ -584,6 +1067,13 @@ class DataGrinderPilotOneCase:
             self.match_timestamp()
             self.match_object()
 
+        if self.test_action['metric']:
+            self.evaluate_metrics()
+
+        if self.test_action['bug']:
+            self.load_scenario_info()
+            # self.sketch_bug()
+
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)
 
@@ -591,10 +1081,781 @@ class DataGrinderPilotOneCase:
         return os.path.join(self.scenario_unit_folder, path)
 
     def save_test_result(self):
-        with open(self.test_result_info_path, 'w', encoding='utf-8') as f:
+        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
             yaml.dump(self.test_result,
                       f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
     def load_test_result(self):
-        with open(self.test_result_info_path) as f:
+        with open(self.test_result_yaml) as f:
+            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+
+class DataGrinderPilotOneTask:
+
+    def __init__(self, task_folder):
+        # 参数初始化
+        self.report_path = None
+
+        print('=' * 25 + self.__class__.__name__ + '=' * 25)
+        scenario_config_yaml = os.path.join(task_folder, 'TestConfig.yaml')
+        with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
+            self.test_config = yaml.safe_load(file)
+        self.task_folder = task_folder
+
+        # 加载测试相关的参数
+        self.product = self.test_config['product']
+        self.version = self.test_config['version']
+        self.test_date = str(self.test_config['test_date'])
+        self.test_db_id = generate_unique_id(''.join([self.product, self.version, self.test_date]))
+
+        self.test_encyclopaedia = test_encyclopaedia[self.product]
+        self.test_action = self.test_config['test_action']
+        self.scenario_unit_folder = self.test_config['data_path']['intermediate']['scenario_unit']
+        self.tag_combination_folder = self.test_config['data_path']['intermediate']['tag_combination']
+        self.result_folder = self.test_config['data_path']['output_result']
+        self.region_division = self.test_config['region_division']
+
+        self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
+        if not os.path.exists(self.test_result_yaml):
+            self.test_result = {}
+            for scenario_tag in self.test_config['scenario_tag']:
+                tag_key = '&'.join(scenario_tag['tag'].values())
+                self.test_result[tag_key] = {
+                    'tag': scenario_tag['tag'], 'scenario_unit': {}, 'tag_combination': {}
+                }
+                for scenario_id in scenario_tag['scenario_id']:
+                    self.test_result[tag_key]['scenario_unit'][scenario_id] = self.get_relpath(
+                        os.path.join(self.scenario_unit_folder, scenario_id, 'TestResult.yaml'))
+
+            self.save_test_result()
+
+    @sync_test_result
+    def analyze_scenario_unit(self):
+        # 依次创建scenario_unit测试信息
+        scenario_run_list = {}
+        scenario_list = []
+        for scenario_tag in self.test_config['scenario_tag']:
+            for scenario_id in scenario_tag['scenario_id']:
+                if scenario_id in scenario_list:
+                    continue
+
+                scenario_list.append(scenario_id)
+                scenario_test_config = {
+                    'product': self.test_config['product'],
+                    'version': self.test_config['version'],
+                    'pred_folder': os.path.join(self.test_config['data_path']['raw']['pred'], scenario_id),
+                    'gt_folder': os.path.join(self.test_config['data_path']['raw']['gt'], scenario_id),
+                    'test_action': self.test_action['scenario_unit'],
+                    'test_item': self.test_config['test_item'],
+                    'target_characteristic': ['is_coverageValid', 'is_keyObj'],
+                    'scenario_tag': scenario_tag['tag'],
+                    'scenario_id': scenario_id,
+                    'pred_ROI': self.test_config['pred_ROI'],
+                    'gt_ROI': self.test_config['gt_ROI'],
+                    'coverage_reference_point': self.test_config['coverage_reference_point'],
+                    'timestamp_matching_tolerance': self.test_config['timestamp_matching_tolerance'],
+                    'coverage_threshold': self.test_config['coverage_threshold'],
+                    'object_matching_tolerance': self.test_config['object_matching_tolerance'],
+                }
+
+                scenario_run_list[scenario_id] = {
+                    'scenario_unit_folder': os.path.join(self.scenario_unit_folder, scenario_id),
+                    'scenario_test_config': scenario_test_config,
+                    'scenario_config_yaml': os.path.join(self.scenario_unit_folder, scenario_id, 'TestConfig.yaml')
+                }
+
+        for scenario_run_info in scenario_run_list.values():
+            create_folder(scenario_run_info['scenario_unit_folder'], False)
+            with open(scenario_run_info['scenario_config_yaml'], 'w', encoding='utf-8') as f:
+                yaml.dump(scenario_run_info['scenario_test_config'],
+                          f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+            DataGrinderPilotOneCase(scenario_run_info['scenario_unit_folder']).start()
+
+    @sync_test_result
+    def combine_scenario_tag(self):
+        # 合并各个场景的match_data, 重新corresponding_index编号
+        # 获得每一种特征的分类结果
+        match_data_dict = {}
+        for tag_key in self.test_result.keys():
+            if tag_key == 'OutputResult':
+                continue
+
+            # 汇总数据
+            tag_combination_folder = os.path.join(self.tag_combination_folder, tag_key)
+            create_folder(tag_combination_folder)
+            match_data_dict[tag_key] = {}
+
+            for scenario_id, scenario_test_result in self.test_result[tag_key]['scenario_unit'].items():
+                scenario_unit_folder = os.path.join(self.scenario_unit_folder, scenario_id)
+                with open(self.get_abspath(scenario_test_result)) as f:
+                    scenario_test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+                # 遍历全部测试结果，按照topic和metrics合并
+                for topic_belonging in scenario_test_result.keys():
+                    if topic_belonging == 'General':
+                        continue
+
+                    if topic_belonging not in self.test_result[tag_key]['tag_combination']:
+                        self.test_result[tag_key]['tag_combination'][topic_belonging] = {}
+                    if topic_belonging not in match_data_dict[tag_key]:
+                        match_data_dict[tag_key][topic_belonging] = {}
+
+                    for topic in scenario_test_result[topic_belonging].keys():
+                        if topic == 'GroundTruth':
+                            # 用于设置评判样本量最小限度的帧数阈值
+                            frequency = round(scenario_test_result[topic_belonging][topic]['frequency'])
+                            if 'frequency' not in self.test_result[tag_key]:
+                                self.test_result[tag_key]['frequency'] = frequency
+                            else:
+                                self.test_result[tag_key]['frequency'] = (
+                                    min(self.test_result[tag_key]['frequency'], frequency))
+                            continue
+
+                        topic_tag = topic.replace('/', '')
+                        if topic not in self.test_result[tag_key]['tag_combination'][topic_belonging]:
+                            self.test_result[tag_key]['tag_combination'][topic_belonging][topic] = {}
+                            topic_folder = os.path.join(tag_combination_folder, topic_belonging, topic_tag)
+                            create_folder(topic_folder)
+
+                        if topic not in match_data_dict[tag_key][topic_belonging]:
+                            match_data_dict[tag_key][topic_belonging][topic] = []
+
+                        match_data_path = scenario_test_result[topic_belonging][topic]['match']['match_data']
+                        match_data = pd.read_csv(os.path.join(scenario_unit_folder, match_data_path), index_col=False)
+                        match_data.insert(0, 'scenario_id', scenario_id)
+                        match_data_dict[tag_key][topic_belonging][topic].append(match_data)
+
+        for tag_key in match_data_dict.keys():
+            for topic_belonging in match_data_dict[tag_key].keys():
+
+                send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
+                metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
+                metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
+                evaluate_range = {metric: v['evaluate_range']
+                                  for metric, v in
+                                  test_encyclopaedia['Information'][topic_belonging]['metrics'].items()}
+
+                for topic, df_list in match_data_dict[tag_key][topic_belonging].items():
+                    topic_tag = topic.replace('/', '')
+                    total_match_data = pd.concat(df_list).reset_index(drop=True)
+                    total_match_data['corresponding_index'] = total_match_data.index
+
+                    input_parameter_container = {
+                        'metric_type': self.test_config['test_item'][topic],
+                        'evaluate_range': evaluate_range,
+                    }
+                    input_data = {
+                        'data': total_match_data,
+                    }
+
+                    send_log(self, f'{topic_belonging} {topic} 指标评估')
+                    data_dict = metric_evaluator.run(input_data, input_parameter_container)
+
+                    for metric, metric_data in data_dict.items():
+                        total_folder = os.path.join(self.tag_combination_folder,
+                                                    tag_key, topic_belonging, topic_tag, 'total')
+                        create_folder(total_folder, False)
+                        if 'total' not in self.test_result[tag_key]['tag_combination'][topic_belonging][topic]:
+                            self.test_result[tag_key]['tag_combination'][topic_belonging][topic]['total'] = {}
+
+                        path = os.path.join(total_folder, f'{metric}.csv')
+                        self.test_result[tag_key]['tag_combination'][topic_belonging][topic]['total'][
+                            metric] = self.get_relpath(path)
+                        metric_data.to_csv(path, index=False, encoding='utf_8_sig')
+
+                        input_parameter_container = {
+                            'characteristic_type': self.test_config['target_characteristic'],
+                        }
+                        input_data = {
+                            'total_data': total_match_data,
+                            'data_to_filter': metric_data,
+                        }
+
+                        characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
+                        for characteristic, characteristic_data in characteristic_data_dict.items():
+                            characteristic_folder = os.path.join(self.tag_combination_folder,
+                                                                 tag_key, topic_belonging, topic_tag, characteristic)
+                            create_folder(characteristic_folder, False)
+                            if characteristic not in self.test_result[tag_key]['tag_combination'][topic_belonging][
+                                topic]:
+                                self.test_result[tag_key]['tag_combination'][topic_belonging][topic][
+                                    characteristic] = {}
+
+                            path = os.path.join(characteristic_folder, f'{metric}.csv')
+                            self.test_result[tag_key]['tag_combination'][topic_belonging][topic][characteristic][
+                                metric] = self.get_relpath(path)
+                            characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
+
+    @sync_test_result
+    def compile_statistics(self):
+        # 按照数据库数据单元的方式保存数据
+        # 格式为json，在文件夹内平铺
+        json_folder = os.path.join(self.result_folder, 'statistics')
+        create_folder(json_folder)
+        json_count = 0
+        json_rows = []
+        self.test_result['OutputResult'] = {}
+        for tag_key in self.test_result.keys():
+            if tag_key == 'OutputResult':
+                continue
+
+            tag = self.test_result[tag_key]['tag']
+            scenario_list = list(self.test_result[tag_key]['scenario_unit'].keys())
+
+            for topic_belonging in self.test_result[tag_key]['tag_combination'].keys():
+                metric_statistics = eval(f'MetricStatistics.{topic_belonging}MetricStatistics()')
+
+                for topic in self.test_result[tag_key]['tag_combination'][topic_belonging].keys():
+                    topic_tag = topic.replace('/', '')
+
+                    for characteristic in self.test_config['target_characteristic']:
+                        test_result = self.test_result[tag_key]['tag_combination'][topic_belonging][topic][
+                            characteristic]
+
+                        info_json_data = {
+                            'test_db_id': self.test_db_id,
+                            'product': self.product,
+                            'version': self.version,
+                            'test_date': str(self.test_date),
+                            **{tag_type: tag_value for tag_type, tag_value in tag.items()},
+                            'scenario_list': scenario_list,
+                            'topic': topic}
+
+                        data = {
+                            metric: pd.read_csv(self.get_abspath(data_path), index_col=False)
+                            for metric, data_path in test_result.items()
+                        }
+
+                        input_parameter_container = {
+                            'region_division': self.region_division,
+                            'characteristic': characteristic,
+                        }
+
+                        json_datas = metric_statistics.run(data, input_parameter_container)
+
+                        for json_data in json_datas:
+                            json_data = {**info_json_data, **json_data}
+
+                            # 保存单个json文件
+                            json_count += 1
+                            json_name = (f'{json_count:06d}--{tag_key}--{topic_tag}--{json_data["type"]}'
+                                         f'--{json_data["region"]}--{json_data["characteristic"]}--{json_data["metric"]}.json')
+                            json_path = os.path.join(json_folder, json_name)
+
+                            frequency_threshold = self.test_result[tag_key]['frequency'] * 2
+                            if json_data['result']['sample_count'] < frequency_threshold:
+                                print(f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
+                                continue
+
+                            print(f'{json_count} {json_name} 已保存')
+                            with open(json_path, 'w', encoding='utf-8') as f:
+                                json.dump(json_data, f, ensure_ascii=False, indent=4)
+
+                            # 保存json文件的目录
+                            json_rows.append(
+                                [
+                                    json_count, tag_key, topic, json_data['type'], json_data['region'],
+                                    json_data['characteristic'], json_data['metric'],
+                                    json_data['result']['sample_count'], json.dumps(json_data['result'])
+                                ]
+                            )
+
+        path = os.path.join(json_folder, 'output_result.csv')
+        pd.DataFrame(json_rows, columns=[
+            'result_index', 'scenario_tag', 'topic', 'obstacle_type', 'region',
+            'characteristic', 'metric', 'sample_count', 'result'
+        ]).to_csv(path, index=False, encoding='utf_8_sig')
+        self.test_result['OutputResult']['statistics'] = self.get_relpath(path)
+
+    @sync_test_result
+    def visualize_output(self):
+
+        def plot_table(axes, columns, columns_width, values, index=None, index_width=0):
+            if index is None:
+                index = []
+            axes.patch.set_facecolor('white')
+            axes.patch.set_alpha(0.3)
+            for pos in ['right', 'top', 'left', 'bottom']:
+                axes.spines[pos].set_visible(False)
+
+            # 画index
+            if index_width and len(index):
+                axes.add_patch(pc.Rectangle(
+                    xy=(-index_width, 0),
+                    width=index_width, height=1,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=True,
+                    edgecolor='grey',
+                    facecolor='bisque',
+                    linewidth=1))
+                axes.text(-index_width / 2, 0.5, 'Test Case',
+                          va='center', ha='center',
+                          fontdict={
+                              'family': 'Ubuntu',
+                              'style': 'normal',
+                              'weight': 'bold',
+                              'color': 'black',
+                              'size': font_size * 1.5,
+                          })
+
+                for i, idx in enumerate(index):
+                    axes.add_patch(pc.Rectangle(
+                        xy=(-index_width, -1 - i),
+                        width=index_width, height=1,
+                        angle=0, alpha=1,
+                        rotation_point='xy',
+                        fill=True,
+                        edgecolor='grey',
+                        facecolor='linen',
+                        linewidth=1))
+
+                    axes.text(-index_width * 0.95, -1 - i + 0.5, idx,
+                              va='center', ha='left',
+                              fontdict={
+                                  'family': 'sans-serif',
+                                  'style': 'normal',
+                                  'weight': 'normal',
+                                  'color': 'black',
+                                  'size': font_size * 1.5,
+                              })
+
+            # 画columns
+            current_x = 0
+            for i, (col, width) in enumerate(zip(columns, columns_width)):
+                axes.add_patch(pc.Rectangle(
+                    xy=(current_x, 0),
+                    width=width, height=1,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=True,
+                    edgecolor='grey',
+                    facecolor='lightsteelblue',
+                    linewidth=1))
+
+                axes.text(current_x + width * 0.5, 0.5, col,
+                          va='center', ha='center',
+                          fontdict={
+                              'family': 'Ubuntu',
+                              'style': 'normal',
+                              'weight': 'bold',
+                              'color': 'black',
+                              'size': font_size * 1.5,
+                          })
+
+                current_x += width
+
+            # 画values
+            ii, jj = values.shape
+            for i in range(ii):
+                current_x = 0
+                for j in range(jj):
+                    width = columns_width[j]
+                    color = 'white'
+                    value = values[i, j]
+
+                    if '%' in columns[j]:
+                        value = '{:.2%}'.format(value)
+
+                    elif isinstance(value, float):
+                        if int(value) == value:
+                            value = int(value)
+                        else:
+                            value = round(value, 4)
+
+                    if contains_chinese(str(value)):
+                        fontdict = {
+                            'family': 'sans-serif',
+                            'style': 'normal',
+                            'weight': 'normal',
+                            'color': 'black',
+                            'size': font_size * 1.5,
+                        }
+                    else:
+                        fontdict = {
+                            'family': 'Ubuntu',
+                            'style': 'normal',
+                            'weight': 'normal',
+                            'color': 'black',
+                            'size': font_size * 1.5,
+                        }
+
+                    axes.add_patch(pc.Rectangle(
+                        xy=(current_x, -i - 1),
+                        width=width, height=1,
+                        angle=0, alpha=1,
+                        rotation_point='xy',
+                        fill=True,
+                        edgecolor='grey',
+                        facecolor=color,
+                        linewidth=1))
+                    axes.text(current_x + width * 0.5, -i - 1 + 0.5, value,
+                              va='center', ha='center',
+                              fontdict=fontdict)
+
+                    current_x += width
+
+            axes.set_xlim(-index_width - 0.1, np.sum(columns_width) + 0.1)
+            axes.set_ylim(-len(df) - 0.1, 2.1)
+            axes.set_xticks([])
+            axes.set_yticks([])
+
+        visualization_folder = os.path.join(self.result_folder, 'visualization')
+        create_folder(visualization_folder)
+        statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
+        group_columns = ['scenario_tag', 'topic', 'obstacle_type', 'characteristic', 'metric']
+        stat_group = statistics.groupby(group_columns)
+        self.test_result['OutputResult']['visualization'] = {}
+
+        df_tp_error = {}
+        for df_name, df in stat_group:
+            scenario_tag, topic, obstacle_type, characteristic, metric = df_name
+
+            if characteristic == '静止目标' and '速度' in metric:
+                continue
+
+            for index, row in df.iterrows():
+                result_dict = json.loads(row['result'])
+                for key, value in result_dict.items():
+                    df.at[index, key] = value
+            df['type_cate'] = pd.Categorical(df['obstacle_type'],
+                                             categories=['小车', '大巴', '货车', '自行车', '行人'], ordered=True)
+            df.sort_values(by=['type_cate', 'region'], inplace=True)
+            drop_columns = group_columns + ['result_index', 'type_cate', 'result']
+            df.drop(drop_columns, axis=1, inplace=True)
+            df.insert(0, 'obstacle_type', obstacle_type)
+            df.rename(columns={'region': 'grid area division[m]'}, inplace=True)
+
+            columns = list(df.columns)
+            columns_width = [max(get_string_display_length(c) / 5.2, 2) for c in columns]
+            values = df.values
+
+            fig_size = (np.sum(columns_width) + 0.1, (len(df) + 2) + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+            plt.axis('off')
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            plot_table(ax, columns, columns_width, values)
+            ax.text(np.sum(columns_width) / 2, 1.5, '-'.join(
+                [scenario_tag, topic, characteristic, obstacle_type, metric]),
+                    va='center', ha='center', fontsize=font_size * 2)
+
+            pic_name = '--'.join(
+                [scenario_tag, topic, characteristic, obstacle_type, metric]).replace('/', '')
+            pic_path = os.path.join(visualization_folder, f'{pic_name}.jpg')
+            print(f'{pic_name} 已保存')
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(pic_path, facecolor='white', dpi=100)
+            fig.clf()
+            plt.close()
+
+            if scenario_tag not in df_tp_error.keys():
+                df_tp_error[scenario_tag] = {}
+            if topic not in df_tp_error[scenario_tag].keys():
+                df_tp_error[scenario_tag][topic] = {}
+            if characteristic not in df_tp_error[scenario_tag][topic].keys():
+                df_tp_error[scenario_tag][topic][characteristic] = {}
+            if obstacle_type not in df_tp_error[scenario_tag][topic][characteristic].keys():
+                df_tp_error[scenario_tag][topic][characteristic][obstacle_type] = []
+
+            # 汇总准召率
+            if '准召信息' in metric:
+                df.rename(columns={
+                    'recall%': '召回率',
+                    'precision%': '准确率',
+                    'type_accuracy%': '类型准确率'}, inplace=True)
+                df_tp_error[scenario_tag][topic][characteristic][obstacle_type].append(
+                    df[['grid area division[m]', '召回率', '准确率', '类型准确率']])
+
+            # 汇总tp_error
+            else:
+                df.rename(columns={'pass_ratio%': metric}, inplace=True)
+                df_tp_error[scenario_tag][topic][characteristic][obstacle_type].append(
+                    df[['grid area division[m]', metric]])
+
+        # 合并tp_error的metric数据，以及可视化为饼图
+        for scenario_tag in df_tp_error.keys():
+            if scenario_tag not in self.test_result['OutputResult']['visualization'].keys():
+                self.test_result['OutputResult']['visualization'][scenario_tag] = {}
+
+            for topic in df_tp_error[scenario_tag].keys():
+                if topic not in self.test_result['OutputResult']['visualization'][scenario_tag].keys():
+                    self.test_result['OutputResult']['visualization'][scenario_tag][topic] = {}
+
+                for characteristic in df_tp_error[scenario_tag][topic].keys():
+                    if characteristic not in self.test_result['OutputResult']['visualization'][scenario_tag][
+                        topic].keys():
+                        self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic] = {}
+
+                    for obstacle_type in df_tp_error[scenario_tag][topic][characteristic].keys():
+                        if obstacle_type not in self.test_result['OutputResult']['visualization'][scenario_tag][topic][
+                            characteristic].keys():
+                            self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
+                                obstacle_type] = {}
+
+                        # 合并表格
+                        merged_df = pd.DataFrame(columns=['grid area division[m]'])
+                        for one_df in df_tp_error[scenario_tag][topic][characteristic][obstacle_type]:
+                            merged_df = merged_df.merge(one_df, on='grid area division[m]', how='outer')
+
+                        # 重新排列结果的顺序
+                        merged_df = merged_df.set_index('grid area division[m]', drop=True)
+                        topic_belonging = get_topic_attribution(topic)['topic_belonging']
+                        result_column = test_encyclopaedia['Information'][topic_belonging]['result_column']
+
+                        merged_df = merged_df[[c for c in result_column if c in merged_df.columns]]
+
+                        csv_name = '--'.join([scenario_tag, topic, characteristic, obstacle_type]).replace('/', '')
+                        csv_path = os.path.join(visualization_folder, f'{csv_name}.csv')
+                        (merged_df.sort_values(by=['grid area division[m]'])
+                         .to_csv(csv_path, index=True, encoding='utf_8_sig'))
+                        send_log(self, f'汇总百分比 {csv_name} 数据已保存')
+
+                        self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
+                            obstacle_type]['data'] = self.get_relpath(csv_path)
+
+                        # 画结果大饼图
+                        height_ratios = [1] + [3] * len(merged_df)  # 第一行高度是1/3，其余行高度是1
+                        width_ratios = [2] + [3] * len(merged_df.columns)  # 第一列宽度是1/3，其余列宽度是1
+                        fig = plt.figure(figsize=(sum(width_ratios), sum(height_ratios)))
+                        fig.tight_layout()
+                        plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+
+                        # 创建GridSpec对象
+                        grid = plt.GridSpec(len(height_ratios), len(width_ratios),
+                                            height_ratios=height_ratios, width_ratios=width_ratios,
+                                            wspace=0, hspace=0)
+
+                        # 先画index和columns
+                        for i, col in enumerate(merged_df.columns):
+                            ax = fig.add_subplot(grid[0, i + 1])
+                            ax.xaxis.set_visible(False)
+                            ax.yaxis.set_visible(False)
+                            for spine in ax.spines.values():
+                                spine.set_edgecolor('black')
+                                spine.set_linewidth(2)
+
+                            ax.text(0.5, 0.5, col, va='center', ha='center',
+                                    fontsize=font_size * 2.5)
+
+                        for i, idx in enumerate(merged_df.index):
+                            ax = fig.add_subplot(grid[i + 1, 0])
+                            ax.xaxis.set_visible(False)
+                            ax.yaxis.set_visible(False)
+                            for spine in ax.spines.values():
+                                spine.set_edgecolor('black')
+                                spine.set_linewidth(0)
+
+                            ax.text(0.5, 0.5, idx.replace(',', '\n'), va='center', ha='center',
+                                    rotation=45, fontsize=font_size * 2.5)
+
+                        # 画单独的饼图
+                        cmap = LinearSegmentedColormap.from_list('red_to_green', ['darkred', 'darkgreen'])
+                        value_shape = merged_df.values.shape
+                        for i in range(value_shape[0]):
+                            for j in range(value_shape[1]):
+                                value = merged_df.values[i, j]
+                                if not np.isnan(value):
+                                    ax = fig.add_subplot(grid[i + 1, j + 1])
+                                    ax.axis('off')
+                                    sizes = [value, 1 - value]
+                                    colors = ['limegreen', 'lightcoral']
+                                    wedgeprops = {'width': 0.4}  # 设置扇区宽度为0.3，得到一个空心的效果
+                                    ax.pie(sizes, colors=colors, startangle=90, wedgeprops=wedgeprops)
+                                    ax.text(0, 0, f'{value:.2%}', va='center', ha='center',
+                                            fontsize=font_size * 2, color=cmap(value))
+
+                        pic_name = '--'.join(
+                            [scenario_tag, topic, characteristic, obstacle_type]).replace('/', '')
+                        pic_path = os.path.join(visualization_folder, f'{pic_name}.jpg')
+                        print(f'{pic_name} 已保存')
+                        canvas = FigureCanvas(fig)
+                        canvas.print_figure(pic_path, facecolor='white', dpi=100)
+                        fig.clf()
+                        plt.close()
+                        send_log(self, f'汇总百分比 {pic_name} 图片已保存')
+
+                        self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
+                            obstacle_type]['plot'] = self.get_relpath(pic_path)
+
+    @sync_test_result
+    def gen_report(self):
+
+        def get_characteristic_description(characteristic):
+            for topic_belonging in test_encyclopaedia['Information']:
+                for characteristic_des in test_encyclopaedia['Information'][topic_belonging]['characteristic'].values():
+                    if characteristic_des['name'] == characteristic:
+                        return characteristic_des["description"]
+
+        report_title = f'{self.product}_Hil_DataReplay_TestReport'
+        send_log(self, f'开始生成报告 {report_title}')
+
+        title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'TitlePage.png')
+        logo = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'ZoneLogo.png')
+        report_generator = PDFReportTemplate(report_title=report_title,
+                                             test_time=self.test_date.split(' ')[0],
+                                             tester='Hil_DataReplay_TestStand',
+                                             version=self.version,
+                                             title_page=title_background,
+                                             title_summary_img=None,
+                                             logo=logo)
+
+        heading = '报告信息说明'
+        text_list = ['A.测试场景分类:']
+        for i, scenario_tag in enumerate(self.test_result['OutputResult']['visualization'].keys()):
+            text_list.append(f'     {i + 1}. {scenario_tag}')
+        text_list.append(' ')
+
+        text_list.append('B.目标特征分类:')
+        used_characteristics = ['全局目标', '关键目标']
+        for i, characteristic in enumerate(used_characteristics):
+            text_list.append(f'     {i + 1}. {characteristic}: {get_characteristic_description(characteristic)}')
+        text_list.append(' ')
+
+        text_list.append('C. 测试topic:')
+        for i, topic in enumerate(self.test_config['test_item'].keys()):
+            text_list.append(f'     {i + 1}. {topic}')
+        text_list.append(' ')
+
+        text_list.append('D. 测试数据查看方式:')
+        text_list.append('1. 测试结果以 Table+Pie Chart 的方式呈现，行索引为空间位置划分，列索引为测试指标')
+        text_list.append('2. 每组行索引和列索引的组合对应的图呈现为合格率，即空间内的目标的指标统计的合格率')
+        text_list.append('3. 空位置代表样本量不足以产生有统计学意义的结果')
+        text_list.append('4. 测试结果的维度: 场景分类 × 测试topic × 目标特征 × 目标分类')
+
+        send_log(self, f'生成页面 {heading}')
+        report_generator.addOnePage(
+            heading=heading,
+            text_list=text_list,
+            img_list=None,
+        )
+
+        for scenario_tag in self.test_result['OutputResult']['visualization'].keys():
+
+            report_generator.addTitlePage(
+                title=scenario_tag,
+                page_type='sequence',
+                stamp=None,
+                sub_title_list=list(self.test_result[scenario_tag]['scenario_unit'].keys()),
+            )
+
+            # 测试场景展示页面
+            img_count = 0
+            img_list = []
+            for scenario_id, scenario_test_result in self.test_result[scenario_tag]['scenario_unit'].items():
+                scenario_unit_folder = os.path.join(self.scenario_unit_folder, scenario_id)
+                scenario_info_img = os.path.join(scenario_unit_folder, '00_ScenarioInfo', f'{scenario_id}_Info.jpg')
+                img_list.append([scenario_info_img])
+                img_count += 1
+                if img_count == 3 or scenario_id == list(self.test_result[scenario_tag]['scenario_unit'].keys())[-1]:
+                    report_generator.addOnePage(heading=f'{scenario_tag} 场景列表',
+                                                text_list=None,
+                                                img_list=img_list)
+                    img_list = []
+                    img_count = 0
+
+            for topic in self.test_result['OutputResult']['visualization'][scenario_tag].keys():
+                for characteristic in used_characteristics:
+
+                    report_generator.addTitlePage(
+                        title=f'{topic} - {characteristic}',
+                        page_type='sequence',
+                        stamp=None,
+                    )
+
+                    for obstacle_type, v in self.test_result['OutputResult']['visualization'][scenario_tag][topic][
+                        characteristic].items():
+                        df = pd.read_csv(self.get_abspath(v['data']), index_col=0)
+                        plot = self.get_abspath(v['plot'])
+
+                        text_list = []
+                        mean_sorted_columns = df.mean().sort_values().index[:3]
+                        small_mean_columns = [col for col in mean_sorted_columns if df[col].mean() < 0.85]
+                        small_values_columns = [col for col in small_mean_columns for val in df[col] if val < 0.85]
+                        small_values_columns = list(set(small_values_columns))  # 去除重复列名
+                        all_values = df.stack()
+                        smallest_values = all_values.nsmallest(3)
+                        small_values_info = [f'{idx[1]}@{idx[0]}' for idx, val in smallest_values.items() if val < 0.85]
+
+                        if len(small_values_columns):
+                            text_list.append(f'表现较差的指标为{",".join(small_values_columns)}')
+                        if len(small_values_info):
+                            text_list.append(f'表现较差区域和指标组合为{",".join(small_values_info)}')
+
+                        heading = f'{scenario_tag} {topic} {characteristic} {obstacle_type}'
+                        send_log(self, f'生成页面 {heading}')
+                        report_generator.addOnePage(
+                            heading=heading,
+                            text_list=text_list,
+                            img_list=[[plot]],
+                        )
+
+        report_generator.addTitlePage(title='附 录',
+                                      page_type='sequence',
+                                      stamp=None,
+                                      sub_title_list=None)
+
+        # 测试环境
+        heading = '测试环境——硬件在环 | 数采回灌'
+        text = ['将真实控制器部署在仿真测试台架中，将实车路采的传感器数据, '
+                '通过回灌测试设备回放及注入智驾控制器, 模拟运行场景和控制对象:',
+                'A. 实车路采数据: 实车运行时采集的视频图片, 总线Can, Lidar点云等实时数据.',
+                'B. 数据回灌设备: 数采数据后处理, 信号同步, 编码解码等, 模拟传感器输出, 将数据注入控制器.',
+                'C. 智驾控制器: 接收模拟传感器信号, 模拟实车运行场景, 输出算法感知结果.',
+                'D. ECU-Test，实现测试环境自动化运行及数据自动化分析，用于测试用例的执行和测试结果的生成.', ]
+        img = [
+            [os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'DataReplayTestEnv.png')]
+        ]
+        report_generator.addOnePage(heading=heading,
+                                    text_list=text,
+                                    img_list=img)
+
+        # 测试原理
+        heading = '测试原理——硬件在环 | 数采回灌'
+        text = ['对比感知算法结果与参考真值, 计算性能指标, 输出评价结果:',
+                'A. 以标注平台或具备更高感知能力的工具基于数采数据提供标注真值结果作为GroundTruth(GT).',
+                'B. 控制器感知节点订阅信息提供场景各要素特征测量值，MeasuredValue(MV).',
+                'C. 对比并评价感知信息是否符合预期，包括准召率，定位精度, 几何精度, 类型准确度等.',
+                '--------------------',
+                '测试结果局限性:',
+                'A. 测试结果的置信度受限于真值结果对于真实世界的准确程度.',
+                'B. 测试结果的全面性依赖于数采数据的样本规模, 需要时间的积累.']
+        img = [
+            [os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'DataReplayTestPrinciple.png')]
+        ]
+        report_generator.addOnePage(heading=heading,
+                                    text_list=text,
+                                    img_list=img)
+
+        self.report_path = report_generator.genReport(self.task_folder, 1)
+
+    def start(self):
+        if any([value for value in self.test_action['scenario_unit'].values()]):
+            self.analyze_scenario_unit()
+
+        if self.test_action['tag_combination']:
+            self.combine_scenario_tag()
+
+        if self.test_action['output_result']:
+            self.compile_statistics()
+            self.visualize_output()
+
+        if self.test_action['gen_report']:
+            self.gen_report()
+
+    def get_relpath(self, path: str) -> str:
+        return os.path.relpath(path, self.task_folder)
+
+    def get_abspath(self, path: str) -> str:
+        return os.path.join(self.task_folder, path)
+
+    def save_test_result(self):
+        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
+            yaml.dump(self.test_result,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+
+    def load_test_result(self):
+        with open(self.test_result_yaml) as f:
             self.test_result = yaml.load(f, Loader=yaml.FullLoader)

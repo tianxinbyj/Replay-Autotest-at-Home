@@ -17,3 +17,5 @@ pyserial
 moviepy
 Pillow
 pexpect
+openpyxl
+reportlab

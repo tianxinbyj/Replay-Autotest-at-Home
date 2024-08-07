@@ -15,7 +15,6 @@ from Envs.ReplayClient.Modules.DataSelector import data_selector
 
 
 def main():
-    # video_path, frame_number, pic_path
     parser = argparse.ArgumentParser(description="extract frame from video.")
     parser.add_argument("-s", "--scenario_id", type=str, required=True, help="specify scenario id")
     parser.add_argument("-f", "--frame_number", type=int, required=True, help="specify frame number")
