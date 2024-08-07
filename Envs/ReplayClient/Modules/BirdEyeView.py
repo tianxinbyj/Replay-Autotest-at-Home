@@ -360,16 +360,28 @@ class DistortCameraObject:
             newCameraMatrix = np.array([[size[0] / 4, 0, size[0] / 2],
                                         [0, size[0] / 4, size[0] / 2],
                                         [0, 0, 1]])
-            self.mapX, self.mapY = cv2.omnidir.initUndistortRectifyMap(
-                K=self.camera_object.intrinsic[:, :3],
-                D=self.camera_object.distort,
-                xi=self.camera_object.xi,
-                R=np.eye(3),
-                P=newCameraMatrix,
-                size=size,
-                m1type=cv2.CV_16SC2,
-                flags=cv2.omnidir.RECTIFY_PERSPECTIVE
-            )
+            try:
+                self.mapX, self.mapY = cv2.omnidir.initUndistortRectifyMap(
+                    K=self.camera_object.intrinsic[:, :3],
+                    D=self.camera_object.distort,
+                    xi=self.camera_object.xi,
+                    R=np.eye(3),
+                    P=newCameraMatrix,
+                    size=size,
+                    mltype=cv2.CV_16SC2,
+                    flags=cv2.omnidir.RECTIFY_PERSPECTIVE
+                )
+            except:
+                self.mapX, self.mapY = cv2.omnidir.initUndistortRectifyMap(
+                    K=self.camera_object.intrinsic[:, :3],
+                    D=self.camera_object.distort,
+                    xi=self.camera_object.xi,
+                    R=np.eye(3),
+                    P=newCameraMatrix,
+                    size=size,
+                    m1type=cv2.CV_16SC2,
+                    flags=cv2.omnidir.RECTIFY_PERSPECTIVE
+                )
 
         self.new_intrinsic = np.zeros((3, 4))
         self.new_intrinsic[:, 0: 3] = newCameraMatrix
