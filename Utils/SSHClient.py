@@ -2,22 +2,10 @@
 Created on 2024/6/21.  
 @author: Bu Yujun  
 """
-import csv
-import glob
-import json
 import os
-import re
-import shutil
-import socket
-import sys
-import threading
 import time
-import dateparser
 
-import numpy as np
-import pandas as pd
 import paramiko
-import yaml
 
 from Utils.Libs import bench_config
 
@@ -44,6 +32,8 @@ class SSHClient:
             self.password = str(bench_config['ReplayClient']['password'])
         else:
             self.password = str(password)
+
+        self.clear_temp_folder()
 
     def load_info(self, ip, username, password):
         self.ip = ip
@@ -265,9 +255,10 @@ if __name__ == '__main__':
     # ss.stop_replay()
     # ss.stop_replay()
 
+    t0 = time.time()
     local_folder = '/home/zhangliwei01/ZONE/TestProject/2J5'
     ss.cut_frames(scenario_id, frame_index_list=[5, 100, 235, 431], local_folder=local_folder)
-
+    print(time.time() - t0)
     # ss.scp_folder_remote_to_local(local_folder, remote_folder)
     # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
     # ss.clear_temp_folder()

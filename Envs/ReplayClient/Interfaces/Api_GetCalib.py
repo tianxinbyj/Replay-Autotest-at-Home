@@ -27,6 +27,14 @@ def main():
     calib_f = glob.glob(os.path.join(calib_folder, '*calibration.json'))
     if len(calib_f):
         kunyi_calib_file = calib_f[0]
+        origin_calib_folder = os.path.join(get_project_path(), 'Temp', 'origin_calib')
+        if os.path.exists(origin_calib_folder):
+            shutil.rmtree(origin_calib_folder)
+        os.makedirs(origin_calib_folder)
+        new_calib_file = os.path.join(origin_calib_folder, 'calibration.json')
+        shutil.copyfile(kunyi_calib_file, new_calib_file)
+        print('folder', origin_calib_folder)
+
         json_calib_folder = os.path.join(get_project_path(), 'Temp', 'json_calib')
         if os.path.exists(json_calib_folder):
             shutil.rmtree(json_calib_folder)
