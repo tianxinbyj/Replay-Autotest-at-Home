@@ -45,7 +45,7 @@ class PDFReportTemplate:
         self.version = version
         self.logo = logo
         self.report_path = report_path
-        self.base_report_path = '{:s}_{}.pdf'.format(report_title, test_time).replace(' ', '_')
+        self.base_report_path = f'{report_title}.pdf'
         self.organization = '仿真开发与软件测试'
         self.tester = tester
         self.project_path = get_project_path()
@@ -324,18 +324,19 @@ class PDFReportTemplate:
             # report.addPageTemplates([template])
             report.build(self.content, onFirstPage=self.FirstPage, onLaterPages=self.LaterPages)
 
-            cmd = 'cd {:s}; python3 compress.py {:s} -o {:s}'.format(
-                os.path.join(self.project_path, 'Envs', 'Master', 'Modules'), temp_path, temp_path2)
+            cmd = 'cd {:s}; python3 Api_CompressPdf.py {:s} -o {:s}'.format(
+                os.path.join(self.project_path, 'Envs', 'Master', 'Interfaces'), temp_path, temp_path2)
             p = os.popen(cmd)
             p.read()
             shutil.copyfile(temp_path2, path)
             os.remove(temp_path)
             os.remove(temp_path2)
         else:
-            report = SimpleDocTemplate(path, pagesize=landscape(A4),
-                                       rightMargin=self.rightMargin, leftMargin=self.leftMargin,
-                                       topMargin=self.topMargin, bottomMargin=self.bottomMargin,
-                                       )
+            report = SimpleDocTemplate(
+                path,
+                pagesize=landscape(A4), rightMargin=self.rightMargin,
+                leftMargin=self.leftMargin, topMargin=self.topMargin, bottomMargin=self.bottomMargin,
+            )
             # frame = Frame(report.leftMargin, report.bottomMargin, report.width, report.height)
             # template = PageTemplate(id='watermark', frames=[frame], onPage=self.addWatermark)
             # report.addPageTemplates([template])
