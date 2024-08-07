@@ -352,6 +352,9 @@
     - /HPP/VSLAM/LocalizationPreviewInfo
     - /HPP/VSLAM/LocalizationToICM
     - /Diag/ItcDataCollection
+  project_id:
+  - "ACZPD"
+  - "10948"
 ES37:
   ip:
     s32g: 172.31.131.34
@@ -741,6 +744,9 @@ ES37:
     - /HPP/VSLAM/VSLAMMappingStart
     - /SAFrontRadarObject
     - /PI/FS/ObjTracksHorizon
+  project_id:
+  - "ACIPD"
+  - "10804"
 Information:
   Obstacles:
     name: 动态障碍物
@@ -1161,6 +1167,29 @@ Information:
             y:
               - -20
               - 20
+    bug_items:
+      false_positive:
+        name: 正样本误检测
+      false_negative:
+        name: 负样本漏检测
+      false_type:
+        name: 负样本漏检测
+      x_error:
+        name: 纵向距离误差
+      y_error:
+        name: 横向距离误差
+      vx_error:
+        name: 纵向速度误差
+      vy_error:
+        name: 横向速度误差
+      yaw_error:
+        name: 航向角误差
+      length_error:
+        name: 长度误差
+      width_error:
+        name: 宽度误差
+      height_error:
+        name: 高度误差
   Lines:
     name: 车道线
     topics:

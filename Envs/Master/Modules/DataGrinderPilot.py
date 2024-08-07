@@ -903,9 +903,17 @@ class DataGrinderPilotOneCase:
         '''
         os.system(cmd)
 
+        # 建立bug report，并汇总
         for topic_belonging in self.test_result.keys():
             if topic_belonging == 'General':
                 continue
+
+            if 'Obstacles' in topic_belonging:
+                bug_jira_column = [
+                    'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type',
+                    'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
+                    'project_id', 'uuid', 'is_valid'
+                ]
 
             for topic in self.test_result[topic_belonging].keys():
                 if topic == 'GroundTruth':
@@ -915,6 +923,7 @@ class DataGrinderPilotOneCase:
                     send_log(self, f'{topic}没有在test_item中')
                     continue
 
+                bug_jira_rows = []
                 topic_tag = topic.replace('/', '')
                 bug_report_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'bug_report')
                 create_folder(bug_report_folder)
@@ -959,7 +968,37 @@ class DataGrinderPilotOneCase:
                             img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
                         )
 
-                        report_generator.genReport(bug_report_folder, 1)
+                        bug_report_path = report_generator.genReport(bug_report_folder, 1)
+
+                        info = test_encyclopaedia['Information'][topic_belonging]
+                        jira_summary = f'数据回灌感知测试({self.product}-{self.version}-{info["name"]})'
+                        text = [
+                            '测试版本: {:s}, {:s}'.format(self.product, self.version),
+                            '测试时间: {:s}'.format(self.test_config['test_date']),
+                            '异常类型: {:s}'.format(info['bug_items'][bug_type]['name']),
+                            '异常发生时刻的场景和截图见附件',
+                            '-------------',
+                        ]
+                        jira_description = '\n'.join(text)
+                        project_key = self.test_encyclopaedia['project_id'][0]
+                        project_id = self.test_encyclopaedia['project_id'][1]
+
+                        jira_row = [
+                            self.version, info['name'], '&'.join(self.scenario_tag.values()),
+                            topic, info['bug_items'][bug_type]['name'],
+                            bug_info['gt.type_classification'] if bug_info['gt.flag']
+                            else bug_info['pred.type_classification'],
+                            self.scenario_id, jira_summary, jira_description,
+                            '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}' + uuid, 0
+                        ]
+
+                        bug_jira_rows.append(jira_row)
+
+                bug_jira_summary_path = os.path.join(bug_report_folder, 'bug_jira_summary.csv')
+                bug_jira_summary = pd.DataFrame(bug_jira_rows, columns=bug_jira_column)
+                bug_jira_summary.to_csv(bug_jira_summary_path, index=False)
+                print('{:s} 保存完毕'.format(bug_jira_summary_path))
+                self.test_result[topic_belonging][topic]['bug_jira_summary'] = bug_jira_summary_path
 
     def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
 
