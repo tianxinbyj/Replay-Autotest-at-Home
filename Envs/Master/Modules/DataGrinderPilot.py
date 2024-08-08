@@ -653,7 +653,7 @@ class DataGrinderPilotOneCase:
         # 图片拼接: 预览图+地图+自车车速
         overview_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_3000.png')
         overview_img = resize_image_by_height(overview_pic_path, 900)
-        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.jpg')
+        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.png')
         map_pic = resize_image_by_height(map_pic_path, 900)
         ego_vx_pic = self.get_abspath(self.test_result['General']['sync_ego_figure'])
         ego_vx = resize_image_by_height(ego_vx_pic, 900)
