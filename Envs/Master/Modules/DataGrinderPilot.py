@@ -6,6 +6,7 @@ import glob
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 
@@ -941,13 +942,19 @@ class DataGrinderPilotOneCase:
         calibration_json = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib', 'calibration.json')
 
         # 调用给视频截图增加箭头的端口
-        interface_path = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-        cmd = f'''
-        cd {interface_path}; {bench_config['master']['sys_interpreter']} 
-        Api_ProcessVideoShot.py -j {calibration_json} -a {bug_arrow_json_path}
-        '''
-        print(cmd)
-        os.system(cmd)
+        cmd = [
+            f"{bench_config['master']['sys_interpreter']}",
+            "Api_ProcessVideoShot.py",
+            "-j",
+            calibration_json,
+            "-a",
+            bug_arrow_json_path
+        ]
+
+        cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+        # print("stdout:", result.stdout)
+        # print("stderr:", result.stderr)
 
         # 建立bug report，并汇总
         for topic_belonging in self.test_result.keys():
@@ -996,7 +1003,7 @@ class DataGrinderPilotOneCase:
 
                         # 开始生成报告
                         uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{time_stamp}')
-                        report_title = f'{self.product}_{target_type}_{bug_type}_测试异常报告({uuid[:6]})'
+                        report_title = f'{self.product}-{target_type}-{bug_type}-测试异常报告({uuid[:6]})'
                         send_log(self, f'开始生成测试异常报告 {report_title}')
                         print(f'开始生成测试异常报告 {report_title}')
 
@@ -1014,11 +1021,11 @@ class DataGrinderPilotOneCase:
                         img_list = [glob.glob(os.path.join(one_bug_folder, 'CAM_*.jpg'))]
 
                         report_generator.addOnePage(
-                            heading=f'{bug_type} 视频截图@{time_stamp}',
+                            heading=f'{bug_type} 视频截图',
                             text_list=[
                                 f'场景名: {self.scenario_id}',
-                                f'目标类型: {target_type}',
-                                f'发生时刻: {round(time_stamp, 3)} sec / {bug_info["frame_index"]} frame',
+                                f'topic: {topic},      目标类型: {target_type}',
+                                f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame',
                                 '实心箭头为GroundTruth，空心箭头为Prediction',
                             ],
                             img_list=img_list,
@@ -1027,21 +1034,23 @@ class DataGrinderPilotOneCase:
                         text_list = ['id, type, x, y, vx, vy, yaw, length, width, height 信息如下:']
                         if bug_info['gt.flag']:
                             text_list.append(
-                                f"GroundTruth: {bug_info['gt.id']},{bug_info['gt.type_classification']},"
-                                f"{round(bug_info['gt.x'], 2)}m {round(bug_info['gt.y'], 2)}m, "
-                                f"{round(bug_info['gt.vx'], 2)}m/s, {round(bug_info['gt.vy'], 2)}m/s, {round(bug_info['gt.yaw'] * 57.3)}°, "
-                                f"{round(bug_info['gt.length'], 2)}m, {round(bug_info['gt.width'], 2)}m, {round(bug_info['gt.height'], 2)}m"
+                                f"GroundTruth: id-{int(bug_info['gt.id'])}, {bug_info['gt.type_classification']}, "
+                                f"({round(bug_info['gt.x'], 2)}m, {round(bug_info['gt.y'], 2)}m), "
+                                f"({round(bug_info['gt.vx'], 2)}m/s, {round(bug_info['gt.vy'], 2)}m/s), "
+                                f"{round(bug_info['gt.yaw'] * 57.3, 1)}°, "
+                                f"{round(bug_info['gt.length'], 2)}m × {round(bug_info['gt.width'], 2)}m × {round(bug_info['gt.height'], 2)}m"
                             )
                         if bug_info['pred.flag']:
                             text_list.append(
-                                f"Prediction: {bug_info['pred.id']},{bug_info['pred.type_classification']},"
-                                f"{round(bug_info['pred.x'], 2)}m {round(bug_info['pred.y'], 2)}m, "
-                                f"{round(bug_info['pred.vx'], 2)}m/s, {round(bug_info['pred.vy'], 2)}m/s, {round(bug_info['pred.yaw'] * 57.3)}°, "
-                                f"{round(bug_info['pred.length'], 2)}m, {round(bug_info['pred.width'], 2)}m, {round(bug_info['pred.height'], 2)}m"
+                                f"Prediction: id-{int(bug_info['pred.id'])}, {bug_info['pred.type_classification']}, "
+                                f"({round(bug_info['pred.x'], 2)}m, {round(bug_info['pred.y'], 2)}m), "
+                                f"({round(bug_info['pred.vx'], 2)}m/s, {round(bug_info['pred.vy'], 2)}m/s), "
+                                f"{round(bug_info['pred.yaw'] * 57.3, 1)}°, "
+                                f"{round(bug_info['pred.length'], 2)}m × {round(bug_info['pred.width'], 2)}m × {round(bug_info['pred.height'], 2)}m"
                             )
 
                         report_generator.addOnePage(
-                            heading=f'{bug_type} 真值与感知的对比@{time_stamp}',
+                            heading=f'{bug_type} 真值与感知的对比',
                             text_list=text_list,
                             img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
                         )
