@@ -1950,6 +1950,25 @@ class DataGrinderPilotOneTask:
                             obstacle_type]['plot'] = self.get_relpath(pic_path)
 
     @sync_test_result
+    def summary_bug_items(self):
+
+        bugItem_folder = os.path.join(self.result_folder, 'bugItems')
+        create_folder(bugItem_folder)
+        dataframes = []
+
+        for root, dirs, files in os.walk(self.scenario_unit_folder):
+            for file in files:
+                if 'bug_jira_summary.csv' in file:
+                    file_path = os.path.join(root, file)
+                    df = pd.read_csv(file_path, index_col=False)
+                    dataframes.append(df)
+
+        bug_summary = pd.concat(dataframes, ignore_index=True)
+        bug_summary_path = os.path.join(bugItem_folder, 'bug_summary.csv')
+        bug_summary.to_csv(bug_summary_path, index=False, encoding='utf_8_sig')
+        self.test_result['OutputResult']['bugItems'] = self.get_relpath(bug_summary_path)
+
+    @sync_test_result
     def gen_report(self):
 
         def get_characteristic_description(characteristic):
@@ -2111,6 +2130,7 @@ class DataGrinderPilotOneTask:
         if self.test_action['output_result']:
             self.compile_statistics()
             self.visualize_output()
+            self.summary_bug_items()
 
         if self.test_action['gen_report']:
             self.gen_report()
