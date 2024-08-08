@@ -1317,8 +1317,8 @@ class DataGrinderPilotOneCase:
             self.evaluate_metrics()
 
         if self.test_action['bug']:
-            # self.load_scenario_info()
-            # self.sketch_bug()
+            self.load_scenario_info()
+            self.sketch_bug()
             self.bug_report()
 
     def which_camera_saw_you(self, x, y):
