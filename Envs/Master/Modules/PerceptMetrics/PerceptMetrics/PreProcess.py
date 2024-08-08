@@ -120,10 +120,18 @@ class ObstaclesTypeClassification:
 
     def __init__(self, input_parameter_container=None):
         self.columns = [
-            'reserved',
+            'road_user',
             'type_classification'
         ]
         self.type = 'by_row'
+
+        self.type_text = {
+            1: 'car',
+            2: 'pedestrian',
+            4: 'bus',
+            5: 'truck',
+            18: 'cyclist'
+        }
 
     def __call__(self, input_data):
 
@@ -141,22 +149,22 @@ class ObstaclesTypeClassification:
 
         # 第一个为保留位
         if type_ in [2, 18]:
-            return 0, type_
+            return 'VRU', self.type_text[type_]
 
         elif type_ == 1:
             if sub_type in [1, 3, 9, 11]:
-                return 0, 1
+                return 'DRU', self.type_text[1]
             elif sub_type in [5, 12]:
-                return 0, 5
+                return 'DRU', self.type_text[5]
             elif sub_type == 4:
-                return 0, 4
+                return 'DRU', self.type_text[4]
             else:
                 if length <= 5.99:
-                    return 0, 1
+                    return 'DRU', self.type_text[1]
                 else:
-                    return 0, 5
+                    return 'DRU', self.type_text[5]
 
-        return 0, 0
+        return None, None
 
 
 class RectPoints:

@@ -6,18 +6,16 @@ import glob
 import json
 import os
 import shutil
-import subprocess
 import sys
 import time
 
-import pandas as pd
+import matplotlib.lines as mlines
 import numpy as np
+import pandas as pd
 import yaml
 from PIL import Image
-from collections import OrderedDict
-from matplotlib import pyplot as plt, image as mpimg
 from matplotlib import patches as pc
-import matplotlib.lines as mlines
+from matplotlib import pyplot as plt, image as mpimg
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.colors import LinearSegmentedColormap
 from scipy.interpolate import interp1d
@@ -32,7 +30,7 @@ sys.path.append(get_project_path())
 
 from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length
 from Utils.Libs import generate_unique_id, bench_config
-from Utils.Libs import font_size, title_font, axis_font, axis_font_white, text_font, legend_font, mpl_colors
+from Utils.Libs import font_size, title_font, axis_font, legend_font
 from Utils.Logger import send_log
 from Utils.SSHClient import SSHClient
 from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
@@ -585,8 +583,6 @@ class DataGrinderPilotOneCase:
             send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
             metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
             metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
-            evaluate_range = {metric: v['evaluate_range']
-                              for metric, v in test_encyclopaedia['Information'][topic_belonging]['metrics'].items()}
 
             for topic in self.test_result[topic_belonging].keys():
                 if topic == 'GroundTruth':
@@ -606,7 +602,6 @@ class DataGrinderPilotOneCase:
                 match_data = pd.read_csv(self.get_abspath(match_data_path), index_col=False)
                 input_parameter_container = {
                     'metric_type': self.test_config['test_item'][topic],
-                    'evaluate_range': evaluate_range,
                 }
                 input_data = {
                     'data': match_data,
@@ -657,7 +652,7 @@ class DataGrinderPilotOneCase:
         # 图片拼接: 预览图+地图+自车车速
         overview_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_3000.png')
         overview_img = resize_image_by_height(overview_pic_path, 900)
-        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.png')
+        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.jpg')
         map_pic = resize_image_by_height(map_pic_path, 900)
         ego_vx_pic = self.get_abspath(self.test_result['General']['sync_ego_figure'])
         ego_vx = resize_image_by_height(ego_vx_pic, 900)
@@ -685,6 +680,47 @@ class DataGrinderPilotOneCase:
 
     @sync_test_result
     def sketch_bug(self):
+
+        def filter_valid_bug_data(data):
+            if 'gt.flag' in data:
+                data['is_bugArea'] = data.apply(
+                    lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user'])
+                    if row['gt.flag'] == 1 else check_regions(row['pred.x'], row['pred.y'], row['pred.road_user']),
+                    axis=1)
+            else:
+                data['is_bugArea'] = data.apply(
+                    lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user']),
+                    axis=1)
+
+            return data[data['is_bugArea'] == 1]
+
+        def check_regions(x, y, ru):
+            def check_region(pt, region):
+                is_valid_list = []
+                for range_type in ['x', 'y']:
+                    if isinstance(region[range_type][0], float) or isinstance(region[range_type][0], int):
+                        is_valid = region[range_type][0] <= pt[range_type] < region[range_type][1]
+                        is_valid_list.append(is_valid)
+
+                    elif isinstance(region[range_type][0], list) or isinstance(region[range_type][0], tuple):
+                        is_valid = any(
+                            [sub_range_value[0] <= pt[range_type] < sub_range_value[1] for sub_range_value in
+                             region[range_type]])
+                        is_valid_list.append(is_valid)
+
+                return all(is_valid_list)
+
+            pt = {'x': x, 'y': y}
+            if ru == 'DRU':
+                regions = self.test_config['region_division']['DRU'] + self.test_config['region_division']['VRU']
+            else:
+                regions = self.test_config['region_division']['VRU']
+
+            for region in regions:
+                if check_region(pt, region):
+                    return 1
+
+            return 0
 
         # 对于每个频繁的ID，找到时间戳位于中间的行的索引
         def get_middle_index_for_bug(bug_data, sort_value, count_threshold):
@@ -742,7 +778,7 @@ class DataGrinderPilotOneCase:
                 bug_index_dict = {}
                 for metric, data_path in data_for_bug.items():
                     metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
-                    metric_data = metric_data[metric_data['is_statistics_valid'] == 1]
+                    metric_data = filter_valid_bug_data(metric_data)
                     if metric == 'recall_precision':
                         FP_data = metric_data[(metric_data['gt.flag'] == 0)
                                               & (metric_data['pred.flag'] == 1)]
@@ -854,12 +890,14 @@ class DataGrinderPilotOneCase:
                         bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
                         with open(bug_info_json, 'r', encoding='utf-8') as f:
                             bug_info = json.load(f)
+
                         bug_info_for_arrow = {
                             'bug_type': bug_type,
                             'scenario_id': self.scenario_id,
                             'camera': bug_info['camera'],
                             'frame_index': bug_info['frame_index'],
                         }
+
                         if 'Obstacles' in topic_belonging:
                             if bug_info['gt.flag'] == 1:
                                 if bug_info['gt.type_classification'] in [4, 5]:
@@ -867,22 +905,28 @@ class DataGrinderPilotOneCase:
                                 else:
                                     height = 2
                                 bug_info_for_arrow['gt'] = [bug_info['gt.x'], bug_info['gt.y'], height]
+                                bug_info_for_arrow['target_type'] = bug_info['gt.type_classification']
                             if bug_info['pred.flag'] == 1:
                                 if bug_info['pred.type_classification'] in [4, 5]:
                                     height = 4
                                 else:
                                     height = 2
                                 bug_info_for_arrow['pred'] = [bug_info['pred.x'], bug_info['pred.y'], height]
+                                bug_info_for_arrow['target_type'] = bug_info['pred.type_classification']
+
                         elif 'Lines' in topic_belonging:
                             if bug_info['gt.flag'] == 1:
                                 bug_info_for_arrow['gt'] = [15, bug_info['gt.y_15'], 0]
+                                bug_info_for_arrow['target_type'] = bug_info['gt.position']
                             if bug_info['pred.flag'] == 1:
                                 bug_info_for_arrow['pred'] = [15, bug_info['pred.y_15'], 0]
+                                bug_info_for_arrow['target_type'] = bug_info['pred.position']
 
                         bug_info_for_arrow['origin_shot'] = [
                             os.path.join(self.BugFolder, 'General', camera, f'{bug_info["frame_index"]}.jpg')
                             for camera in bug_info['camera']
                         ]
+
                         bug_info_for_arrow['arrow_shot'] = [
                             os.path.join(one_bug_folder, f'{camera}-{self.scenario_id}-{bug_info["frame_index"]}.jpg')
                             for camera in bug_info['camera']
@@ -896,11 +940,13 @@ class DataGrinderPilotOneCase:
 
         calibration_json = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib', 'calibration.json')
 
-        # 调用端口
+        # 调用给视频截图增加箭头的端口
         interface_path = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         cmd = f'''
-        cd {interface_path}; {bench_config['master']['sys_interpreter']} Api_ProcessVideoShot.py -j {calibration_json} -a {bug_arrow_json_path}
+        cd {interface_path}; {bench_config['master']['sys_interpreter']} 
+        Api_ProcessVideoShot.py -j {calibration_json} -a {bug_arrow_json_path}
         '''
+        print(cmd)
         os.system(cmd)
 
         # 建立bug report，并汇总
@@ -914,6 +960,14 @@ class DataGrinderPilotOneCase:
                     'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
                     'project_id', 'uuid', 'is_valid'
                 ]
+            elif 'Lines' in topic_belonging:
+                bug_jira_column = [
+                    'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type',
+                    'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
+                    'project_id', 'uuid', 'is_valid'
+                ]
+            else:
+                continue
 
             for topic in self.test_result[topic_belonging].keys():
                 if topic == 'GroundTruth':
@@ -937,9 +991,12 @@ class DataGrinderPilotOneCase:
                         with open(bug_info_json, 'r', encoding='utf-8') as f:
                             bug_info = json.load(f)
 
+                        target_type = bug_info['gt.type_classification'] if bug_info['gt.flag'] \
+                            else bug_info['pred.type_classification']
+
                         # 开始生成报告
                         uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{time_stamp}')
-                        report_title = f'{self.product}_{bug_type}_测试异常报告({uuid[:6]})'
+                        report_title = f'{self.product}_{target_type}_{bug_type}_测试异常报告({uuid[:6]})'
                         send_log(self, f'开始生成测试异常报告 {report_title}')
                         print(f'开始生成测试异常报告 {report_title}')
 
@@ -958,13 +1015,34 @@ class DataGrinderPilotOneCase:
 
                         report_generator.addOnePage(
                             heading=f'{bug_type} 视频截图@{time_stamp}',
-                            text_list=['实心箭头为truth，空心箭头为predicted'],
+                            text_list=[
+                                f'场景名: {self.scenario_id}',
+                                f'目标类型: {target_type}',
+                                f'发生时刻: {round(time_stamp, 3)} sec / {bug_info["frame_index"]} frame',
+                                '实心箭头为GroundTruth，空心箭头为Prediction',
+                            ],
                             img_list=img_list,
                         )
 
+                        text_list = ['id, type, x, y, vx, vy, yaw, length, width, height 信息如下:']
+                        if bug_info['gt.flag']:
+                            text_list.append(
+                                f"GroundTruth: {bug_info['gt.id']},{bug_info['gt.type_classification']},"
+                                f"{round(bug_info['gt.x'], 2)}m {round(bug_info['gt.y'], 2)}m, "
+                                f"{round(bug_info['gt.vx'], 2)}m/s, {round(bug_info['gt.vy'], 2)}m/s, {round(bug_info['gt.yaw'] * 57.3)}°, "
+                                f"{round(bug_info['gt.length'], 2)}m, {round(bug_info['gt.width'], 2)}m, {round(bug_info['gt.height'], 2)}m"
+                            )
+                        if bug_info['pred.flag']:
+                            text_list.append(
+                                f"Prediction: {bug_info['pred.id']},{bug_info['pred.type_classification']},"
+                                f"{round(bug_info['pred.x'], 2)}m {round(bug_info['pred.y'], 2)}m, "
+                                f"{round(bug_info['pred.vx'], 2)}m/s, {round(bug_info['pred.vy'], 2)}m/s, {round(bug_info['pred.yaw'] * 57.3)}°, "
+                                f"{round(bug_info['pred.length'], 2)}m, {round(bug_info['pred.width'], 2)}m, {round(bug_info['pred.height'], 2)}m"
+                            )
+
                         report_generator.addOnePage(
                             heading=f'{bug_type} 真值与感知的对比@{time_stamp}',
-                            text_list=None,
+                            text_list=text_list,
                             img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
                         )
 
@@ -985,9 +1063,7 @@ class DataGrinderPilotOneCase:
 
                         jira_row = [
                             self.version, info['name'], '&'.join(self.scenario_tag.values()),
-                            topic, info['bug_items'][bug_type]['name'],
-                            bug_info['gt.type_classification'] if bug_info['gt.flag']
-                            else bug_info['pred.type_classification'],
+                            topic, info['bug_items'][bug_type]['name'], target_type,
                             self.scenario_id, jira_summary, jira_description,
                             '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}' + uuid, 0
                         ]
@@ -998,7 +1074,7 @@ class DataGrinderPilotOneCase:
                 bug_jira_summary = pd.DataFrame(bug_jira_rows, columns=bug_jira_column)
                 bug_jira_summary.to_csv(bug_jira_summary_path, index=False)
                 print('{:s} 保存完毕'.format(bug_jira_summary_path))
-                self.test_result[topic_belonging][topic]['bug_jira_summary'] = bug_jira_summary_path
+                self.test_result[topic_belonging][topic]['bug_jira_summary'] = self.get_relpath(bug_jira_summary_path)
 
     def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
 
@@ -1163,7 +1239,11 @@ class DataGrinderPilotOneCase:
                                pedestrian_rectangle, bus_rectangle, truck_rectangle, cyclist_rectangle], fontsize=13)
 
         color_type = {
-            1: '#3682be', 2: '#45a776', 4: '#f05326', 5: '#800080', 18: '#334f65',
+            'car': '#3682be',
+            'pedestrian': '#45a776',
+            'bus': '#f05326',
+            'truck': '#800080',
+            'cyclist': '#334f65',
         }
 
         # 开始画图
@@ -1335,6 +1415,7 @@ class DataGrinderPilotOneTask:
                     'scenario_id': scenario_id,
                     'pred_ROI': self.test_config['pred_ROI'],
                     'gt_ROI': self.test_config['gt_ROI'],
+                    'region_division': self.test_config['region_division'],
                     'coverage_reference_point': self.test_config['coverage_reference_point'],
                     'timestamp_matching_tolerance': self.test_config['timestamp_matching_tolerance'],
                     'coverage_threshold': self.test_config['coverage_threshold'],
@@ -1414,9 +1495,6 @@ class DataGrinderPilotOneTask:
                 send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
                 metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
                 metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
-                evaluate_range = {metric: v['evaluate_range']
-                                  for metric, v in
-                                  test_encyclopaedia['Information'][topic_belonging]['metrics'].items()}
 
                 for topic, df_list in match_data_dict[tag_key][topic_belonging].items():
                     topic_tag = topic.replace('/', '')
@@ -1425,7 +1503,6 @@ class DataGrinderPilotOneTask:
 
                     input_parameter_container = {
                         'metric_type': self.test_config['test_item'][topic],
-                        'evaluate_range': evaluate_range,
                     }
                     input_data = {
                         'data': total_match_data,
