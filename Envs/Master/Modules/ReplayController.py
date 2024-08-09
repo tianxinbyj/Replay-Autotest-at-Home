@@ -13,6 +13,7 @@ import time
 import pandas as pd
 import yaml
 
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from Libs import get_project_path
 from Ros2BagParser import Ros2BagParser
 from Ros2BagRecorder import Ros2BagRecorder
@@ -331,31 +332,31 @@ if __name__ == '__main__':
         'replay_end': 95,
         'scenario_id': [
             '20230602_144755_n000003',
-            '20230627_170934_n000001',
-            '20230703_103858_n000003',
-            '20230703_105701_n000001',
-            # '20230706_160503_n000001',
-            # '20230706_161116_n000001',
-            # '20230706_162037_n000001',
-            '20230602_144755_n000005',
-            '20230614_135643_n000001',
-            '20230614_142204_n000004',
-            '20230627_173157_n000001',
-            # '20230706_165109_n000002',
-            # '20230706_184054_n000001',
+            # '20230627_170934_n000001',
+            # '20230703_103858_n000003',
+            # '20230703_105701_n000001',
+            # # '20230706_160503_n000001',
+            # # '20230706_161116_n000001',
+            # # '20230706_162037_n000001',
+            # '20230602_144755_n000005',
+            # '20230614_135643_n000001',
+            # '20230614_142204_n000004',
+            # '20230627_173157_n000001',
+            # # '20230706_165109_n000002',
+            # # '20230706_184054_n000001',
         ],
         'data_folder': {
             'raw': {
-                'pred': '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/01_Prediction',
-                'gt': '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/02_GroundTruth',
+                'pred': '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240808_030001/01_Prediction',
+                'gt': '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240808_030001/02_GroundTruth',
             },
-            'workspace': '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace',
+            'workspace': '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240808_030001/03_Workspace',
         },
         'replay_action': {
             'calib': False,
             'record': True,
             'get_gt': False,
-            'bag_update': False,
+            'bag_update': True,
         },
         'product': 'ES37',
         'test_type': 'pilot',

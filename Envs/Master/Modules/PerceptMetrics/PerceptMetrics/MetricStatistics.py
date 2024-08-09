@@ -426,11 +426,11 @@ class ObstaclesMetricStatistics:
 
                     json_datas.append(
                         {
-                            'characteristic': characteristic_text[characteristic],
-                            'region': region_text,
-                            'type': type_classification_text[type_classification],
-                            'metric': metric_text[metric],
-                            'result': res,
+                            'FeatureDetail': characteristic_text[characteristic],
+                            'RangeDetails': region_text,
+                            'ObstacleName': type_classification_text[type_classification],
+                            'MetricTypeName': metric_text[metric],
+                            'Output': res,
                         })
 
         return json_datas

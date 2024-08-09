@@ -1616,13 +1616,12 @@ class DataGrinderPilotOneTask:
                             characteristic]
 
                         info_json_data = {
-                            'test_db_id': self.test_db_id,
-                            'product': self.product,
-                            'version': self.version,
-                            'test_date': str(self.test_date),
+                            'Product': self.product,
+                            'Version': self.version,
+                            'StartTime': str(self.test_date),
                             **{tag_type: tag_value for tag_type, tag_value in tag.items()},
-                            'scenario_list': scenario_list,
-                            'topic': topic}
+                            'ScenarioGroup': scenario_list,
+                            'TopicName': topic}
 
                         data = {
                             metric: pd.read_csv(self.get_abspath(data_path), index_col=False)
@@ -1641,12 +1640,12 @@ class DataGrinderPilotOneTask:
 
                             # 保存单个json文件
                             json_count += 1
-                            json_name = (f'{json_count:06d}--{tag_key}--{topic_tag}--{json_data["type"]}'
-                                         f'--{json_data["region"]}--{json_data["characteristic"]}--{json_data["metric"]}.json')
+                            json_name = (f'{json_count:06d}--{tag_key}--{topic_tag}--{json_data["ObstacleName"]}'
+                                         f'--{json_data["RangeDetails"]}--{json_data["FeatureDetail"]}--{json_data["MetricTypeName"]}.json')
                             json_path = os.path.join(json_folder, json_name)
 
                             frequency_threshold = self.test_result[tag_key]['frequency'] * 2
-                            if json_data['result']['sample_count'] < frequency_threshold:
+                            if json_data['Output']['sample_count'] < frequency_threshold:
                                 print(f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
                                 continue
 
@@ -1657,9 +1656,9 @@ class DataGrinderPilotOneTask:
                             # 保存json文件的目录
                             json_rows.append(
                                 [
-                                    json_count, tag_key, topic, json_data['type'], json_data['region'],
-                                    json_data['characteristic'], json_data['metric'],
-                                    json_data['result']['sample_count'], json.dumps(json_data['result'])
+                                    json_count, tag_key, topic, json_data['ObstacleName'], json_data['RangeDetails'],
+                                    json_data['FeatureDetail'], json_data['MetricTypeName'],
+                                    json_data['Output']['sample_count'], json.dumps(json_data['Output'])
                                 ]
                             )
 
