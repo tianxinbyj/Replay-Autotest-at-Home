@@ -683,7 +683,36 @@ class DataGrinderPilotOneCase:
     def sketch_bug(self):
 
         def filter_valid_bug_data(data):
-            if 'gt.flag' in data:
+
+            def check_regions(x, y, ru):
+                def check_region(pt, region):
+                    is_valid_list = []
+                    for range_type in ['x', 'y']:
+                        if isinstance(region[range_type][0], float) or isinstance(region[range_type][0], int):
+                            is_valid = region[range_type][0] <= pt[range_type] < region[range_type][1]
+                            is_valid_list.append(is_valid)
+
+                        elif isinstance(region[range_type][0], list) or isinstance(region[range_type][0], tuple):
+                            is_valid = any(
+                                [sub_range_value[0] <= pt[range_type] < sub_range_value[1] for sub_range_value in
+                                 region[range_type]])
+                            is_valid_list.append(is_valid)
+
+                    return all(is_valid_list)
+
+                pt = {'x': x, 'y': y}
+                if ru == 'DRU':
+                    regions = self.test_config['region_division']['DRU'] + self.test_config['region_division']['VRU']
+                else:
+                    regions = self.test_config['region_division']['VRU']
+
+                for region in regions:
+                    if check_region(pt, region):
+                        return 1
+
+                return 0
+
+            if 'gt.flag' in data.columns:
                 data['is_bugArea'] = data.apply(
                     lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user'])
                     if row['gt.flag'] == 1 else check_regions(row['pred.x'], row['pred.y'], row['pred.road_user']),
@@ -694,34 +723,6 @@ class DataGrinderPilotOneCase:
                     axis=1)
 
             return data[data['is_bugArea'] == 1]
-
-        def check_regions(x, y, ru):
-            def check_region(pt, region):
-                is_valid_list = []
-                for range_type in ['x', 'y']:
-                    if isinstance(region[range_type][0], float) or isinstance(region[range_type][0], int):
-                        is_valid = region[range_type][0] <= pt[range_type] < region[range_type][1]
-                        is_valid_list.append(is_valid)
-
-                    elif isinstance(region[range_type][0], list) or isinstance(region[range_type][0], tuple):
-                        is_valid = any(
-                            [sub_range_value[0] <= pt[range_type] < sub_range_value[1] for sub_range_value in
-                             region[range_type]])
-                        is_valid_list.append(is_valid)
-
-                return all(is_valid_list)
-
-            pt = {'x': x, 'y': y}
-            if ru == 'DRU':
-                regions = self.test_config['region_division']['DRU'] + self.test_config['region_division']['VRU']
-            else:
-                regions = self.test_config['region_division']['VRU']
-
-            for region in regions:
-                if check_region(pt, region):
-                    return 1
-
-            return 0
 
         # 对于每个频繁的ID，找到时间戳位于中间的行的索引
         def get_middle_index_for_bug(bug_data, sort_value, count_threshold):
@@ -771,93 +772,96 @@ class DataGrinderPilotOneCase:
                 frame_threshold = round(self.test_result[topic_belonging][topic]['match_frequency'])
                 print(f'出现次数低于{frame_threshold}的bug会被忽视')
 
-                # 只用keyObj的目标分析bug
-                if 'is_keyObj' not in self.test_result[topic_belonging][topic]['metric']:
-                    continue
-
-                data_for_bug = self.test_result[topic_belonging][topic]['metric']['is_keyObj']
-                bug_index_dict = {}
-                for metric, data_path in data_for_bug.items():
-                    metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
-                    metric_data = filter_valid_bug_data(metric_data)
-                    if metric == 'recall_precision':
-                        FP_data = metric_data[(metric_data['gt.flag'] == 0)
-                                              & (metric_data['pred.flag'] == 1)]
-                        FN_data = metric_data[(metric_data['gt.flag'] == 1)
-                                              & (metric_data['pred.flag'] == 0)]
-                        NCTP_data = metric_data[(metric_data['CTP'] == 0)
-                                                & (metric_data['gt.flag'] == 1)
-                                                & (metric_data['pred.flag'] == 1)]
-
-                        bug_index_dict['false_positive'] = FP_data['corresponding_index'].to_list()
-                        bug_index_dict['false_negative'] = FN_data['corresponding_index'].to_list()
-                        bug_index_dict['false_type'] = NCTP_data['corresponding_index'].to_list()
-
-                    else:
-                        error_data = metric_data[metric_data['is_abnormal'] == 1]
-                        bug_index_dict[metric] = error_data['corresponding_index'].to_list()
-
                 # 使用total中的recall_precision数据可视化，但只抓去keyObj的bug
                 total_data_path = self.test_result[topic_belonging][topic]['metric']['total']['recall_precision']
                 total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
-                for bug_type, corresponding_index in bug_index_dict.items():
-                    bug_type_folder = os.path.join(sketch_folder, bug_type)
 
-                    bug_data = total_data[total_data['corresponding_index'].isin(corresponding_index)]
-                    # 根据id的出现次数排序
-                    if bug_type == 'false_positive':
-                        sorted_id = 'pred.id'
-                    else:
-                        sorted_id = 'gt.id'
+                for characteristic in self.test_result[topic_belonging][topic]['metric']:
+                    if characteristic == 'total':
+                        continue
 
-                    bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
-                    for bug_corresponding_index in bug_corresponding_indices:
-                        row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
+                    self.test_result[topic_belonging][topic]['bug'][characteristic] = {}
+                    data_for_bug = self.test_result[topic_belonging][topic]['metric'][characteristic]
+                    bug_index_dict = {}
+                    for metric, data_path in data_for_bug.items():
+                        metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
+                        metric_data = filter_valid_bug_data(metric_data)
+                        if metric == 'recall_precision':
+                            FP_data = metric_data[(metric_data['gt.flag'] == 0)
+                                                  & (metric_data['pred.flag'] == 1)]
+                            FN_data = metric_data[(metric_data['gt.flag'] == 1)
+                                                  & (metric_data['pred.flag'] == 0)]
+                            NCTP_data = metric_data[(metric_data['CTP'] == 0)
+                                                    & (metric_data['gt.flag'] == 1)
+                                                    & (metric_data['pred.flag'] == 1)]
 
-                        time_stamp = row['gt.time_stamp']
-                        frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
-                        # 如果这一书帧内没有gt或者没有pred，暂时先不提bug
-                        if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
-                            continue
+                            bug_index_dict['false_positive'] = FP_data['corresponding_index'].to_list()
+                            bug_index_dict['false_negative'] = FN_data['corresponding_index'].to_list()
+                            bug_index_dict['false_type'] = NCTP_data['corresponding_index'].to_list()
 
-                        one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
-                        create_folder(one_bug_folder)
-                        if bug_type not in self.test_config['test_item']:
-                            self.test_result[topic_belonging][topic]['bug'][bug_type] = self.get_relpath(bug_type_folder)
-
-                        plot_path = os.path.join(one_bug_folder, 'bug_sketch.jpg')
-                        frame_bug_info = {
-                            'gt': {bug_type: [row['gt.id']]}, 'pred': {bug_type: [row['pred.id']]},
-                        }
-                        print(f'保存 {topic} {bug_type} {time_stamp}的图片')
-                        self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info)
-
-                        # 选择截图的相机
-                        if row['gt.flag'] == 1:
-                            cameras = self.which_camera_saw_you(row['gt.x'], row['gt.y'])
                         else:
-                            cameras = self.which_camera_saw_you(row['pred.x'], row['pred.y'])
+                            error_data = metric_data[metric_data['is_abnormal'] == 1]
+                            bug_index_dict[metric] = error_data['corresponding_index'].to_list()
 
-                        frame_index = round((time_stamp - video_start_time) * fps)
-                        for camera in cameras:
-                            if camera not in video_snap_dict:
-                                video_snap_dict[camera] = []
-                            if frame_index not in video_snap_dict[camera]:
-                                video_snap_dict[camera].append(frame_index)
+                    for bug_type, corresponding_index in bug_index_dict.items():
+                        bug_type_folder = os.path.join(sketch_folder, characteristic, bug_type)
+                        bug_data = total_data[total_data['corresponding_index'].isin(corresponding_index)]
+                        # 根据id的出现次数排序
+                        if bug_type == 'false_positive':
+                            sorted_id = 'pred.id'
+                        else:
+                            sorted_id = 'gt.id'
 
-                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
-                        print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
-                        bug_info = row.to_dict()
-                        bug_info['frame_index'] = frame_index
-                        bug_info['camera'] = cameras
-                        with open(os.path.join(one_bug_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
-                            json.dump(bug_info, f, ensure_ascii=False, indent=4)
+                        bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
+                        for bug_corresponding_index in bug_corresponding_indices:
+                            row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
+
+                            time_stamp = row['gt.time_stamp']
+                            frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
+                            # 如果这一书帧内没有gt或者没有pred，暂时先不提bug
+                            if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
+                                continue
+
+                            one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
+                            create_folder(one_bug_folder)
+                            if bug_type not in self.test_config['test_item']:
+                                self.test_result[topic_belonging][topic]['bug'][characteristic][bug_type] = (
+                                    self.get_relpath(bug_type_folder))
+
+                            plot_path = os.path.join(one_bug_folder, 'bug_sketch.jpg')
+                            frame_bug_info = {
+                                'gt': {bug_type: [row['gt.id']]}, 'pred': {bug_type: [row['pred.id']]},
+                            }
+                            print(f'保存 {topic} {bug_type} {time_stamp}的图片')
+                            self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info)
+
+                            # 选择截图的相机
+                            if row['gt.flag'] == 1:
+                                cameras = self.which_camera_saw_you(row['gt.x'], row['gt.y'])
+                            else:
+                                cameras = self.which_camera_saw_you(row['pred.x'], row['pred.y'])
+
+                            frame_index = round((time_stamp - video_start_time) * fps)
+                            for camera in cameras:
+                                if camera not in video_snap_dict:
+                                    video_snap_dict[camera] = []
+                                if frame_index not in video_snap_dict[camera]:
+                                    video_snap_dict[camera].append(frame_index)
+
+                            send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                            print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                            bug_info = row.to_dict()
+                            bug_info['frame_index'] = frame_index
+                            bug_info['camera'] = cameras
+                            with open(os.path.join(one_bug_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
+                                json.dump(bug_info, f, ensure_ascii=False, indent=4)
 
         # 启用ssh_client
         replay_client = SSHClient()
         video_snap_folder = os.path.join(self.BugFolder, 'General')
         create_folder(video_snap_folder)
 
+        # 按照相机批量截图并复制到本机
         for camera, frame_index_snap_list in video_snap_dict.items():
             camera_folder = os.path.join(video_snap_folder, camera)
             create_folder(camera_folder)
@@ -867,10 +871,7 @@ class DataGrinderPilotOneCase:
                                      camera=camera,
                                      local_folder=camera_folder)
 
-    @sync_test_result
-    def bug_report(self):
-
-        # 第一步将bug需要加箭头的内容保存为一个json，批量处理
+        # 将bug需要加箭头的内容保存为一个json，批量处理
         bug_arrow_list = []
         for topic_belonging in self.test_result.keys():
             if topic_belonging == 'General':
@@ -884,56 +885,58 @@ class DataGrinderPilotOneCase:
                     send_log(self, f'{topic}没有在test_item中')
                     continue
 
-                for bug_type, bug_type_folder in self.test_result[topic_belonging][topic]['bug'].items():
+                for characteristic in self.test_result[topic_belonging][topic]['bug']:
+                    for bug_type, bug_type_folder in self.test_result[topic_belonging][topic]['bug'][characteristic].items():
 
-                    for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
-                        one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
-                        bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
-                        with open(bug_info_json, 'r', encoding='utf-8') as f:
-                            bug_info = json.load(f)
+                        for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+                            one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
+                            bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
+                            with open(bug_info_json, 'r', encoding='utf-8') as f:
+                                bug_info = json.load(f)
 
-                        bug_info_for_arrow = {
-                            'bug_type': bug_type,
-                            'scenario_id': self.scenario_id,
-                            'camera': bug_info['camera'],
-                            'frame_index': bug_info['frame_index'],
-                        }
+                            bug_info_for_arrow = {
+                                'characteristic': characteristic,
+                                'bug_type': bug_type,
+                                'scenario_id': self.scenario_id,
+                                'camera': bug_info['camera'],
+                                'frame_index': bug_info['frame_index'],
+                            }
 
-                        if 'Obstacles' in topic_belonging:
-                            if bug_info['gt.flag'] == 1:
-                                if bug_info['gt.type_classification'] in [4, 5]:
-                                    height = 4
-                                else:
-                                    height = 2
-                                bug_info_for_arrow['gt'] = [bug_info['gt.x'], bug_info['gt.y'], height]
-                                bug_info_for_arrow['target_type'] = bug_info['gt.type_classification']
-                            if bug_info['pred.flag'] == 1:
-                                if bug_info['pred.type_classification'] in [4, 5]:
-                                    height = 4
-                                else:
-                                    height = 2
-                                bug_info_for_arrow['pred'] = [bug_info['pred.x'], bug_info['pred.y'], height]
-                                bug_info_for_arrow['target_type'] = bug_info['pred.type_classification']
+                            if 'Obstacles' in topic_belonging:
+                                if bug_info['gt.flag'] == 1:
+                                    if bug_info['gt.type_classification'] in [4, 5]:
+                                        height = 4
+                                    else:
+                                        height = 2
+                                    bug_info_for_arrow['gt'] = [bug_info['gt.x'], bug_info['gt.y'], height]
+                                    bug_info_for_arrow['target_type'] = bug_info['gt.type_classification']
+                                if bug_info['pred.flag'] == 1:
+                                    if bug_info['pred.type_classification'] in [4, 5]:
+                                        height = 4
+                                    else:
+                                        height = 2
+                                    bug_info_for_arrow['pred'] = [bug_info['pred.x'], bug_info['pred.y'], height]
+                                    bug_info_for_arrow['target_type'] = bug_info['pred.type_classification']
 
-                        elif 'Lines' in topic_belonging:
-                            if bug_info['gt.flag'] == 1:
-                                bug_info_for_arrow['gt'] = [15, bug_info['gt.y_15'], 0]
-                                bug_info_for_arrow['target_type'] = bug_info['gt.position']
-                            if bug_info['pred.flag'] == 1:
-                                bug_info_for_arrow['pred'] = [15, bug_info['pred.y_15'], 0]
-                                bug_info_for_arrow['target_type'] = bug_info['pred.position']
+                            elif 'Lines' in topic_belonging:
+                                if bug_info['gt.flag'] == 1:
+                                    bug_info_for_arrow['gt'] = [15, bug_info['gt.y_15'], 0]
+                                    bug_info_for_arrow['target_type'] = bug_info['gt.position']
+                                if bug_info['pred.flag'] == 1:
+                                    bug_info_for_arrow['pred'] = [15, bug_info['pred.y_15'], 0]
+                                    bug_info_for_arrow['target_type'] = bug_info['pred.position']
 
-                        bug_info_for_arrow['origin_shot'] = [
-                            os.path.join(self.BugFolder, 'General', camera, f'{bug_info["frame_index"]}.jpg')
-                            for camera in bug_info['camera']
-                        ]
+                            bug_info_for_arrow['origin_shot'] = [
+                                os.path.join(self.BugFolder, 'General', camera, f'{bug_info["frame_index"]}.jpg')
+                                for camera in bug_info['camera']
+                            ]
 
-                        bug_info_for_arrow['arrow_shot'] = [
-                            os.path.join(one_bug_folder, f'{camera}-{self.scenario_id}-{bug_info["frame_index"]}.jpg')
-                            for camera in bug_info['camera']
-                        ]
+                            bug_info_for_arrow['arrow_shot'] = [
+                                os.path.join(one_bug_folder, f'{camera}-{self.scenario_id}-{bug_info["frame_index"]}.jpg')
+                                for camera in bug_info['camera']
+                            ]
 
-                        bug_arrow_list.append(bug_info_for_arrow)
+                            bug_arrow_list.append(bug_info_for_arrow)
 
         bug_arrow_json_path = os.path.join(self.BugFolder, 'General', 'bug_arrow.json')
         with open(bug_arrow_json_path, 'w') as json_file:
@@ -955,6 +958,9 @@ class DataGrinderPilotOneCase:
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
         # print("stdout:", result.stdout)
         # print("stderr:", result.stderr)
+
+    @sync_test_result
+    def bug_report(self):
 
         # 建立bug report，并汇总
         for topic_belonging in self.test_result.keys():
@@ -986,104 +992,132 @@ class DataGrinderPilotOneCase:
 
                 bug_jira_rows = []
                 topic_tag = topic.replace('/', '')
-                bug_report_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'bug_report')
-                create_folder(bug_report_folder)
 
-                for bug_type, bug_type_folder in self.test_result[topic_belonging][topic]['bug'].items():
+                for characteristic in self.test_result[topic_belonging][topic]['bug']:
+                    bug_report_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'bug_report', characteristic)
+                    create_folder(bug_report_folder)
 
-                    for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
-                        one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
+                    for bug_type, bug_type_folder in self.test_result[topic_belonging][topic]['bug'][characteristic].items():
 
-                        bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
-                        with open(bug_info_json, 'r', encoding='utf-8') as f:
-                            bug_info = json.load(f)
+                        for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+                            one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
 
-                        target_type = bug_info['gt.type_classification'] if bug_info['gt.flag'] \
-                            else bug_info['pred.type_classification']
+                            bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
+                            with open(bug_info_json, 'r', encoding='utf-8') as f:
+                                bug_info = json.load(f)
 
-                        # 开始生成报告
-                        uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{time_stamp}')
-                        report_title = f'{self.product}-{target_type}-{bug_type}-测试异常报告({uuid[:6]})'
-                        send_log(self, f'开始生成测试异常报告 {report_title}')
-                        print(f'开始生成测试异常报告 {report_title}')
+                            # 获得目标类型
+                            target_type = bug_info['gt.type_classification'] if bug_info['gt.flag'] \
+                                else bug_info['pred.type_classification']
 
-                        title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure',
-                                                        'TitlePage.png')
-                        logo = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'ZoneLogo.png')
-                        report_generator = PDFReportTemplate(report_title=report_title,
-                                                             test_time=f'{topic} {bug_type}',
-                                                             tester=self.scenario_id,
-                                                             version=self.version,
-                                                             title_page=title_background,
-                                                             title_summary_img=None,
-                                                             logo=logo)
+                            # 获得目标id
+                            target_id = bug_info['gt.id'] if bug_info['gt.flag'] else bug_info['pred.id']
 
-                        img_list = [glob.glob(os.path.join(one_bug_folder, 'CAM_*.jpg'))]
+                            # 获得目标特征
+                            target_characteristic = []
+                            if bug_info['gt.flag']:
+                                if bug_info['gt.is_coverageValid']:
+                                    target_characteristic.append(f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                                else:
+                                    target_characteristic.append(f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                                if bug_info['gt.is_keyObj']:
+                                    target_characteristic.append('是关键目标')
+                                else:
+                                    target_characteristic.append('非关键目标')
+                            else:
+                                if bug_info['pred.is_coverageValid']:
+                                    target_characteristic.append(f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                                else:
+                                    target_characteristic.append(f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                                if bug_info['pred.is_keyObj']:
+                                    target_characteristic.append('是关键目标')
+                                else:
+                                    target_characteristic.append('非关键目标')
+                            target_characteristic = '&'.join(target_characteristic)
 
-                        report_generator.addOnePage(
-                            heading=f'{bug_type} 视频截图',
-                            text_list=[
-                                f'场景名: {self.scenario_id}',
-                                f'topic: {topic},      目标类型: {target_type}',
-                                f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame',
-                                '实心箭头为GroundTruth，空心箭头为Prediction',
-                            ],
-                            img_list=img_list,
-                        )
+                            # 开始生成报告
+                            uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{target_id}')
+                            report_title = f'{self.product}-{target_type}-{bug_type}-测试异常报告({uuid[:6]})'
+                            send_log(self, f'开始生成测试异常报告 {report_title}')
+                            print(f'开始生成测试异常报告 {report_title}')
 
-                        text_list = ['id, type, x, y, vx, vy, yaw, length, width, height 信息如下:']
-                        if bug_info['gt.flag']:
-                            text_list.append(
-                                f"GroundTruth: id-{int(bug_info['gt.id'])}, {bug_info['gt.type_classification']}, "
-                                f"({round(bug_info['gt.x'], 2)}m, {round(bug_info['gt.y'], 2)}m), "
-                                f"({round(bug_info['gt.vx'], 2)}m/s, {round(bug_info['gt.vy'], 2)}m/s), "
-                                f"{round(bug_info['gt.yaw'] * 57.3, 1)}°, "
-                                f"{round(bug_info['gt.length'], 2)}m × {round(bug_info['gt.width'], 2)}m × {round(bug_info['gt.height'], 2)}m"
+                            title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure',
+                                                            'TitlePage.png')
+                            logo = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'ZoneLogo.png')
+                            report_generator = PDFReportTemplate(report_title=report_title,
+                                                                 test_time=f'{topic} {bug_type}',
+                                                                 tester=self.scenario_id,
+                                                                 version=self.version,
+                                                                 title_page=title_background,
+                                                                 title_summary_img=None,
+                                                                 logo=logo)
+
+                            img_list = [glob.glob(os.path.join(one_bug_folder, 'CAM_*.jpg'))]
+
+                            report_generator.addOnePage(
+                                heading=f'{bug_type} 视频截图',
+                                text_list=[
+                                    f'场景名: {self.scenario_id}',
+                                    f'topic: {topic}, 目标类型: {target_type}, 目标特征: {target_characteristic}',
+                                    f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame',
+                                    '实心箭头为GroundTruth，空心箭头为Prediction',
+                                ],
+                                img_list=img_list,
                             )
-                        if bug_info['pred.flag']:
-                            text_list.append(
-                                f"Prediction: id-{int(bug_info['pred.id'])}, {bug_info['pred.type_classification']}, "
-                                f"({round(bug_info['pred.x'], 2)}m, {round(bug_info['pred.y'], 2)}m), "
-                                f"({round(bug_info['pred.vx'], 2)}m/s, {round(bug_info['pred.vy'], 2)}m/s), "
-                                f"{round(bug_info['pred.yaw'] * 57.3, 1)}°, "
-                                f"{round(bug_info['pred.length'], 2)}m × {round(bug_info['pred.width'], 2)}m × {round(bug_info['pred.height'], 2)}m"
+
+                            text_list = ['id, type, x, y, vx, vy, yaw, length, width, height 信息如下:']
+                            if bug_info['gt.flag']:
+                                text_list.append(
+                                    f"GroundTruth: id-{int(bug_info['gt.id'])}, {bug_info['gt.type_classification']}, "
+                                    f"({round(bug_info['gt.x'], 2)}m, {round(bug_info['gt.y'], 2)}m), "
+                                    f"({round(bug_info['gt.vx'], 2)}m/s, {round(bug_info['gt.vy'], 2)}m/s), "
+                                    f"{round(bug_info['gt.yaw'] * 57.3, 1)}°, "
+                                    f"{round(bug_info['gt.length'], 2)}m × {round(bug_info['gt.width'], 2)}m × {round(bug_info['gt.height'], 2)}m"
+                                )
+                            if bug_info['pred.flag']:
+                                text_list.append(
+                                    f"Prediction: id-{int(bug_info['pred.id'])}, {bug_info['pred.type_classification']}, "
+                                    f"({round(bug_info['pred.x'], 2)}m, {round(bug_info['pred.y'], 2)}m), "
+                                    f"({round(bug_info['pred.vx'], 2)}m/s, {round(bug_info['pred.vy'], 2)}m/s), "
+                                    f"{round(bug_info['pred.yaw'] * 57.3, 1)}°, "
+                                    f"{round(bug_info['pred.length'], 2)}m × {round(bug_info['pred.width'], 2)}m × {round(bug_info['pred.height'], 2)}m"
+                                )
+
+                            report_generator.addOnePage(
+                                heading=f'{bug_type} 真值与感知的对比',
+                                text_list=text_list,
+                                img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
                             )
 
-                        report_generator.addOnePage(
-                            heading=f'{bug_type} 真值与感知的对比',
-                            text_list=text_list,
-                            img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
-                        )
+                            bug_report_path = report_generator.genReport(bug_report_folder, 1)
 
-                        bug_report_path = report_generator.genReport(bug_report_folder, 1)
+                            info = test_encyclopaedia['Information'][topic_belonging]
+                            jira_summary = f'数据回灌感知测试({self.product}-{self.version}-{info["name"]})'
+                            text = [
+                                '测试版本: {:s}, {:s}'.format(self.product, self.version),
+                                '测试时间: {:s}'.format(self.test_config['test_date']),
+                                '异常类型: {:s}'.format(info['bug_items'][bug_type]['name']),
+                                '异常发生时刻的场景和截图见附件',
+                                '-------------',
+                            ]
+                            jira_description = '\n'.join(text)
+                            project_key = self.test_encyclopaedia['project_id'][0]
+                            project_id = self.test_encyclopaedia['project_id'][1]
 
-                        info = test_encyclopaedia['Information'][topic_belonging]
-                        jira_summary = f'数据回灌感知测试({self.product}-{self.version}-{info["name"]})'
-                        text = [
-                            '测试版本: {:s}, {:s}'.format(self.product, self.version),
-                            '测试时间: {:s}'.format(self.test_config['test_date']),
-                            '异常类型: {:s}'.format(info['bug_items'][bug_type]['name']),
-                            '异常发生时刻的场景和截图见附件',
-                            '-------------',
-                        ]
-                        jira_description = '\n'.join(text)
-                        project_key = self.test_encyclopaedia['project_id'][0]
-                        project_id = self.test_encyclopaedia['project_id'][1]
+                            jira_row = [
+                                self.version, info['name'], '&'.join(self.scenario_tag.values()),
+                                topic, info['bug_items'][bug_type]['name'], target_type,
+                                self.scenario_id, jira_summary, jira_description,
+                                '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}' + uuid, 0
+                            ]
 
-                        jira_row = [
-                            self.version, info['name'], '&'.join(self.scenario_tag.values()),
-                            topic, info['bug_items'][bug_type]['name'], target_type,
-                            self.scenario_id, jira_summary, jira_description,
-                            '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}' + uuid, 0
-                        ]
+                            bug_jira_rows.append(jira_row)
 
-                        bug_jira_rows.append(jira_row)
-
-                bug_jira_summary_path = os.path.join(bug_report_folder, 'bug_jira_summary.csv')
-                bug_jira_summary = pd.DataFrame(bug_jira_rows, columns=bug_jira_column)
-                bug_jira_summary.to_csv(bug_jira_summary_path, index=False)
-                print('{:s} 保存完毕'.format(bug_jira_summary_path))
-                self.test_result[topic_belonging][topic]['bug_jira_summary'] = self.get_relpath(bug_jira_summary_path)
+                    bug_jira_summary_path = os.path.join(bug_report_folder, 'bug_jira_summary.csv')
+                    bug_jira_summary = pd.DataFrame(bug_jira_rows, columns=bug_jira_column)
+                    bug_jira_summary.to_csv(bug_jira_summary_path, index=False)
+                    print('{:s} 保存完毕'.format(bug_jira_summary_path))
+                    self.test_result[topic_belonging][topic]['bug_jira_summary'] = self.get_relpath(bug_jira_summary_path)
 
     def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
 
