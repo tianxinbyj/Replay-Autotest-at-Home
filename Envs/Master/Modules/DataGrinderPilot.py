@@ -40,21 +40,6 @@ from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics
 
 
-def get_topic_attribution(topic):
-    for topic_belonging in test_encyclopaedia['Information']:
-        if 'topics' in test_encyclopaedia['Information'][topic_belonging]:
-            if topic in test_encyclopaedia['Information'][topic_belonging]['topics']:
-                res = {
-                    'topic_belonging': topic_belonging,
-                    'raw_column': test_encyclopaedia['Information'][topic_belonging]['raw_column'],
-                    'additional_column': test_encyclopaedia['Information'][topic_belonging]['raw_column'] +
-                                         test_encyclopaedia['Information'][topic_belonging]['additional_column']
-                }
-                return res
-
-    return None
-
-
 def sync_test_result(method):
     def wrapper(self, *args, **kwargs):
         method_start_time = time.time()
@@ -93,7 +78,10 @@ class DataGrinderPilotOneCase:
         self.test_action = self.test_config['test_action']
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_item = self.test_config['test_item']
-        self.topics_for_evaluation = self.test_item.keys()
+        self.test_topic = self.test_config['test_topic']
+        self.test_information = test_encyclopaedia['Information'][self.test_topic]
+        self.topics_for_evaluation = [
+            topic for topic in self.test_item.keys() if topic in self.test_information['topics']]
 
         # 建立文件夹
         self.pred_raw_folder = self.test_config['pred_folder']
@@ -104,22 +92,20 @@ class DataGrinderPilotOneCase:
         # 初始化测试配置
         self.test_result_yaml = os.path.join(self.scenario_unit_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
-            self.test_result = {'General': {}}
+            self.test_result = {'General': {}, self.test_topic: {'GroundTruth': {}}}
             for topic in self.topics_for_evaluation:
-                attribution = get_topic_attribution(topic)
-                if not attribution:
-                    send_log(self, f'不存在{topic}对应的分类')
-                    continue
-
-                topic_belonging = attribution['topic_belonging']
-                self.test_result[topic_belonging] = {topic: {} for topic in self.topics_for_evaluation}
-                self.test_result[topic_belonging]['GroundTruth'] = {}
+                self.test_result[self.test_topic][topic] = {}
 
             self.save_test_result()
 
         test_encyclopaedia_yaml = os.path.join(self.scenario_unit_folder, 'TestEncyclopaedia.yaml')
         with open(test_encyclopaedia_yaml, 'w', encoding='utf-8') as f:
             yaml.dump(self.test_encyclopaedia,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+
+        test_information_yaml = os.path.join(self.scenario_unit_folder, 'TestInformation.yaml')
+        with open(test_information_yaml, 'w', encoding='utf-8') as f:
+            yaml.dump(self.test_information,
                       f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
     @sync_test_result
@@ -139,13 +125,7 @@ class DataGrinderPilotOneCase:
             if topic in self.topics_for_evaluation:
                 send_log(self, f'Prediction 正在读取{topic}')
 
-                attribution = get_topic_attribution(topic)
-                if not attribution:
-                    send_log(self, f'Prediction 不存在{topic}对应的raw_column')
-                    continue
-
-                raw_column = attribution['raw_column']
-                topic_belonging = attribution['topic_belonging']
+                raw_column = self.test_information['raw_column']
 
                 # 读取原始数据
                 csv_list = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*.csv'))
@@ -161,19 +141,19 @@ class DataGrinderPilotOneCase:
                     by=['time_stamp']).drop_duplicates(subset=['time_stamp'], keep='first')
                 pred_hz = float(os.path.basename(pred_timestamp_csv).split('_')[1])
 
-                raw_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'raw')
+                raw_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'raw')
                 create_folder(raw_folder, False)
-                self.test_result[topic_belonging][topic] = {
+                self.test_result[self.test_topic][topic] = {
                     'frequency': pred_hz, 'raw': {},
                 }
 
                 path = os.path.join(raw_folder, 'pred_data.csv')
                 pred_data.to_csv(path, index=False, encoding='utf_8_sig')
-                self.test_result[topic_belonging][topic]['raw']['pred_data'] = self.get_relpath(path)
+                self.test_result[self.test_topic][topic]['raw']['pred_data'] = self.get_relpath(path)
 
                 path = os.path.join(raw_folder, 'pred_timestamp.csv')
                 pred_timestamp.to_csv(path, index=False, encoding='utf_8_sig')
-                self.test_result[topic_belonging][topic]['raw']['pred_timestamp'] = self.get_relpath(path)
+                self.test_result[self.test_topic][topic]['raw']['pred_timestamp'] = self.get_relpath(path)
 
             elif topic == '/PI/EG/EgoMotionInfo':
                 send_log(self, f'Prediction 正在读取{topic}, 用于时间同步')
@@ -228,78 +208,61 @@ class DataGrinderPilotOneCase:
         with open(gt_config_path) as f:
             gt_config = yaml.load(f, Loader=yaml.FullLoader)
 
-        gt_topic_mapping = {
-            'od_csv': test_encyclopaedia['Information']['Obstacles']['topics'],
-            'object_csv': test_encyclopaedia['Information']['Objects']['topics'],
-            'lanebev_csv': test_encyclopaedia['Information']['Lines']['topics'],
+        gt_topic_mappings = {
+            'Obstacles': 'od_csv',
+            'Objects': 'object_csv',
+            'Lines': 'lanebev_csv',
         }
 
-        gt_topic_belongings = {
-            'od_csv': 'Obstacles',
-            'object_csv': 'Objects',
-            'lanebev_csv': 'Lines',
+        gt_topic = gt_topic_mappings[self.test_topic]
+        flag = '{:s}_flag'.format(gt_topic)
+        timestamp_csv_tag = '{:s}_timestamp'.format(gt_topic.split('_')[0])
+
+        if not (flag in gt_config.keys() and gt_config[flag]):
+            send_log(self, f'GroundTruth 未找到{gt_topic}对应的真值文件')
+            return
+
+        send_log(self, f'GroundTruth 正在读取{gt_topic}')
+
+        # 读取原始数据
+        csv_data = []
+        for csv_file in gt_config['{:s}_list'.format(gt_topic)]:
+            csv_path = os.path.join(self.gt_raw_folder, gt_topic, csv_file)
+            csv_data.append(pd.read_csv(csv_path, index_col=False))
+        gt_data = pd.concat(csv_data).rename(columns={
+            'timestamp': 'time_stamp',
+            'od_json_sequence': 'frame_id',
+            'subtype': 'sub_type',
+            'type_conf_3d': 'confidence',
+        }).sort_values(by=['time_stamp'])
+
+        if gt_topic == 'od_csv':
+            gt_data['vx_rel'] = gt_data['vx'] - gt_data['ego_v']
+            gt_data['vy_rel'] = gt_data['vy']
+
+        # 读取时间辍, 用于时间辍匹配
+        gt_timestamp_csv = \
+            glob.glob(os.path.join(self.gt_raw_folder, f'{timestamp_csv_tag}*hz.csv'))[0]
+        gt_timestamp = pd.read_csv(gt_timestamp_csv).sort_values(
+            by=['timestamp']).rename(columns={'timestamp': 'time_stamp'}) \
+            .drop_duplicates(subset=['time_stamp'], keep='first')
+        gt_hz = float(os.path.basename(gt_timestamp_csv).split('_')[2])
+
+        raw_column = self.test_information['raw_column']
+
+        raw_folder = os.path.join(self.DataFolder, self.test_topic, 'GroundTruth', 'raw')
+        create_folder(raw_folder, False)
+        self.test_result[self.test_topic]['GroundTruth'] = {
+            'frequency': gt_hz, 'raw': {},
         }
 
-        gt_topics = {}
-        for topic in self.topics_for_evaluation:
-            for gt_topic in gt_topic_mapping.keys():
-                if topic in gt_topic_mapping[gt_topic]:
-                    if gt_topic not in gt_topics:
-                        gt_topics[gt_topic] = []
-                    gt_topics[gt_topic].append(topic)
+        path = os.path.join(raw_folder, 'gt_data.csv')
+        gt_data[raw_column].to_csv(path, index=False, encoding='utf_8_sig')
+        self.test_result[self.test_topic]['GroundTruth']['raw']['gt_data'] = self.get_relpath(path)
 
-        for gt_topic, topic_list in gt_topics.items():
-            flag = '{:s}_flag'.format(gt_topic)
-            timestamp_csv_tag = '{:s}_timestamp'.format(gt_topic.split('_')[0])
-
-            if not (flag in gt_config.keys() and gt_config[flag]):
-                continue
-
-            send_log(self, f'GroundTruth 正在读取{gt_topic}')
-
-            # 读取原始数据
-            csv_data = []
-            for csv_file in gt_config['{:s}_list'.format(gt_topic)]:
-                csv_path = os.path.join(self.gt_raw_folder, gt_topic, csv_file)
-                csv_data.append(pd.read_csv(csv_path, index_col=False))
-            gt_data = pd.concat(csv_data).rename(columns={
-                'timestamp': 'time_stamp',
-                'od_json_sequence': 'frame_id',
-                'subtype': 'sub_type',
-                'type_conf_3d': 'confidence',
-            }).sort_values(by=['time_stamp'])
-
-            if gt_topic == 'od_csv':
-                gt_data['vx_rel'] = gt_data['vx'] - gt_data['ego_v']
-                gt_data['vy_rel'] = gt_data['vy']
-
-            # 读取时间辍, 用于时间辍匹配
-            gt_timestamp_csv = \
-                glob.glob(os.path.join(self.gt_raw_folder, f'{timestamp_csv_tag}*hz.csv'))[0]
-            gt_timestamp = pd.read_csv(gt_timestamp_csv).sort_values(
-                by=['timestamp']).rename(columns={'timestamp': 'time_stamp'}) \
-                .drop_duplicates(subset=['time_stamp'], keep='first')
-            gt_hz = float(os.path.basename(gt_timestamp_csv).split('_')[2])
-
-            gt_topic_belonging = gt_topic_belongings[gt_topic]
-            send_log(self, f'GroundTruth 保存数据于{gt_topic_belonging}')
-
-            attribution = get_topic_attribution(topic_list[0])
-            raw_column = attribution['raw_column']
-
-            raw_folder = os.path.join(self.DataFolder, gt_topic_belonging, 'GroundTruth', 'raw')
-            create_folder(raw_folder, False)
-            self.test_result[gt_topic_belonging]['GroundTruth'] = {
-                'frequency': gt_hz, 'raw': {},
-            }
-
-            path = os.path.join(raw_folder, 'gt_data.csv')
-            gt_data[raw_column].to_csv(path, index=False, encoding='utf_8_sig')
-            self.test_result[gt_topic_belonging]['GroundTruth']['raw']['gt_data'] = self.get_relpath(path)
-
-            path = os.path.join(raw_folder, 'gt_timestamp.csv')
-            gt_timestamp.to_csv(path, index=False, encoding='utf_8_sig')
-            self.test_result[gt_topic_belonging]['GroundTruth']['raw']['gt_timestamp'] = self.get_relpath(path)
+        path = os.path.join(raw_folder, 'gt_timestamp.csv')
+        gt_timestamp.to_csv(path, index=False, encoding='utf_8_sig')
+        self.test_result[self.test_topic]['GroundTruth']['raw']['gt_timestamp'] = self.get_relpath(path)
 
         # 自车速度用于对齐
         ego_data_path = os.path.join(self.gt_raw_folder, 'od_ego.csv')
@@ -389,256 +352,238 @@ class DataGrinderPilotOneCase:
         time_start = self.test_result['General']['time_start']
         time_end = self.test_result['General']['time_end']
 
-        for topic_belonging in self.test_result.keys():
-            if topic_belonging == 'General':
-                continue
+        additional_column = self.test_information['raw_column'] + self.test_information['additional_column']
+        send_log(self, f'{self.test_topic}, 使用{self.test_topic}Preprocess')
+        preprocess_instance = eval(f'PreProcess.{self.test_topic}Preprocess()')
 
-            additional_column = (test_encyclopaedia['Information'][topic_belonging]['raw_column']
-                                 + test_encyclopaedia['Information'][topic_belonging]['additional_column'])
-            send_log(self, f'{topic_belonging}, 使用{topic_belonging}Preprocess')
-            preprocess_instance = eval(f'PreProcess.{topic_belonging}Preprocess()')
-
-            for topic in self.test_result[topic_belonging].keys():
-                if topic != 'GroundTruth':
-                    raw = self.test_result[topic_belonging][topic]['raw']
-                    topic_tag = topic.replace('/', '')
-                    additional_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'additional')
-                    create_folder(additional_folder)
-                    if 'additional' not in self.test_result[topic_belonging][topic]:
-                        self.test_result[topic_belonging][topic]['additional'] = {}
-
-                    # 时间辍补齐
-                    send_log(self, f'{topic_belonging} {topic} 时间辍同步')
-                    data = pd.read_csv(self.get_abspath(raw['pred_timestamp']), index_col=False)
-                    data['time_stamp'] += time_gap
-                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
-                    path = os.path.join(additional_folder, 'pred_timestamp.csv')
-                    self.test_result[topic_belonging][topic]['additional']['pred_timestamp'] = self.get_relpath(path)
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
-
-                    # 预处理原始数据, 增加列
-                    send_log(self, f'{topic_belonging} {topic} 预处理步骤 {preprocess_instance.preprocess_types}')
-                    data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
-                    data['time_stamp'] += time_gap
-                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
-
-                    input_parameter_container = {
-                        'coverage_reference_point': self.test_config['coverage_reference_point'],
-                        'coverage_threshold': self.test_config['coverage_threshold'],
-                        'ROI': self.test_config['pred_ROI'][topic],
-                        'lane_width': 3.6,
-                        'moving_threshold': 2,
-                        'key_coverage_threshold': 0.1,
-                    }
-                    data = preprocess_instance.run(data, input_parameter_container)[additional_column]
-                    path = os.path.join(additional_folder, 'pred_data.csv')
-                    self.test_result[topic_belonging][topic]['additional']['pred_data'] = self.get_relpath(path)
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
-
-                else:
-                    raw = self.test_result[topic_belonging]['GroundTruth']['raw']
-                    additional_folder = os.path.join(self.DataFolder, topic_belonging, 'GroundTruth', 'additional')
-                    create_folder(additional_folder)
-                    if 'additional' not in self.test_result[topic_belonging]['GroundTruth']:
-                        self.test_result[topic_belonging]['GroundTruth']['additional'] = {}
-
-                    # 时间辍补齐
-                    send_log(self, f'{topic_belonging} GroundTruth 时间辍同步')
-                    data = pd.read_csv(self.get_abspath(raw['gt_timestamp']), index_col=False)
-                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
-                    path = os.path.join(additional_folder, 'gt_timestamp.csv')
-                    self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(
-                        path)
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
-
-                    # 预处理原始数据, 增加列
-                    send_log(self, f'{topic_belonging} GroundTruth 预处理步骤 {preprocess_instance.preprocess_types}')
-                    data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
-                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
-
-                    input_parameter_container = {
-                        'coverage_reference_point': self.test_config['coverage_reference_point'],
-                        'coverage_threshold': self.test_config['coverage_threshold'],
-                        'ROI': self.test_config['gt_ROI'],
-                        'lane_width': 3.6,
-                        'moving_threshold': 2,
-                        'key_coverage_threshold': 0.1,
-                    }
-                    data = preprocess_instance.run(data, input_parameter_container)[additional_column]
-
-                    path = os.path.join(additional_folder, 'gt_data.csv')
-                    self.test_result[topic_belonging]['GroundTruth']['additional']['gt_data'] = self.get_relpath(path)
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
-
-    @sync_test_result
-    def match_timestamp(self):
-        for topic_belonging in self.test_result.keys():
-            if topic_belonging == 'General':
-                continue
-
-            gt_timestamp_path = self.get_abspath(
-                self.test_result[topic_belonging]['GroundTruth']['additional']['gt_timestamp'])
-            gt_timestamp = pd.read_csv(gt_timestamp_path, index_col=False)['time_stamp'].to_list()
-            gt_hz = self.test_result[topic_belonging]['GroundTruth']['frequency']
-
-            for topic in self.test_result[topic_belonging].keys():
-                if topic == 'GroundTruth':
-                    continue
-
-                additional = self.test_result[topic_belonging][topic]['additional']
+        for topic in self.test_result[self.test_topic].keys():
+            if topic != 'GroundTruth':
+                raw = self.test_result[self.test_topic][topic]['raw']
                 topic_tag = topic.replace('/', '')
-                match_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'match')
-                create_folder(match_folder)
-                if 'match' not in self.test_result[topic_belonging][topic]:
-                    self.test_result[topic_belonging][topic]['match'] = {}
+                additional_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'additional')
+                create_folder(additional_folder)
+                if 'additional' not in self.test_result[self.test_topic][topic]:
+                    self.test_result[self.test_topic][topic]['additional'] = {}
 
-                pred_timestamp_path = self.get_abspath(additional['pred_timestamp'])
-                pred_timestamp = pd.read_csv(pred_timestamp_path, index_col=False)['time_stamp'].to_list()
-                pred_hz = self.test_result[topic_belonging][topic]['frequency']
+                # 时间辍补齐
+                send_log(self, f'{self.test_topic} {topic} 时间辍同步')
+                data = pd.read_csv(self.get_abspath(raw['pred_timestamp']), index_col=False)
+                data['time_stamp'] += time_gap
+                data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+                path = os.path.join(additional_folder, 'pred_timestamp.csv')
+                self.test_result[self.test_topic][topic]['additional']['pred_timestamp'] = self.get_relpath(path)
+                data.to_csv(path, index=False, encoding='utf_8_sig')
 
-                match_tolerance = self.test_config['timestamp_matching_tolerance'] / max(pred_hz, gt_hz)
-                send_log(self, f'{topic_belonging} {topic} 时间差低于{match_tolerance} sec的尝试匹配, '
-                               f'进一步选择局部最优')
-
-                match_pred_timestamp, match_gt_timestamp = MatchTool.match_timestamp(
-                    pred_timestamp, gt_timestamp, match_tolerance)
-                send_log(self, f'{topic_belonging} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, '
-                               f'对齐{len(match_gt_timestamp)} '
-                               f'比例{len(match_gt_timestamp) / len(gt_timestamp):.2%}')
-                send_log(self, f'{topic_belonging} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, '
-                               f'对齐{len(match_pred_timestamp)} '
-                               f'比例{len(match_pred_timestamp) / len(pred_timestamp):.2%}')
-
-                # 保存时间辍匹配数据
-                match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_gap'])
-                if len(match_pred_timestamp):
-                    match_timestamp_data['gt_timestamp'] = match_gt_timestamp
-                    match_timestamp_data['pred_timestamp'] = match_pred_timestamp
-                    match_timestamp_data['match_time_gap'] = (match_timestamp_data['pred_timestamp']
-                                                              - match_timestamp_data['gt_timestamp'])
-
-                path = os.path.join(match_folder, 'match_timestamp.csv')
-                match_timestamp_data.to_csv(path, index=False, encoding='utf_8_sig')
-                self.test_result[topic_belonging][topic]['match']['match_timestamp'] = self.get_relpath(path)
-                self.test_result[topic_belonging][topic]['match_frequency'] \
-                    = round(self.test_result[topic_belonging][topic]['frequency']
-                            * len(match_pred_timestamp) / len(pred_timestamp), 2)
-
-    @sync_test_result
-    def match_object(self):
-        for topic_belonging in self.test_result.keys():
-            if topic_belonging == 'General':
-                continue
-
-            additional_column = (test_encyclopaedia['Information'][topic_belonging]['raw_column']
-                                 + test_encyclopaedia['Information'][topic_belonging]['additional_column'])
-            send_log(self, f'{topic_belonging}, 使用{topic_belonging}MatchTool')
-            match_tool = eval(f'MatchTool.{topic_belonging}MatchTool()')
-            match_column = ['corresponding_index', 'gt.flag', 'pred.flag']
-            for col in additional_column:
-                for kind in ['gt', 'pred']:
-                    match_column.append(f'{kind}.{col}')
-
-            gt_data_path = self.get_abspath(
-                self.test_result[topic_belonging]['GroundTruth']['additional']['gt_data'])
-            gt_data = (pd.read_csv(gt_data_path, index_col=False)
-                       .sort_values(by=['time_stamp'], ascending=True).reset_index(drop=True))
-
-            for topic in self.test_result[topic_belonging].keys():
-                if topic == 'GroundTruth':
-                    continue
-
-                topic_tag = topic.replace('/', '')
-                match_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'match')
-
-                match_timestamp_path = self.get_abspath(
-                    self.test_result[topic_belonging][topic]['match']['match_timestamp'])
-                match_timestamp = pd.read_csv(match_timestamp_path, index_col=False)
-
-                pred_data_path = self.get_abspath(
-                    self.test_result[topic_belonging][topic]['additional']['pred_data'])
-                pred_data = (pd.read_csv(pred_data_path, index_col=False)
-                             .sort_values(by=['time_stamp'], ascending=True).reset_index(drop=True))
+                # 预处理原始数据, 增加列
+                send_log(self, f'{self.test_topic} {topic} 预处理步骤 {preprocess_instance.preprocess_types}')
+                data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
+                data['time_stamp'] += time_gap
+                data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
 
                 input_parameter_container = {
-                    'object_matching_tolerance': self.test_config['object_matching_tolerance'],
+                    'coverage_reference_point': self.test_config['coverage_reference_point'],
+                    'coverage_threshold': self.test_config['coverage_threshold'],
+                    'ROI': self.test_config['pred_ROI'][topic],
+                    'lane_width': 3.6,
+                    'moving_threshold': 2,
+                    'key_coverage_threshold': 0.1,
                 }
-                input_data = {
-                    'match_timestamp': match_timestamp,
-                    'gt_data': gt_data,
-                    'pred_data': pred_data,
-                }
+                data = preprocess_instance.run(data, input_parameter_container)[additional_column]
+                path = os.path.join(additional_folder, 'pred_data.csv')
+                self.test_result[self.test_topic][topic]['additional']['pred_data'] = self.get_relpath(path)
+                data.to_csv(path, index=False, encoding='utf_8_sig')
 
-                send_log(self, f'{topic_belonging} {topic} 目标匹配')
-                data = match_tool.run(input_data, input_parameter_container)[match_column]
-                path = os.path.join(match_folder, 'match_data.csv')
-                self.test_result[topic_belonging][topic]['match']['match_data'] = self.get_relpath(path)
+            else:
+                raw = self.test_result[self.test_topic]['GroundTruth']['raw']
+                additional_folder = os.path.join(self.DataFolder, self.test_topic, 'GroundTruth', 'additional')
+                create_folder(additional_folder)
+                if 'additional' not in self.test_result[self.test_topic]['GroundTruth']:
+                    self.test_result[self.test_topic]['GroundTruth']['additional'] = {}
+
+                # 时间辍补齐
+                send_log(self, f'{self.test_topic} GroundTruth 时间辍同步')
+                data = pd.read_csv(self.get_abspath(raw['gt_timestamp']), index_col=False)
+                data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+                path = os.path.join(additional_folder, 'gt_timestamp.csv')
+                self.test_result[self.test_topic]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(
+                    path)
+                data.to_csv(path, index=False, encoding='utf_8_sig')
+
+                # 预处理原始数据, 增加列
+                send_log(self, f'{self.test_topic} GroundTruth 预处理步骤 {preprocess_instance.preprocess_types}')
+                data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
+                data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+
+                input_parameter_container = {
+                    'coverage_reference_point': self.test_config['coverage_reference_point'],
+                    'coverage_threshold': self.test_config['coverage_threshold'],
+                    'ROI': self.test_config['gt_ROI'],
+                    'lane_width': 3.6,
+                    'moving_threshold': 2,
+                    'key_coverage_threshold': 0.1,
+                }
+                data = preprocess_instance.run(data, input_parameter_container)[additional_column]
+
+                path = os.path.join(additional_folder, 'gt_data.csv')
+                self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'] = self.get_relpath(path)
                 data.to_csv(path, index=False, encoding='utf_8_sig')
 
     @sync_test_result
-    def evaluate_metrics(self):
-        for topic_belonging in self.test_result.keys():
-            if topic_belonging == 'General':
+    def match_timestamp(self):
+        gt_timestamp_path = self.get_abspath(
+            self.test_result[self.test_topic]['GroundTruth']['additional']['gt_timestamp'])
+        gt_timestamp = pd.read_csv(gt_timestamp_path, index_col=False)['time_stamp'].to_list()
+        gt_hz = self.test_result[self.test_topic]['GroundTruth']['frequency']
+
+        for topic in self.test_result[self.test_topic].keys():
+            if topic == 'GroundTruth':
                 continue
 
-            send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
-            metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
-            metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
+            additional = self.test_result[self.test_topic][topic]['additional']
+            topic_tag = topic.replace('/', '')
+            match_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'match')
+            create_folder(match_folder)
+            if 'match' not in self.test_result[self.test_topic][topic]:
+                self.test_result[self.test_topic][topic]['match'] = {}
 
-            for topic in self.test_result[topic_belonging].keys():
-                if topic == 'GroundTruth':
-                    continue
+            pred_timestamp_path = self.get_abspath(additional['pred_timestamp'])
+            pred_timestamp = pd.read_csv(pred_timestamp_path, index_col=False)['time_stamp'].to_list()
+            pred_hz = self.test_result[self.test_topic][topic]['frequency']
 
-                if topic not in self.test_config['test_item']:
-                    send_log(self, f'{topic}没有在test_item中')
-                    continue
+            match_tolerance = self.test_config['timestamp_matching_tolerance'] / max(pred_hz, gt_hz)
+            send_log(self, f'{self.test_topic} {topic} 时间差低于{match_tolerance} sec的尝试匹配, '
+                           f'进一步选择局部最优')
 
-                topic_tag = topic.replace('/', '')
-                metric_folder = os.path.join(self.DataFolder, topic_belonging, topic_tag, 'metric')
-                create_folder(metric_folder)
-                if 'metric' not in self.test_result[topic_belonging][topic]:
-                    self.test_result[topic_belonging][topic]['metric'] = {}
+            match_pred_timestamp, match_gt_timestamp = MatchTool.match_timestamp(
+                pred_timestamp, gt_timestamp, match_tolerance)
+            send_log(self, f'{self.test_topic} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, '
+                           f'对齐{len(match_gt_timestamp)} '
+                           f'比例{len(match_gt_timestamp) / len(gt_timestamp):.2%}')
+            send_log(self, f'{self.test_topic} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, '
+                           f'对齐{len(match_pred_timestamp)} '
+                           f'比例{len(match_pred_timestamp) / len(pred_timestamp):.2%}')
 
-                match_data_path = self.test_result[topic_belonging][topic]['match']['match_data']
-                match_data = pd.read_csv(self.get_abspath(match_data_path), index_col=False)
+            # 保存时间辍匹配数据
+            match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_gap'])
+            if len(match_pred_timestamp):
+                match_timestamp_data['gt_timestamp'] = match_gt_timestamp
+                match_timestamp_data['pred_timestamp'] = match_pred_timestamp
+                match_timestamp_data['match_time_gap'] = (match_timestamp_data['pred_timestamp']
+                                                          - match_timestamp_data['gt_timestamp'])
+
+            path = os.path.join(match_folder, 'match_timestamp.csv')
+            match_timestamp_data.to_csv(path, index=False, encoding='utf_8_sig')
+            self.test_result[self.test_topic][topic]['match']['match_timestamp'] = self.get_relpath(path)
+            self.test_result[self.test_topic][topic]['match_frequency'] \
+                = round(self.test_result[self.test_topic][topic]['frequency']
+                        * len(match_pred_timestamp) / len(pred_timestamp), 2)
+
+    @sync_test_result
+    def match_object(self):
+        additional_column = self.test_information['raw_column'] + self.test_information['additional_column']
+        send_log(self, f'{self.test_topic}, 使用{self.test_topic}MatchTool')
+        match_tool = eval(f'MatchTool.{self.test_topic}MatchTool()')
+        match_column = ['corresponding_index', 'gt.flag', 'pred.flag']
+        for col in additional_column:
+            for kind in ['gt', 'pred']:
+                match_column.append(f'{kind}.{col}')
+
+        gt_data_path = self.get_abspath(
+            self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'])
+        gt_data = (pd.read_csv(gt_data_path, index_col=False)
+                   .sort_values(by=['time_stamp'], ascending=True).reset_index(drop=True))
+
+        for topic in self.test_result[self.test_topic].keys():
+            if topic == 'GroundTruth':
+                continue
+
+            topic_tag = topic.replace('/', '')
+            match_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'match')
+
+            match_timestamp_path = self.get_abspath(
+                self.test_result[self.test_topic][topic]['match']['match_timestamp'])
+            match_timestamp = pd.read_csv(match_timestamp_path, index_col=False)
+
+            pred_data_path = self.get_abspath(
+                self.test_result[self.test_topic][topic]['additional']['pred_data'])
+            pred_data = (pd.read_csv(pred_data_path, index_col=False)
+                         .sort_values(by=['time_stamp'], ascending=True).reset_index(drop=True))
+
+            input_parameter_container = {
+                'object_matching_tolerance': self.test_config['object_matching_tolerance'],
+            }
+            input_data = {
+                'match_timestamp': match_timestamp,
+                'gt_data': gt_data,
+                'pred_data': pred_data,
+            }
+
+            send_log(self, f'{self.test_topic} {topic} 目标匹配')
+            data = match_tool.run(input_data, input_parameter_container)[match_column]
+            path = os.path.join(match_folder, 'match_data.csv')
+            self.test_result[self.test_topic][topic]['match']['match_data'] = self.get_relpath(path)
+            data.to_csv(path, index=False, encoding='utf_8_sig')
+
+    @sync_test_result
+    def evaluate_metrics(self):
+        send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
+        metric_evaluator = eval(f'MetricEvaluator.{self.test_topic}MetricEvaluator()')
+        metric_filter = eval(f'MetricEvaluator.{self.test_topic}MetricFilter()')
+
+        for topic in self.test_result[self.test_topic].keys():
+            if topic == 'GroundTruth':
+                continue
+
+            if topic not in self.test_config['test_item']:
+                send_log(self, f'{topic}没有在test_item中')
+                continue
+
+            topic_tag = topic.replace('/', '')
+            metric_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'metric')
+            create_folder(metric_folder)
+            if 'metric' not in self.test_result[self.test_topic][topic]:
+                self.test_result[self.test_topic][topic]['metric'] = {}
+
+            match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
+            match_data = pd.read_csv(self.get_abspath(match_data_path), index_col=False)
+            input_parameter_container = {
+                'metric_type': self.test_config['test_item'][topic],
+            }
+            input_data = {
+                'data': match_data,
+            }
+
+            send_log(self, f'{self.test_topic} {topic} 指标评估')
+            data_dict = metric_evaluator.run(input_data, input_parameter_container)
+            for metric, metric_data in data_dict.items():
+                total_folder = os.path.join(metric_folder, 'total')
+                create_folder(total_folder, False)
+                if 'total' not in self.test_result[self.test_topic][topic]['metric']:
+                    self.test_result[self.test_topic][topic]['metric']['total'] = {}
+
+                path = os.path.join(total_folder, f'{metric}.csv')
+                self.test_result[self.test_topic][topic]['metric']['total'][metric] = self.get_relpath(path)
+                metric_data.to_csv(path, index=False, encoding='utf_8_sig')
+
                 input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
+                    'characteristic_type': self.test_config['target_characteristic'],
                 }
                 input_data = {
-                    'data': match_data,
+                    'total_data': match_data,
+                    'data_to_filter': metric_data,
                 }
 
-                send_log(self, f'{topic_belonging} {topic} 指标评估')
-                data_dict = metric_evaluator.run(input_data, input_parameter_container)
-                for metric, metric_data in data_dict.items():
-                    total_folder = os.path.join(metric_folder, 'total')
-                    create_folder(total_folder, False)
-                    if 'total' not in self.test_result[topic_belonging][topic]['metric']:
-                        self.test_result[topic_belonging][topic]['metric']['total'] = {}
+                characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
+                for characteristic, characteristic_data in characteristic_data_dict.items():
+                    characteristic_folder = os.path.join(metric_folder, characteristic)
+                    create_folder(characteristic_folder, False)
+                    if characteristic not in self.test_result[self.test_topic][topic]['metric']:
+                        self.test_result[self.test_topic][topic]['metric'][characteristic] = {}
 
-                    path = os.path.join(total_folder, f'{metric}.csv')
-                    self.test_result[topic_belonging][topic]['metric']['total'][metric] = self.get_relpath(path)
-                    metric_data.to_csv(path, index=False, encoding='utf_8_sig')
-
-                    input_parameter_container = {
-                        'characteristic_type': self.test_config['target_characteristic'],
-                    }
-                    input_data = {
-                        'total_data': match_data,
-                        'data_to_filter': metric_data,
-                    }
-
-                    characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
-                    for characteristic, characteristic_data in characteristic_data_dict.items():
-                        characteristic_folder = os.path.join(metric_folder, characteristic)
-                        create_folder(characteristic_folder, False)
-                        if characteristic not in self.test_result[topic_belonging][topic]['metric']:
-                            self.test_result[topic_belonging][topic]['metric'][characteristic] = {}
-
-                        path = os.path.join(characteristic_folder, f'{metric}.csv')
-                        self.test_result[topic_belonging][topic]['metric'][characteristic][
-                            metric] = self.get_relpath(path)
-                        characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
+                    path = os.path.join(characteristic_folder, f'{metric}.csv')
+                    self.test_result[self.test_topic][topic]['metric'][characteristic][
+                        metric] = self.get_relpath(path)
+                    characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
 
     @sync_test_result
     def load_scenario_info(self):
@@ -751,110 +696,106 @@ class DataGrinderPilotOneCase:
         # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
         video_snap_dict = {}
 
-        for topic_belonging in self.test_result.keys():
-            if topic_belonging == 'General':
+        for topic in self.test_result[self.test_topic].keys():
+            if topic == 'GroundTruth':
                 continue
 
-            for topic in self.test_result[topic_belonging].keys():
-                if topic == 'GroundTruth':
+            if topic not in self.test_config['test_item']:
+                send_log(self, f'{topic}没有在test_item中')
+                continue
+
+            topic_tag = topic.replace('/', '')
+            sketch_folder = os.path.join(self.BugFolder, self.test_topic, topic_tag, 'sketch')
+            self.test_result[self.test_topic][topic]['bug'] = {}
+            create_folder(sketch_folder)
+
+            # 异常至少存在frame_threshold帧，才会被识别为bug用作分析
+            frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
+            print(f'出现次数低于{frame_threshold}的bug会被忽视')
+
+            # 使用total中的recall_precision数据可视化，但只抓去keyObj的bug
+            total_data_path = self.test_result[self.test_topic][topic]['metric']['total']['recall_precision']
+            total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
+
+            for characteristic in self.test_result[self.test_topic][topic]['metric']:
+                if characteristic == 'total':
                     continue
 
-                if topic not in self.test_config['test_item']:
-                    send_log(self, f'{topic}没有在test_item中')
-                    continue
+                self.test_result[self.test_topic][topic]['bug'][characteristic] = {}
+                data_for_bug = self.test_result[self.test_topic][topic]['metric'][characteristic]
+                bug_index_dict = {}
+                for metric, data_path in data_for_bug.items():
+                    metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
+                    metric_data = filter_valid_bug_data(metric_data)
+                    if metric == 'recall_precision':
+                        FP_data = metric_data[(metric_data['gt.flag'] == 0)
+                                              & (metric_data['pred.flag'] == 1)]
+                        FN_data = metric_data[(metric_data['gt.flag'] == 1)
+                                              & (metric_data['pred.flag'] == 0)]
+                        NCTP_data = metric_data[(metric_data['CTP'] == 0)
+                                                & (metric_data['gt.flag'] == 1)
+                                                & (metric_data['pred.flag'] == 1)]
 
-                topic_tag = topic.replace('/', '')
-                sketch_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'sketch')
-                self.test_result[topic_belonging][topic]['bug'] = {}
-                create_folder(sketch_folder)
+                        bug_index_dict['false_positive'] = FP_data['corresponding_index'].to_list()
+                        bug_index_dict['false_negative'] = FN_data['corresponding_index'].to_list()
+                        bug_index_dict['false_type'] = NCTP_data['corresponding_index'].to_list()
 
-                # 异常至少存在frame_threshold帧，才会被识别为bug用作分析
-                frame_threshold = round(self.test_result[topic_belonging][topic]['match_frequency'])
-                print(f'出现次数低于{frame_threshold}的bug会被忽视')
+                    else:
+                        error_data = metric_data[metric_data['is_abnormal'] == 1]
+                        bug_index_dict[metric] = error_data['corresponding_index'].to_list()
 
-                # 使用total中的recall_precision数据可视化，但只抓去keyObj的bug
-                total_data_path = self.test_result[topic_belonging][topic]['metric']['total']['recall_precision']
-                total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
+                for bug_type, corresponding_index in bug_index_dict.items():
+                    bug_type_folder = os.path.join(sketch_folder, characteristic, bug_type)
+                    bug_data = total_data[total_data['corresponding_index'].isin(corresponding_index)]
+                    # 根据id的出现次数排序
+                    if bug_type == 'false_positive':
+                        sorted_id = 'pred.id'
+                    else:
+                        sorted_id = 'gt.id'
 
-                for characteristic in self.test_result[topic_belonging][topic]['metric']:
-                    if characteristic == 'total':
-                        continue
+                    bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
+                    for bug_corresponding_index in bug_corresponding_indices:
+                        row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
 
-                    self.test_result[topic_belonging][topic]['bug'][characteristic] = {}
-                    data_for_bug = self.test_result[topic_belonging][topic]['metric'][characteristic]
-                    bug_index_dict = {}
-                    for metric, data_path in data_for_bug.items():
-                        metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
-                        metric_data = filter_valid_bug_data(metric_data)
-                        if metric == 'recall_precision':
-                            FP_data = metric_data[(metric_data['gt.flag'] == 0)
-                                                  & (metric_data['pred.flag'] == 1)]
-                            FN_data = metric_data[(metric_data['gt.flag'] == 1)
-                                                  & (metric_data['pred.flag'] == 0)]
-                            NCTP_data = metric_data[(metric_data['CTP'] == 0)
-                                                    & (metric_data['gt.flag'] == 1)
-                                                    & (metric_data['pred.flag'] == 1)]
+                        time_stamp = row['gt.time_stamp']
+                        frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
+                        # 如果这一书帧内没有gt或者没有pred，暂时先不提bug
+                        if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
+                            continue
 
-                            bug_index_dict['false_positive'] = FP_data['corresponding_index'].to_list()
-                            bug_index_dict['false_negative'] = FN_data['corresponding_index'].to_list()
-                            bug_index_dict['false_type'] = NCTP_data['corresponding_index'].to_list()
+                        one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
+                        create_folder(one_bug_folder)
+                        if bug_type not in self.test_config['test_item']:
+                            self.test_result[self.test_topic][topic]['bug'][characteristic][bug_type] = (
+                                self.get_relpath(bug_type_folder))
 
+                        plot_path = os.path.join(one_bug_folder, 'bug_sketch.jpg')
+                        frame_bug_info = {
+                            'gt': {bug_type: [row['gt.id']]}, 'pred': {bug_type: [row['pred.id']]},
+                        }
+                        print(f'保存 {topic} {bug_type} {time_stamp}的图片')
+                        self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info)
+
+                        # 选择截图的相机
+                        if row['gt.flag'] == 1:
+                            cameras = self.which_camera_saw_you(row['gt.x'], row['gt.y'])
                         else:
-                            error_data = metric_data[metric_data['is_abnormal'] == 1]
-                            bug_index_dict[metric] = error_data['corresponding_index'].to_list()
+                            cameras = self.which_camera_saw_you(row['pred.x'], row['pred.y'])
 
-                    for bug_type, corresponding_index in bug_index_dict.items():
-                        bug_type_folder = os.path.join(sketch_folder, characteristic, bug_type)
-                        bug_data = total_data[total_data['corresponding_index'].isin(corresponding_index)]
-                        # 根据id的出现次数排序
-                        if bug_type == 'false_positive':
-                            sorted_id = 'pred.id'
-                        else:
-                            sorted_id = 'gt.id'
+                        frame_index = round((time_stamp - video_start_time) * fps)
+                        for camera in cameras:
+                            if camera not in video_snap_dict:
+                                video_snap_dict[camera] = []
+                            if frame_index not in video_snap_dict[camera]:
+                                video_snap_dict[camera].append(frame_index)
 
-                        bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
-                        for bug_corresponding_index in bug_corresponding_indices:
-                            row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
-
-                            time_stamp = row['gt.time_stamp']
-                            frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
-                            # 如果这一书帧内没有gt或者没有pred，暂时先不提bug
-                            if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
-                                continue
-
-                            one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
-                            create_folder(one_bug_folder)
-                            if bug_type not in self.test_config['test_item']:
-                                self.test_result[topic_belonging][topic]['bug'][characteristic][bug_type] = (
-                                    self.get_relpath(bug_type_folder))
-
-                            plot_path = os.path.join(one_bug_folder, 'bug_sketch.jpg')
-                            frame_bug_info = {
-                                'gt': {bug_type: [row['gt.id']]}, 'pred': {bug_type: [row['pred.id']]},
-                            }
-                            print(f'保存 {topic} {bug_type} {time_stamp}的图片')
-                            self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info)
-
-                            # 选择截图的相机
-                            if row['gt.flag'] == 1:
-                                cameras = self.which_camera_saw_you(row['gt.x'], row['gt.y'])
-                            else:
-                                cameras = self.which_camera_saw_you(row['pred.x'], row['pred.y'])
-
-                            frame_index = round((time_stamp - video_start_time) * fps)
-                            for camera in cameras:
-                                if camera not in video_snap_dict:
-                                    video_snap_dict[camera] = []
-                                if frame_index not in video_snap_dict[camera]:
-                                    video_snap_dict[camera].append(frame_index)
-
-                            send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
-                            print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
-                            bug_info = row.to_dict()
-                            bug_info['frame_index'] = frame_index
-                            bug_info['camera'] = cameras
-                            with open(os.path.join(one_bug_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
-                                json.dump(bug_info, f, ensure_ascii=False, indent=4)
+                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        bug_info = row.to_dict()
+                        bug_info['frame_index'] = frame_index
+                        bug_info['camera'] = cameras
+                        with open(os.path.join(one_bug_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
+                            json.dump(bug_info, f, ensure_ascii=False, indent=4)
 
         # 启用ssh_client
         replay_client = SSHClient()
@@ -873,70 +814,67 @@ class DataGrinderPilotOneCase:
 
         # 将bug需要加箭头的内容保存为一个json，批量处理
         bug_arrow_list = []
-        for topic_belonging in self.test_result.keys():
-            if topic_belonging == 'General':
+
+        for topic in self.test_result[self.test_topic].keys():
+            if topic == 'GroundTruth':
                 continue
 
-            for topic in self.test_result[topic_belonging].keys():
-                if topic == 'GroundTruth':
-                    continue
+            if topic not in self.test_config['test_item']:
+                send_log(self, f'{topic}没有在test_item中')
+                continue
 
-                if topic not in self.test_config['test_item']:
-                    send_log(self, f'{topic}没有在test_item中')
-                    continue
+            for characteristic in self.test_result[self.test_topic][topic]['bug']:
+                for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][characteristic].items():
 
-                for characteristic in self.test_result[topic_belonging][topic]['bug']:
-                    for bug_type, bug_type_folder in self.test_result[topic_belonging][topic]['bug'][characteristic].items():
+                    for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+                        one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
+                        bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
+                        with open(bug_info_json, 'r', encoding='utf-8') as f:
+                            bug_info = json.load(f)
 
-                        for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
-                            one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
-                            bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
-                            with open(bug_info_json, 'r', encoding='utf-8') as f:
-                                bug_info = json.load(f)
+                        bug_info_for_arrow = {
+                            'characteristic': characteristic,
+                            'bug_type': bug_type,
+                            'scenario_id': self.scenario_id,
+                            'camera': bug_info['camera'],
+                            'frame_index': bug_info['frame_index'],
+                        }
 
-                            bug_info_for_arrow = {
-                                'characteristic': characteristic,
-                                'bug_type': bug_type,
-                                'scenario_id': self.scenario_id,
-                                'camera': bug_info['camera'],
-                                'frame_index': bug_info['frame_index'],
-                            }
+                        if self.test_topic == 'Obstacles':
+                            if bug_info['gt.flag'] == 1:
+                                if bug_info['gt.type_classification'] in [4, 5]:
+                                    height = 4
+                                else:
+                                    height = 2
+                                bug_info_for_arrow['gt'] = [bug_info['gt.x'], bug_info['gt.y'], height]
+                                bug_info_for_arrow['target_type'] = bug_info['gt.type_classification']
+                            if bug_info['pred.flag'] == 1:
+                                if bug_info['pred.type_classification'] in [4, 5]:
+                                    height = 4
+                                else:
+                                    height = 2
+                                bug_info_for_arrow['pred'] = [bug_info['pred.x'], bug_info['pred.y'], height]
+                                bug_info_for_arrow['target_type'] = bug_info['pred.type_classification']
 
-                            if 'Obstacles' in topic_belonging:
-                                if bug_info['gt.flag'] == 1:
-                                    if bug_info['gt.type_classification'] in [4, 5]:
-                                        height = 4
-                                    else:
-                                        height = 2
-                                    bug_info_for_arrow['gt'] = [bug_info['gt.x'], bug_info['gt.y'], height]
-                                    bug_info_for_arrow['target_type'] = bug_info['gt.type_classification']
-                                if bug_info['pred.flag'] == 1:
-                                    if bug_info['pred.type_classification'] in [4, 5]:
-                                        height = 4
-                                    else:
-                                        height = 2
-                                    bug_info_for_arrow['pred'] = [bug_info['pred.x'], bug_info['pred.y'], height]
-                                    bug_info_for_arrow['target_type'] = bug_info['pred.type_classification']
+                        elif self.test_topic == 'Lines':
+                            if bug_info['gt.flag'] == 1:
+                                bug_info_for_arrow['gt'] = [15, bug_info['gt.y_15'], 0]
+                                bug_info_for_arrow['target_type'] = bug_info['gt.position']
+                            if bug_info['pred.flag'] == 1:
+                                bug_info_for_arrow['pred'] = [15, bug_info['pred.y_15'], 0]
+                                bug_info_for_arrow['target_type'] = bug_info['pred.position']
 
-                            elif 'Lines' in topic_belonging:
-                                if bug_info['gt.flag'] == 1:
-                                    bug_info_for_arrow['gt'] = [15, bug_info['gt.y_15'], 0]
-                                    bug_info_for_arrow['target_type'] = bug_info['gt.position']
-                                if bug_info['pred.flag'] == 1:
-                                    bug_info_for_arrow['pred'] = [15, bug_info['pred.y_15'], 0]
-                                    bug_info_for_arrow['target_type'] = bug_info['pred.position']
+                        bug_info_for_arrow['origin_shot'] = [
+                            os.path.join(self.BugFolder, 'General', camera, f'{bug_info["frame_index"]}.jpg')
+                            for camera in bug_info['camera']
+                        ]
 
-                            bug_info_for_arrow['origin_shot'] = [
-                                os.path.join(self.BugFolder, 'General', camera, f'{bug_info["frame_index"]}.jpg')
-                                for camera in bug_info['camera']
-                            ]
+                        bug_info_for_arrow['arrow_shot'] = [
+                            os.path.join(one_bug_folder, f'{camera}-{self.scenario_id}-{bug_info["frame_index"]}.jpg')
+                            for camera in bug_info['camera']
+                        ]
 
-                            bug_info_for_arrow['arrow_shot'] = [
-                                os.path.join(one_bug_folder, f'{camera}-{self.scenario_id}-{bug_info["frame_index"]}.jpg')
-                                for camera in bug_info['camera']
-                            ]
-
-                            bug_arrow_list.append(bug_info_for_arrow)
+                        bug_arrow_list.append(bug_info_for_arrow)
 
         bug_arrow_json_path = os.path.join(self.BugFolder, 'General', 'bug_arrow.json')
         with open(bug_arrow_json_path, 'w') as json_file:
@@ -963,161 +901,157 @@ class DataGrinderPilotOneCase:
     def bug_report(self):
 
         # 建立bug report，并汇总
-        for topic_belonging in self.test_result.keys():
-            if topic_belonging == 'General':
+        if 'Obstacles' == self.test_topic:
+            bug_jira_column = [
+                'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type',
+                'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
+                'project_id', 'uuid', 'is_valid'
+            ]
+        elif 'Lines' == self.test_topic:
+            bug_jira_column = [
+                'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type',
+                'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
+                'project_id', 'uuid', 'is_valid'
+            ]
+        else:
+            bug_jira_column = []
+
+        for topic in self.test_result[self.test_topic].keys():
+            if topic == 'GroundTruth':
                 continue
 
-            if 'Obstacles' in topic_belonging:
-                bug_jira_column = [
-                    'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type',
-                    'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
-                    'project_id', 'uuid', 'is_valid'
-                ]
-            elif 'Lines' in topic_belonging:
-                bug_jira_column = [
-                    'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type',
-                    'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
-                    'project_id', 'uuid', 'is_valid'
-                ]
-            else:
+            if topic not in self.test_config['test_item']:
+                send_log(self, f'{topic}没有在test_item中')
                 continue
 
-            for topic in self.test_result[topic_belonging].keys():
-                if topic == 'GroundTruth':
-                    continue
+            bug_jira_rows = []
+            topic_tag = topic.replace('/', '')
 
-                if topic not in self.test_config['test_item']:
-                    send_log(self, f'{topic}没有在test_item中')
-                    continue
+            for characteristic in self.test_result[self.test_topic][topic]['bug']:
+                bug_report_folder = os.path.join(self.BugFolder, self.test_topic, topic_tag, 'bug_report', characteristic)
+                create_folder(bug_report_folder)
 
-                bug_jira_rows = []
-                topic_tag = topic.replace('/', '')
+                for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][characteristic].items():
 
-                for characteristic in self.test_result[topic_belonging][topic]['bug']:
-                    bug_report_folder = os.path.join(self.BugFolder, topic_belonging, topic_tag, 'bug_report', characteristic)
-                    create_folder(bug_report_folder)
+                    for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+                        one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
 
-                    for bug_type, bug_type_folder in self.test_result[topic_belonging][topic]['bug'][characteristic].items():
+                        bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
+                        with open(bug_info_json, 'r', encoding='utf-8') as f:
+                            bug_info = json.load(f)
 
-                        for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
-                            one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
+                        # 获得目标类型
+                        target_type = bug_info['gt.type_classification'] if bug_info['gt.flag'] \
+                            else bug_info['pred.type_classification']
 
-                            bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
-                            with open(bug_info_json, 'r', encoding='utf-8') as f:
-                                bug_info = json.load(f)
+                        # 获得目标id
+                        target_id = bug_info['gt.id'] if bug_info['gt.flag'] else bug_info['pred.id']
 
-                            # 获得目标类型
-                            target_type = bug_info['gt.type_classification'] if bug_info['gt.flag'] \
-                                else bug_info['pred.type_classification']
-
-                            # 获得目标id
-                            target_id = bug_info['gt.id'] if bug_info['gt.flag'] else bug_info['pred.id']
-
-                            # 获得目标特征
-                            target_characteristic = []
-                            if bug_info['gt.flag']:
-                                if bug_info['gt.is_coverageValid']:
-                                    target_characteristic.append(f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
-                                else:
-                                    target_characteristic.append(f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
-                                if bug_info['gt.is_keyObj']:
-                                    target_characteristic.append('是关键目标')
-                                else:
-                                    target_characteristic.append('非关键目标')
+                        # 获得目标特征
+                        target_characteristic = []
+                        if bug_info['gt.flag']:
+                            if bug_info['gt.is_coverageValid']:
+                                target_characteristic.append(f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
                             else:
-                                if bug_info['pred.is_coverageValid']:
-                                    target_characteristic.append(f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
-                                else:
-                                    target_characteristic.append(f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
-                                if bug_info['pred.is_keyObj']:
-                                    target_characteristic.append('是关键目标')
-                                else:
-                                    target_characteristic.append('非关键目标')
-                            target_characteristic = '&'.join(target_characteristic)
+                                target_characteristic.append(f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                            if bug_info['gt.is_keyObj']:
+                                target_characteristic.append('是关键目标')
+                            else:
+                                target_characteristic.append('非关键目标')
+                        else:
+                            if bug_info['pred.is_coverageValid']:
+                                target_characteristic.append(f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                            else:
+                                target_characteristic.append(f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                            if bug_info['pred.is_keyObj']:
+                                target_characteristic.append('是关键目标')
+                            else:
+                                target_characteristic.append('非关键目标')
+                        target_characteristic = '&'.join(target_characteristic)
 
-                            # 开始生成报告
-                            uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{target_id}')
-                            report_title = f'{self.product}-{target_type}-{bug_type}-测试异常报告({uuid[:6]})'
-                            send_log(self, f'开始生成测试异常报告 {report_title}')
-                            print(f'开始生成测试异常报告 {report_title}')
+                        # 开始生成报告
+                        uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{target_id}')
+                        report_title = f'{self.product}-{target_type}-{bug_type}-测试异常报告({uuid[:6]})'
+                        send_log(self, f'开始生成测试异常报告 {report_title}')
+                        print(f'开始生成测试异常报告 {report_title}')
 
-                            title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure',
-                                                            'TitlePage.png')
-                            logo = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'ZoneLogo.png')
-                            report_generator = PDFReportTemplate(report_title=report_title,
-                                                                 test_time=f'{topic} {bug_type}',
-                                                                 tester=self.scenario_id,
-                                                                 version=self.version,
-                                                                 title_page=title_background,
-                                                                 title_summary_img=None,
-                                                                 logo=logo)
+                        title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure',
+                                                        'TitlePage.png')
+                        logo = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'ZoneLogo.png')
+                        report_generator = PDFReportTemplate(report_title=report_title,
+                                                             test_time=f'{topic} {bug_type}',
+                                                             tester=self.scenario_id,
+                                                             version=self.version,
+                                                             title_page=title_background,
+                                                             title_summary_img=None,
+                                                             logo=logo)
 
-                            img_list = [glob.glob(os.path.join(one_bug_folder, 'CAM_*.jpg'))]
+                        img_list = [glob.glob(os.path.join(one_bug_folder, 'CAM_*.jpg'))]
 
-                            report_generator.addOnePage(
-                                heading=f'{bug_type} 视频截图',
-                                text_list=[
-                                    f'场景名: {self.scenario_id}',
-                                    f'topic: {topic}, 目标类型: {target_type}, 目标特征: {target_characteristic}',
-                                    f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame',
-                                    '实心箭头为GroundTruth，空心箭头为Prediction',
-                                ],
-                                img_list=img_list,
+                        report_generator.addOnePage(
+                            heading=f'{bug_type} 视频截图',
+                            text_list=[
+                                f'场景名: {self.scenario_id}',
+                                f'topic: {topic}, 目标类型: {target_type}, 目标特征: {target_characteristic}',
+                                f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame',
+                                '实心箭头为GroundTruth，空心箭头为Prediction',
+                            ],
+                            img_list=img_list,
+                        )
+
+                        text_list = ['id, type, x, y, vx, vy, yaw, length, width, height 信息如下:']
+                        if bug_info['gt.flag']:
+                            text_list.append(
+                                f"GroundTruth: id-{int(bug_info['gt.id'])}, {bug_info['gt.type_classification']}, "
+                                f"({round(bug_info['gt.x'], 2)}m, {round(bug_info['gt.y'], 2)}m), "
+                                f"({round(bug_info['gt.vx'], 2)}m/s, {round(bug_info['gt.vy'], 2)}m/s), "
+                                f"{round(bug_info['gt.yaw'] * 57.3, 1)}°, "
+                                f"{round(bug_info['gt.length'], 2)}m × {round(bug_info['gt.width'], 2)}m × {round(bug_info['gt.height'], 2)}m"
+                            )
+                        if bug_info['pred.flag']:
+                            text_list.append(
+                                f"Prediction: id-{int(bug_info['pred.id'])}, {bug_info['pred.type_classification']}, "
+                                f"({round(bug_info['pred.x'], 2)}m, {round(bug_info['pred.y'], 2)}m), "
+                                f"({round(bug_info['pred.vx'], 2)}m/s, {round(bug_info['pred.vy'], 2)}m/s), "
+                                f"{round(bug_info['pred.yaw'] * 57.3, 1)}°, "
+                                f"{round(bug_info['pred.length'], 2)}m × {round(bug_info['pred.width'], 2)}m × {round(bug_info['pred.height'], 2)}m"
                             )
 
-                            text_list = ['id, type, x, y, vx, vy, yaw, length, width, height 信息如下:']
-                            if bug_info['gt.flag']:
-                                text_list.append(
-                                    f"GroundTruth: id-{int(bug_info['gt.id'])}, {bug_info['gt.type_classification']}, "
-                                    f"({round(bug_info['gt.x'], 2)}m, {round(bug_info['gt.y'], 2)}m), "
-                                    f"({round(bug_info['gt.vx'], 2)}m/s, {round(bug_info['gt.vy'], 2)}m/s), "
-                                    f"{round(bug_info['gt.yaw'] * 57.3, 1)}°, "
-                                    f"{round(bug_info['gt.length'], 2)}m × {round(bug_info['gt.width'], 2)}m × {round(bug_info['gt.height'], 2)}m"
-                                )
-                            if bug_info['pred.flag']:
-                                text_list.append(
-                                    f"Prediction: id-{int(bug_info['pred.id'])}, {bug_info['pred.type_classification']}, "
-                                    f"({round(bug_info['pred.x'], 2)}m, {round(bug_info['pred.y'], 2)}m), "
-                                    f"({round(bug_info['pred.vx'], 2)}m/s, {round(bug_info['pred.vy'], 2)}m/s), "
-                                    f"{round(bug_info['pred.yaw'] * 57.3, 1)}°, "
-                                    f"{round(bug_info['pred.length'], 2)}m × {round(bug_info['pred.width'], 2)}m × {round(bug_info['pred.height'], 2)}m"
-                                )
+                        report_generator.addOnePage(
+                            heading=f'{bug_type} 真值与感知的对比',
+                            text_list=text_list,
+                            img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
+                        )
 
-                            report_generator.addOnePage(
-                                heading=f'{bug_type} 真值与感知的对比',
-                                text_list=text_list,
-                                img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
-                            )
+                        bug_report_path = report_generator.genReport(bug_report_folder, 1)
 
-                            bug_report_path = report_generator.genReport(bug_report_folder, 1)
+                        info = test_encyclopaedia['Information'][self.test_topic]
+                        jira_summary = f'数据回灌感知测试({self.product}-{self.version}-{info["name"]})'
+                        text = [
+                            '测试版本: {:s}, {:s}'.format(self.product, self.version),
+                            '测试时间: {:s}'.format(self.test_config['test_date']),
+                            '异常类型: {:s}'.format(info['bug_items'][bug_type]['name']),
+                            '异常发生时刻的场景和截图见附件',
+                            '-------------',
+                        ]
+                        jira_description = '\n'.join(text)
+                        project_key = self.test_encyclopaedia['project_id'][0]
+                        project_id = self.test_encyclopaedia['project_id'][1]
 
-                            info = test_encyclopaedia['Information'][topic_belonging]
-                            jira_summary = f'数据回灌感知测试({self.product}-{self.version}-{info["name"]})'
-                            text = [
-                                '测试版本: {:s}, {:s}'.format(self.product, self.version),
-                                '测试时间: {:s}'.format(self.test_config['test_date']),
-                                '异常类型: {:s}'.format(info['bug_items'][bug_type]['name']),
-                                '异常发生时刻的场景和截图见附件',
-                                '-------------',
-                            ]
-                            jira_description = '\n'.join(text)
-                            project_key = self.test_encyclopaedia['project_id'][0]
-                            project_id = self.test_encyclopaedia['project_id'][1]
+                        jira_row = [
+                            self.version, info['name'], '&'.join(self.scenario_tag.values()),
+                            topic, info['bug_items'][bug_type]['name'], target_type,
+                            self.scenario_id, jira_summary, jira_description,
+                            '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}' + uuid, 0
+                        ]
 
-                            jira_row = [
-                                self.version, info['name'], '&'.join(self.scenario_tag.values()),
-                                topic, info['bug_items'][bug_type]['name'], target_type,
-                                self.scenario_id, jira_summary, jira_description,
-                                '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}' + uuid, 0
-                            ]
+                        bug_jira_rows.append(jira_row)
 
-                            bug_jira_rows.append(jira_row)
-
-                    bug_jira_summary_path = os.path.join(bug_report_folder, 'bug_jira_summary.csv')
-                    bug_jira_summary = pd.DataFrame(bug_jira_rows, columns=bug_jira_column)
-                    bug_jira_summary.to_csv(bug_jira_summary_path, index=False)
-                    print('{:s} 保存完毕'.format(bug_jira_summary_path))
-                    self.test_result[topic_belonging][topic]['bug_jira_summary'] = self.get_relpath(bug_jira_summary_path)
+                bug_jira_summary_path = os.path.join(bug_report_folder, 'bug_jira_summary.csv')
+                bug_jira_summary = pd.DataFrame(bug_jira_rows, columns=bug_jira_column)
+                bug_jira_summary.to_csv(bug_jira_summary_path, index=False)
+                print('{:s} 保存完毕'.format(bug_jira_summary_path))
+                self.test_result[self.test_topic][topic]['bug_jira_summary'] = self.get_relpath(bug_jira_summary_path)
 
     def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
 
@@ -1410,8 +1344,10 @@ class DataGrinderPilotOneTask:
         # 加载测试相关的参数
         self.product = self.test_config['product']
         self.version = self.test_config['version']
+        self.test_topic = self.test_config['test_topic']
         self.test_date = str(self.test_config['test_date'])
         self.test_db_id = generate_unique_id(''.join([self.product, self.version, self.test_date]))
+        self.test_information = test_encyclopaedia['Information'][self.test_topic]
 
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_action = self.test_config['test_action']
@@ -1422,15 +1358,19 @@ class DataGrinderPilotOneTask:
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
-            self.test_result = {}
+            self.test_result = {
+                'ScenarioUnit': {},
+                'TagCombination': {},
+                'OutputResult': {},
+            }
+
             for scenario_tag in self.test_config['scenario_tag']:
                 tag_key = '&'.join(scenario_tag['tag'].values())
-                self.test_result[tag_key] = {
-                    'tag': scenario_tag['tag'], 'scenario_unit': {}, 'tag_combination': {}
+                self.test_result['TagCombination'][tag_key] = {
+                    'tag': scenario_tag['tag'],
+                    'scenario_id': scenario_tag['scenario_id'],
+                    self.test_topic: {},
                 }
-                for scenario_id in scenario_tag['scenario_id']:
-                    self.test_result[tag_key]['scenario_unit'][scenario_id] = self.get_relpath(
-                        os.path.join(self.scenario_unit_folder, scenario_id, 'TestResult.yaml'))
 
             self.save_test_result()
 
@@ -1448,6 +1388,7 @@ class DataGrinderPilotOneTask:
                 scenario_test_config = {
                     'product': self.test_config['product'],
                     'version': self.test_config['version'],
+                    'test_topic': self.test_config['test_topic'],
                     'test_date': str(self.test_config['test_date']),
                     'pred_folder': os.path.join(self.test_config['data_path']['raw']['pred'], scenario_id),
                     'gt_folder': os.path.join(self.test_config['data_path']['raw']['gt'], scenario_id),
@@ -1466,12 +1407,15 @@ class DataGrinderPilotOneTask:
                 }
 
                 scenario_run_list[scenario_id] = {
+                    'scenario_id': scenario_id,
                     'scenario_unit_folder': os.path.join(self.scenario_unit_folder, scenario_id),
                     'scenario_test_config': scenario_test_config,
                     'scenario_config_yaml': os.path.join(self.scenario_unit_folder, scenario_id, 'TestConfig.yaml')
                 }
 
         for scenario_run_info in scenario_run_list.values():
+            self.test_result['ScenarioUnit'][scenario_run_info['scenario_id']] = (
+                self.get_relpath(scenario_run_info['scenario_unit_folder']))
             create_folder(scenario_run_info['scenario_unit_folder'], False)
             with open(scenario_run_info['scenario_config_yaml'], 'w', encoding='utf-8') as f:
                 yaml.dump(scenario_run_info['scenario_test_config'],
@@ -1483,111 +1427,93 @@ class DataGrinderPilotOneTask:
         # 合并各个场景的match_data, 重新corresponding_index编号
         # 获得每一种特征的分类结果
         match_data_dict = {}
-        for tag_key in self.test_result.keys():
-            if tag_key == 'OutputResult':
-                continue
+        for tag_key in self.test_result['TagCombination'].keys():
 
             # 汇总数据
             tag_combination_folder = os.path.join(self.tag_combination_folder, tag_key)
             create_folder(tag_combination_folder)
             match_data_dict[tag_key] = {}
 
-            for scenario_id, scenario_test_result in self.test_result[tag_key]['scenario_unit'].items():
+            for scenario_id in self.test_result['TagCombination'][tag_key]['scenario_id']:
                 scenario_unit_folder = os.path.join(self.scenario_unit_folder, scenario_id)
-                with open(self.get_abspath(scenario_test_result)) as f:
+                with open(os.path.join(scenario_unit_folder, 'TestResult.yaml')) as f:
                     scenario_test_result = yaml.load(f, Loader=yaml.FullLoader)
 
                 # 遍历全部测试结果，按照topic和metrics合并
-                for topic_belonging in scenario_test_result.keys():
-                    if topic_belonging == 'General':
+                for topic in scenario_test_result[self.test_topic].keys():
+                    if topic == 'GroundTruth':
                         continue
 
-                    if topic_belonging not in self.test_result[tag_key]['tag_combination']:
-                        self.test_result[tag_key]['tag_combination'][topic_belonging] = {}
-                    if topic_belonging not in match_data_dict[tag_key]:
-                        match_data_dict[tag_key][topic_belonging] = {}
+                    topic_tag = topic.replace('/', '')
+                    # 用于设置评判样本量最小限度的帧数阈值
+                    if topic not in self.test_result['TagCombination'][tag_key][self.test_topic]:
+                        self.test_result['TagCombination'][tag_key][self.test_topic][topic] = {
+                            'frequency': scenario_test_result[self.test_topic][topic]['match_frequency']
+                        }
+                        topic_folder = os.path.join(tag_combination_folder, topic_tag)
+                        create_folder(topic_folder)
 
-                    for topic in scenario_test_result[topic_belonging].keys():
-                        if topic == 'GroundTruth':
-                            # 用于设置评判样本量最小限度的帧数阈值
-                            frequency = round(scenario_test_result[topic_belonging][topic]['frequency'])
-                            if 'frequency' not in self.test_result[tag_key]:
-                                self.test_result[tag_key]['frequency'] = frequency
-                            else:
-                                self.test_result[tag_key]['frequency'] = (
-                                    min(self.test_result[tag_key]['frequency'], frequency))
-                            continue
+                    if topic not in match_data_dict[tag_key]:
+                        match_data_dict[tag_key][topic] = []
 
-                        topic_tag = topic.replace('/', '')
-                        if topic not in self.test_result[tag_key]['tag_combination'][topic_belonging]:
-                            self.test_result[tag_key]['tag_combination'][topic_belonging][topic] = {}
-                            topic_folder = os.path.join(tag_combination_folder, topic_belonging, topic_tag)
-                            create_folder(topic_folder)
-
-                        if topic not in match_data_dict[tag_key][topic_belonging]:
-                            match_data_dict[tag_key][topic_belonging][topic] = []
-
-                        match_data_path = scenario_test_result[topic_belonging][topic]['match']['match_data']
-                        match_data = pd.read_csv(os.path.join(scenario_unit_folder, match_data_path), index_col=False)
-                        match_data.insert(0, 'scenario_id', scenario_id)
-                        match_data_dict[tag_key][topic_belonging][topic].append(match_data)
+                    match_data_path = scenario_test_result[self.test_topic][topic]['match']['match_data']
+                    match_data = pd.read_csv(os.path.join(scenario_unit_folder, match_data_path), index_col=False)
+                    match_data.insert(0, 'scenario_id', scenario_id)
+                    match_data_dict[tag_key][topic].append(match_data)
 
         for tag_key in match_data_dict.keys():
-            for topic_belonging in match_data_dict[tag_key].keys():
 
-                send_log(self, f'{topic_belonging}, 使用{topic_belonging}MetricEvaluator')
-                metric_evaluator = eval(f'MetricEvaluator.{topic_belonging}MetricEvaluator()')
-                metric_filter = eval(f'MetricEvaluator.{topic_belonging}MetricFilter()')
+            send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
+            metric_evaluator = eval(f'MetricEvaluator.{self.test_topic}MetricEvaluator()')
+            metric_filter = eval(f'MetricEvaluator.{self.test_topic}MetricFilter()')
 
-                for topic, df_list in match_data_dict[tag_key][topic_belonging].items():
-                    topic_tag = topic.replace('/', '')
-                    total_match_data = pd.concat(df_list).reset_index(drop=True)
-                    total_match_data['corresponding_index'] = total_match_data.index
+            for topic, df_list in match_data_dict[tag_key].items():
+                topic_tag = topic.replace('/', '')
+                total_match_data = pd.concat(df_list).reset_index(drop=True)
+                total_match_data['corresponding_index'] = total_match_data.index
+
+                input_parameter_container = {
+                    'metric_type': self.test_config['test_item'][topic],
+                }
+                input_data = {
+                    'data': total_match_data,
+                }
+
+                send_log(self, f'{self.test_topic} {topic} 指标评估')
+                data_dict = metric_evaluator.run(input_data, input_parameter_container)
+
+                for metric, metric_data in data_dict.items():
+                    total_folder = os.path.join(self.tag_combination_folder,
+                                                tag_key, topic_tag, 'total')
+                    create_folder(total_folder, False)
+                    if 'total' not in self.test_result['TagCombination'][tag_key][self.test_topic][topic]:
+                        self.test_result['TagCombination'][tag_key][self.test_topic][topic]['total'] = {}
+
+                    path = os.path.join(total_folder, f'{metric}.csv')
+                    self.test_result['TagCombination'][tag_key][self.test_topic][topic]['total'][metric] = (
+                        self.get_relpath(path))
+                    metric_data.to_csv(path, index=False, encoding='utf_8_sig')
 
                     input_parameter_container = {
-                        'metric_type': self.test_config['test_item'][topic],
+                        'characteristic_type': self.test_config['target_characteristic'],
                     }
                     input_data = {
-                        'data': total_match_data,
+                        'total_data': total_match_data,
+                        'data_to_filter': metric_data,
                     }
 
-                    send_log(self, f'{topic_belonging} {topic} 指标评估')
-                    data_dict = metric_evaluator.run(input_data, input_parameter_container)
+                    characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
+                    for characteristic, characteristic_data in characteristic_data_dict.items():
+                        characteristic_folder = os.path.join(self.tag_combination_folder,
+                                                             tag_key, topic_tag, characteristic)
+                        create_folder(characteristic_folder, False)
+                        if characteristic not in self.test_result['TagCombination'][tag_key][self.test_topic][topic]:
+                            self.test_result['TagCombination'][tag_key][self.test_topic][topic][characteristic] = {}
 
-                    for metric, metric_data in data_dict.items():
-                        total_folder = os.path.join(self.tag_combination_folder,
-                                                    tag_key, topic_belonging, topic_tag, 'total')
-                        create_folder(total_folder, False)
-                        if 'total' not in self.test_result[tag_key]['tag_combination'][topic_belonging][topic]:
-                            self.test_result[tag_key]['tag_combination'][topic_belonging][topic]['total'] = {}
-
-                        path = os.path.join(total_folder, f'{metric}.csv')
-                        self.test_result[tag_key]['tag_combination'][topic_belonging][topic]['total'][
-                            metric] = self.get_relpath(path)
-                        metric_data.to_csv(path, index=False, encoding='utf_8_sig')
-
-                        input_parameter_container = {
-                            'characteristic_type': self.test_config['target_characteristic'],
-                        }
-                        input_data = {
-                            'total_data': total_match_data,
-                            'data_to_filter': metric_data,
-                        }
-
-                        characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
-                        for characteristic, characteristic_data in characteristic_data_dict.items():
-                            characteristic_folder = os.path.join(self.tag_combination_folder,
-                                                                 tag_key, topic_belonging, topic_tag, characteristic)
-                            create_folder(characteristic_folder, False)
-                            if characteristic not in self.test_result[tag_key]['tag_combination'][topic_belonging][
-                                topic]:
-                                self.test_result[tag_key]['tag_combination'][topic_belonging][topic][
-                                    characteristic] = {}
-
-                            path = os.path.join(characteristic_folder, f'{metric}.csv')
-                            self.test_result[tag_key]['tag_combination'][topic_belonging][topic][characteristic][
-                                metric] = self.get_relpath(path)
-                            characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
+                        path = os.path.join(characteristic_folder, f'{metric}.csv')
+                        self.test_result['TagCombination'][tag_key][self.test_topic][topic][characteristic][metric] = (
+                            self.get_relpath(path))
+                        characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
 
     @sync_test_result
     def compile_statistics(self):
@@ -1597,70 +1523,66 @@ class DataGrinderPilotOneTask:
         create_folder(json_folder)
         json_count = 0
         json_rows = []
-        self.test_result['OutputResult'] = {}
-        for tag_key in self.test_result.keys():
-            if tag_key == 'OutputResult':
-                continue
 
-            tag = self.test_result[tag_key]['tag']
-            scenario_list = list(self.test_result[tag_key]['scenario_unit'].keys())
+        for tag_key in self.test_result['TagCombination'].keys():
+            tag = self.test_result['TagCombination'][tag_key]['tag']
+            scenario_list = self.test_result['TagCombination'][tag_key]['scenario_id']
 
-            for topic_belonging in self.test_result[tag_key]['tag_combination'].keys():
-                metric_statistics = eval(f'MetricStatistics.{topic_belonging}MetricStatistics()')
+            metric_statistics = eval(f'MetricStatistics.{self.test_topic}MetricStatistics()')
 
-                for topic in self.test_result[tag_key]['tag_combination'][topic_belonging].keys():
-                    topic_tag = topic.replace('/', '')
+            for topic in self.test_result['TagCombination'][tag_key][self.test_topic].keys():
+                topic_tag = topic.replace('/', '')
 
-                    for characteristic in self.test_config['target_characteristic']:
-                        test_result = self.test_result[tag_key]['tag_combination'][topic_belonging][topic][
-                            characteristic]
+                for characteristic in self.test_config['target_characteristic']:
+                    test_result = self.test_result['TagCombination'][tag_key][self.test_topic][topic][
+                        characteristic]
 
-                        info_json_data = {
-                            'Product': self.product,
-                            'Version': self.version,
-                            'StartTime': str(self.test_date),
-                            **{tag_type: tag_value for tag_type, tag_value in tag.items()},
-                            'ScenarioGroup': scenario_list,
-                            'TopicName': topic}
+                    info_json_data = {
+                        'Product': self.product,
+                        'Version': self.version,
+                        'StartTime': str(self.test_date),
+                        **{tag_type: tag_value for tag_type, tag_value in tag.items()},
+                        'ScenarioGroup': scenario_list,
+                        'TopicName': topic}
 
-                        data = {
-                            metric: pd.read_csv(self.get_abspath(data_path), index_col=False)
-                            for metric, data_path in test_result.items()
-                        }
+                    data = {
+                        metric: pd.read_csv(self.get_abspath(data_path), index_col=False)
+                        for metric, data_path in test_result.items()
+                    }
 
-                        input_parameter_container = {
-                            'region_division': self.region_division,
-                            'characteristic': characteristic,
-                        }
+                    input_parameter_container = {
+                        'region_division': self.region_division,
+                        'characteristic': characteristic,
+                    }
 
-                        json_datas = metric_statistics.run(data, input_parameter_container)
+                    json_datas = metric_statistics.run(data, input_parameter_container)
 
-                        for json_data in json_datas:
-                            json_data = {**info_json_data, **json_data}
+                    for json_data in json_datas:
+                        json_data = {**info_json_data, **json_data}
 
-                            # 保存单个json文件
-                            json_count += 1
-                            json_name = (f'{json_count:06d}--{tag_key}--{topic_tag}--{json_data["ObstacleName"]}'
-                                         f'--{json_data["RangeDetails"]}--{json_data["FeatureDetail"]}--{json_data["MetricTypeName"]}.json')
-                            json_path = os.path.join(json_folder, json_name)
+                        # 保存单个json文件
+                        json_count += 1
+                        json_name = (f'{json_count:06d}--{tag_key}--{topic_tag}--{json_data["ObstacleName"]}'
+                                     f'--{json_data["RangeDetails"]}--{json_data["FeatureDetail"]}--{json_data["MetricTypeName"]}.json')
+                        json_path = os.path.join(json_folder, json_name)
 
-                            frequency_threshold = self.test_result[tag_key]['frequency'] * 2
-                            if json_data['Output']['sample_count'] < frequency_threshold:
-                                print(f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
-                                continue
+                        frequency_threshold = self.test_result['TagCombination'][tag_key][self.test_topic][topic]['frequency'] * 2
+                        if json_data['Output']['sample_count'] < frequency_threshold:
+                            print(f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
+                            continue
 
-                            print(f'{json_count} {json_name} 已保存')
-                            with open(json_path, 'w', encoding='utf-8') as f:
-                                json.dump(json_data, f, ensure_ascii=False, indent=4)
+                        print(f'{json_count} {json_name} 已保存')
+                        with open(json_path, 'w', encoding='utf-8') as f:
+                            json.dump(json_data, f, ensure_ascii=False, indent=4)
 
-                            # 保存json文件的目录
-                            json_rows.append(
-                                [
-                                    json_count, tag_key, topic, json_data['ObstacleName'], json_data['RangeDetails'],
-                                    json_data['FeatureDetail'], json_data['MetricTypeName'],
-                                    json_data['Output']['sample_count'], json.dumps(json_data['Output'])
-                                ]
-                            )
+                        # 保存json文件的目录
+                        json_rows.append(
+                            [
+                                json_count, tag_key, topic, json_data['ObstacleName'], json_data['RangeDetails'],
+                                json_data['FeatureDetail'], json_data['MetricTypeName'],
+                                json_data['Output']['sample_count'], json.dumps(json_data['Output'])
+                            ]
+                        )
 
         path = os.path.join(json_folder, 'output_result.csv')
         pd.DataFrame(json_rows, columns=[
@@ -1904,8 +1826,7 @@ class DataGrinderPilotOneTask:
 
                         # 重新排列结果的顺序
                         merged_df = merged_df.set_index('grid area division[m]', drop=True)
-                        topic_belonging = get_topic_attribution(topic)['topic_belonging']
-                        result_column = test_encyclopaedia['Information'][topic_belonging]['result_column']
+                        result_column = test_encyclopaedia['Information'][self.test_topic]['result_column']
 
                         merged_df = merged_df[[c for c in result_column if c in merged_df.columns]]
 
@@ -2004,13 +1925,7 @@ class DataGrinderPilotOneTask:
     @sync_test_result
     def gen_report(self):
 
-        def get_characteristic_description(characteristic):
-            for topic_belonging in test_encyclopaedia['Information']:
-                for characteristic_des in test_encyclopaedia['Information'][topic_belonging]['characteristic'].values():
-                    if characteristic_des['name'] == characteristic:
-                        return characteristic_des["description"]
-
-        report_title = f'{self.product}_Hil_DataReplay_TestReport_{self.test_date.split(" ")[0]}'
+        report_title = f'{self.product}_{self.test_topic}_数据回灌测试报告_{self.test_date.split(" ")[0]}'
         send_log(self, f'开始生成报告 {report_title}')
 
         title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'TitlePage.png')
@@ -2032,7 +1947,11 @@ class DataGrinderPilotOneTask:
         text_list.append('B.目标特征分类:')
         used_characteristics = ['全局目标', '关键目标']
         for i, characteristic in enumerate(used_characteristics):
-            text_list.append(f'     {i + 1}. {characteristic}: {get_characteristic_description(characteristic)}')
+            c_des = '未知特征'
+            for c in self.test_information["characteristic"]:
+                if self.test_information['characteristic'][c]['name'] == characteristic:
+                    c_des = self.test_information['characteristic'][c]['description']
+            text_list.append(f'     {i + 1}. {characteristic}: {c_des}')
         text_list.append(' ')
 
         text_list.append('C. 测试topic:')
@@ -2059,18 +1978,18 @@ class DataGrinderPilotOneTask:
                 title=scenario_tag,
                 page_type='sequence',
                 stamp=None,
-                sub_title_list=list(self.test_result[scenario_tag]['scenario_unit'].keys()),
+                sub_title_list=self.test_result['TagCombination'][scenario_tag]['scenario_id'],
             )
 
             # 测试场景展示页面
             img_count = 0
             img_list = []
-            for scenario_id, scenario_test_result in self.test_result[scenario_tag]['scenario_unit'].items():
+            for scenario_id in self.test_result['TagCombination'][scenario_tag]['scenario_id']:
                 scenario_unit_folder = os.path.join(self.scenario_unit_folder, scenario_id)
                 scenario_info_img = os.path.join(scenario_unit_folder, '00_ScenarioInfo', f'{scenario_id}_Info.jpg')
                 img_list.append([scenario_info_img])
                 img_count += 1
-                if img_count == 3 or scenario_id == list(self.test_result[scenario_tag]['scenario_unit'].keys())[-1]:
+                if img_count == 3 or scenario_id == self.test_result['TagCombination'][scenario_tag]['scenario_id'][-1]:
                     report_generator.addOnePage(heading=f'{scenario_tag} 场景列表',
                                                 text_list=None,
                                                 img_list=img_list)
