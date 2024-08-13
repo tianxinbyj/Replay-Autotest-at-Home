@@ -783,6 +783,7 @@ class DataGrinderPilotOneCase:
                             cameras = self.which_camera_saw_you(row['pred.x'], row['pred.y'])
 
                         frame_index = round((time_stamp - video_start_time) * fps)
+
                         for camera in cameras:
                             if camera not in video_snap_dict:
                                 video_snap_dict[camera] = []
@@ -1351,9 +1352,9 @@ class DataGrinderPilotOneTask:
 
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_action = self.test_config['test_action']
-        self.scenario_unit_folder = self.test_config['data_path']['intermediate']['scenario_unit']
-        self.tag_combination_folder = self.test_config['data_path']['intermediate']['tag_combination']
-        self.result_folder = self.test_config['data_path']['output_result']
+        self.scenario_unit_folder = os.path.join(task_folder, '01_ScenarioUnit')
+        self.tag_combination_folder = os.path.join(task_folder, '02_TagCombination')
+        self.output_result_folder = os.path.join(task_folder, '03_OutputResult')
         self.region_division = self.test_config['region_division']
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
@@ -1390,8 +1391,8 @@ class DataGrinderPilotOneTask:
                     'version': self.test_config['version'],
                     'test_topic': self.test_config['test_topic'],
                     'test_date': str(self.test_config['test_date']),
-                    'pred_folder': os.path.join(self.test_config['data_path']['raw']['pred'], scenario_id),
-                    'gt_folder': os.path.join(self.test_config['data_path']['raw']['gt'], scenario_id),
+                    'pred_folder': os.path.join(self.test_config['pred_folder'], scenario_id),
+                    'gt_folder': os.path.join(self.test_config['gt_folder'], scenario_id),
                     'test_action': self.test_action['scenario_unit'],
                     'test_item': self.test_config['test_item'],
                     'target_characteristic': ['is_coverageValid', 'is_keyObj'],
@@ -1519,7 +1520,7 @@ class DataGrinderPilotOneTask:
     def compile_statistics(self):
         # 按照数据库数据单元的方式保存数据
         # 格式为json，在文件夹内平铺
-        json_folder = os.path.join(self.result_folder, 'statistics')
+        json_folder = os.path.join(self.output_result_folder, 'statistics')
         create_folder(json_folder)
         json_count = 0
         json_rows = []
@@ -1724,7 +1725,7 @@ class DataGrinderPilotOneTask:
             axes.set_xticks([])
             axes.set_yticks([])
 
-        visualization_folder = os.path.join(self.result_folder, 'visualization')
+        visualization_folder = os.path.join(self.output_result_folder, 'visualization')
         create_folder(visualization_folder)
         statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
         group_columns = ['scenario_tag', 'topic', 'obstacle_type', 'characteristic', 'metric']
@@ -1906,7 +1907,7 @@ class DataGrinderPilotOneTask:
     @sync_test_result
     def summary_bug_items(self):
 
-        bugItem_folder = os.path.join(self.result_folder, 'bugItems')
+        bugItem_folder = os.path.join(self.output_result_folder, 'bugItems')
         create_folder(bugItem_folder)
         dataframes = []
 

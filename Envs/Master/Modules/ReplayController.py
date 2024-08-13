@@ -20,7 +20,7 @@ from Ros2BagRecorder import Ros2BagRecorder
 
 sys.path.append(get_project_path())
 
-from Utils.Libs import bench_config, test_encyclopaedia, calculate_file_checksum
+from Utils.Libs import bench_config, test_encyclopaedia, calculate_file_checksum, create_folder
 from Utils.SSHClient import SSHClient
 from Utils.Logger import send_log
 
@@ -34,22 +34,22 @@ class ReplayController:
         self.calib_file = {}
 
         # 读取参数
-        self.replay_end = replay_config['replay_end']
         self.scenario_ids = replay_config['scenario_id']
-        self.pred_raw_folder = replay_config['data_folder']['raw']['pred']
-        self.gt_raw_folder = replay_config['data_folder']['raw']['gt']
-        self.workspace = replay_config['data_folder']['workspace']
+        self.pred_raw_folder = replay_config['pred_folder']
+        self.gt_raw_folder = replay_config['gt_folder']
+        self.workspace = replay_config['workspace']
         self.replay_action = replay_config['replay_action']
         self.bag_update = self.replay_action['bag_update']
+        self.replay_end = self.replay_action['replay_end']
 
         product = replay_config['product']
-        test_type = replay_config['test_type']
-        self.record_topic = test_encyclopaedia[product]['record_topic'][test_type]
-        self.parse_topic = test_encyclopaedia[product]['parse_topic'][test_type]
+        feature_group = replay_config['feature_group']
+        self.record_topic = test_encyclopaedia[product]['record_topic'][feature_group]
+        self.parse_topic = test_encyclopaedia[product]['parse_topic'][feature_group]
 
         # 建立文件夹
-        if not os.path.isdir(self.pred_raw_folder):
-            os.makedirs(self.pred_raw_folder)
+        create_folder(self.pred_raw_folder, False)
+        create_folder(self.gt_raw_folder, False)
 
         # 实例化ssh_client用于控制ReplayClient的Api
         self.replay_client = SSHClient(
@@ -240,21 +240,20 @@ class ReplayController:
     def start(self):
 
         # 1.获取真值，线程中执行
-        if self.replay_action['get_gt']:
+        if self.replay_action['truth']:
             t = threading.Thread(target=self.get_annotation)
             t.daemon = True
             t.start()
             self.thread_list.append(t)
 
-        # 2. 检查标定文件并分组
-        self.calib_file = {}
-        for scenario_id in self.scenario_ids:
-            self.get_calib(scenario_id)
-        scenario_groups = self.group_scenarios_by_calib()
-
-        # 3. 录制和解析
         if self.replay_action['record']:
-            for scenario_group in scenario_groups:
+            # 2. 检查标定文件并分组
+            self.calib_file = {}
+            for scenario_id in self.scenario_ids:
+                self.get_calib(scenario_id)
+
+            # 3. 录制和解析
+            for scenario_group in self.group_scenarios_by_calib():
                 if self.replay_action['calib']:
                     self.copy_calib_file(scenario_group[0])
 
@@ -277,7 +276,11 @@ class ReplayController:
 
                     self.analyze_raw_data()
 
+        for scenario_id in self.scenario_ids:
+            self.get_video_info(scenario_id)
+
         send_log(self, '等待所有线程都结束')
+        print('等待所有线程都结束')
         for t in self.thread_list:
             t.join()
         self.thread_list.clear()
@@ -325,42 +328,3 @@ class ReplayController:
         if columns:
             res = pd.DataFrame(rows, columns=columns + ['valid'], index=index)
             res.to_csv(os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv'))
-
-
-if __name__ == '__main__':
-    replay_config = {
-        'replay_end': 95,
-        'scenario_id': [
-            '20230602_144755_n000003',
-            # '20230627_170934_n000001',
-            # '20230703_103858_n000003',
-            # '20230703_105701_n000001',
-            # # '20230706_160503_n000001',
-            # # '20230706_161116_n000001',
-            # # '20230706_162037_n000001',
-            # '20230602_144755_n000005',
-            # '20230614_135643_n000001',
-            # '20230614_142204_n000004',
-            # '20230627_173157_n000001',
-            # # '20230706_165109_n000002',
-            # # '20230706_184054_n000001',
-        ],
-        'data_folder': {
-            'raw': {
-                'pred': '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240808_030001/01_Prediction',
-                'gt': '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240808_030001/02_GroundTruth',
-            },
-            'workspace': '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240808_030001/03_Workspace',
-        },
-        'replay_action': {
-            'calib': False,
-            'record': True,
-            'get_gt': False,
-            'bag_update': True,
-        },
-        'product': 'ES37',
-        'test_type': 'pilot',
-    }
-
-    replay_controller = ReplayController(replay_config)
-    replay_controller.start()

@@ -251,13 +251,9 @@ class SSHClient:
 if __name__ == '__main__':
     ss = SSHClient()
     scenario_id = '20230602_144755_n000003'
-    # ss.start_replay(scenario_id)
-    # ss.stop_replay()
-    # ss.stop_replay()
 
-    t0 = time.time()
-    local_folder = '/home/zhangliwei01/ZONE/TestProject/2J5'
-    ss.get_scenario_info(scenario_id, info_type='dsdadsa', local_folder=local_folder)
+    local_folder = '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/debug'
+    ss.get_scenario_info(scenario_id, info_type='VideoInfo', local_folder=local_folder)
     # ss.cut_frames(scenario_id, frame_index_list=[5, 100, 235, 431], local_folder=local_folder)
     # print(time.time() - t0)
     # ss.scp_folder_remote_to_local(local_folder, remote_folder)

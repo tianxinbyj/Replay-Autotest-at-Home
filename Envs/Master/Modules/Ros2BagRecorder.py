@@ -38,6 +38,15 @@ class Ros2BagRecorder:
         if not os.path.exists(work_folder):
             os.makedirs(work_folder)
 
+        # 删除旧的包数据
+        for f in os.listdir(work_folder):
+            if scenario_id in f:
+                bag_related_file = os.path.join(work_folder, f)
+                if os.path.isdir(bag_related_file):
+                    shutil.rmtree(bag_related_file)
+                else:
+                    os.remove(bag_related_file)
+
         bag_folder = os.path.join(work_folder, bag_name)
         if os.path.exists(bag_folder):
             shutil.rmtree(bag_folder)

@@ -1,0 +1,163 @@
+product: 1J5
+version: p_feature_20240808_030001
+test_topic: Obstacles
+feature_group: pilot
+test_date: 2024-08-08 10:08:22
+pred_folder: /home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/debug/01_Prediction
+gt_folder: /home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/debug/02_GroundTruth
+test_action:
+  ros2bag:
+    calib: 0
+    record: 0
+    truth: 0
+    bag_update: 1
+    replay_end: 95
+  scenario_unit:
+    preprocess: 1
+    match: 1
+    metric: 1
+    bug: 1
+  tag_combination: 1
+  output_result: 1
+  gen_report: 1
+test_item:
+  /VA/Obstacles:
+  - recall_precision
+  - x_error
+  - y_error
+  - vx_error
+  - vy_error
+  - yaw_error
+  - length_error
+  - width_error
+  - height_error
+target_characteristic:
+- is_coverageValid
+- is_cipv
+- is_keyObj
+- is_sameDir
+- is_oppositeDir
+- is_crossingDir
+- is_moving
+- is_static
+scenario_tag:
+- tag:
+    LightingCondition: 白天
+    WeatherCondition: 晴天
+    RoadTypeCondition: 高速,快速路
+  scenario_id:
+  - 20230602_144755_n000003
+- tag:
+    LightingCondition: 白天
+    WeatherCondition: 晴天
+    RoadTypeCondition: 城区道路
+  scenario_id:
+  - 20230602_144755_n000005
+pred_ROI:
+  /VA/Obstacles:
+    x:
+    - -100
+    - 150
+    y:
+    - -30
+    - 30
+  /PI/FS/ObjTracksHorizon:
+    x:
+    - -100
+    - 150
+    y:
+    - -30
+    - 30
+gt_ROI:
+  x:
+  - -70
+  - 100
+  y:
+  - -40
+  - 40
+coverage_reference_point:
+- 2
+- 0
+- 1
+timestamp_matching_tolerance: 0.5
+coverage_threshold: 0.6
+object_matching_tolerance:
+  x:
+  - 4
+  - 0.2
+  y:
+  - 2
+  - 0.1
+region_division:
+  DRU:
+  - x:
+    - -60
+    - -20
+    y:
+    - -8
+    - 8
+  - x:
+    - 60
+    - 120
+    y:
+    - -8
+    - 8
+  - x:
+    - -60
+    - -20
+    y:
+    - - 20
+      - -8
+    - - 8
+      - 20
+  - x:
+    - 60
+    - 120
+    y:
+    - - 20
+      - -8
+    - - 8
+      - 20
+  VRU:
+  - x:
+    - -20
+    - 0
+    y:
+    - -8
+    - 8
+  - x:
+    - 0
+    - 20
+    y:
+    - -8
+    - 8
+  - x:
+    - 20
+    - 60
+    y:
+    - -8
+    - 8
+  - x:
+    - -20
+    - 0
+    y:
+    - - 20
+      - -8
+    - - 8
+      - 20
+  - x:
+    - 0
+    - 20
+    y:
+    - - 20
+      - -8
+    - - 8
+      - 20
+  - x:
+    - 20
+    - 60
+    y:
+    - - 20
+      - -8
+    - - 8
+      - 20

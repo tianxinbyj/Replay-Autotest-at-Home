@@ -139,6 +139,7 @@ class UDPLogServer:
         else:
             self.port = port
 
+        kill_process_by_port(self.port)
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_socket.bind((self.host, self.port))
         self.file_handler = RotatingFileHandler(log_dir, filename_prefix)
