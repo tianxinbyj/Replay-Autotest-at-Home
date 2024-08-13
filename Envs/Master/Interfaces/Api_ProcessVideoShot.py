@@ -121,7 +121,18 @@ class ProcessVideoSnap:
                             s = (arrow_size, arrow_size)
                             origin_shot = overlay_and_resize(origin_shot, truth_arrow, p, s, 0.5)
 
+                font = cv2.FONT_HERSHEY_DUPLEX
+                font_scale = origin_shot.shape[1] / 1200
+                font_color = (0, 0, 255)  # BGR格式，这里是红色
+                font_thickness = round(font_scale * 1.5)
+                text = f'{shot_info["scenario_id"]}-{camera_name}@frame-{shot_info["frame_index"]}'
+                (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, font_thickness)
+                text_x = (origin_shot.shape[1] - text_width) // 2
+                text_y = text_height + baseline
+                cv2.putText(origin_shot, text, (text_x, text_y), font, font_scale, font_color, font_thickness)
+
                 cv2.imwrite(shot_info['arrow_shot'][idx], origin_shot)
+
                 print(shot_info['arrow_shot'][idx])
 
 

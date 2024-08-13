@@ -11,11 +11,11 @@ warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
 # 对车辆进行分类，分为大巴，货车，小车，行人，自行车
 # 行人 = 2， 自行车 = 18， 小车 = 1，大巴 = 4，货车 = 5，
 type_classification_text = {
-    1: '小车',
-    2: '行人',
-    4: '大巴',
-    5: '货车',
-    18: '自行车',
+    'car': '小车',
+    'pedestrian': '行人',
+    'bus': '大巴',
+    'truck': '货车',
+    'cyclist': '自行车',
 }
 
 characteristic_text = {
@@ -329,7 +329,7 @@ class WidthError:
 
 class HeightError:
     """
-    统计长度误差的绝对值平均值，绝对值90%分位数, 绝对值95%分位数，原始值平均值，原始值标准差
+    统计高度误差的绝对值平均值，绝对值90%分位数, 绝对值95%分位数，原始值平均值，原始值标准差
 
     """
 
@@ -359,26 +359,9 @@ class HeightError:
 
 class ObstaclesMetricStatistics:
 
-    def __init__(self):
-        self.region_division = [
-            {'x': [-60, -20], 'y': [-8, 8]},
-            {'x': [-20, 0], 'y': [-8, 8]},
-            {'x': [0, 20], 'y': [-8, 8]},
-            {'x': [20, 60], 'y': [-8, 8]},
-            {'x': [60, 120], 'y': [-8, 8]},
-            {'x': [-60, -20], 'y': [[--20, -8], [8, 20]]},
-            {'x': [-20, 0], 'y': [[--20, -8], [8, 20]]},
-            {'x': [0, 20], 'y': [[--20, -8], [8, 20]]},
-            {'x': [20, 60], 'y': [[--20, -8], [8, 20]]},
-            {'x': [60, 120], 'y': [[--20, -8], [8, 20]]},
-        ]
-
-        self.characteristic = 'is_coverageValid'
-
-    def run(self, input_data, input_parameter_container=None):
-        if input_parameter_container is not None:
-            self.region_division = input_parameter_container['region_division']
-            self.characteristic = input_parameter_container['characteristic']
+    def run(self, input_data, input_parameter_container):
+        region_division = input_parameter_container['region_division']
+        characteristic = input_parameter_container['characteristic']
 
         total_data = input_data['recall_precision']
         total_data.index = total_data['corresponding_index'].to_list()
@@ -389,16 +372,25 @@ class ObstaclesMetricStatistics:
         type_corresponding_index_dict = {type_classification: [] for type_classification in type_classification_list}
 
         # 获取每个区域的index列表
-        region_corresponding_index_dict = {self.get_region_text(region): [] for region in self.region_division}
+        region_corresponding_index_dict = {}
 
         for idx, row in total_data.iterrows():
-            for region in self.region_division:
+
+            ru = row['gt.road_user'] if row['gt.flag'] == 1 else row['pred.road_user']
+            if ru == 'DRU':
+                ru_region_division = region_division['DRU'] + region_division['VRU']
+            else:
+                ru_region_division = region_division['VRU']
+
+            for region in ru_region_division:
                 region_text = self.get_region_text(region)
                 if row['gt.flag'] == 1:
                     pt = {
                         'x': row['gt.x'], 'y': row['gt.y'],
                     }
                     if self.check_region(pt, region):
+                        if region_text not in region_corresponding_index_dict:
+                            region_corresponding_index_dict[region_text] = []
                         region_corresponding_index_dict[region_text].append(idx)
 
                 elif row['pred.flag'] == 1:
@@ -406,6 +398,8 @@ class ObstaclesMetricStatistics:
                         'x': row['pred.x'], 'y': row['pred.y'],
                     }
                     if self.check_region(pt, region):
+                        if region_text not in region_corresponding_index_dict:
+                            region_corresponding_index_dict[region_text] = []
                         region_corresponding_index_dict[region_text].append(idx)
 
             if row['gt.flag'] == 1:
@@ -416,10 +410,6 @@ class ObstaclesMetricStatistics:
 
         json_datas = []
         for metric, data in input_data.items():
-
-            # is_statistics_valid是MetricEvaluator中生成的用于判断该样本是否用于评价指标
-            if 'is_statistics_valid' in data.columns:
-                data = data[data['is_statistics_valid'] == 1]
 
             for region_text, region_index in region_corresponding_index_dict.items():
                 for type_classification, type_index in type_corresponding_index_dict.items():
@@ -436,11 +426,11 @@ class ObstaclesMetricStatistics:
 
                     json_datas.append(
                         {
-                            'characteristic': characteristic_text[self.characteristic],
-                            'region': region_text,
-                            'type': type_classification_text[type_classification],
-                            'metric': metric_text[metric],
-                            'result': res,
+                            'FeatureDetail': characteristic_text[characteristic],
+                            'RangeDetails': region_text,
+                            'ObstacleName': type_classification_text[type_classification],
+                            'MetricTypeName': metric_text[metric],
+                            'Output': res,
                         })
 
         return json_datas

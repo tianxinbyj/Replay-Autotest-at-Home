@@ -33,3 +33,10 @@ Replay00:
     password: 123456
     py_path: /home/byj/ZONE/PythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
+  ReplayClient:
+    ip: 10.192.68.115
+    username: vcar
+    password: 123456
+    py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
+    sys_interpreter: /usr/bin/python3
+    ECU_product_preferred: ES37
