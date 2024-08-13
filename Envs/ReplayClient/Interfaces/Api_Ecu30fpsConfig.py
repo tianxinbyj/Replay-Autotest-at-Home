@@ -90,8 +90,9 @@ time.sleep(2)
 if os.path.exists(os.path.join(dir_name,'hb_j5dev.json')):
     with open(os.path.join(dir_name,'hb_j5dev.json'), 'r') as hb_j5dev_5v:
         j5a_data = json.load(hb_j5dev_5v)
+        print('ecu 中原来的period_us为：',j5a_data['config_0']['lpwm_1']['period_us'])
         j5a_data['config_0']['lpwm_0']['period_us'] = [33333, 50000, 33333, 50000]
-        # print(j5a_data['config_0']['lpwm_1'])
+
         j5a_data['config_0']['lpwm_1']['period_us'] = [33333, 50000, 50000, 50000]
         for port in ['port_0', 'port_1', 'port_2', 'port_3', 'port_5']:
             print(j5a_data['config_0'][port]['fps'])
@@ -120,6 +121,7 @@ time.sleep(2)
 if os.path.exists(os.path.join(dir_name,'hb_j5dev.json')):
     with open('hb_j5dev.json', 'r') as hb_j5dev_2v:
         j5b2v_data = json.load(hb_j5dev_2v)
+        print('ecu 中原来的period_us为：',j5b2v_data['config_0']['lpwm_1']['period_us'])
         j5b2v_data['config_0']['lpwm_0']['period_us'] = [50000, 33333, 50000, 33333]
         # print(j5a_data['config_0']['lpwm_1'])
         j5b2v_data['config_0']['lpwm_1']['period_us'] = [50000, 33333, 50000, 50000]
@@ -160,6 +162,7 @@ time.sleep(0.5)
 if os.path.exists(os.path.join(dir_name,'hb_j5dev.json')):
     with open('hb_j5dev.json', 'r') as hb_j5dev_4v:
         j5b4v_data = json.load(hb_j5dev_4v)
+        print('ecu 中原来的period_us为：',j5b4v_data['config_0']['lpwm_0']['period_us'])
         j5b4v_data['config_0']['lpwm_0']['period_us'] = [50000, 33333, 50000, 33333]
         # print(j5a_data['config_0']['lpwm_1'])
         j5b4v_data['config_0']['lpwm_1']['period_us'] = [50000, 33333, 50000, 50000]
@@ -189,6 +192,7 @@ else:
     raise FileNotFoundError(f'j5b_4v:can not find file {os.path.join(dir_name,"hb_j5dev.json")}')
 
 j5a_ssh_client.exec_command('start sensor_center')
+
 j5b_ssh_client.exec_command('start sensor_center')
 time.sleep(3)
 print('start sensor_center')

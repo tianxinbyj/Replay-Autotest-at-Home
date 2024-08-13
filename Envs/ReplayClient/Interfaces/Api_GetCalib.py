@@ -4,11 +4,13 @@ Date: 7/2/24
 """
 import argparse
 import glob
+import json
 import os
 import shutil
 import sys
 
 import time
+from pathlib import Path
 
 from Libs import get_project_path
 
@@ -22,28 +24,20 @@ def Gen_ES37_Calib_Folder():
     """
 
     """
-    # print(os.getcwd())
 
-    # Temp_Path = Path(os.getcwd())
-    now = os.path.abspath(__file__)
-    # print('now', now)
-    for _ in range(4):
-        now = os.path.dirname(now)
+    now = get_project_path()
     Temp_Path = Path(os.path.join(now, 'Temp'))
 
-    print(Temp_Path.parents[1])
     Temp_100_Path = os.path.join(Temp_Path, 'json_calib', '100')
     Temp_101_Path = os.path.join(Temp_Path, 'json_calib', '101')
-    print(Temp_100_Path)
-    ES37_Calib_Folder = os.path.join(Temp_Path, 'ES37', 'camera')
-    # 创建ES37的文件夹
-    # os.system(f'mkdir -p {ES37_Calib_Folder}')
-    time.sleep(0.3)
+    ES37_Calib_Folder = os.path.join(Temp_Path, 'es37_calib', 'camera')
 
+    time.sleep(0.3)
+    # 创建 es37_calib 的文件夹
     # 创建11个相机各自的文件
     for i in range(11):
         time.sleep(0.01)
-        os.system(f'mkdir -p {os.path.join(ES37_Calib_Folder, "camera-" + str(i))}')  # TODO 创建文件夹名字，maybe change
+        os.system(f'mkdir -p {os.path.join(ES37_Calib_Folder, "camera-" + str(i))}')
     time.sleep(0.2)
     camera_match_json = {'rearright.json': 'camera-1',
                          'frontleft.json': 'camera-2',
@@ -56,21 +50,51 @@ def Gen_ES37_Calib_Folder():
                          'fisheye_right.json': 'camera-9',
                          'front_30fov.json': 'camera-10',
                          'frontright.json': 'camera-0',
-                         }  # TODO 匹配的字典，maybe change
+                         }
     for camera_json in os.listdir(Temp_100_Path):
-        print(camera_json)
-        print(os.path.join(Temp_100_Path, camera_json))
+        #
         os.system(
             f'cp {os.path.join(Temp_100_Path, camera_json)} {os.path.join(ES37_Calib_Folder, camera_match_json[camera_json], "camera_0.json")}')
-        # print('resssssss ',
-        #       f'cp {os.path.join(Temp_101_Path, camera_json)} {os.path.join(ES37_Calib_Folder, camera_match_json[camera_json], "camera_0.json")}')
 
     for camera_json in os.listdir(Temp_101_Path):
-        print(camera_json)
-        print(os.path.join(Temp_101_Path, camera_json))
-        # print('resssssss ',f'cp {os.path.join(Temp_101_Path, camera_json)} {os.path.join(ES37_Calib_Folder, camera_match_json[camera_json], "camera_0.json")}')
+        #
         os.system(
             f'cp {os.path.join(Temp_101_Path, camera_json)} {os.path.join(ES37_Calib_Folder, camera_match_json[camera_json], "camera_0.json")}')
+
+    for camera_i in camera_match_json.values():
+
+        # 给相机的json文件添加内容
+        """
+            "base_calib_done" : 1,
+            "binning_camera_update" : 0,
+            "calib_done_ts" : 0,
+            "calib_src" : 1,
+            "camera_intrinsic_changed" : 0,
+        """
+        # Done 添加字段
+        camera_i_json_path = os.path.join(ES37_Calib_Folder, camera_i, "camera_0.json")
+        with open(camera_i_json_path, 'r') as camera_i_file:
+            camera_i_data = json.load(camera_i_file)
+            camera_i_data["base_calib_done"] = 1
+            camera_i_data["binning_camera_update"] = 0
+            camera_i_data["calib_done_ts"] = 0
+            camera_i_data["calib_src"] = 1
+            camera_i_data["camera_intrinsic_changed"] = 0
+
+            # TODO 解决 前窄30 fov÷2 的问题
+            if camera_i == 'camera-10':
+                camera_i_data["center_u"] = camera_i_data["center_u"] / 2
+                camera_i_data["center_v"] = camera_i_data["center_v"] / 2
+                camera_i_data["focal_u"] = camera_i_data["focal_u"] / 2
+                camera_i_data["focal_v"] = camera_i_data["focal_v"] / 2
+                camera_i_data["image_height"] = camera_i_data["image_height"] / 2
+                camera_i_data["image_width"] = camera_i_data["image_width"] / 2
+                camera_i_data["valid_height"][0] = camera_i_data["valid_height"][0] / 2
+                camera_i_data["valid_height"][1] = camera_i_data["valid_height"][1] / 2
+            time.sleep(0.2)
+        with open(camera_i_json_path, 'w') as camera_i_file_change:
+            json.dump(camera_i_data, camera_i_file_change, indent=4)
+            time.sleep(0.2)
 
 
 def main():
@@ -107,7 +131,9 @@ def main():
         transfer_2j5_2_1j5(json_calib_folder, yaml_calib_folder)
         print('folder', yaml_calib_folder)
 
+        es37_calib_folder = os.path.join(get_project_path(), 'Temp', 'es37_calib')
         Gen_ES37_Calib_Folder()
+        print('folder', es37_calib_folder)
 
 
 if __name__ == "__main__":
