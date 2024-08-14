@@ -520,7 +520,7 @@ class DistortCameraObject:
     def world2camera(self, x, y, z):
         return world2camera(self.new_intrinsic, self.camera_object.extrinsic, x, y, z)
 
-    def world2camera_with_distort(self, x, y, z):
+    def world2camera_with_distort(self, x, y, z, cut_flag=True):
         extrinsic = self.camera_object.extrinsic
         tvec = extrinsic[0:3, 3]
         rvec = cv2.Rodrigues(extrinsic[0:3, 0:3])[0]
@@ -556,11 +556,17 @@ class DistortCameraObject:
                 D=self.camera_object.distort,
             )
 
-        if (50 < imagePoints[0][0][0] < self.camera_object.size[0] - 50
-                and 50 < imagePoints[0][0][1] < self.camera_object.size[1] - 50):
-            return imagePoints[0][0][0], imagePoints[0][0][1], self.camera_object.size[0], self.camera_object.size[1]
+        u = round(imagePoints[0][0][0])
+        v = round(imagePoints[0][0][1])
+
+        if cut_flag:
+            if 20 < u < self.camera_object.size[0] - 20 and 20 < v < self.camera_object.size[1] - 20:
+                return u, v, self.camera_object.size[0], self.camera_object.size[1]
+            else:
+                return None
+
         else:
-            return None
+            return u, v
 
 
 class BirdEyeView:

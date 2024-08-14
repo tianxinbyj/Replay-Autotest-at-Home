@@ -190,8 +190,33 @@ class DataGrinderPilotOneCase:
                         float(cam_par[f'cam_{i}_pos_y']),
                         float(cam_par[f'cam_{i}_pos_z']),
                     ]
-                self.test_result['General']['camera_position'][cam_name] = [x, y, z]
-                send_log(self, f'{cam_name} 位于({x}, {y}, {z})')
+                    image_width = float(cam_par[f'cam_{i}_image_width'])
+                    focal_x = float(cam_par[f'cam_{i}_focal_x'])
+                    yaw = np.rad2deg(float(cam_par[f'cam_{i}_yaw']))
+                    h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
+
+                    fov_left = float(yaw + h_fov / 2)
+                    fov_right = float(yaw - h_fov / 2)
+
+                    if fov_left < 0:
+                        fov_left += 360
+                    if fov_left > 360:
+                        fov_left -= 360
+
+                    if fov_right < 0:
+                        fov_right += 360
+                    if fov_right > 360:
+                        fov_right -= 360
+
+                    if fov_right > fov_left:
+                        fov_right -= 360
+                    fov_range = [fov_right, fov_left]
+
+                self.test_result['General']['camera_position'][cam_name] = {
+                    'x': x, 'y':y, 'z':z,  'fov': fov_range,
+                }
+                send_log(self, f'{cam_name} 位于({x}, {y}, {z}, '
+                               f'{fov_range})')
 
         new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
         if os.path.exists(new_scenario_info_folder):
@@ -842,27 +867,59 @@ class DataGrinderPilotOneCase:
                         }
 
                         if self.test_topic == 'Obstacles':
+                            # 箭头
                             if bug_info['gt.flag'] == 1:
-                                if bug_info['gt.type_classification'] in [4, 5]:
-                                    height = 4
-                                else:
-                                    height = 2
-                                bug_info_for_arrow['gt'] = [bug_info['gt.x'], bug_info['gt.y'], height]
-                                bug_info_for_arrow['target_type'] = bug_info['gt.type_classification']
+                                bug_info_for_arrow['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']]
+
+                                # 8个角点也放进去
+                                bug_info_for_arrow['gt_corner'] = {
+                                    'bottom': [
+                                        [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                        [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                        [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                        [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                    ],
+                                    'top': [
+                                        [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
+                                        [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
+                                        [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
+                                        [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
+                                    ]
+                                }
+
                             if bug_info['pred.flag'] == 1:
-                                if bug_info['pred.type_classification'] in [4, 5]:
-                                    height = 4
-                                else:
-                                    height = 2
-                                bug_info_for_arrow['pred'] = [bug_info['pred.x'], bug_info['pred.y'], height]
+                                bug_info_for_arrow['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']]
+
+                                # 8个角点也放进去
+                                bug_info_for_arrow['pred_corner'] = {
+                                    'bottom': [
+                                        [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
+                                        [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
+                                        [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
+                                        [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
+                                    ],
+                                    'top': [
+                                        [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], bug_info['pred.height']],
+                                        [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], bug_info['pred.height']],
+                                        [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], bug_info['pred.height']],
+                                        [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], bug_info['pred.height']],
+                                    ]
+                                }
+
+                            if bug_info['gt.flag'] == 1:
+                                bug_info_for_arrow['target_type'] = bug_info['gt.type_classification']
+                            else:
                                 bug_info_for_arrow['target_type'] = bug_info['pred.type_classification']
 
                         elif self.test_topic == 'Lines':
                             if bug_info['gt.flag'] == 1:
-                                bug_info_for_arrow['gt'] = [15, bug_info['gt.y_15'], 0]
-                                bug_info_for_arrow['target_type'] = bug_info['gt.position']
+                                bug_info_for_arrow['gt_arrow'] = [15, bug_info['gt.y_15'], 0]
                             if bug_info['pred.flag'] == 1:
-                                bug_info_for_arrow['pred'] = [15, bug_info['pred.y_15'], 0]
+                                bug_info_for_arrow['pred_arrow'] = [15, bug_info['pred.y_15'], 0]
+
+                            if bug_info['gt.flag'] == 1:
+                                bug_info_for_arrow['target_type'] = bug_info['gt.position']
+                            else:
                                 bug_info_for_arrow['target_type'] = bug_info['pred.position']
 
                         bug_info_for_arrow['origin_shot'] = [
@@ -995,7 +1052,7 @@ class DataGrinderPilotOneCase:
                                 f'场景名: {self.scenario_id}',
                                 f'topic: {topic}, 目标类型: {target_type}, 目标特征: {target_characteristic}',
                                 f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame',
-                                '实心箭头为GroundTruth，空心箭头为Prediction',
+                                '红色为GroundTruth，蓝色为Prediction',
                             ],
                             img_list=img_list,
                         )
@@ -1292,27 +1349,37 @@ class DataGrinderPilotOneCase:
 
     def which_camera_saw_you(self, x, y):
         if self.product == 'ES37':
-            if x >= 0:
-                if y >= 0:
-                    return 'CAM_FRONT_120', 'CAM_FRONT_LEFT'
-                elif y < 0:
-                    return 'CAM_FRONT_120', 'CAM_FRONT_RIGHT'
-            elif x < 0:
-                if y >= 0:
-                    return 'CAM_BACK', 'CAM_BACK_LEFT'
-                elif y < 0:
-                    return 'CAM_BACK', 'CAM_BACK_RIGHT'
+            camera_list = [
+                'CAM_FRONT_120', 'CAM_FRONT_30',
+                'CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT',
+                'CAM_BACK_LEFT', 'CAM_BACK_RIGHT',
+                'CAM_BACK',
+            ]
         else:
-            if x >= 0:
-                if y >= 0:
-                    return 'CAM_FRONT_120', 'CAM_FISHEYE_LEFT'
-                elif y < 0:
-                    return 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT'
-            elif x < 0:
-                if y >= 0:
-                    return 'CAM_BACK', 'CAM_FISHEYE_LEFT'
-                elif y < 0:
-                    return 'CAM_BACK', 'CAM_FISHEYE_RIGHT'
+            camera_list = [
+                'CAM_FRONT_120', 'CAM_FISHEYE_FRONT',
+                'CAM_FISHEYE_LEFT', 'CAM_FISHEYE_RIGHT',
+                'CAM_BACK', 'CAM_FISHEYE_BACK',
+            ]
+
+        valid_camera = []
+        for camera in camera_list:
+            camera_parameter = self.test_result['General']['camera_position'][camera]
+            azimuth = np.arctan2(y - camera_parameter['y'], x - camera_parameter['x'])
+            if azimuth < 0:
+                azimuth += 2 * np.pi
+            azimuth = np.rad2deg(azimuth)
+
+            angle_min, angle_max = camera_parameter['fov'][0], camera_parameter['fov'][1]
+            if angle_min >= 0:
+                if angle_min <= azimuth < angle_max:
+                    valid_camera.append(camera)
+            else:
+                if angle_min + 360 <= azimuth or azimuth <= angle_max:
+                    valid_camera.append(camera)
+
+        print(f'({x}, {y}) 对应{valid_camera}')
+        return valid_camera
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)

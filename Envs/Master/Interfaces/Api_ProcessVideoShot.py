@@ -27,11 +27,11 @@ camera_fov = {
     'CAM_FISHEYE_RIGHT': [-90 * np.pi / 180 - np.pi / 2, 90 * np.pi / 180 - np.pi / 2],
 }
 
-predicted_arrow = cv2.imread(
-    os.path.join(get_project_path(), 'Docs', 'Resources', 'Icon', 'arrow_1.png'),
+pred_arrow = cv2.imread(
+    os.path.join(get_project_path(), 'Docs', 'Resources', 'Icon', 'pred_arrow.png'),
     cv2.IMREAD_UNCHANGED)
-truth_arrow = cv2.imread(
-    os.path.join(get_project_path(), 'Docs', 'Resources', 'Icon', 'arrow_2.png'),
+gt_arrow = cv2.imread(
+    os.path.join(get_project_path(), 'Docs', 'Resources', 'Icon', 'gt_arrow.png'),
     cv2.IMREAD_UNCHANGED)
 
 
@@ -99,8 +99,8 @@ class ProcessVideoSnap:
 
                 origin_shot = cv2.imread(shot_info['origin_shot'][idx], cv2.IMREAD_UNCHANGED)
 
-                if 'pred' in shot_info:
-                    r = camera_model[camera_name].world2camera_with_distort(*shot_info['pred'])
+                if 'pred_arrow' in shot_info:
+                    r = camera_model[camera_name].world2camera_with_distort(*shot_info['pred_arrow'])
                     if r:
                         u, v, limit_u, limit_v = r
                         arrow_size = round(limit_u / 15)
@@ -108,10 +108,10 @@ class ProcessVideoSnap:
                                 and arrow_size < v < limit_v - arrow_size):
                             p = (int(u - arrow_size / 2), int(v - arrow_size))
                             s = (arrow_size, arrow_size)
-                            origin_shot = overlay_and_resize(origin_shot, predicted_arrow, p, s, 0.5)
+                            origin_shot = overlay_and_resize(origin_shot, pred_arrow, p, s, 0.5)
 
-                if 'gt' in shot_info:
-                    r = camera_model[camera_name].world2camera_with_distort(*shot_info['gt'])
+                if 'gt_arrow' in shot_info:
+                    r = camera_model[camera_name].world2camera_with_distort(*shot_info['gt_arrow'])
                     if r:
                         u, v, limit_u, limit_v = r
                         arrow_size = round(limit_u / 15)
@@ -119,7 +119,43 @@ class ProcessVideoSnap:
                                 and arrow_size < v < limit_v - arrow_size):
                             p = (int(u - arrow_size / 2), int(v - arrow_size))
                             s = (arrow_size, arrow_size)
-                            origin_shot = overlay_and_resize(origin_shot, truth_arrow, p, s, 0.5)
+                            origin_shot = overlay_and_resize(origin_shot, gt_arrow, p, s, 0.5)
+
+                if 'gt_corner' in shot_info:
+                    corner_uv = {
+                        'bottom': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                   for pt in shot_info['gt_corner']['bottom']],
+                        'top': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                for pt in shot_info['gt_corner']['top']],
+                    }
+                    print(corner_uv)
+
+                    for i in range(4):
+                        cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
+                                 (0, 0, 200), 2)
+                        cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
+                                 (0, 0, 200), 2)
+
+                    for i in range(4):
+                        cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (0, 0, 200), 2)
+
+                if 'pred_corner' in shot_info:
+                    corner_uv = {
+                        'bottom': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                   for pt in shot_info['pred_corner']['bottom']],
+                        'top': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                for pt in shot_info['pred_corner']['top']],
+                    }
+                    print(corner_uv)
+
+                    for i in range(4):
+                        cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
+                                 (200, 0, 0), 2)
+                        cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
+                                 (200, 0, 0), 2)
+
+                    for i in range(4):
+                        cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (200, 0, 0), 2)
 
                 font = cv2.FONT_HERSHEY_DUPLEX
                 font_scale = origin_shot.shape[1] / 1200
