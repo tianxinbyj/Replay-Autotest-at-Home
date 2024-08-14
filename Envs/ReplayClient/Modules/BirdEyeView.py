@@ -956,7 +956,7 @@ def transfer_2j5_2_1j5(json_folder, yaml_folder):
 
     with open(os.path.join(yaml_folder, f'cam_description.yaml'), 'w', encoding='utf-8') as f:
         yaml.dump({
-            0: 'CAM_BACK_RIGHT',
+            0: 'CAM_FRONT_RIGHT',
             1: 'CAM_FRONT_LEFT',
             2: 'CAM_BACK',
             3: 'CAM_BACK_LEFT',
