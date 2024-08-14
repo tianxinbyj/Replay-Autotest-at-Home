@@ -17,7 +17,7 @@ from Envs.ReplayClient.Modules.DataSelector import data_selector
 def main():
     parser = argparse.ArgumentParser(description="extract frame from video.")
     parser.add_argument("-s", "--scenario_id", type=str, required=True, help="specify scenario id")
-    parser.add_argument("-f", "--frame_list", type=int, nargs='+', required=True, help="specify frame number")
+    parser.add_argument("-f", "--frame_index_list", type=int, nargs='+', required=True, help="specify frame number")
     parser.add_argument("-c", "--camera", type=str, default='CAM_FRONT_120', help="specify camera")
     parser.add_argument("-p", "--pic_folder", type=str, default='None', help="specify pic path")
     args = parser.parse_args()
@@ -29,7 +29,7 @@ def main():
     else:
         pic_folder = args.pic_folder
 
-    extract_frames(video_path, args.frame_list, pic_folder)
+    extract_frames(video_path, args.frame_index_list, pic_folder)
     print(pic_folder)
 
 

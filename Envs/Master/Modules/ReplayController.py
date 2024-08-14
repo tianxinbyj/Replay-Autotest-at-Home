@@ -20,7 +20,7 @@ from Ros2BagRecorder import Ros2BagRecorder
 
 sys.path.append(get_project_path())
 
-from Utils.Libs import bench_config, test_encyclopaedia, calculate_file_checksum, create_folder
+from Utils.Libs import test_encyclopaedia, calculate_file_checksum, create_folder
 from Utils.SSHClient import SSHClient
 from Utils.Logger import send_log
 
@@ -37,7 +37,6 @@ class ReplayController:
         self.scenario_ids = replay_config['scenario_id']
         self.pred_raw_folder = replay_config['pred_folder']
         self.gt_raw_folder = replay_config['gt_folder']
-        self.workspace = replay_config['workspace']
         self.replay_action = replay_config['replay_action']
         self.bag_update = self.replay_action['bag_update']
         self.replay_end = self.replay_action['replay_end']
@@ -52,21 +51,16 @@ class ReplayController:
         create_folder(self.gt_raw_folder, False)
 
         # 实例化ssh_client用于控制ReplayClient的Api
-        self.replay_client = SSHClient(
-            ip=bench_config['ReplayClient']['ip'],
-            username=bench_config['ReplayClient']['username'],
-            password=str(bench_config['ReplayClient']['password']),
-        )
-        self.replay_client.set_interface_path(bench_config['ReplayClient']['py_path'])
+        self.replay_client = SSHClient()
 
         # 实例化录包工具
         self.ros2bag_recorder = Ros2BagRecorder(
-            workspace=self.workspace
+            workspace=replay_config['workspace']
         )
 
         # 实例化解包工具
         self.ros2bag_parser = Ros2BagParser(
-            workspace=self.workspace
+            workspace=replay_config['workspace']
         )
 
         send_log(self, f'回灌的场景为: {self.scenario_ids}')
@@ -235,7 +229,7 @@ class ReplayController:
 
     def copy_calib_file(self, scenario_id):
         # todo: 下电, 拷贝参数, 上电, 使用scenario_group[0]对应的参数
-        send_log(self,  f'拷贝相机参数{scenario_id}')
+        send_log(self, f'拷贝相机参数{scenario_id}')
 
     def start(self):
 

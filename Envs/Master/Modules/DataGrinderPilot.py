@@ -464,7 +464,7 @@ class DataGrinderPilotOneCase:
                            f'比例{len(match_pred_timestamp) / len(pred_timestamp):.2%}')
 
             # 保存时间辍匹配数据
-            match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_gap'])
+            match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_time_gap'])
             if len(match_pred_timestamp):
                 match_timestamp_data['gt_timestamp'] = match_gt_timestamp
                 match_timestamp_data['pred_timestamp'] = match_pred_timestamp
@@ -475,8 +475,8 @@ class DataGrinderPilotOneCase:
             match_timestamp_data.to_csv(path, index=False, encoding='utf_8_sig')
             self.test_result[self.test_topic][topic]['match']['match_timestamp'] = self.get_relpath(path)
             self.test_result[self.test_topic][topic]['match_frequency'] \
-                = round(self.test_result[self.test_topic][topic]['frequency']
-                        * len(match_pred_timestamp) / len(pred_timestamp), 2)
+                = round(self.test_result[self.test_topic]['GroundTruth']['frequency']
+                        * len(match_gt_timestamp) / len(gt_timestamp), 2)
 
     @sync_test_result
     def match_object(self):
@@ -804,12 +804,12 @@ class DataGrinderPilotOneCase:
         create_folder(video_snap_folder)
 
         # 按照相机批量截图并复制到本机
-        for camera, frame_index_snap_list in video_snap_dict.items():
+        for camera, frame_index_list in video_snap_dict.items():
             camera_folder = os.path.join(video_snap_folder, camera)
             create_folder(camera_folder)
 
             replay_client.cut_frames(scenario_id=self.scenario_id,
-                                     frame_index_list=frame_index_snap_list,
+                                     frame_index_list=sorted(frame_index_list),
                                      camera=camera,
                                      local_folder=camera_folder)
 

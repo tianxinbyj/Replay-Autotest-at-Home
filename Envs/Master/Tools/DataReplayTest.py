@@ -60,28 +60,32 @@ class DataReplayTestPilot:
         t.start()
 
     def replay_and_record(self):
-        # 使用第一个test_config的值作为录包的test_action依据
         for feature_group in self.test_config_dict.keys():
             print(f'录制 {feature_group} ros2bag')
+
+            # 使用第一个test_config的值作为录包的test_action依据
             test_config = self.test_config_dict[feature_group][0]
-            replay_config = {
-                'product': test_config['product'],
-                'feature_group': test_config['feature_group'],
-                'replay_action': test_config['test_action']['ros2bag'],
-                'pred_folder': test_config['pred_folder'],
-                'gt_folder': test_config['gt_folder'],
-                'workspace': os.path.join(self.test_project_path, '03_Workspace')
-            }
+            if (test_config['test_action']['ros2bag']['record']
+                    or test_config['test_action']['ros2bag']['truth']):
 
-            # 合并scenario_list
-            scenario_list = []
-            for test_config in self.test_config_dict[feature_group]:
-                for scenario_tag in test_config['scenario_tag']:
-                    scenario_list.extend(scenario_tag['scenario_id'])
+                replay_config = {
+                    'product': test_config['product'],
+                    'feature_group': test_config['feature_group'],
+                    'replay_action': test_config['test_action']['ros2bag'],
+                    'pred_folder': test_config['pred_folder'],
+                    'gt_folder': test_config['gt_folder'],
+                    'workspace': os.path.join(self.test_project_path, '03_Workspace')
+                }
 
-            replay_config['scenario_id'] = sorted(set(scenario_list))
-            print(replay_config)
-            ReplayController(replay_config).start()
+                # 合并scenario_list
+                scenario_list = []
+                for test_config in self.test_config_dict[feature_group]:
+                    for scenario_tag in test_config['scenario_tag']:
+                        scenario_list.extend(scenario_tag['scenario_id'])
+
+                replay_config['scenario_id'] = sorted(set(scenario_list))
+                print(replay_config)
+                ReplayController(replay_config).start()
 
     def data_grinder(self):
         for feature_group in self.test_config_dict.keys():

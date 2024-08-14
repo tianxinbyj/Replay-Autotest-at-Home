@@ -124,20 +124,24 @@ class SSHClient:
             return None
 
     def cut_frames(self, scenario_id, frame_index_list, camera='CAM_FRONT_120', local_folder=None):
-        frame_index_str = ' '.join([str(f) for f in frame_index_list])
-        command = (f'cd {self.interface_path} && python3 Api_CutFrames.py '
-                   f'-s {scenario_id} -f {frame_index_str} -c {camera}')
-        print(command)
-        res = self.send_cmd(command)
-        try:
-            remote_pic_path = res.strip().split('\n')[-1]
-            if local_folder:
-                self.scp_folder_remote_to_local(local_folder, remote_pic_path)
-                return local_folder
-            else:
-                return remote_pic_path
-        except:
-            return None
+        def split_list_into_groups(lst, group_size):
+            return [lst[i:i + group_size] for i in range(0, len(lst), group_size)]
+
+        for sub_frame_index_str in split_list_into_groups(frame_index_list, 500):
+
+            frame_index_str = ' '.join([str(f) for f in sub_frame_index_str])
+            command = (f'cd {self.interface_path} && python3 Api_CutFrames.py '
+                       f'-s {scenario_id} -f {frame_index_str} -c {camera}')
+            print(command)
+            res = self.send_cmd(command)
+            try:
+                remote_pic_path = res.strip().split('\n')[-1]
+                if local_folder:
+                    self.scp_folder_remote_to_local(local_folder, remote_pic_path)
+            except:
+                return None
+
+        return local_folder
 
     def get_scenario_info(self, scenario_id, info_type, local_folder=None):
         if info_type == 'VideoInfo':
@@ -161,6 +165,7 @@ class SSHClient:
                         local_file = os.path.join(local_folder, os.path.basename(remote_file))
                         self.scp_folder_remote_to_local(local_file, remote_file)
                         local_file_list.append(local_file)
+
                 return local_file_list
             else:
                 return remote_file_list
