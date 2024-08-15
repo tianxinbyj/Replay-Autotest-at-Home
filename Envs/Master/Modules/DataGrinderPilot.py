@@ -431,6 +431,7 @@ class DataGrinderPilotOneCase:
                 data.to_csv(path, index=False, encoding='utf_8_sig')
 
                 input_parameter_container = {
+                    'camera': self.test_result['General']['camera_position'],
                     'coverage_reference_point': self.test_config['coverage_reference_point'],
                     'coverage_threshold': self.test_config['coverage_threshold'],
                     'ROI': self.test_config['pred_ROI'][topic],
@@ -438,7 +439,7 @@ class DataGrinderPilotOneCase:
                     'moving_threshold': 2,
                     'key_coverage_threshold': 0.1,
                 }
-                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'parameter_json.json')
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter_json.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
@@ -452,7 +453,7 @@ class DataGrinderPilotOneCase:
 
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-                os.remove(parameter_json_path)
+                # os.remove(parameter_json_path)
                 if result.stderr:
                     print("stderr:", result.stderr)
                     send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
@@ -485,6 +486,7 @@ class DataGrinderPilotOneCase:
                 data.to_csv(path, index=False, encoding='utf_8_sig')
 
                 input_parameter_container = {
+                    'camera': self.test_result['General']['camera_position'],
                     'coverage_reference_point': self.test_config['coverage_reference_point'],
                     'coverage_threshold': self.test_config['coverage_threshold'],
                     'ROI': self.test_config['gt_ROI'],
@@ -492,7 +494,7 @@ class DataGrinderPilotOneCase:
                     'moving_threshold': 2,
                     'key_coverage_threshold': 0.1,
                 }
-                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'parameter_json.json')
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter_json.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
@@ -506,7 +508,7 @@ class DataGrinderPilotOneCase:
 
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-                os.remove(parameter_json_path)
+                # os.remove(parameter_json_path)
                 if result.stderr:
                     print("stderr:", result.stderr)
                     send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
@@ -599,7 +601,7 @@ class DataGrinderPilotOneCase:
                 'object_matching_tolerance': self.test_config['object_matching_tolerance'],
             }
 
-            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'parameter_json.json')
+            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'match_api_parameter_json.json')
             with open(parameter_json_path, 'w', encoding='utf-8') as f:
                 json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
             path = os.path.join(match_folder, 'match_data.csv')
@@ -616,7 +618,7 @@ class DataGrinderPilotOneCase:
 
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-            os.remove(parameter_json_path)
+            # os.remove(parameter_json_path)
             if result.stderr:
                 print("stderr:", result.stderr)
                 send_log(self, f'MatchObstacles 发生错误 {result.stderr}')

@@ -1,10 +1,10 @@
-product: 1J5
+product: ES37
 version: p_feature_20240808_030001
 test_topic: Obstacles
 feature_group: pilot
 test_date: 2024-08-08 10:08:22
-pred_folder: /home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/debug/01_Prediction
-gt_folder: /home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/debug/02_GroundTruth
+pred_folder: /home/byj/ZONE/TestProject/Pilot/2J5/p_feature_debug/01_Prediction
+gt_folder: /home/byj/ZONE/TestProject/Pilot/2J5/p_feature_debug/02_GroundTruth
 test_action:
   ros2bag:
     calib: 0
@@ -15,11 +15,14 @@ test_action:
   scenario_unit:
     preprocess: 1
     match: 1
-    metric: 1
-    bug: 1
-  tag_combination: 1
-  output_result: 1
-  gen_report: 1
+    metric: 0
+    bug: 0
+    bug_characteristic:
+    - is_keyObj
+    render: 0
+  tag_combination: 0
+  output_result: 0
+  gen_report: 0
 test_item:
   /VA/Obstacles:
   - recall_precision
