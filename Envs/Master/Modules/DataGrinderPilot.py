@@ -83,6 +83,21 @@ class DataGrinderPilotOneCase:
         self.topics_for_evaluation = [
             topic for topic in self.test_item.keys() if topic in self.test_information['topics']]
 
+        # 不同产品用不同的相机
+        if self.product == 'ES37':
+            self.camera_list = [
+                'CAM_FRONT_120', 'CAM_FRONT_30',
+                'CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT',
+                'CAM_BACK_LEFT', 'CAM_BACK_RIGHT',
+                'CAM_BACK',
+            ]
+        else:
+            self.camera_list = [
+                'CAM_FRONT_120', 'CAM_FISHEYE_FRONT',
+                'CAM_FISHEYE_LEFT', 'CAM_FISHEYE_RIGHT',
+                'CAM_BACK', 'CAM_FISHEYE_BACK',
+            ]
+
         # 建立文件夹
         self.pred_raw_folder = self.test_config['pred_folder']
         self.gt_raw_folder = self.test_config['gt_folder']
@@ -306,25 +321,31 @@ class DataGrinderPilotOneCase:
 
     @sync_test_result
     def sync_timestamp(self):
-
-        baseline_data = pd.read_csv(
-            self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+        # 调用计算时间差的接口
+        baseline_data_path = self.get_abspath(self.test_result['General']['gt_ego'])
+        baseline_data = pd.read_csv(baseline_data_path, index_col=False)
         baseline_time_series = baseline_data['time_stamp'].to_list()
-        baseline_velocity_series = baseline_data['ego_vx'].to_list()
-
-        calibrated_data = pd.read_csv(
-            self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
+        calibrated_data_path = self.get_abspath(self.test_result['General']['pred_ego'])
+        calibrated_data = pd.read_csv(calibrated_data_path, index_col=False)
         calibrated_time_series = calibrated_data['time_stamp'].to_list()
-        calibrated_velocity_series = calibrated_data['ego_vx'].to_list()
 
-        t_delta, v_error = PreProcess.calculate_time_gap(
-            baseline_time_series=baseline_time_series,
-            baseline_velocity_series=baseline_velocity_series,
-            calibrated_time_series=calibrated_time_series,
-            calibrated_velocity_series=calibrated_velocity_series
-        )
+        cmd = [
+            f"{bench_config['master']['sys_interpreter']}",
+            "Api_GetTimeGap.py",
+            "-b", baseline_data_path,
+            "-c", calibrated_data_path
+        ]
+
+        cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+        if result.stderr:
+            print("stderr:", result.stderr)
+            send_log(self, f'Api_GetTimeGap 发生错误 {result.stderr}')
+        t_delta, v_error = result.stdout.strip().split('\n')[-1].split(' ')
+        t_delta = float(t_delta)
+
         send_log(self, f'最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
-        self.test_result['General']['time_gap'] = float(t_delta)
+        self.test_result['General']['time_gap'] = t_delta
 
         time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
         time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
@@ -405,6 +426,9 @@ class DataGrinderPilotOneCase:
                 data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
                 data['time_stamp'] += time_gap
                 data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+                path = os.path.join(additional_folder, 'pred_data.csv')
+                self.test_result[self.test_topic][topic]['additional']['pred_data'] = self.get_relpath(path)
+                data.to_csv(path, index=False, encoding='utf_8_sig')
 
                 input_parameter_container = {
                     'coverage_reference_point': self.test_config['coverage_reference_point'],
@@ -414,9 +438,26 @@ class DataGrinderPilotOneCase:
                     'moving_threshold': 2,
                     'key_coverage_threshold': 0.1,
                 }
-                data = preprocess_instance.run(data, input_parameter_container)[additional_column]
-                path = os.path.join(additional_folder, 'pred_data.csv')
-                self.test_result[self.test_topic][topic]['additional']['pred_data'] = self.get_relpath(path)
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'parameter_json.json')
+                with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+
+                cmd = [
+                    f"{bench_config['master']['sys_interpreter']}",
+                    "Api_ProcessRawData.py",
+                    "-r", path,
+                    "-j", parameter_json_path,
+                    "-p", path,
+                ]
+
+                cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+                os.remove(parameter_json_path)
+                if result.stderr:
+                    print("stderr:", result.stderr)
+                    send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
+
+                data = pd.read_csv(path, index_col=False)[additional_column]
                 data.to_csv(path, index=False, encoding='utf_8_sig')
 
             else:
@@ -439,6 +480,9 @@ class DataGrinderPilotOneCase:
                 send_log(self, f'{self.test_topic} GroundTruth 预处理步骤 {preprocess_instance.preprocess_types}')
                 data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
                 data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+                path = os.path.join(additional_folder, 'gt_data.csv')
+                self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'] = self.get_relpath(path)
+                data.to_csv(path, index=False, encoding='utf_8_sig')
 
                 input_parameter_container = {
                     'coverage_reference_point': self.test_config['coverage_reference_point'],
@@ -448,10 +492,26 @@ class DataGrinderPilotOneCase:
                     'moving_threshold': 2,
                     'key_coverage_threshold': 0.1,
                 }
-                data = preprocess_instance.run(data, input_parameter_container)[additional_column]
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'parameter_json.json')
+                with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
-                path = os.path.join(additional_folder, 'gt_data.csv')
-                self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'] = self.get_relpath(path)
+                cmd = [
+                    f"{bench_config['master']['sys_interpreter']}",
+                    "Api_ProcessRawData.py",
+                    "-r", path,
+                    "-j", parameter_json_path,
+                    "-p", path,
+                ]
+
+                cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+                os.remove(parameter_json_path)
+                if result.stderr:
+                    print("stderr:", result.stderr)
+                    send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
+
+                data = pd.read_csv(path, index_col=False)[additional_column]
                 data.to_csv(path, index=False, encoding='utf_8_sig')
 
     @sync_test_result
@@ -479,30 +539,35 @@ class DataGrinderPilotOneCase:
             match_tolerance = self.test_config['timestamp_matching_tolerance'] / max(pred_hz, gt_hz)
             send_log(self, f'{self.test_topic} {topic} 时间差低于{match_tolerance} sec的尝试匹配, '
                            f'进一步选择局部最优')
-
-            match_pred_timestamp, match_gt_timestamp = MatchTool.match_timestamp(
-                pred_timestamp, gt_timestamp, match_tolerance)
-            send_log(self, f'{self.test_topic} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, '
-                           f'对齐{len(match_gt_timestamp)} '
-                           f'比例{len(match_gt_timestamp) / len(gt_timestamp):.2%}')
-            send_log(self, f'{self.test_topic} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, '
-                           f'对齐{len(match_pred_timestamp)} '
-                           f'比例{len(match_pred_timestamp) / len(pred_timestamp):.2%}')
-
-            # 保存时间辍匹配数据
-            match_timestamp_data = pd.DataFrame(columns=['gt_timestamp', 'pred_timestamp', 'match_time_gap'])
-            if len(match_pred_timestamp):
-                match_timestamp_data['gt_timestamp'] = match_gt_timestamp
-                match_timestamp_data['pred_timestamp'] = match_pred_timestamp
-                match_timestamp_data['match_time_gap'] = (match_timestamp_data['pred_timestamp']
-                                                          - match_timestamp_data['gt_timestamp'])
-
             path = os.path.join(match_folder, 'match_timestamp.csv')
-            match_timestamp_data.to_csv(path, index=False, encoding='utf_8_sig')
+
+            cmd = [
+                f"{bench_config['master']['sys_interpreter']}",
+                "Api_MatchTimestamp.py",
+                "-p", pred_timestamp_path,
+                "-g", gt_timestamp_path,
+                "-t", str(match_tolerance),
+                "-f", path
+            ]
+
+            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+            if result.stderr:
+                print("stderr:", result.stderr)
+                send_log(self, f'MatchTimestamp 发生错误 {result.stderr}')
+
+            match_timestamp_data = pd.read_csv(path, index_col=False)
+            send_log(self, f'{self.test_topic} {topic} GroundTruth 时间戳总计{len(gt_timestamp)}个, '
+                           f'对齐{len(match_timestamp_data)} '
+                           f'比例{len(match_timestamp_data) / len(gt_timestamp):.2%}')
+            send_log(self, f'{self.test_topic} {topic} Prediction 时间戳总计{len(pred_timestamp)}个, '
+                           f'对齐{len(match_timestamp_data)} '
+                           f'比例{len(match_timestamp_data) / len(pred_timestamp):.2%}')
+
             self.test_result[self.test_topic][topic]['match']['match_timestamp'] = self.get_relpath(path)
             self.test_result[self.test_topic][topic]['match_frequency'] \
                 = round(self.test_result[self.test_topic]['GroundTruth']['frequency']
-                        * len(match_gt_timestamp) / len(gt_timestamp), 2)
+                        * len(match_timestamp_data) / len(gt_timestamp), 2)
 
     @sync_test_result
     def match_object(self):
@@ -649,48 +714,6 @@ class DataGrinderPilotOneCase:
     @sync_test_result
     def sketch_bug(self):
 
-        def filter_valid_bug_data(data):
-
-            def check_regions(x, y, ru):
-                def check_region(pt, region):
-                    is_valid_list = []
-                    for range_type in ['x', 'y']:
-                        if isinstance(region[range_type][0], float) or isinstance(region[range_type][0], int):
-                            is_valid = region[range_type][0] <= pt[range_type] < region[range_type][1]
-                            is_valid_list.append(is_valid)
-
-                        elif isinstance(region[range_type][0], list) or isinstance(region[range_type][0], tuple):
-                            is_valid = any(
-                                [sub_range_value[0] <= pt[range_type] < sub_range_value[1] for sub_range_value in
-                                 region[range_type]])
-                            is_valid_list.append(is_valid)
-
-                    return all(is_valid_list)
-
-                pt = {'x': x, 'y': y}
-                if ru == 'DRU':
-                    regions = self.test_config['region_division']['DRU'] + self.test_config['region_division']['VRU']
-                else:
-                    regions = self.test_config['region_division']['VRU']
-
-                for region in regions:
-                    if check_region(pt, region):
-                        return 1
-
-                return 0
-
-            if 'gt.flag' in data.columns:
-                data['is_bugArea'] = data.apply(
-                    lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user'])
-                    if row['gt.flag'] == 1 else check_regions(row['pred.x'], row['pred.y'], row['pred.road_user']),
-                    axis=1)
-            else:
-                data['is_bugArea'] = data.apply(
-                    lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user']),
-                    axis=1)
-
-            return data[data['is_bugArea'] == 1]
-
         # 对于每个频繁的ID，找到时间戳位于中间的行的索引
         def get_middle_index_for_bug(bug_data, sort_value, count_threshold):
             id_counts = bug_data[sort_value].value_counts()
@@ -710,11 +733,7 @@ class DataGrinderPilotOneCase:
         with open(video_info_path, 'r', encoding='utf-8') as file:
             video_info = yaml.safe_load(file)
         video_start_time, fps = video_info['start_time'], video_info['fps']
-
-        # 获取一个自车速度插值器
-        ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
-        self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
-
+        # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
         video_snap_dict = {}
 
         for topic in self.test_result[self.test_topic].keys():
@@ -740,26 +759,7 @@ class DataGrinderPilotOneCase:
 
                 self.test_result[self.test_topic][topic]['bug'][characteristic] = {}
                 data_for_bug = self.test_result[self.test_topic][topic]['metric'][characteristic]
-                bug_index_dict = {}
-                for metric, data_path in data_for_bug.items():
-                    metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
-                    metric_data = filter_valid_bug_data(metric_data)
-                    if metric == 'recall_precision':
-                        FP_data = metric_data[(metric_data['gt.flag'] == 0)
-                                              & (metric_data['pred.flag'] == 1)]
-                        FN_data = metric_data[(metric_data['gt.flag'] == 1)
-                                              & (metric_data['pred.flag'] == 0)]
-                        NCTP_data = metric_data[(metric_data['CTP'] == 0)
-                                                & (metric_data['gt.flag'] == 1)
-                                                & (metric_data['pred.flag'] == 1)]
-
-                        bug_index_dict['false_positive'] = FP_data['corresponding_index'].to_list()
-                        bug_index_dict['false_negative'] = FN_data['corresponding_index'].to_list()
-                        bug_index_dict['false_type'] = NCTP_data['corresponding_index'].to_list()
-
-                    else:
-                        error_data = metric_data[metric_data['is_abnormal'] == 1]
-                        bug_index_dict[metric] = error_data['corresponding_index'].to_list()
+                bug_index_dict = self.get_bug_index_dict(data_for_bug)
 
                 for bug_type, corresponding_index in bug_index_dict.items():
                     bug_type_folder = os.path.join(sketch_folder, characteristic, bug_type)
@@ -1119,10 +1119,17 @@ class DataGrinderPilotOneCase:
                 self.test_result[self.test_topic][topic]['bug_jira_summary'] = self.get_relpath(bug_jira_summary_path)
 
     @sync_test_result
-    def render(self):
+    def sketch_render(self):
+
+        # 时间戳换算为帧数，进行视频截图
+        video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
+        with open(video_info_path, 'r', encoding='utf-8') as file:
+            video_info = yaml.safe_load(file)
+        video_start_time, fps = video_info['start_time'], video_info['fps']
+        # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
+        video_snap_dict = {}
+
         if self.test_topic == 'Obstacles':
-            # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
-            video_snap_dict = {}
 
             for topic in self.test_result[self.test_topic].keys():
                 if topic == 'GroundTruth':
@@ -1142,8 +1149,130 @@ class DataGrinderPilotOneCase:
                         continue
 
                     self.test_result[self.test_topic][topic]['render'][characteristic] = {}
-                    data_for_bug = self.test_result[self.test_topic][topic]['metric'][characteristic]
-                    bug_index_dict = {}
+                    data_for_render = self.test_result[self.test_topic][topic]['metric'][characteristic]
+                    bug_index_dict = self.get_bug_index_dict(data_for_render)
+
+                    for time_stamp in (total_data.sort_values(by='gt.time_stamp')
+                            .drop_duplicates(subset=['gt.time_stamp'], keep='first')['gt.time_stamp'].values):
+
+                        frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
+                        frame_corresponding_index = frame_data['corresponding_index'].to_list()
+
+                        one_render_folder = os.path.join(sketch_folder, f'{time_stamp}')
+                        create_folder(one_render_folder)
+                        plot_path = os.path.join(one_render_folder, 'render_sketch.jpg')
+
+                        frame_bug_info = {'gt': {}, 'pred': {}}
+                        for bug_type, corresponding_index_list in bug_index_dict.items():
+                            for corresponding_index in corresponding_index_list:
+                                if corresponding_index not in frame_corresponding_index:
+                                    continue
+
+                                row = frame_data[frame_data['corresponding_index'] == corresponding_index].iloc[0]
+                                if row['gt.flag'] == 1:
+                                    if bug_type not in frame_bug_info['gt']:
+                                        frame_bug_info['gt'][bug_type] = []
+                                    frame_bug_info['gt'][bug_type].append(row['gt.id'])
+
+                                if row['pred.flag'] == 1:
+                                    if bug_type not in frame_bug_info['pred']:
+                                        frame_bug_info['pred'][bug_type] = []
+                                    frame_bug_info['pred'][bug_type].append(row['pred.id'])
+
+                        print(f'保存 {topic} {time_stamp} render图片')
+                        self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info)
+
+                        frame_index = round((time_stamp - video_start_time) * fps)
+                        for camera in self.camera_list:
+                            if camera not in video_snap_dict:
+                                video_snap_dict[camera] = []
+                            if frame_index not in video_snap_dict[camera]:
+                                video_snap_dict[camera].append(frame_index)
+
+        elif self.test_topic == 'Lines':
+            pass
+
+        # 启用ssh_client
+        replay_client = SSHClient()
+        video_snap_folder = os.path.join(self.RenderFolder, 'General')
+        create_folder(video_snap_folder)
+
+        # 按照相机批量截图并复制到本机
+        for camera, frame_index_list in video_snap_dict.items():
+            camera_folder = os.path.join(video_snap_folder, camera)
+            create_folder(camera_folder)
+
+            replay_client.cut_frames(scenario_id=self.scenario_id,
+                                     frame_index_list=sorted(frame_index_list),
+                                     camera=camera,
+                                     local_folder=camera_folder)
+
+    def get_bug_index_dict(self, metric_data_group):
+
+        def filter_valid_bug_data(data):
+
+            def check_regions(x, y, ru):
+                def check_region(pt, region):
+                    is_valid_list = []
+                    for range_type in ['x', 'y']:
+                        if isinstance(region[range_type][0], float) or isinstance(region[range_type][0], int):
+                            is_valid = region[range_type][0] <= pt[range_type] < region[range_type][1]
+                            is_valid_list.append(is_valid)
+
+                        elif isinstance(region[range_type][0], list) or isinstance(region[range_type][0], tuple):
+                            is_valid = any(
+                                [sub_range_value[0] <= pt[range_type] < sub_range_value[1] for sub_range_value in
+                                 region[range_type]])
+                            is_valid_list.append(is_valid)
+
+                    return all(is_valid_list)
+
+                pt = {'x': x, 'y': y}
+                if ru == 'DRU':
+                    regions = self.test_config['region_division']['DRU'] + self.test_config['region_division']['VRU']
+                else:
+                    regions = self.test_config['region_division']['VRU']
+
+                for region in regions:
+                    if check_region(pt, region):
+                        return 1
+
+                return 0
+
+            if 'gt.flag' in data.columns:
+                data['is_bugArea'] = data.apply(
+                    lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user'])
+                    if row['gt.flag'] == 1 else check_regions(row['pred.x'], row['pred.y'], row['pred.road_user']),
+                    axis=1)
+            else:
+                data['is_bugArea'] = data.apply(
+                    lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user']),
+                    axis=1)
+
+            return data[data['is_bugArea'] == 1]
+
+        bug_index_dict = {}
+        for metric, data_path in metric_data_group.items():
+            metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
+            metric_data = filter_valid_bug_data(metric_data)
+            if metric == 'recall_precision':
+                FP_data = metric_data[(metric_data['gt.flag'] == 0)
+                                      & (metric_data['pred.flag'] == 1)]
+                FN_data = metric_data[(metric_data['gt.flag'] == 1)
+                                      & (metric_data['pred.flag'] == 0)]
+                NCTP_data = metric_data[(metric_data['CTP'] == 0)
+                                        & (metric_data['gt.flag'] == 1)
+                                        & (metric_data['pred.flag'] == 1)]
+
+                bug_index_dict['false_positive'] = FP_data['corresponding_index'].to_list()
+                bug_index_dict['false_negative'] = FN_data['corresponding_index'].to_list()
+                bug_index_dict['false_type'] = NCTP_data['corresponding_index'].to_list()
+
+            else:
+                error_data = metric_data[metric_data['is_abnormal'] == 1]
+                bug_index_dict[metric] = error_data['corresponding_index'].to_list()
+
+        return bug_index_dict
 
     def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
 
@@ -1315,6 +1444,11 @@ class DataGrinderPilotOneCase:
             'cyclist': '#334f65',
         }
 
+        if self.ego_velocity_generator is None:
+            ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+            self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
+                                                   kind='linear')
+
         # 开始画图
         fig = plt.figure(figsize=(25, 12))
         fig.tight_layout()
@@ -1381,23 +1515,12 @@ class DataGrinderPilotOneCase:
             self.sketch_bug()
             self.bug_report()
 
-    def which_camera_saw_you(self, x, y):
-        if self.product == 'ES37':
-            camera_list = [
-                'CAM_FRONT_120', 'CAM_FRONT_30',
-                'CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT',
-                'CAM_BACK_LEFT', 'CAM_BACK_RIGHT',
-                'CAM_BACK',
-            ]
-        else:
-            camera_list = [
-                'CAM_FRONT_120', 'CAM_FISHEYE_FRONT',
-                'CAM_FISHEYE_LEFT', 'CAM_FISHEYE_RIGHT',
-                'CAM_BACK', 'CAM_FISHEYE_BACK',
-            ]
+        if self.test_action['render']:
+            self.sketch_render()
 
+    def which_camera_saw_you(self, x, y):
         valid_camera = []
-        for camera in camera_list:
+        for camera in self.camera_list:
             camera_parameter = self.test_result['General']['camera_position'][camera]
             azimuth = np.arctan2(y - camera_parameter['y'], x - camera_parameter['x'])
             if azimuth < 0:
