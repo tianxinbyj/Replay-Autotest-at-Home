@@ -14,8 +14,8 @@ from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.PreProcess import calcula
 
 
 def main():
-    parser = argparse.ArgumentParser(description="process video shot")
-    parser.add_argument("-b", "--baseline_data_path", type=str, required=True, help="baseline ego_data path")
+    parser = argparse.ArgumentParser(description="get time gap")
+    parser.add_argument("-b", "--baseline_data_path", type=str, required=True, help="baseline ego data path")
     parser.add_argument("-c", "--calibrated_data_path", type=str, required=True, help="calibrated ego data path")
     args = parser.parse_args()
 

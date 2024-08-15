@@ -581,8 +581,6 @@ class DataGrinderPilotOneCase:
 
         gt_data_path = self.get_abspath(
             self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'])
-        gt_data = (pd.read_csv(gt_data_path, index_col=False)
-                   .sort_values(by=['time_stamp'], ascending=True).reset_index(drop=True))
 
         for topic in self.test_result[self.test_topic].keys():
             if topic == 'GroundTruth':
@@ -593,25 +591,38 @@ class DataGrinderPilotOneCase:
 
             match_timestamp_path = self.get_abspath(
                 self.test_result[self.test_topic][topic]['match']['match_timestamp'])
-            match_timestamp = pd.read_csv(match_timestamp_path, index_col=False)
 
             pred_data_path = self.get_abspath(
                 self.test_result[self.test_topic][topic]['additional']['pred_data'])
-            pred_data = (pd.read_csv(pred_data_path, index_col=False)
-                         .sort_values(by=['time_stamp'], ascending=True).reset_index(drop=True))
 
             input_parameter_container = {
                 'object_matching_tolerance': self.test_config['object_matching_tolerance'],
             }
-            input_data = {
-                'match_timestamp': match_timestamp,
-                'gt_data': gt_data,
-                'pred_data': pred_data,
-            }
+
+            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'parameter_json.json')
+            with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+            path = os.path.join(match_folder, 'match_data.csv')
+
+            cmd = [
+                f"{bench_config['master']['sys_interpreter']}",
+                "Api_MatchObstacles.py",
+                "-p", pred_data_path,
+                "-g", gt_data_path,
+                "-t", match_timestamp_path,
+                "-j", parameter_json_path,
+                "-m", path,
+            ]
+
+            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+            os.remove(parameter_json_path)
+            if result.stderr:
+                print("stderr:", result.stderr)
+                send_log(self, f'MatchObstacles 发生错误 {result.stderr}')
 
             send_log(self, f'{self.test_topic} {topic} 目标匹配')
-            data = match_tool.run(input_data, input_parameter_container)[match_column]
-            path = os.path.join(match_folder, 'match_data.csv')
+            data = pd.read_csv(path, index_col=False)[match_column]
             self.test_result[self.test_topic][topic]['match']['match_data'] = self.get_relpath(path)
             data.to_csv(path, index=False, encoding='utf_8_sig')
 

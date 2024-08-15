@@ -15,7 +15,7 @@ from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MatchTool import match_ti
 
 
 def main():
-    parser = argparse.ArgumentParser(description="process video shot")
+    parser = argparse.ArgumentParser(description="match timestamp")
     parser.add_argument("-p", "--pred_timestamp_path", type=str, required=True, help="pred timestamp path")
     parser.add_argument("-g", "--gt_timestamp_path", type=str, required=True, help="gt timestamp path")
     parser.add_argument("-t", "--match_tolerance", type=float, required=True, help="match tolerance")

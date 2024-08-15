@@ -15,7 +15,7 @@ from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.PreProcess import Obstacl
 
 
 def main():
-    parser = argparse.ArgumentParser(description="process video shot")
+    parser = argparse.ArgumentParser(description="process raw data")
     parser.add_argument("-r", "--raw_data_path", type=str, required=True, help="raw data path")
     parser.add_argument("-j", "--parameter_json_path", type=str, required=True, help="parameter json path")
     parser.add_argument("-p", "--process_data_path", type=str, required=True, help="process data path")
