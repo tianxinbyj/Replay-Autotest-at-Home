@@ -88,6 +88,7 @@ class DataGrinderPilotOneCase:
         self.gt_raw_folder = self.test_config['gt_folder']
         self.DataFolder = os.path.join(self.scenario_unit_folder, '01_Data')
         self.BugFolder = os.path.join(self.scenario_unit_folder, '02_Bug')
+        self.RenderFolder = os.path.join(self.scenario_unit_folder, '03_Render')
 
         # 初始化测试配置
         self.test_result_yaml = os.path.join(self.scenario_unit_folder, 'TestResult.yaml')
@@ -213,7 +214,7 @@ class DataGrinderPilotOneCase:
                     fov_range = [fov_right, fov_left]
 
                 self.test_result['General']['camera_position'][cam_name] = {
-                    'x': x, 'y':y, 'z':z,  'fov': fov_range,
+                    'x': x, 'y': y, 'z': z, 'fov': fov_range,
                 }
                 send_log(self, f'{cam_name} 位于({x}, {y}, {z}, '
                                f'{fov_range})')
@@ -559,10 +560,6 @@ class DataGrinderPilotOneCase:
             if topic == 'GroundTruth':
                 continue
 
-            if topic not in self.test_config['test_item']:
-                send_log(self, f'{topic}没有在test_item中')
-                continue
-
             topic_tag = topic.replace('/', '')
             metric_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'metric')
             create_folder(metric_folder)
@@ -718,15 +715,10 @@ class DataGrinderPilotOneCase:
         ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
         self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
 
-        # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
         video_snap_dict = {}
 
         for topic in self.test_result[self.test_topic].keys():
             if topic == 'GroundTruth':
-                continue
-
-            if topic not in self.test_config['test_item']:
-                send_log(self, f'{topic}没有在test_item中')
                 continue
 
             topic_tag = topic.replace('/', '')
@@ -738,12 +730,12 @@ class DataGrinderPilotOneCase:
             frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
             print(f'出现次数低于{frame_threshold}的bug会被忽视')
 
-            # 使用total中的recall_precision数据可视化，但只抓去keyObj的bug
+            # 使用total中的recall_precision数据可视化，但只抓取部分特镇的bug
             total_data_path = self.test_result[self.test_topic][topic]['metric']['total']['recall_precision']
             total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
 
             for characteristic in self.test_result[self.test_topic][topic]['metric']:
-                if characteristic == 'total':
+                if characteristic not in self.test_action['bug_characteristic']:
                     continue
 
                 self.test_result[self.test_topic][topic]['bug'][characteristic] = {}
@@ -798,6 +790,7 @@ class DataGrinderPilotOneCase:
                         frame_bug_info = {
                             'gt': {bug_type: [row['gt.id']]}, 'pred': {bug_type: [row['pred.id']]},
                         }
+
                         print(f'保存 {topic} {bug_type} {time_stamp}的图片')
                         self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info)
 
@@ -839,18 +832,15 @@ class DataGrinderPilotOneCase:
                                      local_folder=camera_folder)
 
         # 将bug需要加箭头的内容保存为一个json，批量处理
-        bug_arrow_list = []
+        bug_label_info_list = []
 
         for topic in self.test_result[self.test_topic].keys():
             if topic == 'GroundTruth':
                 continue
 
-            if topic not in self.test_config['test_item']:
-                send_log(self, f'{topic}没有在test_item中')
-                continue
-
             for characteristic in self.test_result[self.test_topic][topic]['bug']:
-                for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][characteristic].items():
+                for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][
+                    characteristic].items():
 
                     for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
                         one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
@@ -858,87 +848,102 @@ class DataGrinderPilotOneCase:
                         with open(bug_info_json, 'r', encoding='utf-8') as f:
                             bug_info = json.load(f)
 
-                        bug_info_for_arrow = {
-                            'characteristic': characteristic,
-                            'bug_type': bug_type,
+                        bug_label_info = {
                             'scenario_id': self.scenario_id,
-                            'camera': bug_info['camera'],
                             'frame_index': bug_info['frame_index'],
+                            'time_stamp': float(time_stamp),
+                            'camera_label_info': {}
                         }
 
-                        if self.test_topic == 'Obstacles':
-                            # 箭头
-                            if bug_info['gt.flag'] == 1:
-                                bug_info_for_arrow['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']]
+                        for camera in bug_info['camera']:
+                            bug_label_info['camera_label_info'][camera] = {
+                                'origin_shot': os.path.join(self.BugFolder, 'General', camera,
+                                                            f'{bug_info["frame_index"]}.jpg'),
+                                'process_shot': os.path.join(one_bug_folder,
+                                                             f'{camera}-{self.scenario_id}-{bug_info["frame_index"]}.jpg'),
+                                'label_info': []
 
-                                # 8个角点也放进去
-                                bug_info_for_arrow['gt_corner'] = {
-                                    'bottom': [
-                                        [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
-                                        [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
-                                        [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
-                                        [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
-                                    ],
-                                    'top': [
-                                        [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
-                                        [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
-                                        [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
-                                        [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
+                            }
+                            one_label_info = {
+                                'bug_type': bug_type,
+                            }
+
+                            if self.test_topic == 'Obstacles':
+                                # 箭头
+                                if bug_info['gt.flag'] == 1:
+                                    one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
+                                                                  bug_info['gt.height']]
+
+                                    # 8个角点也放进去
+                                    one_label_info['gt_corner'] = {
+                                        'bottom': [
+                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                        ],
+                                        'top': [
+                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
+                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
+                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
+                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
+                                        ]
+                                    }
+
+                                if bug_info['pred.flag'] == 1:
+                                    one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
+                                                                    bug_info['pred.height']]
+
+                                    # 8个角点也放进去
+                                    one_label_info['pred_corner'] = {
+                                        'bottom': [
+                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
+                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
+                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
+                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
+                                        ],
+                                        'top': [
+                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], bug_info['pred.height']],
+                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], bug_info['pred.height']],
+                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], bug_info['pred.height']],
+                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], bug_info['pred.height']],
+                                        ]
+                                    }
+
+                                if bug_info['gt.flag'] == 1:
+                                    one_label_info['center'] = [
+                                        bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
                                     ]
-                                }
-
-                            if bug_info['pred.flag'] == 1:
-                                bug_info_for_arrow['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']]
-
-                                # 8个角点也放进去
-                                bug_info_for_arrow['pred_corner'] = {
-                                    'bottom': [
-                                        [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
-                                        [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
-                                        [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
-                                        [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
-                                    ],
-                                    'top': [
-                                        [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], bug_info['pred.height']],
-                                        [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], bug_info['pred.height']],
-                                        [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], bug_info['pred.height']],
-                                        [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], bug_info['pred.height']],
+                                else:
+                                    one_label_info['center'] = [
+                                        bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
                                     ]
-                                }
 
-                            if bug_info['gt.flag'] == 1:
-                                bug_info_for_arrow['target_type'] = bug_info['gt.type_classification']
-                            else:
-                                bug_info_for_arrow['target_type'] = bug_info['pred.type_classification']
+                            elif self.test_topic == 'Lines':
+                                if bug_info['gt.flag'] == 1:
+                                    one_label_info['gt_arrow'] = [15, bug_info['gt.y_15'], 0]
+                                if bug_info['pred.flag'] == 1:
+                                    one_label_info['pred_arrow'] = [15, bug_info['pred.y_15'], 0]
 
-                        elif self.test_topic == 'Lines':
-                            if bug_info['gt.flag'] == 1:
-                                bug_info_for_arrow['gt_arrow'] = [15, bug_info['gt.y_15'], 0]
-                            if bug_info['pred.flag'] == 1:
-                                bug_info_for_arrow['pred_arrow'] = [15, bug_info['pred.y_15'], 0]
+                                if bug_info['gt.flag'] == 1:
+                                    one_label_info['center'] = [
+                                        15, bug_info['gt.y_15'], 0
+                                    ]
+                                else:
+                                    one_label_info['center'] = [
+                                        15, bug_info['pred.y_15'], 0
+                                    ]
 
-                            if bug_info['gt.flag'] == 1:
-                                bug_info_for_arrow['target_type'] = bug_info['gt.position']
-                            else:
-                                bug_info_for_arrow['target_type'] = bug_info['pred.position']
+                            bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
-                        bug_info_for_arrow['origin_shot'] = [
-                            os.path.join(self.BugFolder, 'General', camera, f'{bug_info["frame_index"]}.jpg')
-                            for camera in bug_info['camera']
-                        ]
+                        bug_label_info_list.append(bug_label_info)
 
-                        bug_info_for_arrow['arrow_shot'] = [
-                            os.path.join(one_bug_folder, f'{camera}-{self.scenario_id}-{bug_info["frame_index"]}.jpg')
-                            for camera in bug_info['camera']
-                        ]
+        bug_label_info_json = os.path.join(self.BugFolder, 'General', 'bug_label_info.json')
+        with open(bug_label_info_json, 'w') as json_file:
+            json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
 
-                        bug_arrow_list.append(bug_info_for_arrow)
-
-        bug_arrow_json_path = os.path.join(self.BugFolder, 'General', 'bug_arrow.json')
-        with open(bug_arrow_json_path, 'w') as json_file:
-            json.dump(bug_arrow_list, json_file, ensure_ascii=False, indent=4)
-
-        calibration_json = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib', 'calibration.json')
+        calibration_json = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib',
+                                        'calibration.json')
 
         # 调用给视频截图增加箭头的端口
         cmd = [
@@ -947,7 +952,7 @@ class DataGrinderPilotOneCase:
             "-j",
             calibration_json,
             "-a",
-            bug_arrow_json_path
+            bug_label_info_json
         ]
 
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
@@ -978,18 +983,16 @@ class DataGrinderPilotOneCase:
             if topic == 'GroundTruth':
                 continue
 
-            if topic not in self.test_config['test_item']:
-                send_log(self, f'{topic}没有在test_item中')
-                continue
-
             bug_jira_rows = []
             topic_tag = topic.replace('/', '')
 
             for characteristic in self.test_result[self.test_topic][topic]['bug']:
-                bug_report_folder = os.path.join(self.BugFolder, self.test_topic, topic_tag, 'bug_report', characteristic)
+                bug_report_folder = os.path.join(self.BugFolder, self.test_topic, topic_tag, 'bug_report',
+                                                 characteristic)
                 create_folder(bug_report_folder)
 
-                for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][characteristic].items():
+                for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][
+                    characteristic].items():
 
                     for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
                         one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
@@ -1009,18 +1012,22 @@ class DataGrinderPilotOneCase:
                         target_characteristic = []
                         if bug_info['gt.flag']:
                             if bug_info['gt.is_coverageValid']:
-                                target_characteristic.append(f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                                target_characteristic.append(
+                                    f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
                             else:
-                                target_characteristic.append(f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                                target_characteristic.append(
+                                    f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
                             if bug_info['gt.is_keyObj']:
                                 target_characteristic.append('是关键目标')
                             else:
                                 target_characteristic.append('非关键目标')
                         else:
                             if bug_info['pred.is_coverageValid']:
-                                target_characteristic.append(f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                                target_characteristic.append(
+                                    f'是全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
                             else:
-                                target_characteristic.append(f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
+                                target_characteristic.append(
+                                    f'非全局目标(遮挡率≤{self.test_config["coverage_threshold"]:.0%})')
                             if bug_info['pred.is_keyObj']:
                                 target_characteristic.append('是关键目标')
                             else:
@@ -1110,6 +1117,33 @@ class DataGrinderPilotOneCase:
                 bug_jira_summary.to_csv(bug_jira_summary_path, index=False)
                 print('{:s} 保存完毕'.format(bug_jira_summary_path))
                 self.test_result[self.test_topic][topic]['bug_jira_summary'] = self.get_relpath(bug_jira_summary_path)
+
+    @sync_test_result
+    def render(self):
+        if self.test_topic == 'Obstacles':
+            # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
+            video_snap_dict = {}
+
+            for topic in self.test_result[self.test_topic].keys():
+                if topic == 'GroundTruth':
+                    continue
+
+                topic_tag = topic.replace('/', '')
+                sketch_folder = os.path.join(self.RenderFolder, self.test_topic, topic_tag, 'sketch')
+                self.test_result[self.test_topic][topic]['render'] = {}
+                create_folder(sketch_folder)
+
+                # 使用total中的recall_precision数据可视化，但只抓取keyObj的bug
+                total_data_path = self.test_result[self.test_topic][topic]['metric']['total']['recall_precision']
+                total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
+
+                for characteristic in self.test_result[self.test_topic][topic]['metric']:
+                    if characteristic not in self.test_action['bug_characteristic']:
+                        continue
+
+                    self.test_result[self.test_topic][topic]['render'][characteristic] = {}
+                    data_for_bug = self.test_result[self.test_topic][topic]['metric'][characteristic]
+                    bug_index_dict = {}
 
     def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_info=None):
 
@@ -1634,7 +1668,8 @@ class DataGrinderPilotOneTask:
                                      f'--{json_data["RangeDetails"]}--{json_data["FeatureDetail"]}--{json_data["MetricTypeName"]}.json')
                         json_path = os.path.join(json_folder, json_name)
 
-                        frequency_threshold = self.test_result['TagCombination'][tag_key][self.test_topic][topic]['frequency'] * 2
+                        frequency_threshold = self.test_result['TagCombination'][tag_key][self.test_topic][topic][
+                                                  'frequency'] * 2
                         if json_data['Output']['sample_count'] < frequency_threshold:
                             print(f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
                             continue

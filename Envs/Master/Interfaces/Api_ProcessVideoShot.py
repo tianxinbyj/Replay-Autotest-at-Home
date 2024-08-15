@@ -87,98 +87,110 @@ def overlay_and_resize(img1, img2, position, target_size=(100, 100), opacity=1.0
 
 class ProcessVideoSnap:
 
-    def __init__(self, calibration_json_path, bug_arrow_json_path):
-        with open(bug_arrow_json_path, 'r') as f:
-            shot_json = json.load(f)
+    def __init__(self, calibration_json_path, bug_label_info_path):
+        with open(bug_label_info_path, 'r') as f:
+            bug_label_info_list = json.load(f)
 
         camera_model = {}
-        for shot_info in shot_json:
-            for idx, camera_name in enumerate(shot_info['camera']):
+        for bug_label_info in bug_label_info_list:
+            for camera_name, camera_label_info in bug_label_info['camera_label_info'].items():
                 if camera_name not in camera_model:
                     camera_model[camera_name] = CameraModel(calibration_json_path).register_camera(camera_name)
 
-                origin_shot = cv2.imread(shot_info['origin_shot'][idx], cv2.IMREAD_UNCHANGED)
+                origin_shot = cv2.imread(camera_label_info['origin_shot'], cv2.IMREAD_UNCHANGED)
+                process_shot_path = camera_label_info['process_shot']
 
-                if 'pred_arrow' in shot_info:
-                    r = camera_model[camera_name].world2camera_with_distort(*shot_info['pred_arrow'])
-                    if r:
-                        u, v, limit_u, limit_v = r
-                        arrow_size = round(limit_u / 15)
-                        if (arrow_size / 2 < u < limit_u - arrow_size / 2
-                                and arrow_size < v < limit_v - arrow_size):
-                            p = (int(u - arrow_size / 2), int(v - arrow_size))
-                            s = (arrow_size, arrow_size)
-                            origin_shot = overlay_and_resize(origin_shot, pred_arrow, p, s, 0.5)
+                for one_label_info in camera_label_info['label_info']:
 
-                if 'gt_arrow' in shot_info:
-                    r = camera_model[camera_name].world2camera_with_distort(*shot_info['gt_arrow'])
-                    if r:
-                        u, v, limit_u, limit_v = r
-                        arrow_size = round(limit_u / 15)
-                        if (arrow_size / 2 < u < limit_u - arrow_size / 2
-                                and arrow_size < v < limit_v - arrow_size):
-                            p = (int(u - arrow_size / 2), int(v - arrow_size))
-                            s = (arrow_size, arrow_size)
-                            origin_shot = overlay_and_resize(origin_shot, gt_arrow, p, s, 0.5)
+                    if 'pred_arrow' in one_label_info:
+                        r = camera_model[camera_name].world2camera_with_distort(*one_label_info['pred_arrow'])
+                        if r:
+                            u, v, limit_u, limit_v = r
+                            arrow_size = round(limit_u / 15)
+                            if (arrow_size / 2 < u < limit_u - arrow_size / 2
+                                    and arrow_size < v < limit_v - arrow_size):
+                                p = (int(u - arrow_size / 2), int(v - arrow_size))
+                                s = (arrow_size, arrow_size)
+                                origin_shot = overlay_and_resize(origin_shot, pred_arrow, p, s, 0.5)
 
-                if 'gt_corner' in shot_info:
-                    corner_uv = {
-                        'bottom': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
-                                   for pt in shot_info['gt_corner']['bottom']],
-                        'top': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
-                                for pt in shot_info['gt_corner']['top']],
-                    }
-                    print(corner_uv)
+                    if 'gt_arrow' in one_label_info:
+                        r = camera_model[camera_name].world2camera_with_distort(*one_label_info['gt_arrow'])
+                        if r:
+                            u, v, limit_u, limit_v = r
+                            arrow_size = round(limit_u / 15)
+                            if (arrow_size / 2 < u < limit_u - arrow_size / 2
+                                    and arrow_size < v < limit_v - arrow_size):
+                                p = (int(u - arrow_size / 2), int(v - arrow_size))
+                                s = (arrow_size, arrow_size)
+                                origin_shot = overlay_and_resize(origin_shot, gt_arrow, p, s, 0.5)
 
-                    for i in range(4):
-                        cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
-                                 (0, 0, 200), 2)
-                        cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
-                                 (0, 0, 200), 2)
+                    if 'gt_corner' in one_label_info:
+                        corner_uv = {
+                            'bottom': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                       for pt in one_label_info['gt_corner']['bottom']],
+                            'top': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                    for pt in one_label_info['gt_corner']['top']],
+                        }
 
-                    for i in range(4):
-                        cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (0, 0, 200), 2)
+                        for i in range(4):
+                            cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
+                                     (0, 0, 200), 2)
+                            cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
+                                     (0, 0, 200), 2)
 
-                if 'pred_corner' in shot_info:
-                    corner_uv = {
-                        'bottom': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
-                                   for pt in shot_info['pred_corner']['bottom']],
-                        'top': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
-                                for pt in shot_info['pred_corner']['top']],
-                    }
-                    print(corner_uv)
+                        for i in range(4):
+                            cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (0, 0, 200), 2)
 
-                    for i in range(4):
-                        cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
-                                 (200, 0, 0), 2)
-                        cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
-                                 (200, 0, 0), 2)
+                    if 'pred_corner' in one_label_info:
+                        corner_uv = {
+                            'bottom': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                       for pt in one_label_info['pred_corner']['bottom']],
+                            'top': [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                    for pt in one_label_info['pred_corner']['top']],
+                        }
 
-                    for i in range(4):
-                        cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (200, 0, 0), 2)
+                        for i in range(4):
+                            cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
+                                     (200, 0, 0), 2)
+                            cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
+                                     (200, 0, 0), 2)
+
+                        for i in range(4):
+                            cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (200, 0, 0), 2)
+
+                    if 'center' in one_label_info:
+                        pt = one_label_info['center']
+                        text_x, text_y = camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                        font = cv2.FONT_HERSHEY_DUPLEX
+                        font_scale = origin_shot.shape[1] / 2000
+                        font_color = (0, 20, 0)
+                        font_thickness = round(font_scale * 1.5)
+                        text = one_label_info['bug_type']
+                        (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, font_thickness)
+                        text_start_x = text_x - text_width // 2
+                        text_start_y = text_y - text_height // 2 + baseline
+                        cv2.putText(origin_shot, text, (text_start_x, text_start_y - 120), font, font_scale, font_color, font_thickness)
 
                 font = cv2.FONT_HERSHEY_DUPLEX
                 font_scale = origin_shot.shape[1] / 1200
-                font_color = (0, 0, 255)  # BGR格式，这里是红色
+                font_color = (0, 0, 255)
                 font_thickness = round(font_scale * 1.5)
-                text = f'{shot_info["scenario_id"]}-{camera_name}@frame-{shot_info["frame_index"]}'
+                text = f'{bug_label_info["scenario_id"]}-{camera_name}@frame-{bug_label_info["frame_index"]}'
                 (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, font_thickness)
                 text_x = (origin_shot.shape[1] - text_width) // 2
                 text_y = text_height + baseline
                 cv2.putText(origin_shot, text, (text_x, text_y), font, font_scale, font_color, font_thickness)
 
-                cv2.imwrite(shot_info['arrow_shot'][idx], origin_shot)
-
-                print(shot_info['arrow_shot'][idx])
+                cv2.imwrite(process_shot_path, origin_shot)
 
 
 def main():
     parser = argparse.ArgumentParser(description="process video shot")
     parser.add_argument("-j", "--calibration_json", type=str, required=True, help="calibration json")
-    parser.add_argument("-a", "--bug_arrow_json", type=str, required=True, help="bug arrow json")
+    parser.add_argument("-a", "--bug_label_info_json", type=str, required=True, help="bug label info json")
     args = parser.parse_args()
 
-    ProcessVideoSnap(args.calibration_json, args.bug_arrow_json)
+    ProcessVideoSnap(args.calibration_json, args.bug_label_info_json)
 
 
 if __name__ == '__main__':
