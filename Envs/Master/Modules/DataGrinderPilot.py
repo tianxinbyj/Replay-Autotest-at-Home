@@ -86,7 +86,7 @@ class DataGrinderPilotOneCase:
         # 不同产品用不同的相机
         if self.product == 'ES37':
             self.camera_list = [
-                'CAM_FRONT_120', 'CAM_FRONT_30',
+                'CAM_FRONT_120',
                 'CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT',
                 'CAM_BACK_LEFT', 'CAM_BACK_RIGHT',
                 'CAM_BACK',
@@ -439,7 +439,7 @@ class DataGrinderPilotOneCase:
                     'moving_threshold': 2,
                     'key_coverage_threshold': 0.1,
                 }
-                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter_json.json')
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
@@ -494,7 +494,7 @@ class DataGrinderPilotOneCase:
                     'moving_threshold': 2,
                     'key_coverage_threshold': 0.1,
                 }
-                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter_json.json')
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
@@ -575,7 +575,6 @@ class DataGrinderPilotOneCase:
     def match_object(self):
         additional_column = self.test_information['raw_column'] + self.test_information['additional_column']
         send_log(self, f'{self.test_topic}, 使用{self.test_topic}MatchTool')
-        match_tool = eval(f'MatchTool.{self.test_topic}MatchTool()')
         match_column = ['corresponding_index', 'gt.flag', 'pred.flag']
         for col in additional_column:
             for kind in ['gt', 'pred']:
@@ -601,7 +600,7 @@ class DataGrinderPilotOneCase:
                 'object_matching_tolerance': self.test_config['object_matching_tolerance'],
             }
 
-            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'match_api_parameter_json.json')
+            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'match_api_parameter.json')
             with open(parameter_json_path, 'w', encoding='utf-8') as f:
                 json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
             path = os.path.join(match_folder, 'match_data.csv')
@@ -631,8 +630,6 @@ class DataGrinderPilotOneCase:
     @sync_test_result
     def evaluate_metrics(self):
         send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
-        metric_evaluator = eval(f'MetricEvaluator.{self.test_topic}MetricEvaluator()')
-        metric_filter = eval(f'MetricEvaluator.{self.test_topic}MetricFilter()')
 
         for topic in self.test_result[self.test_topic].keys():
             if topic == 'GroundTruth':
@@ -645,45 +642,36 @@ class DataGrinderPilotOneCase:
                 self.test_result[self.test_topic][topic]['metric'] = {}
 
             match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
-            match_data = pd.read_csv(self.get_abspath(match_data_path), index_col=False)
+
             input_parameter_container = {
                 'metric_type': self.test_config['test_item'][topic],
+                'characteristic_type': self.test_config['target_characteristic'],
             }
-            input_data = {
-                'data': match_data,
-            }
+            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
+            with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+
+            cmd = [
+                f"{bench_config['master']['sys_interpreter']}",
+                "Api_EvaluateMetrics.py",
+                "-m", self.get_abspath(match_data_path),
+                "-j", parameter_json_path,
+                "-f", metric_folder,
+            ]
 
             send_log(self, f'{self.test_topic} {topic} 指标评估')
-            data_dict = metric_evaluator.run(input_data, input_parameter_container)
-            for metric, metric_data in data_dict.items():
-                total_folder = os.path.join(metric_folder, 'total')
-                create_folder(total_folder, False)
-                if 'total' not in self.test_result[self.test_topic][topic]['metric']:
-                    self.test_result[self.test_topic][topic]['metric']['total'] = {}
+            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+            # os.remove(parameter_json_path)
+            if result.stderr:
+                print("stderr:", result.stderr)
+                send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
-                path = os.path.join(total_folder, f'{metric}.csv')
-                self.test_result[self.test_topic][topic]['metric']['total'][metric] = self.get_relpath(path)
-                metric_data.to_csv(path, index=False, encoding='utf_8_sig')
-
-                input_parameter_container = {
-                    'characteristic_type': self.test_config['target_characteristic'],
-                }
-                input_data = {
-                    'total_data': match_data,
-                    'data_to_filter': metric_data,
-                }
-
-                characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
-                for characteristic, characteristic_data in characteristic_data_dict.items():
-                    characteristic_folder = os.path.join(metric_folder, characteristic)
-                    create_folder(characteristic_folder, False)
-                    if characteristic not in self.test_result[self.test_topic][topic]['metric']:
-                        self.test_result[self.test_topic][topic]['metric'][characteristic] = {}
-
-                    path = os.path.join(characteristic_folder, f'{metric}.csv')
-                    self.test_result[self.test_topic][topic]['metric'][characteristic][
-                        metric] = self.get_relpath(path)
-                    characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
+            for characteristic in os.listdir(metric_folder):
+                self.test_result[self.test_topic][topic]['metric'][characteristic] = {}
+                for metric in os.listdir(os.path.join(metric_folder, characteristic)):
+                    self.test_result[self.test_topic][topic]['metric'][characteristic][metric.split('.')[0]] \
+                        = self.get_relpath(os.path.join(metric_folder, characteristic, metric))
 
     @sync_test_result
     def load_scenario_info(self):
@@ -1702,56 +1690,47 @@ class DataGrinderPilotOneTask:
         for tag_key in match_data_dict.keys():
 
             send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
-            metric_evaluator = eval(f'MetricEvaluator.{self.test_topic}MetricEvaluator()')
-            metric_filter = eval(f'MetricEvaluator.{self.test_topic}MetricFilter()')
 
             for topic, df_list in match_data_dict[tag_key].items():
                 topic_tag = topic.replace('/', '')
+                metric_folder = os.path.join(self.tag_combination_folder, tag_key, topic_tag)
+                create_folder(metric_folder)
+
                 total_match_data = pd.concat(df_list).reset_index(drop=True)
                 total_match_data['corresponding_index'] = total_match_data.index
+                total_match_data_path = os.path.join(get_project_path(), 'Temp', 'total_match_data.csv')
+                total_match_data.to_csv(total_match_data_path, index=False, encoding='utf_8_sig')
 
                 input_parameter_container = {
                     'metric_type': self.test_config['test_item'][topic],
+                    'characteristic_type': self.test_config['target_characteristic'],
                 }
-                input_data = {
-                    'data': total_match_data,
-                }
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
+                with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+
+                cmd = [
+                    f"{bench_config['master']['sys_interpreter']}",
+                    "Api_EvaluateMetrics.py",
+                    "-m", total_match_data_path,
+                    "-j", parameter_json_path,
+                    "-f", metric_folder,
+                ]
 
                 send_log(self, f'{self.test_topic} {topic} 指标评估')
-                data_dict = metric_evaluator.run(input_data, input_parameter_container)
+                cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+                # os.remove(parameter_json_path)
+                os.remove(total_match_data_path)
+                if result.stderr:
+                    print("stderr:", result.stderr)
+                    send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
-                for metric, metric_data in data_dict.items():
-                    total_folder = os.path.join(self.tag_combination_folder,
-                                                tag_key, topic_tag, 'total')
-                    create_folder(total_folder, False)
-                    if 'total' not in self.test_result['TagCombination'][tag_key][self.test_topic][topic]:
-                        self.test_result['TagCombination'][tag_key][self.test_topic][topic]['total'] = {}
-
-                    path = os.path.join(total_folder, f'{metric}.csv')
-                    self.test_result['TagCombination'][tag_key][self.test_topic][topic]['total'][metric] = (
-                        self.get_relpath(path))
-                    metric_data.to_csv(path, index=False, encoding='utf_8_sig')
-
-                    input_parameter_container = {
-                        'characteristic_type': self.test_config['target_characteristic'],
-                    }
-                    input_data = {
-                        'total_data': total_match_data,
-                        'data_to_filter': metric_data,
-                    }
-
-                    characteristic_data_dict = metric_filter.run(input_data, input_parameter_container)
-                    for characteristic, characteristic_data in characteristic_data_dict.items():
-                        characteristic_folder = os.path.join(self.tag_combination_folder,
-                                                             tag_key, topic_tag, characteristic)
-                        create_folder(characteristic_folder, False)
-                        if characteristic not in self.test_result['TagCombination'][tag_key][self.test_topic][topic]:
-                            self.test_result['TagCombination'][tag_key][self.test_topic][topic][characteristic] = {}
-
-                        path = os.path.join(characteristic_folder, f'{metric}.csv')
-                        self.test_result['TagCombination'][tag_key][self.test_topic][topic][characteristic][metric] = (
-                            self.get_relpath(path))
-                        characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
+                for characteristic in os.listdir(metric_folder):
+                    self.test_result['TagCombination'][tag_key][self.test_topic][topic][characteristic] = {}
+                    for metric in os.listdir(os.path.join(metric_folder, characteristic)):
+                        self.test_result['TagCombination'][tag_key][self.test_topic][topic][characteristic][
+                            metric.split('.')[0]] = self.get_relpath(os.path.join(metric_folder, characteristic, metric))
 
     @sync_test_result
     def compile_statistics(self):
