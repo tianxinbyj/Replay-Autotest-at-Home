@@ -11,7 +11,7 @@ from Utils.Libs import project_path
 
 
 def image2video(image_folder, fps, video):
-    cmd = f'ffmpeg -r {fps} -i "{image_folder}"/img%05d.jpg "{video}"'
+    cmd = f'ffmpeg -r {fps} -i "{image_folder}"/img%05d.jpg -c:v libx265 -b:v 1000k -preset fast -crf 30 "{video}"'
     print(cmd)
     os.system(cmd)
 
