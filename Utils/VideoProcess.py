@@ -10,8 +10,11 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from Utils.Libs import project_path
 
 
-def image2video(image_folder, fps, video):
-    cmd = f'ffmpeg -r {fps} -i "{image_folder}"/img%05d.jpg -c:v libx265 -b:v 1000k -preset fast -crf 30 "{video}"'
+def image2video(image_folder, fps, video, width=None, height=None):
+    if width is None:
+        cmd = f'ffmpeg -r {fps} -i "{image_folder}"/img%05d.jpg -c:v libx265 -b:v 2000k -preset fast -crf 28 "{video}"'
+    else:
+        cmd = f'ffmpeg -r {fps} -i "{image_folder}"/img%05d.jpg -s {round(width)}x{round(height)} -c:v libx265 -b:v 2000k -preset fast -crf 28 "{video}"'
     print(cmd)
     os.system(cmd)
 
@@ -89,6 +92,8 @@ def parse_video(video_path):
 
 
 if __name__ == '__main__':
-    # 示例用法
-    video_path = '/media/data/NI_Data/20240528_150013/Images/CAM_FRONT_120/n000002-2024-05-28-15-05-13-887_CAM_FRONT_120.mkv'
-    # print(get_video_length(video_path))
+    image_folder = '/home/zhangliwei01/Downloads/image/is_keyObj'
+    fps = 9.14
+    video = '123.mp4'
+    width = 1000
+    image2video(image_folder, fps, video, 1000, 850)

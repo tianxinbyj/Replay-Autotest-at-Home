@@ -1166,6 +1166,11 @@ class DataGrinderPilotOneCase:
                 print('{:s} 保存完毕'.format(bug_jira_summary_path))
                 self.test_result[self.test_topic][topic]['bug_jira_summary'] = self.get_relpath(bug_jira_summary_path)
 
+        # 删除图片，减少磁盘占用
+        general_folder = os.path.join(self.BugFolder, 'General')
+        if os.path.exists(general_folder):
+            shutil.rmtree(general_folder)
+
     @sync_test_result
     def sketch_render(self):
 
@@ -1482,6 +1487,8 @@ class DataGrinderPilotOneCase:
 
             canvas.save(combined_pic_path)
 
+            return total_width, total_height
+
         if self.test_topic == 'Obstacles':
 
             for topic in self.test_result[self.test_topic].keys():
@@ -1500,6 +1507,7 @@ class DataGrinderPilotOneCase:
                         self.get_relpath(image_folder))
                     create_folder(image_folder)
 
+                    width, height = 2500, 2132
                     time_stamp_list = sorted(os.listdir(characteristic_folder), key=float)
                     for t_idx, time_stamp in enumerate(time_stamp_list):
                         combined_pic_path = os.path.join(image_folder, 'img{:05d}.jpg'.format(t_idx + 1))
@@ -1513,7 +1521,7 @@ class DataGrinderPilotOneCase:
                                 camera_path_dict[camera] = None
 
                         print(f'保存 {topic} {characteristic} bev和camera合并图片 {os.path.basename(combined_pic_path)}')
-                        combine_image(
+                        width, height = combine_image(
                             center_pic_path=os.path.join(one_sketch_folder, 'render_sketch.jpg'),
                             camera_path_dict=camera_path_dict,
                             combined_pic_path=combined_pic_path,
@@ -1524,11 +1532,18 @@ class DataGrinderPilotOneCase:
                     combined_video = os.path.join(video_folder, f'{self.scenario_id}-{topic_tag}-{characteristic}.mp4')
                     self.test_result[self.test_topic][topic]['render'][characteristic]['video'] = self.get_relpath(combined_video)
                     fps = self.test_result[self.test_topic][topic]['match_frequency']
-                    image2video(image_folder, fps, combined_video)
+                    image2video(image_folder, fps, combined_video, 1400, round(1400 * height / width))
 
         elif self.test_topic == 'Lines':
 
             pass
+
+        # 删除图片，减少磁盘占用
+        general_folder = os.path.join(self.RenderFolder, 'General')
+        if os.path.exists(general_folder):
+            shutil.rmtree(general_folder)
+        for folder in glob.glob(os.path.join(self.RenderFolder, self.test_topic, '*', 'sketch')):
+            shutil.rmtree(folder)
 
     def get_bug_index_dict(self, metric_data_group):
 
@@ -1839,7 +1854,7 @@ class DataGrinderPilotOneCase:
             self.bug_report()
 
         if self.test_action['render']:
-            # self.sketch_render()
+            self.sketch_render()
             self.generate_image_and_video()
 
     def which_camera_saw_you(self, x, y):
