@@ -56,9 +56,15 @@ class Ros2BagRecorder:
             shutil.rmtree(parser_folder)
         os.makedirs(parser_folder)
 
+        docker_sh = os.path.join(get_project_path(),
+                                  'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
         qos_config = os.path.join(get_project_path(),
                                   'Docs', 'Resources', 'qos_config', 'best_effort_driving.yaml')
+
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
+        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_sh}" C-m')
+        os.system('sleep 3')
+
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "cd {work_folder}" C-m')
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
                   f'"source {self.install}/setup.bash" C-m')

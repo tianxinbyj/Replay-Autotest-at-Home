@@ -2510,18 +2510,18 @@ class Ros2bagPretreatment:
 
 
 if __name__ == "__main__":
-    J5_workspace = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace'
+    J5_workspace = '/home/zhangliwei01/rolling_docker/packages/'
     J5_topic_list = [
         '/PI/EG/EgoMotionInfo',
         '/VA/Obstacles',
         '/VA/Lines',
         '/PI/FS/ObjTracksHorizon',
         # '/VA/FusLines',
-        # '/VA/Objects',
+        '/VA/Objects',
     ]
 
-    folder = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace/ccc'
-    bag_path = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/03_Workspace/rosbag2_2024_08_01-17_04_19'
+    folder = '/home/zhangliwei01/rolling_docker/packages/ccc'
+    bag_path = '/home/zhangliwei01/rolling_docker/packages/rosbag2_2024_09_11-06_23_47'
     RBP = Ros2BagParser(J5_workspace)
     RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
 

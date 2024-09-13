@@ -14,7 +14,10 @@ def image2video(image_folder, fps, video, width=None, height=None):
     if width is None:
         cmd = f'ffmpeg -r {fps} -i "{image_folder}"/img%05d.jpg -c:v libx265 -b:v 2000k -preset fast -crf 28 "{video}"'
     else:
-        cmd = f'ffmpeg -r {fps} -i "{image_folder}"/img%05d.jpg -s {round(width)}x{round(height)} -c:v libx265 -b:v 2000k -preset fast -crf 28 "{video}"'
+        width = round(width) + round(width) % 2
+        height = round(height) + round(height) % 2
+        cmd = f'ffmpeg -framerate {fps} -i "{image_folder}"/img%05d.jpg -s {width}x{height} -b:v 2M -crf 28 -pix_fmt yuv420p "{video}"'
+
     print(cmd)
     os.system(cmd)
 
@@ -92,7 +95,7 @@ def parse_video(video_path):
 
 
 if __name__ == '__main__':
-    image_folder = '/home/zhangliwei01/Downloads/image/is_keyObj'
+    image_folder = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/04_TestData/1-Obstacles/01_ScenarioUnit/20230602_144755_n000003/03_Render/Obstacles/VAObstacles/image/is_keyObj'
     fps = 9.14
     video = '123.mp4'
     width = 1000
