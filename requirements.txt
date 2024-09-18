@@ -19,3 +19,5 @@ Pillow
 pexpect
 openpyxl
 reportlab
+scp
+wcwidth

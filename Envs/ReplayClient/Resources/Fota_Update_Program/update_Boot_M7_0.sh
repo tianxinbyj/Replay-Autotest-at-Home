@@ -1,0 +1,1 @@
+./peri_update_hal_test ./Bootloader_with_header.bin 0x03 0x0155F000 0x0A

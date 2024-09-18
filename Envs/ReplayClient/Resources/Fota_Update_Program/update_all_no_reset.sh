@@ -1,0 +1,1 @@
+./ua_test_all ./flash_app_M7.bin ./fip.bin ./flash_bl_M7.bin 0

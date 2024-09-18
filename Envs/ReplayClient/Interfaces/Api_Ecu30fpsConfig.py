@@ -3,7 +3,7 @@ Created on 2024/7/31.
 @author: Tian Loong
 function: change ECU config about sensor center to 30FPS
 """
-
+import argparse
 import json
 import os
 import subprocess
@@ -76,19 +76,21 @@ def change_sensor_30fps():
         print('file bak j5b 4v')
         j5b_ssh_client.exec_command('cd /system/etc/sensor_center/camera/B1J5B/vio/p2_b1_rx13_0118_4v;'
                                     'cp hb_j5dev.json hb_j5dev.json.bak')
-
+    print('备份文件生成完成')
     file_path = os.path.abspath(__file__)
-    print(file_path)
+    print('file_path:::',file_path)
 
     # dd hb_j5dev 出来，并进行读取
     dir_name = os.path.dirname(file_path)
-
+    print(dir_name)
     # j5a 修改 hb_j5dev.json
     dd_cmd = (f"sshpass -p '' ssh root@172.31.131.35 \"dd if=/system/etc/sensor_center/camera/B1J5A/vio/p2_b1_rx20_0418_5v"
-              f"/hb_j5dev.json\" | dd of=./hb_j5dev.json bs=1M")
+              f"/hb_j5dev.json\" | dd of={os.path.join(dir_name, 'hb_j5dev.json')} bs=1M")
+    print(dd_cmd)
     os.system(dd_cmd)
+    print('cmd success')
     time.sleep(2)
-
+    print(os.path.join(dir_name,'hb_j5dev.json'))
     if os.path.exists(os.path.join(dir_name,'hb_j5dev.json')):
         with open(os.path.join(dir_name,'hb_j5dev.json'), 'r') as hb_j5dev_5v:
             j5a_data = json.load(hb_j5dev_5v)
@@ -100,7 +102,7 @@ def change_sensor_30fps():
                 print(j5a_data['config_0'][port]['fps'])
                 j5a_data['config_0'][port]['fps'] = 30
         # # 修改完重新推进板子
-        with open('hb_j5dev.json', 'w') as j5a_change:
+        with open(os.path.join(dir_name, 'hb_j5dev.json'), 'w') as j5a_change:
             json.dump(j5a_data, j5a_change, indent=8)
         time.sleep(0.5)
         print(os.path.join(dir_name, 'hb_j5dev.json'))
@@ -117,11 +119,11 @@ def change_sensor_30fps():
 
     # # j5b 2v
     dd_cmd = (f"sshpass -p '' ssh root@172.31.131.36 \"dd if=/system/etc/sensor_center/camera/B1J5B/vio/p2_b1_rx13_0118_2v"
-              f"/hb_j5dev.json\" | dd of=./hb_j5dev.json bs=1M")
+              f"/hb_j5dev.json\" | dd of={os.path.join(dir_name, 'hb_j5dev.json')} bs=1M")
     os.system(dd_cmd)
     time.sleep(2)
     if os.path.exists(os.path.join(dir_name,'hb_j5dev.json')):
-        with open('hb_j5dev.json', 'r') as hb_j5dev_2v:
+        with open(os.path.join(dir_name, 'hb_j5dev.json'), 'r') as hb_j5dev_2v:
             j5b2v_data = json.load(hb_j5dev_2v)
             print('ecu 中原来的period_us为：',j5b2v_data['config_0']['lpwm_1']['period_us'])
             j5b2v_data['config_0']['lpwm_0']['period_us'] = [50000, 33333, 50000, 33333]
@@ -131,7 +133,7 @@ def change_sensor_30fps():
                 print(j5b2v_data['config_0'][port]['fps'], ": FPS")
                 j5b2v_data['config_0'][port]['fps'] = 30
         #
-        with open('hb_j5dev.json', 'w') as j5b2v_change:
+        with open(os.path.join(dir_name, 'hb_j5dev.json'), 'w') as j5b2v_change:
             json.dump(j5b2v_data, j5b2v_change, indent=8)
 
         # patient bro
@@ -157,12 +159,12 @@ def change_sensor_30fps():
 
     # j5b 4v
     dd_cmd = (f"sshpass -p '' ssh root@172.31.131.36 \"dd if=/system/etc/sensor_center/camera/B1J5B/vio/p2_b1_rx13_0118_4v"
-              f"/hb_j5dev.json\" | dd of=./hb_j5dev.json bs=1M")
+              f"/hb_j5dev.json\" | dd of={os.path.join(dir_name, 'hb_j5dev.json')} bs=1M")
     os.system(dd_cmd)
     time.sleep(0.5)
 
     if os.path.exists(os.path.join(dir_name,'hb_j5dev.json')):
-        with open('hb_j5dev.json', 'r') as hb_j5dev_4v:
+        with open(os.path.join(dir_name, 'hb_j5dev.json'), 'r') as hb_j5dev_4v:
             j5b4v_data = json.load(hb_j5dev_4v)
             print('ecu 中原来的period_us为：',j5b4v_data['config_0']['lpwm_0']['period_us'])
             j5b4v_data['config_0']['lpwm_0']['period_us'] = [50000, 33333, 50000, 33333]
@@ -172,7 +174,7 @@ def change_sensor_30fps():
                 print(j5b4v_data['config_0'][port]['fps'])
                 j5b4v_data['config_0'][port]['fps'] = 30
 
-        with open('hb_j5dev.json', 'w') as j5b4v_change:
+        with open(os.path.join(dir_name, 'hb_j5dev.json'), 'w') as j5b4v_change:
             json.dump(j5b4v_data, j5b4v_change, indent=8)
         # patient bro
         time.sleep(2)
@@ -292,6 +294,19 @@ def back_sensor_20fps():
 
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description="Change Camera Config")
+    parser.add_argument("-e", "--ecu_type", default='ES37',type=str,required=False,help="ECU TYPE")
+    args = parser.parse_args()
+
+    if args.ecu_type not in ['ES37', 'J6E', 'J6', '1J5']:
+        raise Exception("Invalid ECU Type, ECU tpye must in ('ES37', 'J6E', 'J6', '1J5')")
+
+
+    if res:
+        print("flash camera config success")
+    else:
+        print(0)
     change_sensor_30fps()
-    # back_sensor_20fps()
+    back_sensor_20fps()
     pass
