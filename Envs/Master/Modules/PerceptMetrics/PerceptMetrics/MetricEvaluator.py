@@ -517,7 +517,7 @@ class ObstaclesMetricEvaluator:
             self.metric_type = input_parameter_container['metric_type']
 
         data_dict = {}
-        data = input_data['data']
+        data = input_data
         tp_data = data[(data['gt.flag'] == 1) & (data['pred.flag'] == 1)]
 
         for metric in self.metric_type:

@@ -97,6 +97,7 @@ class ProcessVideoSnap:
                 if camera_name not in camera_model:
                     camera_model[camera_name] = CameraModel(calibration_json_path).register_camera(camera_name)
 
+                size = camera_model[camera_name].camera_object.size
                 origin_shot = cv2.imread(camera_label_info['origin_shot'], cv2.IMREAD_UNCHANGED)
                 process_shot_path = camera_label_info['process_shot']
 
@@ -162,14 +163,14 @@ class ProcessVideoSnap:
                         pt = one_label_info['center']
                         text_x, text_y = camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
                         font = cv2.FONT_HERSHEY_DUPLEX
-                        font_scale = origin_shot.shape[1] / 2000
+                        font_scale = origin_shot.shape[1] / 1600
                         font_color = (0, 20, 0)
                         font_thickness = round(font_scale * 1.5)
                         text = one_label_info['bug_type']
                         (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, font_thickness)
                         text_start_x = text_x - text_width // 2
                         text_start_y = text_y - text_height // 2 + baseline
-                        cv2.putText(origin_shot, text, (text_start_x, text_start_y - 120), font, font_scale, font_color, font_thickness)
+                        cv2.putText(origin_shot, text, (text_start_x, text_start_y - round(size[0] / 15)), font, font_scale, font_color, font_thickness)
 
                 font = cv2.FONT_HERSHEY_DUPLEX
                 font_scale = origin_shot.shape[1] / 1200
