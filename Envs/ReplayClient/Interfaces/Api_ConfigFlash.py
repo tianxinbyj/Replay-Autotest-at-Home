@@ -1,7 +1,6 @@
 import argparse
 import sys
 
-from dateutil.parser import parser
 from Libs import get_project_path
 sys.path.append(get_project_path())
 from Envs.ReplayClient.Modules.VersionControl import VersionControl

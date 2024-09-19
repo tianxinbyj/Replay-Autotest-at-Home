@@ -295,18 +295,26 @@ def back_sensor_20fps():
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description="Change Camera Config")
+    parser = argparse.ArgumentParser(description="Change Sensor Center FPS Config")
     parser.add_argument("-e", "--ecu_type", default='ES37',type=str,required=False,help="ECU TYPE")
+
+    # 创建一个互斥参数组
+    group = parser.add_mutually_exclusive_group()
+
+    # 将 -c 和 -b 参数添加到互斥组中
+    group.add_argument('-c', '--change30', action='store_true', help='Change Sensor Center FPS Config to 30')
+    group.add_argument('-r', '--rebuild20', action='store_true', help='Rebuild Sensor Center FPS Config to 20')
+
+    # 解析命令行参数
     args = parser.parse_args()
 
     if args.ecu_type not in ['ES37', 'J6E', 'J6', '1J5']:
         raise Exception("Invalid ECU Type, ECU tpye must in ('ES37', 'J6E', 'J6', '1J5')")
 
-
-    if res:
-        print("flash camera config success")
     else:
-        print(0)
-    change_sensor_30fps()
-    back_sensor_20fps()
-    pass
+        if args.change30:
+            change_sensor_30fps()
+        elif args.rebuild20:
+            back_sensor_20fps()
+        else:
+            raise Exception('wrong config must be -c --change30 or -r --rebuild20')
