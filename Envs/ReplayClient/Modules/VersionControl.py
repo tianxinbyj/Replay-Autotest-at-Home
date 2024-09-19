@@ -12,13 +12,12 @@ import time
 from importlib.abc import Loader
 
 import paramiko
-from pycparser.ply.yacc import VersionError
-from pydantic_core import InitErrorDetails
+
+# from pydantic_core import InitErrorDetails
 
 from scp import SCPException
 
 from wcwidth import wcswidth
-from yaml import FullLoader
 
 from Envs.ReplayClient.Modules.EcuFlasher import flash_mcu, flash_mpu, flash_j5, main as auto_flash
 from Envs.ReplayClient.Modules.EcuFlasher import parse_arguments, check_version, check_existing_files, upload_files, find_target_dir, boxed_text
@@ -140,7 +139,7 @@ class VersionControl:
 
         try:
             self.power_ctrl_inter = PowerSupplyObjectManager()
-        except InitErrorDetails as power_ctrl_err:
+        except Exception as power_ctrl_err:
             print(power_ctrl_err)
             # raise power_ctrl_err
         # 如果板子是下电状态，需要给板子上电
@@ -390,15 +389,15 @@ class VersionControl:
                 if index == 0:
                     print(f's32g 版本日期与路径中的不同 {artif_path} ， {version}：{artif_date}')
                     return False, 's32g'
-                    # raise VersionError(f's32g 版本日期与路径中的不同 {artif_path} ， {version}：{artif_date}')
+                    # raise EnvironmentError(f's32g 版本日期与路径中的不同 {artif_path} ， {version}：{artif_date}')
                 elif index == 1:
                     print(f'j5a 版本日期与路径中的不同 {artif_path} ， {version}：{artif_date}')
                     return False, 'j5a'
-                    # raise VersionError(f'j5a 版本日期与路径中的不同 {artif_path} ， {version}：{artif_date}')
+                    # raise EnvironmentError(f'j5a 版本日期与路径中的不同 {artif_path} ， {version}：{artif_date}')
                 else:
                     print(f'j5b 版本日期与路径中的不同 {artif_path} ， {version}：{artif_date}')
                     return False, 'j5b'
-                    # raise VersionError()
+                    # raise EnvironmentError()
         return True , None
 
     def read_artif_folder_version(self,artif_path='/media/data/artif/'):
@@ -441,7 +440,7 @@ class VersionControl:
 
                 # 只抓取到了j5a 或 j5b的 tar.gz的压缩包时
                 elif (len(j5a_folder) == 1 and j5a_folder[0].endswith('.tar.gz')) or (len(j5b_folder) == 1 and j5b_folder[0].endswith('.tar.gz')):
-                    raise VersionError('该文件夹仅有 tar.gz 压缩包，请解压后重新重试刷写')
+                    raise EnvironmentError('该文件夹仅有 tar.gz 压缩包，请解压后重新重试刷写')
                 else:
                     # 提取j5a 和 j5b 的folder 文件夹的名字
                         # 抓取到文件夹
@@ -452,7 +451,7 @@ class VersionControl:
                                 j5a_date_time = j5a_match_res
 
                             else:
-                                raise VersionError(f'未查找到正确的刷写版本日趋，{j5a_folder[0]} ')
+                                raise EnvironmentError(f'未查找到正确的刷写版本日趋，{j5a_folder[0]} ')
                         elif os.path.isdir(os.path.join(artif_path,j5a_folder[1])):
                             # 抓取 j5文件夹的 date
                             j5a_match_res = self.extract_timestamp_with_re(j5a_folder[1])
@@ -460,7 +459,7 @@ class VersionControl:
                                 j5a_date_time = j5a_match_res
 
                             else:
-                                raise VersionError(f'未查找到正确的刷写版本日趋，{j5a_folder[1]} ')
+                                raise EnvironmentError(f'未查找到正确的刷写版本日趋，{j5a_folder[1]} ')
 
                         else:
                             raise FileExistsError(f'不存在对应的 j5的 刷写文件夹，请检查 {artif_path} {j5a_folder}')
@@ -472,14 +471,14 @@ class VersionControl:
                                 j5b_date_time = j5b_match_res
 
                             else:
-                                raise VersionError(f'未查找到正确的刷写版本日期，{j5b_folder[0]} ')
+                                raise EnvironmentError(f'未查找到正确的刷写版本日期，{j5b_folder[0]} ')
                         elif os.path.isdir(os.path.join(artif_path, j5b_folder[1])):
                             # 抓取 j5b文件夹的 date
                             j5b_match_res = self.extract_timestamp_with_re(j5b_folder[1])
                             if j5b_match_res:
                                 j5b_date_time = j5b_match_res
                             else:
-                                raise VersionError(f'未查找到正确的刷写版本日趋，{j5b_folder[1]} ')
+                                raise EnvironmentError(f'未查找到正确的刷写版本日趋，{j5b_folder[1]} ')
 
                         else:
                             raise FileExistsError(f'不存在对应的 j5的 刷写文件夹，请检查 {artif_path} {j5b_folder}')
@@ -488,7 +487,7 @@ class VersionControl:
                         if j5a_date_time == j5b_date_time:
                             return j5a_date_time
                         else:
-                            raise VersionError(f'j5a 与 j5b 的版本号不同，请检查刷写文件夹下的刷写文件： {artif_path} ')
+                            raise EnvironmentError(f'j5a 与 j5b 的版本号不同，请检查刷写文件夹下的刷写文件： {artif_path} ')
 
     def check_ecu_ver_and_artif_ver(self,artif_path):
         """
@@ -540,7 +539,7 @@ class VersionControl:
             while loop_times > 0:
                 time.sleep(0.5)
                 loop_times -= 1 # 循环减少一次
-                # TODO 将 status 中的电流数值提取出来
+                #  将 status 中的电流数值提取出来
                 temp_status =  get_status(self.power_ctrl_inter,self.power_ctrl_inter.serial_numbers[0])
                 # print(temp_status)
                 temp_ampere = temp_status['current_value']
@@ -756,8 +755,7 @@ class VersionControl:
                         with open(os.path.join(es37_calib_folder, 'camera', camera_i,'camera_0.json'), 'r') as temp_json:
                             calib_data = json.load(temp_json)
 
-                            # TODO 确定读取哪一个参数数值来作为验证值。选用 camera_x
-
+                            # 确定读取 参数数值来作为验证值。选用 camera_x
                             calib_compare_dic[camera_i] = calib_data['camera_x']
 
                     # 再上电 、下电 、 重新建立ssh 连接
