@@ -172,6 +172,16 @@ def get_bench_id():
         return None
 
 
+def get_docker_flag():
+    bench_id = get_bench_id()
+    if bench_id == 'Replay01':
+        return False
+    elif bench_id == 'Replay02':
+        return True
+    else:
+        return None
+
+
 def parse_bench_config():
     bench_id = get_bench_id()
     if not bench_id:
@@ -228,6 +238,7 @@ project_path = get_project_path()
 bench_config = parse_bench_config()
 test_encyclopaedia = parse_test_encyclopaedia()
 variables = parse_code_variables()
+docker_flag = get_docker_flag()
 
 TempFolder = os.path.join(project_path, 'Temp')
 if not os.path.exists(TempFolder):
@@ -273,4 +284,4 @@ mpl_colors = ['#3682be', '#45a776', '#f05326', '#eed777', '#334f65', '#b3974e', 
 
 
 if __name__ == '__main__':
-    print(get_string_display_length('Obstacle_type'))
+    print(docker_flag)
