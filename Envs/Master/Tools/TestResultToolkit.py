@@ -154,10 +154,6 @@ class TestResultToolkit(QWidget):
             else:
                 ind_condition.append(key)
 
-        print(1)
-        print(self.tag_value)
-        print(len(data))
-
         self.ui.data_count.setText((str(len(data))))
         self.ui.result_des.clear()
         if 'metric' in self.combox:
@@ -166,14 +162,12 @@ class TestResultToolkit(QWidget):
         self.ui.result_des.addItem(f'Independent Condition -> {",".join(ind_condition)}')
 
         if len(data):
-            print(data['result'])
             columns = ind_condition + list(json.loads(data.iloc[0]['result']).keys())
             rows = []
             for idx, row in data.iterrows():
                 rows.append(
                     [row[col] for col in ind_condition] + list(json.loads(row['result']).values())
                 )
-            print(columns)
             show_data = pd.DataFrame(rows, columns=columns)
             edit_table(self.ui.result_table, show_data, columns)
 
