@@ -151,13 +151,17 @@ class VersionControl:
             if not power_status['power_is_on']:
                 print('the power is off ,please wait for power on')
                 self.power_ctrl_power_on()
-                time.sleep(5)
+                time.sleep(8)
                 if not self.check_power_on_success():
                     raise EnvironmentError('power on fail ,please check')
                 else:
                     print('power on success')
             elif power_status['power_is_on']:
                 print('the power is on now')
+
+            # 将上电后的电源设置为remote模式,保证上下电操作执行
+            self.switch_to_remote_mode()
+
         # 建立与板子的 ssh 链接
         j5a_ssh_host = '172.31.131.35'
         j5b_ssh_host = '172.31.131.36'
@@ -191,7 +195,7 @@ class VersionControl:
         return power_on_flag
 
     def power_ctrl_power_off(self):
-
+        print('try to power off')
         power_off_flag = power_off(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
         return power_off_flag
 
@@ -201,6 +205,16 @@ class VersionControl:
             return power_ctrl_status
         else:
             return False
+
+    def switch_to_panel_mode(self):
+        boxed_text_colored('try to switch power to panel mode')
+        switch_panel_flag = switch_to_panel_mode(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
+        return switch_panel_flag
+
+    def switch_to_remote_mode(self):
+        boxed_text_colored('try to switch power to remote mode')
+        switch_remote_flag = switch_to_remote_mode(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
+        return switch_remote_flag
 
     def __del__(self):
         # 断开所有power ctrl 设备的连接
@@ -767,6 +781,7 @@ class VersionControl:
                         if power_off_flag:
                             power_off_time = 0
                             # 下电成功，退出上电循环
+                            print('成功下电，退出循环')
                             break
                         else:
                             power_off_time += 1
@@ -933,7 +948,7 @@ class VersionControl:
 if __name__ == '__main__':
     VC = VersionControl()
     # VC.get_power_status()
-    VC.power_ctrl_power_off()
+    # VC.power_ctrl_power_off()
 
 
 
