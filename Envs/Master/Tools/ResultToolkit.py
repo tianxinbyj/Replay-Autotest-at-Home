@@ -28,7 +28,7 @@ def edit_table(table, data_df, header):
             table.setItem(i, j, content)
 
 
-class TestResultToolkit(QWidget):
+class ResultToolkit(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -174,6 +174,6 @@ class TestResultToolkit(QWidget):
 
 if __name__ == '__main__':
     app = QApplication([])
-    jko = TestResultToolkit()
+    jko = ResultToolkit()
     jko.show()
     sys.exit(app.exec_())

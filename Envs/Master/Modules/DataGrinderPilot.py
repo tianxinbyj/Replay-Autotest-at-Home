@@ -61,7 +61,7 @@ class DataGrinderPilotOneCase:
     def __init__(self, scenario_unit_folder):
         # 变量初始化
         self.ego_velocity_generator = None
-        self.cut_frame_offset = 0.25
+        self.cut_frame_offset = 0
 
         print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
@@ -881,6 +881,8 @@ class DataGrinderPilotOneCase:
                         characteristic].items():
 
                         for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+
+                            print(f'汇总 {topic} {characteristic} {bug_type} {time_stamp} camera截图数据')
                             one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
                             bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
                             with open(bug_info_json, 'r', encoding='utf-8') as f:
@@ -978,7 +980,6 @@ class DataGrinderPilotOneCase:
 
                                 bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
-                            print(f'汇总 {topic} {characteristic} {time_stamp} camera 截图数据')
                             bug_label_info_list.append(bug_label_info)
 
             bug_label_info_json = os.path.join(self.BugFolder, 'General', 'bug_label_info.json')

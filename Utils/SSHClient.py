@@ -6,6 +6,7 @@ import os
 import time
 
 import paramiko
+from scp import SCPClient
 
 from Utils.Libs import bench_config
 
@@ -33,7 +34,7 @@ class SSHClient:
         else:
             self.password = str(password)
 
-        self.clear_temp_folder()
+        # self.clear_temp_folder()
 
     def load_info(self, ip, username, password):
         self.ip = ip
@@ -172,6 +173,11 @@ class SSHClient:
         except:
             return None
 
+    def flash_camera_config(self, ecu_type):
+        command = f'cd {self.interface_path} && python3 Api_ConfigFlash.py -e {ecu_type}'
+        print(command)
+        self.send_cmd(command)
+
     def scp_file_local_to_remote(self, local_file, remote_file):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -247,6 +253,25 @@ class SSHClient:
             ssh.close()
             return e
 
+    def scp_folder_local_to_remote(self, local_folder, remote_folder):
+        self.clear_temp_folder()
+        ssh = paramiko.SSHClient()
+        ssh.load_system_host_keys()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        try:
+            ssh.connect(self.ip, username=self.username, password=self.password)
+            with SCPClient(ssh.get_transport()) as scp:
+                # 递归复制整个文件夹
+                scp.put(local_folder, remote_path=remote_folder, recursive=True)
+
+            return 'successful'
+
+        except Exception as e:
+            print(f"Error: {e}")
+            ssh.close()
+            return e
+
     def clear_temp_folder(self):
         command = f'rm -rf {self.temp_folder}/*'
         print(command)
@@ -254,13 +279,13 @@ class SSHClient:
 
 
 if __name__ == '__main__':
-    ss = SSHClient()
-    scenario_id = '20230602_144755_n000003'
+    ssh = SSHClient()
+    local_folder = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/01_Prediction/20230602_144755_n000003/scenario_info/es37_calib'
+    remote_folder = '/home/vcar/work'
+    # ssh.scp_folder_local_to_remote(local_folder, remote_folder)
 
+    ssh.flash_camera_config('ES37')
+
+    scenario_id = '20230602_144755_n000003'
+ 
     local_folder = '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/debug'
-    ss.get_scenario_info(scenario_id, info_type='VideoInfo', local_folder=local_folder)
-    # ss.cut_frames(scenario_id, frame_index_list=[5, 100, 235, 431], local_folder=local_folder)
-    # print(time.time() - t0)
-    # ss.scp_folder_remote_to_local(local_folder, remote_folder)
-    # ss.cut_one_frame(scenario_id, 100, local_pic_folder=local_pic_folder)
-    # ss.clear_temp_folder()
