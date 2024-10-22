@@ -134,13 +134,23 @@ class ProcessVideoSnap:
                         }
 
                         for i in range(4):
-                            cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
-                                     (0, 0, 200), 2)
-                            cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
-                                     (0, 0, 200), 2)
+                            try:
+                                cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
+                                         (0, 0, 200), 2)
+                            except OverflowError as e:
+                                pass
+
+                            try:
+                                cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
+                                         (0, 0, 200), 2)
+                            except OverflowError as e:
+                                pass
 
                         for i in range(4):
-                            cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (0, 0, 200), 2)
+                            try:
+                                cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (0, 0, 200), 2)
+                            except OverflowError as e:
+                                pass
 
                     if 'pred_corner' in one_label_info:
                         corner_uv = {
@@ -151,13 +161,23 @@ class ProcessVideoSnap:
                         }
 
                         for i in range(4):
-                            cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
-                                     (200, 0, 0), 2)
-                            cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
-                                     (200, 0, 0), 2)
+                            try:
+                                cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
+                                         (200, 0, 0), 2)
+                            except OverflowError as e:
+                                pass
+
+                            try:
+                                cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
+                                         (200, 0, 0), 2)
+                            except OverflowError as e:
+                                pass
 
                         for i in range(4):
-                            cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (200, 0, 0), 2)
+                            try:
+                                cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (200, 0, 0), 2)
+                            except OverflowError as e:
+                                pass
 
                     if 'center' in one_label_info:
                         pt = one_label_info['center']

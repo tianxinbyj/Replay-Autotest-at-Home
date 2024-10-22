@@ -1,0 +1,76 @@
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'TestResultTookit.ui'
+#
+# Created by: PyQt5 UI code generator 5.14.1
+#
+# WARNING! All changes made in this file will be lost!
+
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+
+class Ui_test_result_tookit(object):
+    def setupUi(self, test_result_tookit):
+        test_result_tookit.setObjectName("test_result_tookit")
+        test_result_tookit.resize(747, 678)
+        self.groupBox = QtWidgets.QGroupBox(test_result_tookit)
+        self.groupBox.setGeometry(QtCore.QRect(10, 10, 351, 171))
+        self.groupBox.setObjectName("groupBox")
+        self.delete_data_folder = QtWidgets.QPushButton(self.groupBox)
+        self.delete_data_folder.setGeometry(QtCore.QRect(200, 130, 141, 31))
+        self.delete_data_folder.setObjectName("delete_data_folder")
+        self.add_data_folder = QtWidgets.QPushButton(self.groupBox)
+        self.add_data_folder.setGeometry(QtCore.QRect(10, 130, 141, 31))
+        self.add_data_folder.setObjectName("add_data_folder")
+        self.data_folder_list = QtWidgets.QListWidget(self.groupBox)
+        self.data_folder_list.setGeometry(QtCore.QRect(10, 30, 331, 91))
+        self.data_folder_list.setFocusPolicy(QtCore.Qt.ClickFocus)
+        self.data_folder_list.setObjectName("data_folder_list")
+        self.filter_group = QtWidgets.QGroupBox(test_result_tookit)
+        self.filter_group.setGeometry(QtCore.QRect(380, 10, 351, 281))
+        self.filter_group.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
+        self.filter_group.setObjectName("filter_group")
+        self.gridLayout_2 = QtWidgets.QGridLayout(self.filter_group)
+        self.gridLayout_2.setObjectName("gridLayout_2")
+        self.filter_layout = QtWidgets.QGridLayout()
+        self.filter_layout.setContentsMargins(-1, -1, 0, -1)
+        self.filter_layout.setObjectName("filter_layout")
+        self.gridLayout_2.addLayout(self.filter_layout, 0, 0, 1, 1)
+        self.groupBox_2 = QtWidgets.QGroupBox(test_result_tookit)
+        self.groupBox_2.setGeometry(QtCore.QRect(10, 280, 721, 391))
+        self.groupBox_2.setObjectName("groupBox_2")
+        self.result_des = QtWidgets.QListWidget(self.groupBox_2)
+        self.result_des.setGeometry(QtCore.QRect(10, 30, 701, 91))
+        self.result_des.setObjectName("result_des")
+        self.result_table = QtWidgets.QTableWidget(self.groupBox_2)
+        self.result_table.setGeometry(QtCore.QRect(10, 120, 701, 261))
+        self.result_table.setObjectName("result_table")
+        self.result_table.setColumnCount(0)
+        self.result_table.setRowCount(0)
+        self.label = QtWidgets.QLabel(test_result_tookit)
+        self.label.setGeometry(QtCore.QRect(90, 210, 211, 31))
+        self.label.setAlignment(QtCore.Qt.AlignCenter)
+        self.label.setObjectName("label")
+        self.data_count = QtWidgets.QLineEdit(test_result_tookit)
+        self.data_count.setGeometry(QtCore.QRect(20, 210, 61, 31))
+        self.data_count.setAlignment(QtCore.Qt.AlignCenter)
+        self.data_count.setObjectName("data_count")
+        self.groupBox.raise_()
+        self.groupBox_2.raise_()
+        self.filter_group.raise_()
+        self.label.raise_()
+        self.data_count.raise_()
+
+        self.retranslateUi(test_result_tookit)
+        QtCore.QMetaObject.connectSlotsByName(test_result_tookit)
+
+    def retranslateUi(self, test_result_tookit):
+        _translate = QtCore.QCoreApplication.translate
+        test_result_tookit.setWindowTitle(_translate("test_result_tookit", "TestResultTookit"))
+        self.groupBox.setTitle(_translate("test_result_tookit", "1. Load Data"))
+        self.delete_data_folder.setText(_translate("test_result_tookit", "Delete Data Folder"))
+        self.add_data_folder.setText(_translate("test_result_tookit", "Add Data Folder"))
+        self.filter_group.setTitle(_translate("test_result_tookit", "2. Select Filter"))
+        self.groupBox_2.setTitle(_translate("test_result_tookit", "3. Show Result"))
+        self.label.setText(_translate("test_result_tookit", "results are left after filtered."))

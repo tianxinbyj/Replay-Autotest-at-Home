@@ -21,3 +21,4 @@ openpyxl
 reportlab
 scp
 wcwidth
+pymongo

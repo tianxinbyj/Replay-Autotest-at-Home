@@ -61,6 +61,7 @@ class DataGrinderPilotOneCase:
     def __init__(self, scenario_unit_folder):
         # 变量初始化
         self.ego_velocity_generator = None
+        self.cut_frame_offset = 0
 
         print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
@@ -757,7 +758,7 @@ class DataGrinderPilotOneCase:
         video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
         with open(video_info_path, 'r', encoding='utf-8') as file:
             video_info = yaml.safe_load(file)
-        video_start_time, fps = video_info['start_time'], video_info['fps']
+        video_start_time, fps = video_info['start_time'] + self.cut_frame_offset, video_info['fps']
         # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
         video_snap_dict = {}
 
@@ -880,6 +881,8 @@ class DataGrinderPilotOneCase:
                         characteristic].items():
 
                         for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+
+                            print(f'汇总 {topic} {characteristic} {bug_type} {time_stamp} camera截图数据')
                             one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
                             bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
                             with open(bug_info_json, 'r', encoding='utf-8') as f:
@@ -977,7 +980,6 @@ class DataGrinderPilotOneCase:
 
                                 bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
-                            print(f'汇总 {topic} {characteristic} {time_stamp} camera 截图数据')
                             bug_label_info_list.append(bug_label_info)
 
             bug_label_info_json = os.path.join(self.BugFolder, 'General', 'bug_label_info.json')
@@ -1178,7 +1180,7 @@ class DataGrinderPilotOneCase:
         video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
         with open(video_info_path, 'r', encoding='utf-8') as file:
             video_info = yaml.safe_load(file)
-        video_start_time, fps = video_info['start_time'], video_info['fps']
+        video_start_time, fps = video_info['start_time'] + self.cut_frame_offset, video_info['fps']
         # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
         video_snap_dict = {}
 
@@ -2117,7 +2119,7 @@ class DataGrinderPilotOneTask:
 
                         # 保存单个json文件
                         json_count += 1
-                        json_name = (f'{json_count:06d}--{tag_key}--{topic_tag}--{json_data["ObstacleName"]}'
+                        json_name = (f'{json_count:06d}--{self.version}--{tag_key}--{topic_tag}--{json_data["ObstacleName"]}'
                                      f'--{json_data["RangeDetails"]}--{json_data["FeatureDetail"]}--{json_data["MetricTypeName"]}.json')
                         json_path = os.path.join(json_folder, json_name)
 
@@ -2134,7 +2136,8 @@ class DataGrinderPilotOneTask:
                         # 保存json文件的目录
                         json_rows.append(
                             [
-                                json_count, tag_key, topic, json_data['ObstacleName'], json_data['RangeDetails'],
+                                json_count, self.version, tag_key, topic,
+                                json_data['ObstacleName'], json_data['RangeDetails'],
                                 json_data['FeatureDetail'], json_data['MetricTypeName'],
                                 json_data['Output']['sample_count'], json.dumps(json_data['Output'])
                             ]
@@ -2142,7 +2145,7 @@ class DataGrinderPilotOneTask:
 
         path = os.path.join(json_folder, 'output_result.csv')
         pd.DataFrame(json_rows, columns=[
-            'result_index', 'scenario_tag', 'topic', 'obstacle_type', 'region',
+            'index', 'version', 'scenario_tag', 'topic', 'obstacle_type', 'region',
             'characteristic', 'metric', 'sample_count', 'result'
         ]).to_csv(path, index=False, encoding='utf_8_sig')
         self.test_result['OutputResult']['statistics'] = self.get_relpath(path)
@@ -2301,7 +2304,7 @@ class DataGrinderPilotOneTask:
             df['type_cate'] = pd.Categorical(df['obstacle_type'],
                                              categories=['小车', '大巴', '货车', '自行车', '行人'], ordered=True)
             df.sort_values(by=['type_cate', 'region'], inplace=True)
-            drop_columns = group_columns + ['result_index', 'type_cate', 'result']
+            drop_columns = group_columns + ['index', 'type_cate', 'result']
             df.drop(drop_columns, axis=1, inplace=True)
             df.insert(0, 'obstacle_type', obstacle_type)
             df.rename(columns={'region': 'grid area division[m]'}, inplace=True)

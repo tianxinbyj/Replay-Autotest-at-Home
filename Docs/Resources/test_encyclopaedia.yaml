@@ -95,6 +95,8 @@
     - /FS/FusionAEBResult
     - /Camera/FrontWide/H265
     - /Camera/FrontWide/MutiModelHevc
+    - /VA/BevObstaclesDet
+    - /VA/FrontWideObstacles2dDet
     - /COM/CUS/CommonHMI
     - /Diag/DiagServiceHeartbeat
     - /ehr/to_dc_data

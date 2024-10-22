@@ -22,7 +22,7 @@ sys.path.append(get_project_path())
 
 from Utils.Libs import test_encyclopaedia, calculate_file_checksum, create_folder
 from Utils.SSHClient import SSHClient
-from Utils.Logger import send_log
+from Utils.Logger import send_log, bench_config
 
 
 class ReplayController:
@@ -41,10 +41,10 @@ class ReplayController:
         self.bag_update = self.replay_action['bag_update']
         self.replay_end = self.replay_action['replay_end']
 
-        product = replay_config['product']
+        self.product = replay_config['product']
         feature_group = replay_config['feature_group']
-        self.record_topic = test_encyclopaedia[product]['record_topic'][feature_group]
-        self.parse_topic = test_encyclopaedia[product]['parse_topic'][feature_group]
+        self.record_topic = test_encyclopaedia[self.product]['record_topic'][feature_group]
+        self.parse_topic = test_encyclopaedia[self.product]['parse_topic'][feature_group]
 
         # 建立文件夹
         create_folder(self.pred_raw_folder, False)
@@ -228,8 +228,16 @@ class ReplayController:
             self.replay_client.scp_folder_remote_to_local(local_folder, remote_folder)
 
     def copy_calib_file(self, scenario_id):
-        # todo: 下电, 拷贝参数, 上电, 使用scenario_group[0]对应的参数
         send_log(self, f'拷贝相机参数{scenario_id}')
+
+        # 拷贝参数到ReplayClient的Temp文件夹下
+        local_folder = os.path.join(self.calib_file[scenario_id], 'es37_calib')
+        remote_folder = f'{bench_config["ReplayClient"]["py_path"]}/Temp'
+        self.replay_client.scp_folder_local_to_remote(local_folder, remote_folder)
+        time.sleep(1)
+
+        # 调用接口复制参数进ECU
+        self.replay_client.flash_camera_config(ecu_type=self.product)
 
     def start(self):
 

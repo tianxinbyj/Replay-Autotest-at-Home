@@ -255,7 +255,7 @@ class CameraObject:
     # 从json_file中读取，是指从地平线标准格式的相机json构造相机
     # 也可以从参数传入构造一个新相机
     # 这里的外参矩阵实际上为【逆外参】
-    def __init__(self, json_file=None, size=None, extrinsic=None, intrinsic=None, distort=None, xi=None,
+    def __init__(self, json_file=None, yaml_file=None, size=None, extrinsic=None, intrinsic=None, distort=None, xi=None,
                  fov_range=None):
         if json_file:
             with open(json_file, 'r', encoding='utf8') as fp:
@@ -274,6 +274,9 @@ class CameraObject:
                 camera_orientation + np.deg2rad(self.json_data['fov'] / 2),
             ]
             self.xi = 0
+        elif yaml_file:
+            with open(yaml_file, 'r', encoding='utf8') as fp:
+                self.yaml_data = yaml.safe_load(fp)
         else:
             self.size = size
             self.extrinsic = extrinsic  # 4 X 4
@@ -976,16 +979,60 @@ def transfer_2j5_2_1j5(json_folder, yaml_folder):
         }, f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
 
-def print2(text):
-    if __name__ == '__main__':
-        print(text)
+def transfer_es39_2_1j5(json_folder, yaml_folder):
+    mapping = {
+        'CAM_FRONT_RIGHT': 'frontright',
+        'CAM_FRONT_LEFT': 'frontleft',
+        'CAM_BACK': 'rear',
+        'CAM_BACK_LEFT': 'rearleft',
+        'CAM_BACK_RIGHT': 'rearright',
+        'CAM_FRONT_120': 'front',
+        'CAM_FRONT_30': 'front_30fov',
+        'CAM_FISHEYE_FRONT': 'fisheye_front',
+        'CAM_FISHEYE_RIGHT': 'fisheye_right',
+        'CAM_FISHEYE_BACK': 'fisheye_rear',
+        'CAM_FISHEYE_LEFT': 'fisheye_left',
+    }
+
+    for camera_name in mapping.keys():
+
+        json_2j5 = os.path.join(json_folder, f'{mapping[camera_name]}.json')
+        if os.path.exists(json_2j5):
+            with open(json_2j5, 'r') as f:
+                camera_config = json.load(f)
+
+            yaml_dict = {
+                'image_width': camera_config['image_width'],
+                'image_height': camera_config['image_height'],
+                'focal_x': camera_config['focal_u'],
+                'focal_y': camera_config['focal_v'],
+                'center_u': camera_config['center_u'],
+                'center_v': camera_config['center_v'],
+                'pos_x': camera_config['camera_x'],
+                'pos_y': camera_config['camera_y'],
+                'pos_z': camera_config['camera_z'],
+                'pitch': camera_config['pitch'],
+                'roll': camera_config['roll'],
+                'yaw': camera_config['yaw'],
+                'distort': camera_config['distort'],
+            }
+
+            yaml_file = os.path.join(yaml_folder, f'{camera_name}.yaml')
+
+            with open(yaml_file, 'w', encoding='utf-8') as f:
+                yaml.dump(yaml_dict, f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
 
 if __name__ == '__main__':
-    json_folder = '/home/caobingqi/下载/2J5'
-    yaml_folder = '/home/caobingqi/下载/1J5'
-    transfer_2j5_2_1j5(json_folder, yaml_folder)
+    # json_folder = '/home/caobingqi/下载/2J5'
+    # yaml_folder = '/home/caobingqi/下载/1J5'
+    # transfer_2j5_2_1j5(json_folder, yaml_folder)
+    #
+    # calibration_json = '/home/caobingqi/ZONE/20231130_152434_calibration.json'
+    # output_folder = '/home/caobingqi/下载/2J5'
+    # CJ = ConvertJsonFile(calibration_json, output_folder)
 
-    calibration_json = '/home/caobingqi/ZONE/20231130_152434_calibration.json'
-    output_folder = '/home/caobingqi/下载/2J5'
-    CJ = ConvertJsonFile(calibration_json, output_folder)
+    json_folder = '/home/zhangliwei01/ZONE/123'
+    yaml_folder = '/home/zhangliwei01/ZONE/456'
+
+    transfer_es39_2_1j5(json_folder, yaml_folder)
