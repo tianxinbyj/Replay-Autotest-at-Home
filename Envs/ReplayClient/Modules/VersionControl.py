@@ -948,7 +948,7 @@ class VersionControl:
 if __name__ == '__main__':
     VC = VersionControl()
     # VC.get_power_status()
-    # VC.power_ctrl_power_off()
+    VC.power_ctrl_power_off()
 
 
 

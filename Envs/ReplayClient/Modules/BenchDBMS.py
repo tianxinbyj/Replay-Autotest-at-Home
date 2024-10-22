@@ -73,12 +73,19 @@ class BenchDBMS:
             """
             # 所有都有
             if all(series.notnull()):
-                # print('all is conmment', series['id'])
+                # print('all is comment', series['id'])
                 return True
+            #仅有四路鱼眼，front120 和 rear 其他CAN
+            elif (all(series[['IMU', 'AT128', 'Pandar128','CAM_BACK_LEFT', 'CAM_BACK_RIGHT','CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT','CAM_FRONT_30']].isnull()) and
+                  all(series.drop(['IMU', 'AT128', 'Pandar128','CAM_BACK_LEFT', 'CAM_BACK_RIGHT','CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT','CAM_FRONT_30']).notnull())):
+                # print('six camera is none, lidar IMU is none', 'but is ok', series['id'])
+                return True
+            # 缺少IMU AT128 和Pandar128的 数据， 一般是11路数采的NI数据
             elif (all(series[['IMU', 'AT128', 'Pandar128']].isnull()) and
                   all(series.drop(['IMU', 'AT128', 'Pandar128']).notnull())):
                 # print('IMU', 'AT128', 'Pandar128' 'is none', 'but is ok', series['id'])
                 return True
+
             else:
                 return False
 
