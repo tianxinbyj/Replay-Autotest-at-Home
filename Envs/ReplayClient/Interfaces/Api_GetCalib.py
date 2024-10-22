@@ -17,7 +17,7 @@ from Libs import get_project_path
 sys.path.append(get_project_path())
 
 from Envs.ReplayClient.Modules.DataSelector import data_selector
-from Envs.ReplayClient.Modules.BirdEyeView import ConvertJsonFile, transfer_2j5_2_1j5
+from Envs.ReplayClient.Modules.BirdEyeView import ConvertJsonFile, transfer_2j5_2_1j5, transfer_es39_2_1j5
 
 
 def Gen_ES37_Calib_Folder():
@@ -105,9 +105,10 @@ def main():
     # 獲取標定文件
     video_path = data_selector.data.at[args.scenario_id, 'CAM_FRONT_120']
     calib_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(video_path))), 'Config')
-    calib_f = glob.glob(os.path.join(calib_folder, '*calibration.json'))
-    if len(calib_f):
-        kunyi_calib_file = calib_f[0]
+    calib_old = glob.glob(os.path.join(calib_folder, '*calibration.json'))
+    calib_new = glob.glob(os.path.join(calib_folder, '*.json'))
+    if len(calib_old):
+        kunyi_calib_file = calib_old[0]
         origin_calib_folder = os.path.join(get_project_path(), 'Temp', 'origin_calib')
         if os.path.exists(origin_calib_folder):
             shutil.rmtree(origin_calib_folder)
@@ -127,7 +128,6 @@ def main():
         if os.path.exists(yaml_calib_folder):
             shutil.rmtree(yaml_calib_folder)
         os.makedirs(yaml_calib_folder)
-
         transfer_2j5_2_1j5(json_calib_folder, yaml_calib_folder)
         print('folder', yaml_calib_folder)
 
@@ -135,7 +135,22 @@ def main():
         Gen_ES37_Calib_Folder()
         print('folder', es37_calib_folder)
 
+    elif len(calib_new):
+        json_calib_folder = os.path.join(get_project_path(), 'Temp', 'json_calib')
+        if os.path.exists(json_calib_folder):
+            shutil.rmtree(json_calib_folder)
+        os.makedirs(json_calib_folder)
+        for f in calib_new:
+            shutil.copy(f, json_calib_folder)
+        print('folder', json_calib_folder)
+
+        yaml_calib_folder = os.path.join(get_project_path(), 'Temp', 'yaml_calib')
+        if os.path.exists(yaml_calib_folder):
+            shutil.rmtree(yaml_calib_folder)
+        os.makedirs(yaml_calib_folder)
+        transfer_es39_2_1j5(json_calib_folder, yaml_calib_folder)
+        print('folder', yaml_calib_folder)
+
 
 if __name__ == "__main__":
     main()
-    # Gen_ES37_Calib_Folder()
