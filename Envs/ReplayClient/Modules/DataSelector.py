@@ -30,16 +30,16 @@ class DataSelector:
         if bench_id == 'Replay02':
             card_struct = {
                 '视频注入卡-1': {
-                    'CH1': 'CAM_FRONT_30',
+                    # 'CH1': 'CAM_FRONT_30',
                     'CH2': 'CAM_FRONT_120',
                     'CH3': 'CAM_BACK',
                 },
-                '视频注入卡-2': {
-                    'CH4': 'CAM_BACK_LEFT',
-                    'CH5': 'CAM_BACK_RIGHT',
-                    'CH6': 'CAM_FRONT_LEFT',
-                    'CH7': 'CAM_FRONT_RIGHT',
-                },
+                # '视频注入卡-2': {
+                #     'CH4': 'CAM_BACK_LEFT',
+                #     'CH5': 'CAM_BACK_RIGHT',
+                #     'CH6': 'CAM_FRONT_LEFT',
+                #     'CH7': 'CAM_FRONT_RIGHT',
+                # },
                 '视频注入卡-3': {
                     'CH8': 'CAM_FISHEYE_BACK',
                     'CH9': 'CAM_FISHEYE_FRONT',
@@ -177,10 +177,9 @@ data_selector = DataSelector()
 
 if __name__ == '__main__':
     DS = DataSelector()
-    index = '20240123_143218_n000001'
+    index = '20241018_160637_n000002'
     print(DS.data.index)
     print(index in DS.data.index)
 
-    # DS.gen_video_config(index)
-    # DS.gen_can_config(index)
-    # DS.gen_video_shot(index)
+    DS.gen_video_config(index)
+    DS.gen_can_config(index)

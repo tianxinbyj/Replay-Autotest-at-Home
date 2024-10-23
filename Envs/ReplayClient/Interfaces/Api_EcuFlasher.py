@@ -2,6 +2,9 @@ import subprocess
 import sys
 import time
 
+from Libs import get_project_path
+sys.path.append(get_project_path())
+
 def kill_tmux_session_if_exists(session_name):
     try:
         result = subprocess.run(['tmux', 'ls'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
