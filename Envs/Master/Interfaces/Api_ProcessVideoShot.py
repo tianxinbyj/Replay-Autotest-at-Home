@@ -3,6 +3,7 @@ Created on 2024/8/9
 @author: Bu Yujun
 """
 import argparse
+import glob
 import sys
 
 import cv2
@@ -27,6 +28,20 @@ camera_fov = {
     'CAM_FISHEYE_RIGHT': [-90 * np.pi / 180 - np.pi / 2, 90 * np.pi / 180 - np.pi / 2],
 }
 
+camera_models = {
+    'CAM_FRONT_120': 'opencv_pinhole',
+    'CAM_FRONT_LEFT': 'opencv_pinhole',
+    'CAM_FRONT_RIGHT': 'opencv_pinhole',
+    'CAM_BACK_LEFT': 'opencv_pinhole',
+    'CAM_BACK_RIGHT': 'opencv_pinhole',
+    'CAM_BACK': 'opencv_pinhole',
+    'CAM_FISHEYE_FRONT': 'opencv_fisheye',
+    'CAM_FISHEYE_BACK': 'opencv_fisheye',
+    'CAM_FISHEYE_LEFT': 'opencv_fisheye',
+    'CAM_FISHEYE_RIGHT': 'opencv_fisheye',
+}
+
+
 pred_arrow = cv2.imread(
     os.path.join(get_project_path(), 'Docs', 'Resources', 'Icon', 'pred_arrow.png'),
     cv2.IMREAD_UNCHANGED)
@@ -35,7 +50,7 @@ gt_arrow = cv2.imread(
     cv2.IMREAD_UNCHANGED)
 
 
-class CameraModel:
+class KunyiCameraModel:
 
     def __init__(self, calibration_json_path):
         with open(calibration_json_path, 'r') as f:
@@ -72,6 +87,19 @@ class CameraModel:
             return DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
 
 
+class NICameraModel:
+
+    def __init__(self, calibration_yaml_folder):
+        self.cameras = {}
+        for f in glob.glob(os.path.join(calibration_yaml_folder, '*.yaml')):
+            camera_name = os.path.splitext(os.path.basename(f))[0]
+            self.cameras[camera_name] = f
+
+    def register_camera(self, camera_name):
+        camera_model = camera_models[camera_name]
+        return DistortCameraObject(yaml_file=self.cameras[camera_name], camera_model=camera_model)
+
+
 def overlay_and_resize(img1, img2, position, target_size=(100, 100), opacity=1.0):
     x, y = position
     img2_resized = cv2.resize(img2, target_size)
@@ -87,7 +115,7 @@ def overlay_and_resize(img1, img2, position, target_size=(100, 100), opacity=1.0
 
 class ProcessVideoSnap:
 
-    def __init__(self, calibration_json_path, bug_label_info_path):
+    def __init__(self, calibration_json_path=None, calibration_yaml_folder=None, bug_label_info_path=None):
         with open(bug_label_info_path, 'r') as f:
             bug_label_info_list = json.load(f)
 
@@ -95,7 +123,10 @@ class ProcessVideoSnap:
         for bug_label_info in bug_label_info_list:
             for camera_name, camera_label_info in bug_label_info['camera_label_info'].items():
                 if camera_name not in camera_model:
-                    camera_model[camera_name] = CameraModel(calibration_json_path).register_camera(camera_name)
+                    if calibration_json_path:
+                        camera_model[camera_name] = KunyiCameraModel(calibration_json_path).register_camera(camera_name)
+                    else:
+                        camera_model[camera_name] = NICameraModel(calibration_yaml_folder).register_camera(camera_name)
 
                 size = camera_model[camera_name].camera_object.size
                 origin_shot = cv2.imread(camera_label_info['origin_shot'], cv2.IMREAD_UNCHANGED)
@@ -207,11 +238,14 @@ class ProcessVideoSnap:
 
 def main():
     parser = argparse.ArgumentParser(description="process video shot")
-    parser.add_argument("-j", "--calibration_json", type=str, required=True, help="calibration json")
+    parser.add_argument("-c", "--calibration", type=str, required=True, help="calibration file or folder")
     parser.add_argument("-a", "--bug_label_info_json", type=str, required=True, help="bug label info json")
     args = parser.parse_args()
 
-    ProcessVideoSnap(args.calibration_json, args.bug_label_info_json)
+    if os.path.isdir(args.calibration):
+        ProcessVideoSnap(calibration_yaml_folder=args.calibration, bug_label_info_path=args.bug_label_info_json)
+    else:
+        ProcessVideoSnap(calibration_json_path=args.calibration, bug_label_info_path=args.bug_label_info_json)
 
 
 if __name__ == '__main__':
