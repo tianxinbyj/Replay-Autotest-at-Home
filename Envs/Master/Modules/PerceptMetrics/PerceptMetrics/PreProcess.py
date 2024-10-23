@@ -331,8 +331,10 @@ class IsCoverageValid:
                 for overlap in overlaps:
                     covered_length += overlap[1] - overlap[0]
 
-                azimuth_coverage = covered_length / b_length
-                # intv = f'{a_union}-{b_union}-{overlaps}'
+                if b_length != 0:
+                    azimuth_coverage = covered_length / b_length
+                else:
+                    azimuth_coverage = 1
 
                 if azimuth_coverage:
                     # 计算高度这档率
@@ -350,8 +352,10 @@ class IsCoverageValid:
                     for overlap in overlaps:
                         covered_length += overlap[1] - overlap[0]
 
-                    elevation_coverage = covered_length / b_length
-                    # intv += f'                {a_union}-{b_union}-{overlaps}'
+                    if b_length != 0:
+                        elevation_coverage = covered_length / b_length
+                    else:
+                        elevation_coverage = 1
 
                     coverage = azimuth_coverage * elevation_coverage
                     coverages.append(coverage)
@@ -697,3 +701,17 @@ class ObstaclesPreprocess:
                 data = func(data)
 
         return data
+
+if __name__ == '__main__':
+    import json
+
+    raw_data_path = '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240924_030000/04_TestData/1-Obstacles/01_ScenarioUnit/20241018_154712_n000002/01_Data/Obstacles/GroundTruth/raw/gt_data.csv'
+    raw_data = pd.read_csv(raw_data_path, index_col=False)
+
+    parameter_json_path = '/home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home/Temp/process_api_parameter.json'
+    with open(parameter_json_path, 'r', encoding='utf-8') as f:
+        parameter_json = json.load(f)
+
+    preprocess_instance = ObstaclesPreprocess()
+    data = preprocess_instance.run(raw_data, parameter_json)
+    data.to_csv('123.csv', index=False, encoding='utf_8_sig')
