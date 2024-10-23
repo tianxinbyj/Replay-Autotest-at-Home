@@ -257,12 +257,12 @@ class CameraObject:
     # 这里的外参矩阵实际上为【逆外参】
     def __init__(self, json_file=None, yaml_file=None, size=None, extrinsic=None, intrinsic=None, distort=None, xi=None,
                  fov_range=None):
+        camera_rotation = np.array([[0, -1, 0, 0], [0, 0, -1, 0], [1, 0, 0, 0], [0, 0, 0, 1]])
         if json_file:
             with open(json_file, 'r', encoding='utf8') as fp:
                 self.json_data = json.load(fp)
             self.size = (self.json_data['image_width'], self.json_data['image_height'])
-            camera_rotation = np.array([[0, -1, 0, 0], [0, 0, -1, 0], [1, 0, 0, 0], [0, 0, 0, 1]])
-            self.extrinsic = camera_rotation @ self.cal_RTMatrix()
+            self.extrinsic = camera_rotation @ self.cal_RTMatrix_horizon()
             self.intrinsic = np.array([
                 [self.json_data['focal_u'], 0, self.json_data['center_u'], 0],
                 [0, self.json_data['focal_v'], self.json_data['center_v'], 0],
@@ -277,6 +277,19 @@ class CameraObject:
         elif yaml_file:
             with open(yaml_file, 'r', encoding='utf8') as fp:
                 self.yaml_data = yaml.safe_load(fp)
+            self.size = (self.yaml_data['image_width'], self.yaml_data['image_height'])
+            self.extrinsic = camera_rotation @ self.cal_RTMatrix()
+            self.intrinsic = np.array([
+                [self.yaml_data['focal_x'], 0, self.yaml_data['center_u'], 0],
+                [0, self.yaml_data['focal_y'], self.yaml_data['center_v'], 0],
+                [0, 0, 1, 0]])
+            self.distort = np.array(self.yaml_data['distort'])
+            camera_orientation = self.yaml_data['yaw']
+            self.fov_range = [
+                camera_orientation - np.deg2rad(self.yaml_data['fov'] / 2),
+                camera_orientation + np.deg2rad(self.yaml_data['fov'] / 2),
+            ]
+            self.xi = 0
         else:
             self.size = size
             self.extrinsic = extrinsic  # 4 X 4
@@ -287,7 +300,7 @@ class CameraObject:
         self.fov = self.fov_range[-1] - self.fov_range[0]
         self.camera_location = np.linalg.inv(self.extrinsic)[0:3, 3]
 
-    def cal_RTMatrix(self):
+    def cal_RTMatrix_horizon(self):
         # 世界坐标系到标定坐标系
         world2calib = euler2matrix(
             *self.json_data['vcs']['rotation'],
@@ -306,6 +319,19 @@ class CameraObject:
 
         return np.linalg.inv(world2calib @ calib2camera)
 
+    def cal_RTMatrix(self):
+        world2camera = euler2matrix(
+            self.yaml_data['roll'],
+            self.yaml_data['pitch'],
+            self.yaml_data['yaw'],
+            self.yaml_data['pos_x'],
+            self.yaml_data['pos_y'],
+            self.yaml_data['pos_z'],
+            seq='ZYX'
+        )
+
+        return np.linalg.inv(world2camera)
+
     def world2camera(self, x, y, z):
         return world2camera(self.intrinsic, self.extrinsic, x, y, z)
 
@@ -314,9 +340,11 @@ class DistortCameraObject:
 
     # 从json_file中读取，是指从地平线标准格式的相机json构造相机
     # 也可以从参数传入构造一个新相机
-    def __init__(self, json_file=None, camera_par=None, camera_model='opencv_pinhole'):
+    def __init__(self, json_file=None, yaml_file=None, camera_par=None, camera_model='opencv_pinhole'):
         if json_file:
-            self.camera_object = CameraObject(json_file)
+            self.camera_object = CameraObject(json_file=json_file)
+        elif yaml_file:
+            self.camera_object = CameraObject(yaml_file=yaml_file)
         else:
             self.camera_object = CameraObject(**camera_par)
 
@@ -1015,6 +1043,7 @@ def transfer_es39_2_1j5(json_folder, yaml_folder):
                 'roll': camera_config['roll'],
                 'yaw': camera_config['yaw'],
                 'distort': camera_config['distort'],
+                'fov': camera_config['fov'],
             }
 
             yaml_file = os.path.join(yaml_folder, f'{camera_name}.yaml')
@@ -1032,7 +1061,10 @@ if __name__ == '__main__':
     # output_folder = '/home/caobingqi/下载/2J5'
     # CJ = ConvertJsonFile(calibration_json, output_folder)
 
-    json_folder = '/home/zhangliwei01/ZONE/123'
-    yaml_folder = '/home/zhangliwei01/ZONE/456'
-
-    transfer_es39_2_1j5(json_folder, yaml_folder)
+    # json_folder = '/home/zhangliwei01/ZONE/123'
+    # yaml_folder = '/home/zhangliwei01/ZONE/456'
+    #
+    # transfer_es39_2_1j5(json_folder, yaml_folder)
+    yaml_file = '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240924_030000/01_Prediction/20241018_154712_n000002/scenario_info/yaml_calib/CAM_FRONT_120.yaml'
+    c = CameraObject(yaml_file=yaml_file)
+    print(c.world2camera(10, -3, 0))
