@@ -167,8 +167,13 @@ class ReplayController:
             parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
             test_topic_info = os.path.join(parser_folder, 'TestTopicInfo.yaml')
             if self.bag_update or (not os.path.exists(test_topic_info)):
-                check_file_path = os.path.join(self.calib_file[scenario_id], 'json_calib', '100', 'front.json')
-                check_sum = calculate_file_checksum(check_file_path)
+                check_file_path_1 = os.path.join(self.calib_file[scenario_id], 'json_calib', '100', 'front.json')
+                check_file_path_2 = os.path.join(self.calib_file[scenario_id], 'json_calib', 'front.json')
+                if os.path.exists(check_file_path_1):
+                    check_sum = calculate_file_checksum(check_file_path_1)
+                else:
+                    check_sum = calculate_file_checksum(check_file_path_2)
+
                 if check_sum not in scenario_groups:
                     scenario_groups[check_sum] = []
                 scenario_groups[check_sum].append(scenario_id)
