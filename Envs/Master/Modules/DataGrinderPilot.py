@@ -194,45 +194,84 @@ class DataGrinderPilotOneCase:
             yaml_folder = os.path.join(scenario_info_folder, 'yaml_calib')
             cam_description_path = os.path.join(yaml_folder, 'cam_description.yaml')
 
-            with open(cam_description_path, 'r', encoding='utf-8') as f:
-                cam_description = yaml.safe_load(f)
+            if os.path.exists(cam_description_path):
+                # 说明是老样式
+                with open(cam_description_path, 'r', encoding='utf-8') as f:
+                    cam_description = yaml.safe_load(f)
 
-            for i, cam_name in cam_description.items():
-                cam_par_path = os.path.join(yaml_folder, f'camera_{i}.yaml')
-                with open(cam_par_path, 'r', encoding='utf-8') as f:
-                    cam_par = yaml.safe_load(f)
-                    x, y, z = [
-                        float(cam_par[f'cam_{i}_pos_x']),
-                        float(cam_par[f'cam_{i}_pos_y']),
-                        float(cam_par[f'cam_{i}_pos_z']),
-                    ]
-                    image_width = float(cam_par[f'cam_{i}_image_width'])
-                    focal_x = float(cam_par[f'cam_{i}_focal_x'])
-                    yaw = np.rad2deg(float(cam_par[f'cam_{i}_yaw']))
-                    h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
+                for i, cam_name in cam_description.items():
+                    cam_par_path = os.path.join(yaml_folder, f'camera_{i}.yaml')
+                    with open(cam_par_path, 'r', encoding='utf-8') as f:
+                        cam_par = yaml.safe_load(f)
+                        x, y, z = [
+                            float(cam_par[f'cam_{i}_pos_x']),
+                            float(cam_par[f'cam_{i}_pos_y']),
+                            float(cam_par[f'cam_{i}_pos_z']),
+                        ]
+                        image_width = float(cam_par[f'cam_{i}_image_width'])
+                        focal_x = float(cam_par[f'cam_{i}_focal_x'])
+                        yaw = np.rad2deg(float(cam_par[f'cam_{i}_yaw']))
+                        h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
 
-                    fov_left = float(yaw + h_fov / 2)
-                    fov_right = float(yaw - h_fov / 2)
+                        fov_left = float(yaw + h_fov / 2)
+                        fov_right = float(yaw - h_fov / 2)
 
-                    if fov_left < 0:
-                        fov_left += 360
-                    if fov_left > 360:
-                        fov_left -= 360
+                        if fov_left < 0:
+                            fov_left += 360
+                        if fov_left > 360:
+                            fov_left -= 360
 
-                    if fov_right < 0:
-                        fov_right += 360
-                    if fov_right > 360:
-                        fov_right -= 360
+                        if fov_right < 0:
+                            fov_right += 360
+                        if fov_right > 360:
+                            fov_right -= 360
 
-                    if fov_right > fov_left:
-                        fov_right -= 360
-                    fov_range = [fov_right, fov_left]
+                        if fov_right > fov_left:
+                            fov_right -= 360
+                        fov_range = [fov_right, fov_left]
 
-                self.test_result['General']['camera_position'][cam_name] = {
-                    'x': x, 'y': y, 'z': z, 'fov': fov_range,
-                }
-                send_log(self, f'{cam_name} 位于({x}, {y}, {z}, '
-                               f'{fov_range})')
+                    self.test_result['General']['camera_position'][cam_name] = {
+                        'x': x, 'y': y, 'z': z, 'fov': fov_range,
+                    }
+                    send_log(self, f'{cam_name} 位于({x}, {y}, {z}, {fov_range})')
+
+            else:
+                for cam_par_path in glob.glob(os.path.join(yaml_folder, '*.yaml')):
+                    cam_name = os.path.splitext(os.path.basename(cam_par_path))[0]
+
+                    with open(cam_par_path, 'r', encoding='utf-8') as f:
+                        cam_par = yaml.safe_load(f)
+                        x, y, z = [
+                            float(cam_par[f'pos_x']),
+                            float(cam_par[f'pos_y']),
+                            float(cam_par[f'pos_z']),
+                        ]
+                        image_width = float(cam_par[f'image_width'])
+                        focal_x = float(cam_par[f'focal_x'])
+                        yaw = np.rad2deg(float(cam_par[f'yaw']))
+                        h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
+
+                        fov_left = float(yaw + h_fov / 2)
+                        fov_right = float(yaw - h_fov / 2)
+
+                        if fov_left < 0:
+                            fov_left += 360
+                        if fov_left > 360:
+                            fov_left -= 360
+
+                        if fov_right < 0:
+                            fov_right += 360
+                        if fov_right > 360:
+                            fov_right -= 360
+
+                        if fov_right > fov_left:
+                            fov_right -= 360
+                        fov_range = [fov_right, fov_left]
+
+                    self.test_result['General']['camera_position'][cam_name] = {
+                        'x': x, 'y': y, 'z': z, 'fov': fov_range,
+                    }
+                    send_log(self, f'{cam_name} 位于({x}, {y}, {z}, {fov_range})')
 
         new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
         if os.path.exists(new_scenario_info_folder):
@@ -986,15 +1025,14 @@ class DataGrinderPilotOneCase:
             with open(bug_label_info_json, 'w') as json_file:
                 json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
 
-            calibration_json = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib',
-                                            'calibration.json')
+            calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
 
             # 调用给视频截图增加箭头的端口
             cmd = [
                 f"{bench_config['master']['sys_interpreter']}",
                 "Api_ProcessVideoShot.py",
-                "-j",
-                calibration_json,
+                "-c",
+                calibration,
                 "-a",
                 bug_label_info_json
             ]
@@ -1414,15 +1452,14 @@ class DataGrinderPilotOneCase:
             with open(bug_label_info_json, 'w') as json_file:
                 json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
 
-            calibration_json = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib',
-                                            'calibration.json')
+            calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
 
             # 调用给视频截图增加箭头的端口
             cmd = [
                 f"{bench_config['master']['sys_interpreter']}",
                 "Api_ProcessVideoShot.py",
-                "-j",
-                calibration_json,
+                "-c",
+                calibration,
                 "-a",
                 bug_label_info_json
             ]
