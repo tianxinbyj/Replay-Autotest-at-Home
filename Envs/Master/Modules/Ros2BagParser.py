@@ -1015,6 +1015,7 @@ topic2msg = {
     '/VA/FrontViewObstacles': 'proto_horizon_msgs/msg/Obstacles',
     '/VA/BevObstaclesDet': 'pilot_perception_msg/msg/ObstaclesDet',
     '/VA/FrontWideObstacles2dDet': 'pilot_perception_msg/msg/Obstacles2dDet',
+    '/VA/BackViewObstacles2dDet': 'pilot_perception_msg/msg/Obstacles2dDet',
     '/VA/Slots': 'proto_horizon_msgs/msg/Slots',
     '/SAFrontRadarObject': 'sensor_abstraction_msgs/msg/RadarObjectArray',
     '/SASR5FrontLeftCornerRadarObject': 'sensor_abstraction_msgs/msg/RadarObjectArray',
@@ -1267,7 +1268,7 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        elif topic in ['/VA/FrontWideObstacles2dDet']:
+        elif topic in ['/VA/FrontWideObstacles2dDet', '/VA/BackViewObstacles2dDet']:
             time_stamp = msg.timestamp / 1000
             frame_id = msg.framenum
             self.time_saver[topic].append(time_stamp)

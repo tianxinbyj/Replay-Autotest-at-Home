@@ -5,10 +5,12 @@
 # @Author      : Bu Yujun
 
 import os
+import time
 
 import pandas as pd
 
 from Libs import get_project_path
+from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists
 
 class Ros2NodeGenerator:
 
@@ -28,7 +30,20 @@ class Ros2NodeGenerator:
         self.src_folder = os.path.join(self.ws_folder, 'src')
         self.build_folder = os.path.join(self.ws_folder, 'build')
 
+        self.tmux_session = 'get_topics_session'
+        self.tmux_window = 'get_topics_window'
+
     def get_topics(self):
+        kill_tmux_session_if_exists(self.tmux_session)
+        os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
+        docker_sh = os.path.join(get_project_path(),
+                                  'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
+        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_sh}" C-m')
+        os.system('sleep 3')
+
+        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
+                  f'"source {self.install_folder}/setup.bash" C-m')
+
         hpp_list = []
         msg_list = []
         for root, dirs, files in os.walk(self.install_folder):
@@ -46,6 +61,11 @@ class Ros2NodeGenerator:
         rows_topic = []
         lower_msg_list = [self.get_lowerName(msg) for msg in msg_list]
         topic_index = 0
+
+        temp_info_txt = os.path.join(get_project_path(), 'Temp', 'temp_info.txt')
+        if os.path.exists(temp_info_txt):
+            os.remove(temp_info_txt)
+
         for index, item in enumerate(hpp_list):
             lower_name = self.get_lowerName(item)
             if lower_name in lower_msg_list:
@@ -55,35 +75,73 @@ class Ros2NodeGenerator:
                 msg_index = lower_msg_list.index(lower_name)
                 struct = msg_list[msg_index].split(r'/')[-1][:-4]
                 msg_type = r'/'.join([level_1, level_2, struct])
-                cmd = 'cd {:s}; ' \
-                      'source install/setup.bash; ' \
-                      'ros2 topic find -c {:s}'.format(self.ws_folder, msg_type)
-                print(cmd)
-                p = os.popen(cmd)
-                topic_num = int(p.read().split('\n')[0])
-                p.close()
-                rows_all.append([index + 1, 'TBD', level_1, level_2, _hpp, struct, msg_type, topic_num])
+
+                os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "ros2 topic find -c {msg_type} > {temp_info_txt}" C-m')
+                topic_num = 0
+                t0 = time.time()
+                while True:
+                    if os.path.exists(temp_info_txt):
+                        time.sleep(1)
+                        with open(temp_info_txt, 'r') as f:
+                            captured_output = f.read()
+                        topic_num = int(captured_output.split('\n')[0])
+                        os.remove(temp_info_txt)
+                        break
+                    elif time.time() - t0 > 10:
+                        break
+                    else:
+                        time.sleep(0.1)
+
+                row = [index + 1, 'TBD', level_1, level_2, _hpp, struct, msg_type, topic_num]
+                rows_all.append(row)
+                print(row)
+
                 if topic_num != 0:
-                    cmd = 'cd {:s}; ' \
-                          'source install/setup.bash; ' \
-                          'ros2 topic find {:s}'.format(self.ws_folder, msg_type)
-                    p = os.popen(cmd)
-                    topics = p.read().split('\n')[:-1]
-                    p.close()
+
+                    os.system(
+                        f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "ros2 topic find {msg_type} > {temp_info_txt}" C-m')
+                    topics = []
+                    t0 = time.time()
+                    while True:
+                        if os.path.exists(temp_info_txt):
+                            time.sleep(1)
+                            with open(temp_info_txt, 'r') as f:
+                                captured_output = f.read()
+                            topics = captured_output.split('\n')[:-1]
+                            os.remove(temp_info_txt)
+                            break
+                        elif time.time() - t0 > 10:
+                            break
+                        else:
+                            time.sleep(0.1)
+
                     for topic in topics:
                         pkg = topic.replace('/', '_')[1:].lower()
                         topic_index += 1
-                        cmd = 'cd {:s}; ' \
-                              'source install/setup.bash; ' \
-                              'ros2 topic info {:s}'.format(self.ws_folder, topic)
-                        p = os.popen(cmd)
-                        x = p.read()
-                        pub_count, sub_count = int(x.split('\n')[1][-1]), int(x.split('\n')[2][-1])
-                        p.close()
-                        row = [topic_index, pkg, topic, level_1, level_2, _hpp, struct, msg_type, pub_count,
-                               sub_count]
+
+                        os.system(
+                            f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "ros2 topic info {topic} > {temp_info_txt}" C-m')
+                        pub_count, sub_count = 0, 0
+                        t0 = time.time()
+                        while True:
+                            if os.path.exists(temp_info_txt):
+                                time.sleep(1)
+                                with open(temp_info_txt, 'r') as f:
+                                    captured_output = f.read()
+                                pub_count = int(captured_output.split('\n')[1][-1])
+                                sub_count = int(captured_output.split('\n')[2][-1])
+                                os.remove(temp_info_txt)
+                                break
+                            elif time.time() - t0 > 10:
+                                break
+                            else:
+                                time.sleep(0.1)
+
+                        row = [topic_index, pkg, topic, level_1, level_2, _hpp, struct, msg_type, pub_count, sub_count]
                         print(row)
                         rows_topic.append(row)
+
+                        # time.sleep(1000000)
 
         self.msgs = pd.DataFrame(rows_all, columns=headings_all)
         self.topics = pd.DataFrame(rows_topic, columns=headings_topic)

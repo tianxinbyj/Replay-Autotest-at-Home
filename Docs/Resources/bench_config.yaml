@@ -11,7 +11,7 @@ Replay02:
     password: 123456
     py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
-    ECU_product_preferred: ES37
+    ECU_product_preferred: ES39
 Replay01:
   master:
     ip: 172.31.131.253

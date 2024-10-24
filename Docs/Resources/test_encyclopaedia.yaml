@@ -357,6 +357,368 @@
   project_id:
   - "ACZPD"
   - "10948"
+ES39:
+  ip:
+    s32g: 172.31.131.34
+    j5a: 172.31.131.35
+    j5b: 172.31.131.36
+  enum:
+    Lines:
+      color:
+        0: unknown
+        2: white
+        4: yellow
+        8: orange
+        16: blue
+        32: green
+        64: grey
+        128: grey&yellow
+        256: yellow&white
+      marker:
+        0: unknown
+        2: solid
+        4: dashed
+        8: short dashed
+        16: double solid
+        32: double dashed
+        64: left solid right dashed
+        128: right solid left dashed
+        256: shaded area
+        512: unknown
+        1024: unknown
+        16384: deceleration solid
+        32768: deceleration dash
+        65536: unknown
+        131072: unknown
+      position:
+        0: left
+        1: unknown
+        2: right
+        4: LL
+        8: RR
+        16: left_outside
+        32: right_outside
+        64: LLL
+        128: RRR
+      type:
+        2: lane
+        4: curb
+        8: center
+        16: guardrail
+        32: concretebarrier
+        64: fence
+        128: wall
+        256: canopy
+        512: virtual
+        1024: cone
+    Obstacles:
+      sub_type:
+        1: car
+        3: van
+        4: bus
+        5: truck
+        9: tricycle
+        10: special
+        11: tiny_car
+        12: lorry
+      type:
+        1: vehicle
+        2: pedestrian
+        18: cyclist
+    Slots:
+      type:
+        0: unknown
+        1: vertical
+        2: parallel
+        3: oblique
+  parse_topic:
+    pilot:
+    - /PI/EG/EgoMotionInfo
+    - /VA/BevObstaclesDet
+    - /VA/Obstacles
+    - /VA/Lines
+    - /VA/FrontWideObstacles2dDet
+    - /VA/BackViewObstacles2dDet
+    - /PI/FS/ObjTracksHorizon
+    parking:
+    - /PI/EG/EgoMotionInfo
+    - /VA/Slots
+    - /VA/PK/Obstacles
+  record_topic:
+    pilot:
+    - /AEB/AEBDebug
+    - /AEB/AEBFlag
+    - /AEB/EgoMotionInfo
+    - /AEB/FS/TypeRaCamObjectVcc
+    - /AEB/FS/TypeRaCamRoadVcc
+    - /AEB/HbLanes
+    - /AEB/HbObstacles
+    - /FS/FusionAEBResult
+    - /Camera/FrontWide/H265
+    - /Camera/FrontWide/MutiModelHevc
+    - /VA/BevObstaclesDet
+    - /VA/FrontWideObstacles2dDet
+    - /VA/BackViewObstacles2dDet
+    - /COM/CUS/CommonHMI
+    - /Diag/DiagServiceHeartbeat
+    - /ehr/to_dc_data
+    - /ehr/to_ehp_hd_status
+    - /ehr/to_ehp_vehicle_info
+    - /ehr/to_em_data
+    - /ehr/to_soa_hd_status
+    - /ehr/to_soa_cloudmap_download_req
+    - /ES37/NavigationInfo
+    - /FL/EhpInputInfo
+    - /FL/Localization
+    - /FL/LocalizationResult
+    - /FL/LocIAM
+    - /FL/MapMatchDebug
+    - /FL/MatchingResult
+    - /FM/FctReq
+    - /FS/FusionODResult
+    - /FS/FusionRoadEdgeOutInfo
+    - /IS/PRO
+    - /LP/Freespaces
+    - /LP/GroundWarning
+    - /LP/LidarTrackingObjects
+    - /LP/Lines
+    - /MAPEHP/CrossInfo
+    - /MAPEHP/Curvature
+    - /MAPEHP/DtcMsg
+    - /MAPEHP/DynamicEmergency
+    - /MAPEHP/DynamicMeteorology
+    - /MAPEHP/DynamicTraffic
+    - /MAPEHP/GeoFence
+    - /MAPEHP/GlobalData
+    - /MAPEHP/Junction
+    - /MAPEHP/LaneConnectivity
+    - /MAPEHP/LaneModel
+    - /MAPEHP/LanesGeometry
+    - /MAPEHP/MergePoint
+    - /MAPEHP/NoaInfoMsg
+    - /MAPEHP/ObjInfo
+    - /MAPEHP/PathCtrlMessage
+    - /MAPEHP/PositionMsg
+    - /MAPEHP/ProfCtrl
+    - /MAPEHP/ProfileNode
+    - /MAPEHP/RoadGeometry
+    - /MAPEHP/Slope
+    - /MAPLESS/ZoneEhpCurvatureInfo
+    - /MAPLESS/ZoneEhpHeadingInfo
+    - /MAPLESS/ZoneEhpLineInfo
+    - /MAPLESS/ZoneEhpLinkModel
+    - /MAPLESS/ZoneEhpMappingStatus
+    - /MAPLESS/ZoneEhpMappingStatus
+    - /MAPLESS/ZoneEhpObjInfo
+    - /MAPLESS/ZoneEhpPathCtrl
+    - /MAPLESS/ZoneEhpPointInfo
+    - /MAPLESS/ZoneEhpPosition
+    - /MAPLESS/ZoneEhpSlopeInfo
+    - /MAPLESS/ZoneEhpStatusSwitch
+    - /MAPLESS/ZoneEhpSubPath
+    - /MAPLESS/ZoneEhpSuperElevationInfo
+    - /MCU/FuncStatus
+    - /ML/NavInfo
+    - /NavigationInfo
+    - /OTA/SotaConfigData
+    - /PDC/PdcDebugInfo
+    - /PI/CUS/HMIOutputES33
+    - /PI/DES/SitAnalysis
+    - /PI/DES/SitDebugData
+    - /PI/EG/EgoMotionInfo
+    - /PI/FS/LaneMarkingsHorizon
+    - /PI/FS/LaneMarkingsHorizonDebug
+    - /PI/FS/ObjTracksHorizon
+    - /PI/PD/EmHpc2Dbg
+    - /PI/PD/EnvModel
+    - /PI/PD/EnvModel4DLPred
+    - /PI/PD/PredictionData
+    - /PI/PD/PredictionDebug
+    - /PI/PD/PredictionDLData
+    - /PI/PD/WorldCondition
+    - /PI/PL/MPLatDebug
+    - /PI/PL/PlanningData
+    - /PI/PL/QpPathPlanningDebugData
+    - /PI/PL/QpPathPlanningDebugData
+    - /PI/PL/StateSpaceSampleTrjDebug
+    - /PI/SOA/HMIOutputES37
+    - /PI/VC/ControlToPlanningData
+    - /PI/VC/ES33LatOutput
+    - /PI/VC/ES33LonOutput
+    - /PI/VC/LatCtrlYRCDebug
+    - /PI/VC/LatTrajectoryCtrlDebug
+    - /PI/VC/LongCtrlDebug
+    - /PI/VC/PilotLonCtrlDbgData
+    - /PK/CUS/HMIOutputES33
+    - /PK/CUS/IntelligentSwitch
+    - /PK/DR/Result
+    - /PP/CUS/FctDebug
+    - /SA/GNSS
+    - /SA/IMU
+    - /SA/InsIAM
+    - /SA/INSPVA
+    - /SA/RadarFuncReq
+    - /SA/TSRInfo
+    - /SA/UpcodObsList
+    - /SA/UpcUssPas
+    - /SA/UpcUssRaw
+    - /SA/UssRaw
+    - /SA/VisionLaneMarkList
+    - /SA/VisionObjList
+    - /SAFrontRadarLocation
+    - /SAFrontRadarObject
+    - /SASR5FrontLeftCornerRadarObject
+    - /SASR5FrontRightCornerRadarObject
+    - /SASR5RearLeftCornerRadarObject
+    - /SASR5RearRightCornerRadarObject
+    - /SOA/CloudMapDownloadResp
+    - /SOA/NaviDeviceUUID
+    - /SOA/NavigationInfoES33
+    - /SOA/NavigationInfoPlus
+    - /SOA/SDNaviLinkInfo
+    - /SOA/SDNaviStsInfo
+    - /VA/Freespaces
+    - /VA/FrontWideLaneInstanceDebug
+    - /VA/FusLines
+    - /VA/FusObjects
+    - /VA/IHBC
+    - /VA/LightType
+    - /VA/Lines
+    - /VA/Objects
+    - /VA/Obstacles
+    - /VA/PKObstacles
+    - /VA/VehicleHMI
+    - /VA/VehicleMotionIpd
+    - /VA/VehicleStatusIpd
+    - /VA/WeatherType
+    - /Camera/FrontWide/MutiModelHevc
+    - /SOA/PI/NavigationInfoES37
+    - /Diag/ItcDataCollection
+    parking:
+    - /AEB/AEBFlag
+    - /AEB/HbObstacles
+    - /AEB/HbLanes
+    - /AEB/AEBDebug
+    - /AEB/EgoMotionInfo
+    - /AEB/FS/TypeRaCamRoadVcc
+    - /AEB/FS/TypeRaCamObjectVcc
+    - /Camera/SorroundFront/H265
+    - /Camera/SorroundLeft/H265
+    - /Camera/SorroundRear/H265
+    - /Camera/SorroundRight/H265
+    - /Camera/FrontWide/H265t
+    - /Camera/FrontWide/MutiModelHevc
+    - /COM/CUS/CommonHMI
+    - /LP/LidarTrackingObjects
+    - /LP/Lines
+    - /LP/Freespaces
+    - /VA/Freespaces
+    - /VA/FusLines
+    - /VA/FusObjects
+    - /VA/Lines
+    - /VA/Objects
+    - /VA/Obstacles
+    - /PI/EG/EgoMotionInfo
+    - /PK/DR/DeltaInfo
+    - /PK/DR/Result
+    - /PK/TF/MapToBase
+    - /Camera/Rear/H265
+    - /Camera/FrontWide/H265
+    - /Camera/FrontWide/H265
+    - /Camera/RearLeft/H265
+    - /Camera/RearRight/H265
+    - /FM/FctReq
+    - /OTA/SotaConfigData
+    - /P/DES/HMIOutput
+    - /PI/EG/EgoMotionInfo
+    - /PK/CUS/HMIOutput
+    - /PK/CUS/HMIOutputES33
+    - /PK/CUS/IntelligentSwitch
+    - /PK/CUS/TargetSlot
+    - /PK/DES/ParkingProcess
+    - /PK/DES/ParkingProcessDbg
+    - /PK/DES/PlanRequest
+    - /PK/DES/RoutSlots
+    - /PK/DES/TargetSlot
+    - /PK/DR/DeltaInfo
+    - /PK/DR/Result
+    - /PK/FS/FreespacePoints
+    - /PK/FS/FusionFreespaces
+    - /PK/FS/FreespaceSegments
+    - /PI/FS/ObjTracksHorizon
+    - /PK/FS/ObjTracks
+    - /PK/FS/ObjTracksHmi
+    - /PK/FS/StaticObjects
+    - /PK/OccupancyGridMap
+    - /PK/PER/PerceptionSlots
+    - /PK/PER/UssSlots
+    - /PK/PER/VisionPerceptionSlots
+    - /PK/PER/VisionSlotListInfo
+    - /PK/PER/FSDecodingList
+    - /PK/PER/VisionSlotDecodingList
+    - /PK/PER/VisionObstaclesDecodingList
+    - /PK/PL/LonPlanning
+    - /PK/PL/LonPlanningDebug
+    - /PK/PL/Path
+    - /PK/PL/PlanDebugInfo
+    - /PK/PL/Status
+    - /PK/SlotsFusion
+    - /PK/TF/MapToBase
+    - /PK/TF/OdomToBase
+    - /PK/USS/Od
+    - /PK/VC/LonPlanningOut
+    - /PK/VC/ParkingCtrlOutput
+    - /PK/VC/ParkingGearShiftCtrlDbg
+    - /PK/VC/ParkingLatCtrlDbg
+    - /PK/VC/ParkingLonCtrlDbgData
+    - /PK/VC/ParkingLonPlanDbgData
+    - /PK/VC/ParkingCtrlDebug
+    - /PP/CUS/FctDebug
+    - /SA/GNSS
+    - /SA/IMU
+    - /SA/INSPVA
+    - /SA/UpcodObsList
+    - /SA/UPCParkingSlots
+    - /SA/UpcUssPas
+    - /SA/UpcUssRaw
+    - /SA/UssRaw
+    - /SAFrontRadarObject
+    - /SA/RadarFuncReq
+    - /VA/Freespaces
+    - /VA/FusObjects
+    - /VA/HmiIn/Rviz
+    - /VA/Lines
+    - /VA/Objects
+    - /VA/Obstacles
+    - /VA/Odometry
+    - /VA/ParkingObjects
+    - /VA/Slots
+    - /VA/PK/Slots
+    - /VA/VehicleHMI
+    - /VA/VehicleMotionIpd
+    - /VA/VehicleStatusIpd
+    - /SA/PK_RTK/CHCINS
+    - /PK/GT/TF_ENU_TO_ODOM
+    - /Diag/DiagServiceHeartbeat
+    - /MCU/FuncStatus
+    - /FS/FusionAEBResult
+    - /PDC/PdcDebugInfo
+    - /PI/PD/EnvModel
+    - /VA/PK/Freespaces
+    - /VA/PK/Objects
+    - /VA/PK/Obstacles
+    - /PK/PER/FSDecodingList
+    - /HPP/VSLAM/VSLAMMappingFailed
+    - /HPP/VSLAM/VSLAMMappingStart
+    - /HPP/VSLAM/MappingToICM
+    - /HPP/VSLAM/VSLAMLocalizationStart
+    - /HPP/VSLAM/VSLAMLocalizationOutput
+    - /HPP/VSLAM/LocalizationPreviewInfo
+    - /HPP/VSLAM/LocalizationToICM
+    - /Diag/ItcDataCollection
+  project_id:
+  - "ACZPD"
+  - "10948"
 ES37:
   ip:
     s32g: 172.31.131.34
@@ -756,7 +1118,8 @@ Information:
       /VA/Obstacles: 感知后处理
       /PI/FS/ObjTracksHorizon: 感知融合
       /VA/BevObstaclesDet: 感知BEV模型
-      /VA/FrontWideObstacles2dDet: 感知Mono模型
+      /VA/FrontWideObstacles2dDet: 感知Front模型
+      /VA/BackViewObstacles2dDet: 感知Back模型
     description:
     - 基于动态要素感知与真值的位置坐标,
     - 获取感知与真实动态要素的关联关系,
