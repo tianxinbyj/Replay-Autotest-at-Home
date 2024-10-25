@@ -4,7 +4,9 @@
 """
 from typing import List, Tuple
 
-import numpy as np
+if 'numpy' not in globals():
+    import numpy as np
+
 import pandas as pd
 from scipy.interpolate import interp1d
 
@@ -701,6 +703,7 @@ class ObstaclesPreprocess:
                 data = func(data)
 
         return data
+
 
 if __name__ == '__main__':
     import json

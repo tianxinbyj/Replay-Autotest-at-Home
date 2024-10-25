@@ -559,22 +559,21 @@ class ObstaclesMetricFilter:
 
         # 符合有效探测范围的数据
         total_data = input_data['total_data']
-        total_data.drop(total_data[(total_data['gt.is_detectedValid'] == 0)
-                                   | (total_data['pred.is_detectedValid'] == 0)].index, axis=0, inplace=True)
         total_data.index = total_data['corresponding_index'].to_list()
-
         data = input_data['data_to_filter']
 
         # 获得各种characteristic的corresponding_index
-        # 不管是何种characteristic, 遮挡率必须符合要求的数据
+        # 不管是何种characteristic, 探测有效性和遮挡率必须符合要求的数据
         corresponding_index_dict = {characteristic: [] for characteristic in self.characteristic_type}
         for idx, row in total_data.iterrows():
             for characteristic in self.characteristic_type:
                 if row['gt.flag'] == 1:
-                    if row[f'gt.{characteristic}'] == 1 and row['gt.is_coverageValid'] == 1:
+                    if (row[f'gt.{characteristic}'] == 1
+                            and row['gt.is_detectedValid'] == 1 and row['gt.is_coverageValid'] == 1):
                         corresponding_index_dict[characteristic].append(idx)
                 elif row['pred.flag'] == 1:
-                    if row[f'pred.{characteristic}'] == 1 and row['pred.is_coverageValid'] == 1:
+                    if (row[f'pred.{characteristic}'] == 1
+                            and row['pred.is_detectedValid'] == 1 and row['pred.is_coverageValid'] == 1):
                         corresponding_index_dict[characteristic].append(idx)
 
         characteristic_data_dict = {}

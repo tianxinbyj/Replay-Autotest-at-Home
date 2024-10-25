@@ -442,127 +442,136 @@ class DataGrinderPilotOneCase:
         send_log(self, f'{self.test_topic}, 使用{self.test_topic}Preprocess')
         preprocess_instance = eval(f'PreProcess.{self.test_topic}Preprocess()')
 
-        for topic in self.test_result[self.test_topic].keys():
+        if self.test_topic == 'Obstacles':
 
-            # 动态障碍物
-            if self.test_topic == 'Obstacles':
+            # 先处理真值
+            raw = self.test_result[self.test_topic]['GroundTruth']['raw']
+            additional_folder = os.path.join(self.DataFolder, self.test_topic, 'GroundTruth', 'additional')
+            create_folder(additional_folder)
+            if 'additional' not in self.test_result[self.test_topic]['GroundTruth']:
+                self.test_result[self.test_topic]['GroundTruth']['additional'] = {}
 
-                if topic != 'GroundTruth':
-                    raw = self.test_result[self.test_topic][topic]['raw']
-                    topic_tag = topic.replace('/', '')
-                    additional_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'additional')
-                    create_folder(additional_folder)
-                    if 'additional' not in self.test_result[self.test_topic][topic]:
-                        self.test_result[self.test_topic][topic]['additional'] = {}
+            # 时间辍补齐
+            send_log(self, f'{self.test_topic} GroundTruth 时间辍同步')
+            data = pd.read_csv(self.get_abspath(raw['gt_timestamp']), index_col=False)
+            data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+            path = os.path.join(additional_folder, 'gt_timestamp.csv')
+            self.test_result[self.test_topic]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(
+                path)
+            data.to_csv(path, index=False, encoding='utf_8_sig')
 
-                    # 时间辍补齐
-                    send_log(self, f'{self.test_topic} {topic} 时间辍同步')
-                    data = pd.read_csv(self.get_abspath(raw['pred_timestamp']), index_col=False)
-                    data['time_stamp'] += time_gap
-                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
-                    path = os.path.join(additional_folder, 'pred_timestamp.csv')
-                    self.test_result[self.test_topic][topic]['additional']['pred_timestamp'] = self.get_relpath(path)
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
+            # 预处理原始数据, 增加列
+            send_log(self, f'{self.test_topic} GroundTruth 预处理步骤 {preprocess_instance.preprocess_types}')
+            data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
+            data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+            path = os.path.join(additional_folder, 'gt_data.csv')
+            data.to_csv(path, index=False, encoding='utf_8_sig')
+            self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'] = {}
 
-                    # 预处理原始数据, 增加列
-                    send_log(self, f'{self.test_topic} {topic} 预处理步骤 {preprocess_instance.preprocess_types}')
-                    data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
-                    data['time_stamp'] += time_gap
-                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
-                    path = os.path.join(additional_folder, 'pred_data.csv')
-                    self.test_result[self.test_topic][topic]['additional']['pred_data'] = self.get_relpath(path)
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
+            # 按照每个topic的ROI预处理真值
+            for topic in self.test_result[self.test_topic].keys():
+                if topic == 'GroundTruth':
+                    continue
 
-                    input_parameter_container = {
-                        'camera': self.test_result['General']['camera_position'],
-                        'coverage_reference_point': self.test_config['coverage_reference_point'],
-                        'coverage_threshold': self.test_config['coverage_threshold'],
-                        'ROI': self.test_config['pred_ROI'][topic],
-                        'lane_width': 3.6,
-                        'moving_threshold': 2,
-                        'key_coverage_threshold': 0.1,
-                    }
-                    parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
-                    with open(parameter_json_path, 'w', encoding='utf-8') as f:
-                        json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+                topic_tag = topic.replace('/', '')
+                input_parameter_container = {
+                    'camera': self.test_result['General']['camera_position'],
+                    'coverage_reference_point': self.test_config['coverage_reference_point'],
+                    'coverage_threshold': self.test_config['coverage_threshold'],
+                    'ROI': self.test_config['detected_ROI'][topic],
+                    'lane_width': 3.6,
+                    'moving_threshold': 2,
+                    'key_coverage_threshold': 0.1,
+                }
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
+                with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+                topic_gt_data_path = os.path.join(additional_folder, f'{topic_tag}_gt_data.csv')
+                self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'][topic] \
+                    = self.get_relpath(topic_gt_data_path)
 
-                    cmd = [
-                        f"{bench_config['master']['sys_interpreter']}",
-                        "Api_ProcessRawData.py",
-                        "-r", path,
-                        "-j", parameter_json_path,
-                        "-p", path,
-                    ]
+                cmd = [
+                    f"{bench_config['master']['sys_interpreter']}",
+                    "Api_ProcessRawData.py",
+                    "-r", path,
+                    "-j", parameter_json_path,
+                    "-p", topic_gt_data_path,
+                ]
 
-                    cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-                    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-                    # os.remove(parameter_json_path)
-                    if result.stderr:
-                        print("stderr:", result.stderr)
-                        send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
+                cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+                # os.remove(parameter_json_path)
+                if result.stderr:
+                    print("stderr:", result.stderr)
+                    send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
-                    data = pd.read_csv(path, index_col=False)[additional_column]
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
+                data = pd.read_csv(topic_gt_data_path, index_col=False)[additional_column]
+                data.to_csv(topic_gt_data_path, index=False, encoding='utf_8_sig')
 
-                else:
-                    raw = self.test_result[self.test_topic]['GroundTruth']['raw']
-                    additional_folder = os.path.join(self.DataFolder, self.test_topic, 'GroundTruth', 'additional')
-                    create_folder(additional_folder)
-                    if 'additional' not in self.test_result[self.test_topic]['GroundTruth']:
-                        self.test_result[self.test_topic]['GroundTruth']['additional'] = {}
+            # 按照每个topic的ROI预处理感知结果
+            for topic in self.test_result[self.test_topic].keys():
+                if topic == 'GroundTruth':
+                    continue
 
-                    # 时间辍补齐
-                    send_log(self, f'{self.test_topic} GroundTruth 时间辍同步')
-                    data = pd.read_csv(self.get_abspath(raw['gt_timestamp']), index_col=False)
-                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
-                    path = os.path.join(additional_folder, 'gt_timestamp.csv')
-                    self.test_result[self.test_topic]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(
-                        path)
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
+                raw = self.test_result[self.test_topic][topic]['raw']
+                topic_tag = topic.replace('/', '')
+                additional_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'additional')
+                create_folder(additional_folder)
+                if 'additional' not in self.test_result[self.test_topic][topic]:
+                    self.test_result[self.test_topic][topic]['additional'] = {}
 
-                    # 预处理原始数据, 增加列
-                    send_log(self, f'{self.test_topic} GroundTruth 预处理步骤 {preprocess_instance.preprocess_types}')
-                    data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
-                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
-                    path = os.path.join(additional_folder, 'gt_data.csv')
-                    self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'] = self.get_relpath(path)
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
+                # 时间辍补齐
+                send_log(self, f'{self.test_topic} {topic} 时间辍同步')
+                data = pd.read_csv(self.get_abspath(raw['pred_timestamp']), index_col=False)
+                data['time_stamp'] += time_gap
+                data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+                path = os.path.join(additional_folder, 'pred_timestamp.csv')
+                self.test_result[self.test_topic][topic]['additional']['pred_timestamp'] = self.get_relpath(path)
+                data.to_csv(path, index=False, encoding='utf_8_sig')
 
-                    input_parameter_container = {
-                        'camera': self.test_result['General']['camera_position'],
-                        'coverage_reference_point': self.test_config['coverage_reference_point'],
-                        'coverage_threshold': self.test_config['coverage_threshold'],
-                        'ROI': self.test_config['gt_ROI'],
-                        'lane_width': 3.6,
-                        'moving_threshold': 2,
-                        'key_coverage_threshold': 0.1,
-                    }
-                    parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
-                    with open(parameter_json_path, 'w', encoding='utf-8') as f:
-                        json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+                # 预处理原始数据, 增加列
+                send_log(self, f'{self.test_topic} {topic} 预处理步骤 {preprocess_instance.preprocess_types}')
+                data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
+                data['time_stamp'] += time_gap
+                data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+                path = os.path.join(additional_folder, 'pred_data.csv')
+                self.test_result[self.test_topic][topic]['additional']['pred_data'] = self.get_relpath(path)
+                data.to_csv(path, index=False, encoding='utf_8_sig')
 
-                    cmd = [
-                        f"{bench_config['master']['sys_interpreter']}",
-                        "Api_ProcessRawData.py",
-                        "-r", path,
-                        "-j", parameter_json_path,
-                        "-p", path,
-                    ]
+                input_parameter_container = {
+                    'camera': self.test_result['General']['camera_position'],
+                    'coverage_reference_point': self.test_config['coverage_reference_point'],
+                    'coverage_threshold': self.test_config['coverage_threshold'],
+                    'ROI': self.test_config['detected_ROI'][topic],
+                    'lane_width': 3.6,
+                    'moving_threshold': 2,
+                    'key_coverage_threshold': 0.1,
+                }
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
+                with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
-                    cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-                    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-                    # os.remove(parameter_json_path)
-                    if result.stderr:
-                        print("stderr:", result.stderr)
-                        send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
+                cmd = [
+                    f"{bench_config['master']['sys_interpreter']}",
+                    "Api_ProcessRawData.py",
+                    "-r", path,
+                    "-j", parameter_json_path,
+                    "-p", path,
+                ]
 
-                    data = pd.read_csv(path, index_col=False)[additional_column]
-                    data.to_csv(path, index=False, encoding='utf_8_sig')
+                cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+                # os.remove(parameter_json_path)
+                if result.stderr:
+                    print("stderr:", result.stderr)
+                    send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
-            # 车道线
-            elif self.test_topic == 'Lines':
+                data = pd.read_csv(path, index_col=False)[additional_column]
+                data.to_csv(path, index=False, encoding='utf_8_sig')
 
-                pass
+        # 车道线
+        elif self.test_topic == 'Lines':
+            pass
 
     @sync_test_result
     def match_timestamp(self):
@@ -628,15 +637,11 @@ class DataGrinderPilotOneCase:
             for kind in ['gt', 'pred']:
                 match_column.append(f'{kind}.{col}')
 
-        gt_data_path = self.get_abspath(
-            self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'])
-
-        for topic in self.test_result[self.test_topic].keys():
-            if topic == 'GroundTruth':
-                continue
-
-            # 动态障碍物
-            if self.test_topic == 'Obstacles':
+        # 动态障碍物
+        if self.test_topic == 'Obstacles':
+            for topic in self.test_result[self.test_topic].keys():
+                if topic == 'GroundTruth':
+                    continue
 
                 topic_tag = topic.replace('/', '')
                 match_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'match')
@@ -646,6 +651,9 @@ class DataGrinderPilotOneCase:
 
                 pred_data_path = self.get_abspath(
                     self.test_result[self.test_topic][topic]['additional']['pred_data'])
+
+                gt_data_path = self.get_abspath(
+                    self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'][topic])
 
                 input_parameter_container = {
                     'object_matching_tolerance': self.test_config['object_matching_tolerance'],
@@ -678,21 +686,20 @@ class DataGrinderPilotOneCase:
                 self.test_result[self.test_topic][topic]['match']['match_data'] = self.get_relpath(path)
                 data.to_csv(path, index=False, encoding='utf_8_sig')
 
-            # 车道线
-            elif self.test_topic == 'Lines':
-
-                pass
+        # 车道线
+        elif self.test_topic == 'Lines':
+            pass
 
     @sync_test_result
     def evaluate_metrics(self):
         send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
 
-        for topic in self.test_result[self.test_topic].keys():
-            if topic == 'GroundTruth':
-                continue
+        # 动态障碍物
+        if self.test_topic == 'Obstacles':
 
-            # 动态障碍物
-            if self.test_topic == 'Obstacles':
+            for topic in self.test_result[self.test_topic].keys():
+                if topic == 'GroundTruth':
+                    continue
 
                 topic_tag = topic.replace('/', '')
                 metric_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'metric')
@@ -732,10 +739,9 @@ class DataGrinderPilotOneCase:
                         self.test_result[self.test_topic][topic]['metric'][characteristic][metric.split('.')[0]] \
                             = self.get_relpath(os.path.join(metric_folder, characteristic, metric))
 
-            # 车道线
-            elif self.test_topic == 'Lines':
-
-                pass
+        # 车道线
+        elif self.test_topic == 'Lines':
+            pass
 
     @sync_test_result
     def load_scenario_info(self):
@@ -947,75 +953,74 @@ class DataGrinderPilotOneCase:
                                     'bug_type': bug_type,
                                 }
 
-                                if self.test_topic == 'Obstacles':
-                                    # 箭头
-                                    if bug_info['gt.flag'] == 1:
-                                        one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
-                                                                      bug_info['gt.height']]
+                                # 箭头
+                                if bug_info['gt.flag'] == 1:
+                                    one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
+                                                                  bug_info['gt.height']]
 
-                                        # 8个角点也放进去
-                                        one_label_info['gt_corner'] = {
-                                            'bottom': [
-                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
-                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
-                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
-                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
-                                            ],
-                                            'top': [
-                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
-                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
-                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
-                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
-                                            ]
-                                        }
-
-                                    if bug_info['pred.flag'] == 1:
-                                        one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
-                                                                        bug_info['pred.height']]
-
-                                        # 8个角点也放进去
-                                        one_label_info['pred_corner'] = {
-                                            'bottom': [
-                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
-                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
-                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
-                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
-                                            ],
-                                            'top': [
-                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'],
-                                                 bug_info['pred.height']],
-                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'],
-                                                 bug_info['pred.height']],
-                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'],
-                                                 bug_info['pred.height']],
-                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'],
-                                                 bug_info['pred.height']],
-                                            ]
-                                        }
-
-                                    if bug_info['gt.flag'] == 1:
-                                        one_label_info['center'] = [
-                                            bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
+                                    # 8个角点也放进去
+                                    one_label_info['gt_corner'] = {
+                                        'bottom': [
+                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                        ],
+                                        'top': [
+                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
+                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
+                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
+                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
                                         ]
-                                    else:
-                                        one_label_info['center'] = [
-                                            bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
-                                        ]
+                                    }
 
-                                elif self.test_topic == 'Lines':
-                                    if bug_info['gt.flag'] == 1:
-                                        one_label_info['gt_arrow'] = [15, bug_info['gt.y_15'], 0]
-                                    if bug_info['pred.flag'] == 1:
-                                        one_label_info['pred_arrow'] = [15, bug_info['pred.y_15'], 0]
+                                if bug_info['pred.flag'] == 1:
+                                    one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
+                                                                    bug_info['pred.height']]
 
-                                    if bug_info['gt.flag'] == 1:
-                                        one_label_info['center'] = [
-                                            15, bug_info['gt.y_15'], 0
+                                    # 8个角点也放进去
+                                    one_label_info['pred_corner'] = {
+                                        'bottom': [
+                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
+                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
+                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
+                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
+                                        ],
+                                        'top': [
+                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'],
+                                             bug_info['pred.height']],
+                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'],
+                                             bug_info['pred.height']],
+                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'],
+                                             bug_info['pred.height']],
+                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'],
+                                             bug_info['pred.height']],
                                         ]
-                                    else:
-                                        one_label_info['center'] = [
-                                            15, bug_info['pred.y_15'], 0
-                                        ]
+                                    }
+
+                                if bug_info['gt.flag'] == 1:
+                                    one_label_info['center'] = [
+                                        bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
+                                    ]
+                                else:
+                                    one_label_info['center'] = [
+                                        bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
+                                    ]
+
+                                # elif self.test_topic == 'Lines':
+                                #     if bug_info['gt.flag'] == 1:
+                                #         one_label_info['gt_arrow'] = [15, bug_info['gt.y_15'], 0]
+                                #     if bug_info['pred.flag'] == 1:
+                                #         one_label_info['pred_arrow'] = [15, bug_info['pred.y_15'], 0]
+                                #
+                                #     if bug_info['gt.flag'] == 1:
+                                #         one_label_info['center'] = [
+                                #             15, bug_info['gt.y_15'], 0
+                                #         ]
+                                #     else:
+                                #         one_label_info['center'] = [
+                                #             15, bug_info['pred.y_15'], 0
+                                #         ]
 
                                 bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
@@ -1304,7 +1309,6 @@ class DataGrinderPilotOneCase:
                                 video_snap_dict[camera].append(frame_index)
 
         elif self.test_topic == 'Lines':
-
             pass
 
         # 启用ssh_client, 按照相机批量截图并复制到本机
@@ -1373,75 +1377,74 @@ class DataGrinderPilotOneCase:
                                     'bug_type': bug_info['bug_type'],
                                 }
 
-                                if self.test_topic == 'Obstacles':
-                                    # 箭头
-                                    if bug_info['gt.flag'] == 1:
-                                        one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
-                                                                      bug_info['gt.height']]
+                                # 箭头
+                                if bug_info['gt.flag'] == 1:
+                                    one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
+                                                                  bug_info['gt.height']]
 
-                                        # 8个角点也放进去
-                                        one_label_info['gt_corner'] = {
-                                            'bottom': [
-                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
-                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
-                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
-                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
-                                            ],
-                                            'top': [
-                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
-                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
-                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
-                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
-                                            ]
-                                        }
-
-                                    if bug_info['pred.flag'] == 1:
-                                        one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
-                                                                        bug_info['pred.height']]
-
-                                        # 8个角点也放进去
-                                        one_label_info['pred_corner'] = {
-                                            'bottom': [
-                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
-                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
-                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
-                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
-                                            ],
-                                            'top': [
-                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'],
-                                                 bug_info['pred.height']],
-                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'],
-                                                 bug_info['pred.height']],
-                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'],
-                                                 bug_info['pred.height']],
-                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'],
-                                                 bug_info['pred.height']],
-                                            ]
-                                        }
-
-                                    if bug_info['gt.flag'] == 1:
-                                        one_label_info['center'] = [
-                                            bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
+                                    # 8个角点也放进去
+                                    one_label_info['gt_corner'] = {
+                                        'bottom': [
+                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                        ],
+                                        'top': [
+                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
+                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
+                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
+                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
                                         ]
-                                    else:
-                                        one_label_info['center'] = [
-                                            bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
-                                        ]
+                                    }
 
-                                elif self.test_topic == 'Lines':
-                                    if bug_info['gt.flag'] == 1:
-                                        one_label_info['gt_arrow'] = [15, bug_info['gt.y_15'], 0]
-                                    if bug_info['pred.flag'] == 1:
-                                        one_label_info['pred_arrow'] = [15, bug_info['pred.y_15'], 0]
+                                if bug_info['pred.flag'] == 1:
+                                    one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
+                                                                    bug_info['pred.height']]
 
-                                    if bug_info['gt.flag'] == 1:
-                                        one_label_info['center'] = [
-                                            15, bug_info['gt.y_15'], 0
+                                    # 8个角点也放进去
+                                    one_label_info['pred_corner'] = {
+                                        'bottom': [
+                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
+                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
+                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
+                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
+                                        ],
+                                        'top': [
+                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'],
+                                             bug_info['pred.height']],
+                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'],
+                                             bug_info['pred.height']],
+                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'],
+                                             bug_info['pred.height']],
+                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'],
+                                             bug_info['pred.height']],
                                         ]
-                                    else:
-                                        one_label_info['center'] = [
-                                            15, bug_info['pred.y_15'], 0
-                                        ]
+                                    }
+
+                                if bug_info['gt.flag'] == 1:
+                                    one_label_info['center'] = [
+                                        bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
+                                    ]
+                                else:
+                                    one_label_info['center'] = [
+                                        bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
+                                    ]
+
+                                # elif self.test_topic == 'Lines':
+                                #     if bug_info['gt.flag'] == 1:
+                                #         one_label_info['gt_arrow'] = [15, bug_info['gt.y_15'], 0]
+                                #     if bug_info['pred.flag'] == 1:
+                                #         one_label_info['pred_arrow'] = [15, bug_info['pred.y_15'], 0]
+                                #
+                                #     if bug_info['gt.flag'] == 1:
+                                #         one_label_info['center'] = [
+                                #             15, bug_info['gt.y_15'], 0
+                                #         ]
+                                #     else:
+                                #         one_label_info['center'] = [
+                                #             15, bug_info['pred.y_15'], 0
+                                #         ]
 
                                 bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
@@ -1999,8 +2002,7 @@ class DataGrinderPilotOneTask:
                     'target_characteristic': ['is_coverageValid', 'is_keyObj'],
                     'scenario_tag': scenario_tag['tag'],
                     'scenario_id': scenario_id,
-                    'pred_ROI': self.test_config['pred_ROI'],
-                    'gt_ROI': self.test_config['gt_ROI'],
+                    'detected_ROI': self.test_config['detected_ROI'],
                     'region_division': self.test_config['region_division'],
                     'coverage_reference_point': self.test_config['coverage_reference_point'],
                     'timestamp_matching_tolerance': self.test_config['timestamp_matching_tolerance'],
