@@ -8,6 +8,7 @@ import csv
 import glob
 import multiprocessing as mp
 import os
+import shutil
 import time
 import warnings
 from pathlib import Path
@@ -15,9 +16,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
-from rosbags.rosbag2 import Reader
+from rosbags.rosbag2 import Reader, Writer
 from rosbags.serde import deserialize_cdr
 from rosbags.typesys import get_types_from_msg, register_types
+from rosbags.typesys import Stores, get_typestore
 
 warnings.filterwarnings("ignore")
 
@@ -2510,19 +2512,80 @@ class Ros2bagPretreatment:
             res.to_csv(os.path.join(self.folder, 'topic_output_statistics.csv'))
 
 
+class Ros2BagClip:
+
+    def __init__(self, workspace):
+        self.last_timestamp = None
+        self.frame_id_saver = None
+        self.time_saver = None
+        self.install_folder = os.path.join(workspace, 'install')
+        self.typestore = get_typestore(Stores.LATEST)
+        msg_list = []
+        for root, dirs, files in os.walk(self.install_folder):
+            for f in files:
+                ff = os.path.join(root, f)
+                if 'share' in ff and '.msg' in ff and 'detail' not in ff:
+                    msg_list.append(ff)
+
+        # for root, dirs, files in os.walk('/opt/ros/rolling'):
+        #     for f in files:
+        #         ff = os.path.join(root, f)
+        #         if 'share' in ff and '.msg' in ff and 'detail' not in ff:
+        #             msg_list.append(ff)
+
+        for pathstr in msg_list:
+            msg_path = Path(pathstr)
+            msg_def = msg_path.read_text(encoding='utf-8')
+            temp = get_types_from_msg(msg_def, self.getMsgType(msg_path))
+            self.typestore.register(temp)
+
+    def getMsgType(self, path: Path) -> str:
+        name = path.relative_to(path.parents[2]).with_suffix('')
+        if 'msg' not in name.parts:
+            name = name.parent / 'msg' / name.name
+        return str(name)
+
+    def cutRosbag(self, src, dst, topic_list, time_range) -> None:
+        with Reader(src) as reader, Writer(dst) as writer:
+            conn_map = {}
+            for conn in reader.connections:
+                if conn.topic not in topic_list:
+                    continue
+
+                conn_map[conn.id] = writer.add_connection(
+                    topic=conn.topic,
+                    msgtype=conn.msgtype,
+                    typestore=self.typestore,
+                )
+
+            for conn, timestamp, data in reader.messages(connections=list(conn_map.values())):
+                if time_range[0] < timestamp / 1e9 <= time_range[1]:
+                    writer.write(conn_map[conn.id], timestamp, data)
+
+
 if __name__ == "__main__":
-    J5_workspace = '/home/zhangliwei01/rolling_docker/packages/'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241022_123455/03_Workspace'
     J5_topic_list = [
         '/PI/EG/EgoMotionInfo',
-        '/VA/Obstacles',
-        '/VA/Lines',
-        '/PI/FS/ObjTracksHorizon',
-        # '/VA/FusLines',
-        '/VA/Objects',
+        # '/VA/Obstacles',
+        # '/VA/Lines',
+        # '/PI/FS/ObjTracksHorizon',
+        # # '/VA/FusLines',
+        # '/VA/Objects',
     ]
-
-    folder = '/home/zhangliwei01/rolling_docker/packages/ccc'
-    bag_path = '/home/zhangliwei01/rolling_docker/packages/rosbag2_2024_09_11-06_23_47'
-    RBP = Ros2BagParser(J5_workspace)
+    #
+    folder = '/home/zhangliwei01/ZONE/replay_rosbag/1'
+    bag_path = '/home/zhangliwei01/ZONE/replay_rosbag/20241018_154712_n000002'
+    RBP = Ros2BagParser(workspace)
     RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
+
+
+    # topic_list = ['/PI/EG/EgoMotionInfo', '/SA/INSPVA', '/PK/DR/Result', '/SOA/SDNaviLinkInfo', '/SOA/SDNaviStsInfo', '/VA/BevLines']
+    # src_path = '/home/zhangliwei01/ZONE/1018_2024/rosbag/rosbag2_2024_10_18-15_46_57/rosbag'
+    # dst_path = '/home/zhangliwei01/ZONE/1018_2024/rosbag/rosbag2_2024_10_18-15_46_57/ggg'
+    # if os.path.exists(dst_path):
+    #     shutil.rmtree(dst_path)
+    #
+    # dd = Ros2BagClip(workspace)
+    # dd.cutRosbag(src_path, dst_path, topic_list, [1729238000, 1729239000])
 

@@ -215,7 +215,7 @@ class ReplayController:
         ego_csv = glob.glob(os.path.join(parser_folder, '*Ego*hz.csv'))[0]
         ego_data = pd.read_csv(ego_csv)
         if len(ego_data):
-            ego_t0 = float(pd.read_csv(ego_csv)['time_stamp'][0])
+            ego_t0 = float(ego_data['time_stamp'][0])
             video_info['time_delta_estimated'] = video_info['start_time'] - ego_t0 - 1
             with open(video_info_path, 'w', encoding='utf-8') as f:
                 yaml.dump(video_info, f, encoding='utf-8', allow_unicode=True)
