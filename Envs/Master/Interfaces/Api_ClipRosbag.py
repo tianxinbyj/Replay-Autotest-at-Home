@@ -86,5 +86,15 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+    topic_list = [
+        '/SA/IMU',
+        '/SA/GNSS',
+        '/SA/INSPVA',
+        '/SA/InsIAM',
+        '/SOA/NaviDeviceUUID',
+        '/SOA/SDNaviLinkInfo',
+        '/SOA/SDNaviStsInfo',
+    ]
     cmd = '/home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home/venv/bin/python3 Api_ClipRosbag.py -w /home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241022_123455/03_Workspace -b /home/zhangliwei01/ZONE/1018_2024/rosbag/rosbag2_2024_10_18-15_46_57/rosbag -t /SA/INSPVA /PK/DR/Result /SOA/SDNaviLinkInfo /SOA/SDNaviStsInfo /PI/EG/EgoMotionInfo -r 1729237932.95 1729238232.95 1729239097.319 1729239397.319 -d /home/zhangliwei01/ZONE/replay_rosbag/20241018_154712_n000002 /home/zhangliwei01/ZONE/replay_rosbag/20241018_160637_n000002 -o 0.6'
 
