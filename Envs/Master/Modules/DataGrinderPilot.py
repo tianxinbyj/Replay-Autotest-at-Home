@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 
 import matplotlib.lines as mlines
 import numpy as np
@@ -2168,6 +2169,7 @@ class DataGrinderPilotOneTask:
                             print(f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
                             continue
 
+                        json_data['uuid'] = str(uuid.uuid4())
                         print(f'{json_count} {json_name} 已保存')
                         with open(json_path, 'w', encoding='utf-8') as f:
                             json.dump(json_data, f, ensure_ascii=False, indent=4)

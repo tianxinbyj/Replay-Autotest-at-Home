@@ -580,6 +580,8 @@ ES39:
     - /VA/Freespaces
     - /VA/FrontWideLaneInstanceDebug
     - /VA/FusLines
+    - /VA/BevLines
+    - /VA/FvLmPostproObjects
     - /VA/FusObjects
     - /VA/IHBC
     - /VA/LightType
