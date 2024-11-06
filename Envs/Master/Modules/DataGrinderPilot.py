@@ -320,6 +320,8 @@ class DataGrinderPilotOneCase:
         if gt_topic == 'od_csv':
             gt_data['vx_rel'] = gt_data['vx'] - gt_data['ego_v']
             gt_data['vy_rel'] = gt_data['vy']
+            gt_data = gt_data[gt_data['type'].isin([1, 2, 18])]
+            gt_data = gt_data[gt_data['sub_type'] != 10]
 
         # 读取时间辍, 用于时间辍匹配
         gt_timestamp_csv = \
@@ -1130,9 +1132,9 @@ class DataGrinderPilotOneCase:
 
                         # 开始生成报告
                         uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{target_id}')
-                        report_title = f'{self.product}-{target_type}-{bug_type}-测试异常报告({uuid[:6]})'
+                        report_title = f'{self.product}-{self.scenario_id}-{target_type}-{bug_type}-测试异常报告({uuid[:6]})'
                         send_log(self, f'开始生成测试异常报告 {report_title}')
-                        print(f'开始生成测试异常报告 {report_title}')
+                        print(f'{one_bug_folder} 开始生成测试异常报告 {report_title}')
 
                         title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure',
                                                         'TitlePage.png')
@@ -1145,7 +1147,11 @@ class DataGrinderPilotOneCase:
                                                              title_summary_img=None,
                                                              logo=logo)
 
-                        img_list = [glob.glob(os.path.join(one_bug_folder, 'CAM_*.jpg'))]
+                        img_list = glob.glob(os.path.join(one_bug_folder, 'CAM_*.jpg'))
+                        if len(img_list):
+                            img_list = [img_list]
+                        else:
+                            img_list = None
 
                         report_generator.addOnePage(
                             heading=f'{bug_type} 视频截图',
@@ -1807,7 +1813,7 @@ class DataGrinderPilotOneCase:
             pedestrian_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
                                                  mec='#45a776', mfc='lightgrey', markersize=12, label='pedestrian')
             bus_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
-                                          mec='#f05326', mfc='lightgrey', markersize=12, label='bus')
+                                          mec='#f05326', mfc='lightgrey', markersize=12, label='truck_bus')
             truck_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
                                             mec='#800080', mfc='lightgrey', markersize=12, label='truck')
             cyclist_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
@@ -1820,7 +1826,7 @@ class DataGrinderPilotOneCase:
         color_type = {
             'car': '#3682be',
             'pedestrian': '#45a776',
-            'bus': '#f05326',
+            'truck_bus': '#f05326',
             'truck': '#800080',
             'cyclist': '#334f65',
         }
@@ -2169,6 +2175,7 @@ class DataGrinderPilotOneTask:
                             print(f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
                             continue
 
+                        json_data['ScenarioGroup'] = '&'.join(json_data['ScenarioGroup'])
                         json_data['uuid'] = str(uuid.uuid4())
                         print(f'{json_count} {json_name} 已保存')
                         with open(json_path, 'w', encoding='utf-8') as f:
@@ -2185,11 +2192,67 @@ class DataGrinderPilotOneTask:
                         )
 
         path = os.path.join(json_folder, 'output_result.csv')
-        pd.DataFrame(json_rows, columns=[
+        output_result = pd.DataFrame(json_rows, columns=[
             'index', 'version', 'scenario_tag', 'topic', 'obstacle_type', 'region',
-            'characteristic', 'metric', 'sample_count', 'result'
-        ]).to_csv(path, index=False, encoding='utf_8_sig')
+            'characteristic', 'metric', 'sample_count', 'result'])
+        output_result.to_csv(path, index=False, encoding='utf_8_sig')
         self.test_result['OutputResult']['statistics'] = self.get_relpath(path)
+
+        # 生成面向质量的xlsx
+        characteristic_key = ['全局目标', '关键目标']
+        topic_key = output_result['topic'].unique()
+        scenario_tag_key = output_result['scenario_tag'].unique()
+        obstacle_type_key = output_result['obstacle_type'].unique()
+        region_key = output_result['region'].unique()
+        metric_key = output_result['metric'].unique()
+
+        # 首先生成columns
+        columns = [
+            ('基本信息', '基本信息', 'OD类型'),
+            ('基本信息', '基本信息', '目标物范围'),
+            ('基本信息', '基本信息', '场景类型'),
+        ]
+        for metric in metric_key:
+            temp_data = output_result[output_result['metric'] == metric]
+            for res_key in json.loads(temp_data.iloc[0]['result']).keys():
+                if metric == '准召信息' or ('abs_95' in res_key and '%' not in res_key):
+                    for topic in topic_key:
+                        columns.append(
+                            (metric, res_key, topic)
+                        )
+
+        for characteristic in characteristic_key:
+
+            path = os.path.join(json_folder, f'{characteristic}.xlsx')
+            # 使用ExcelWriter将DataFrame保存到不同的sheet中
+            with pd.ExcelWriter(path, engine='openpyxl') as writer:
+
+                for scenario_tag in scenario_tag_key:
+                    rows = []
+                    for obstacle_type in obstacle_type_key:
+                        for region in region_key:
+                            row = [obstacle_type, region, scenario_tag]
+                            filter_data = output_result[
+                                (output_result['characteristic'] == characteristic)
+                                & (output_result['scenario_tag'] == scenario_tag)
+                                & (output_result['obstacle_type'] == obstacle_type)
+                                & (output_result['region'] == region)
+                            ]
+                            for metric, res_key, topic in columns[3:]:
+                                filter2_data = filter_data[
+                                    (filter_data['metric'] == metric)
+                                    & (filter_data['topic'] == topic)
+                                ]
+                                if len(filter2_data):
+                                    c = json.loads(filter2_data.iloc[0]['result'])
+                                    row.append(c[res_key])
+                                else:
+                                    row.append(np.nan)
+
+                            rows.append(row)
+
+                    df = pd.DataFrame(rows, columns=pd.MultiIndex.from_tuples(columns))
+                    df.to_excel(writer, sheet_name=scenario_tag, merge_cells=True)
 
     @sync_test_result
     def visualize_output(self):

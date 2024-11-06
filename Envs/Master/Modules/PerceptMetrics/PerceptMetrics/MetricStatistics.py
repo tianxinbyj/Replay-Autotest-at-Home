@@ -8,13 +8,12 @@ import pandas as pd
 # 屏蔽特定的警告
 warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
 
-# 对车辆进行分类，分为大巴，货车，小车，行人，自行车
+# 对车辆进行分类，分为大车，小车，行人，自行车
 # 行人 = 2， 自行车 = 18， 小车 = 1，大巴 = 4，货车 = 5，
 type_classification_text = {
     'car': '小车',
     'pedestrian': '行人',
-    'bus': '大巴',
-    'truck': '货车',
+    'truck_bus': '大车',
     'cyclist': '自行车',
 }
 

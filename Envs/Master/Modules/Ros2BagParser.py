@@ -8,7 +8,6 @@ import csv
 import glob
 import multiprocessing as mp
 import os
-import shutil
 import time
 import warnings
 from pathlib import Path
@@ -18,8 +17,8 @@ import pandas as pd
 import yaml
 from rosbags.rosbag2 import Reader, Writer
 from rosbags.serde import deserialize_cdr
-from rosbags.typesys import get_types_from_msg, register_types
 from rosbags.typesys import Stores, get_typestore
+from rosbags.typesys import get_types_from_msg, register_types
 
 warnings.filterwarnings("ignore")
 
@@ -841,6 +840,13 @@ data_columns = {
             'x', 'y', 'z', 'vx', 'vy', 'vx_rel', 'vy_rel', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
             'is_cipv', 'is_mcp', 'status',
         ],
+    'env_perception_msgs/msg/EnvFusLines':
+        [
+            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'id', 'type', 'confidence', 'position', 'marker', 'color',
+            'start_x', 'start_y', 'c_x_0', 'c_x_1', 'c_x_2', 'c_x_3',
+            'c_y_0', 'c_y_1', 'c_y_2', 'c_y_3', 'length', 'width', 'curve_type',
+        ],
     'proto_horizon_msgs/msg/Lines':
         [
             'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
@@ -1007,9 +1013,11 @@ data_columns = {
 }
 
 topic2msg = {
+    '/VA/BevLines': 'env_perception_msgs/msg/EnvFusLines',
     '/VA/Lines': 'proto_horizon_msgs/msg/Lines',
     '/Groundtruth/VA/Lines': 'proto_horizon_msgs/msg/Lines',
     '/VA/FusLines': 'proto_horizon_msgs/msg/FusLines',
+    '/VA/FusObjects': 'proto_horizon_msgs/msg/Objects',
     '/VA/Objects': 'proto_horizon_msgs/msg/Objects',
     '/Groundtruth/VA/Objects': 'proto_horizon_msgs/msg/Objects',
     '/VA/Obstacles': 'proto_horizon_msgs/msg/Obstacles',
@@ -1406,7 +1414,7 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        elif topic in ['/VA/Lines', '/Groundtruth/VA/Lines']:
+        elif topic in ['/VA/Lines', '/Groundtruth/VA/Lines', 'VA/FusLines']:
             time_stamp = msg.exposure_time_stamp / 1000
             frame_id = msg.frame_id
             self.time_saver[topic].append(time_stamp)
@@ -1460,8 +1468,8 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        elif topic in ['VA/FusLines']:
-            time_stamp = msg.exposure_time_stamp / 1000
+        elif topic in ['/VA/BevLines']:
+            time_stamp = msg.exposure_time_stamp / 1e9
             frame_id = msg.frame_id
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
@@ -1480,27 +1488,27 @@ class Ros2BagParser:
                     line_position = line_data.line_position
                     conf = line_data.confidence
 
-                    lines_3d_num = line_data.lines_3d_num
-                    for line3d_idx in range(lines_3d_num):
-                        line3d_data = line_data.lines_3d[line3d_idx]
-                        if line3d_data.width == 0 and line3d_data.t_max == 0:
-                            continue
-
-                        start_x = line3d_data.start_pt.x
-                        start_y = line3d_data.start_pt.y
+                    line3d_data = line_data.lines_3d[0]
+                    points_num = line3d_data.points_num
+                    if points_num >= 3:
+                        x_points = []
+                        y_points = []
+                        for i in range(points_num):
+                            pt = line3d_data.points[i]
+                            x_points.append(pt.x)
+                            y_points.append(pt.y)
+                        start_x = x_points[0]
+                        start_y = y_points[0]
 
                         c_x_0 = line3d_data.x_coeffs[0]
                         c_x_1 = line3d_data.x_coeffs[1]
                         c_x_2 = line3d_data.x_coeffs[2]
                         c_x_3 = line3d_data.x_coeffs[3]
 
-                        c_y_0 = line3d_data.y_coeffs[0]
-                        c_y_1 = line3d_data.y_coeffs[1]
-                        c_y_2 = line3d_data.y_coeffs[2]
-                        c_y_3 = line3d_data.y_coeffs[3]
+                        c_y_3, c_y_2, c_y_1, c_y_0 = np.polyfit(x_points, y_points, 3)
 
                         length = line3d_data.t_max
-                        width = line3d_data.width
+                        width = 0.2
                         line_color = line3d_data.line_color
                         line_marking = line3d_data.line_marking
                         curve_type = line3d_data.curve_type
@@ -2564,18 +2572,16 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241022_123455/03_Workspace'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241104_091524/03_Workspace'
     J5_topic_list = [
         '/PI/EG/EgoMotionInfo',
-        # '/VA/Obstacles',
-        # '/VA/Lines',
-        # '/PI/FS/ObjTracksHorizon',
-        # # '/VA/FusLines',
-        # '/VA/Objects',
+        '/VA/Obstacles',
+        '/VA/BevLines',
+        '/VA/FusObjects',
     ]
     #
-    folder = '/home/zhangliwei01/ZONE/replay_rosbag/1'
-    bag_path = '/home/zhangliwei01/ZONE/replay_rosbag/20241018_154712_n000002'
+    folder = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241104_091524/1'
+    bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241104_091524/01_Prediction/20241018_154712_n000002/20241018_154712_n000002_2024-11-06-10-21-38'
     RBP = Ros2BagParser(workspace)
     RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
 
