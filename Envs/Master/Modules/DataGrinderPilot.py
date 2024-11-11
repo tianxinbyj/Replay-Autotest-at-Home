@@ -1302,7 +1302,7 @@ class DataGrinderPilotOneCase:
                                 bug_info['bug_type'] = bug_type
                                 frame_bug_info_camera.append(bug_info)
 
-                        print(f'保存 {topic} {time_stamp}的异常信息')
+                        print(f'保存 {topic} {time_stamp}的全部信息')
                         with open(os.path.join(one_render_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
                             json.dump(frame_bug_info_camera, f, ensure_ascii=False, indent=4)
 
