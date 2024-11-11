@@ -130,8 +130,8 @@ class ObstaclesTypeClassification:
         self.type_text = {
             1: 'car',
             2: 'pedestrian',
-            4: 'bus',
-            5: 'truck',
+            4: 'truck_bus',
+            5: 'truck_bus',
             18: 'cyclist'
         }
 

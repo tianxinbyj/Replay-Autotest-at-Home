@@ -436,10 +436,11 @@ ES39:
     - /PI/EG/EgoMotionInfo
     - /VA/BevObstaclesDet
     - /VA/Obstacles
-    - /VA/Lines
+    - /VA/BevLines
     - /VA/FrontWideObstacles2dDet
     - /VA/BackViewObstacles2dDet
     - /PI/FS/ObjTracksHorizon
+    - /VA/FusObjects
     parking:
     - /PI/EG/EgoMotionInfo
     - /VA/Slots
@@ -457,6 +458,7 @@ ES39:
     - /Camera/FrontWide/H265
     - /Camera/FrontWide/MutiModelHevc
     - /VA/BevObstaclesDet
+    - /VA/BevLaneSeg
     - /VA/FrontWideObstacles2dDet
     - /VA/BackViewObstacles2dDet
     - /COM/CUS/CommonHMI
