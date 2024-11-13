@@ -7,6 +7,7 @@
 """
 import glob
 import os
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -15,6 +16,32 @@ import pandas as pd
 def load_all_piece():
     pass
 
+def check_is_batch_folder(folder_name):
+    """
+    判断一个文件夹的名字是否是一个batch_id
+    """
+
+    # batch id 的 正则表达式模式
+    # 其中year是四位数，month是2位数，day是2位数，hour、min、sencond、是2位数，num是长度为6的数字，如000005或 000012
+    pattern = r"^(?P<year>\d{4})(?P<month>0[1-9]|1[0-2])(?P<day>0[1-9]|[12]\d|3[01])_" \
+              r"(?P<hour>[01]\d|2[0-3])(?P<min>[0-5]\d)(?P<seconds>[0-5]\d)_n(?P<num>\d{6})$"
+
+    match = re.match(pattern, folder_name)
+
+    if match:
+        print("检测到batch id , 匹配成功!")
+        return True
+        # print("匹配成功!")
+        # print("year:", match.group("year"))
+        # print("month:", match.group("month"))
+        # print("day:", match.group("day"))
+        # print("hour:", match.group("hour"))
+        # print("min:", match.group("min"))
+        # print("seconds:", match.group("seconds"))
+        # print("num:", match.group("num"))
+    else:
+        return False
+        # print("不符合格式,该文件夹不是一个batch id 的格式")
 
 # 用于记录不同编号的台架的回灌片段存放的文件夹的总目录
 Bench_with_folder = {
@@ -22,6 +49,7 @@ Bench_with_folder = {
     2: '/media/data',
     3: '/media/data/choose/abc'
 }
+
 
 
 class BenchDBMS:
@@ -101,18 +129,23 @@ class BenchDBMS:
                 dirs[:] = []  # 忽略当前目录下的子目录
                 # print(root)
                 continue
-            if all(items in piece_id_dir_list for items in dirs) and len(dirs) == 5:
-                a_root_series_list, a_root_id_index_list = self.peice_id2series_list(root)
-                # print('a_root_series_list, a_root_id_index_list:::', a_root_series_list, a_root_id_index_list)
-                # print('a_root_series_list:', a_root_series_list)
-                # print('a_root_id_index_list:', a_root_id_index_list)
-                # if len(a_root_series_list) == 1:
-                #     pass
-                if not set(a_root_id_index_list).issubset(set(id_index_list)):
-                    id_11CAN11V2Lidar_series_list += a_root_series_list
-                    id_index_list += a_root_id_index_list
-                # 将dirs置空,后续不会再向下层文件夹继续 os.walk()迭代会从其他文件夹开始
-                dirs[:] = []
+            # if all(items in piece_id_dir_list for items in dirs) and len(dirs) == 5:
+            if set(piece_id_dir_list).issubset(set(dirs)):
+                # 检查root文件名的格式,不符合batch id 的类型的文件夹名不能放进去
+                root_base_name = os.path.basename(root)
+                if check_is_batch_folder(root_base_name):
+
+                    a_root_series_list, a_root_id_index_list = self.peice_id2series_list(root)
+                    # print('a_root_series_list, a_root_id_index_list:::', a_root_series_list, a_root_id_index_list)
+                    # print('a_root_series_list:', a_root_series_list)
+                    # print('a_root_id_index_list:', a_root_id_index_list)
+                    # if len(a_root_series_list) == 1:
+                    #     pass
+                    if not set(a_root_id_index_list).issubset(set(id_index_list)):
+                        id_11CAN11V2Lidar_series_list += a_root_series_list
+                        id_index_list += a_root_id_index_list
+                    # 将dirs置空,后续不会再向下层文件夹继续 os.walk()迭代会从其他文件夹开始
+                    dirs[:] = []
 
         # 将读取到的列表转换为dataframe 格式 ， 并判断对应CAN、Video、Lidar文件是否完整，添加对应的 ‘Complete’ 列
         id_11CAN11V2Lidar_DF = pd.DataFrame(id_11CAN11V2Lidar_series_list, index=id_index_list,
@@ -215,6 +248,7 @@ if __name__ == '__main__':
 
     print('///////////////////////')
     print(BenchDBMS1.id_11CAN11V2Lidar_path_DF)
+    print(BenchDBMS1.id_11CAN11V2Lidar_path_DF.index.tolist())
     print('///////////////////////')
 
     # aaa = BenchDBMS1.piece_id_tag_tablespace[(BenchDBMS1.piece_id_tag_tablespace['Comments'] == 'left') & (BenchDBMS1.piece_id_tag_tablespace['at_local'] is True)]
