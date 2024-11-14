@@ -221,8 +221,8 @@ class BatchMatch:
         print(rbsense_list)
         print(robosense_folder)
         for dir in rbsense_list:
-            if dir.startswith('.'):
-                # 跳过隐藏文件夹
+            if dir.startswith('.') or dir =='annotation':
+                # 跳过隐藏文件夹 和真值文件夹
                 continue
             # 存在 *_GT.csv 文件的才能视作 一个robosense 的GT片段 对应的文件夹
             # print(os.path.join(robosense_folder, dir, '*_GT.csv'))

@@ -129,23 +129,29 @@ class BenchDBMS:
                 dirs[:] = []  # 忽略当前目录下的子目录
                 # print(root)
                 continue
+            # 检查root文件名的格式,不符合batch id 的类型的文件夹名不能放进去
+            root_base_name = os.path.basename(root)
+            if not check_is_batch_folder(root_base_name):
+                # dirs[:] = []
+                continue
+
             # if all(items in piece_id_dir_list for items in dirs) and len(dirs) == 5:
             if set(piece_id_dir_list).issubset(set(dirs)):
                 # 检查root文件名的格式,不符合batch id 的类型的文件夹名不能放进去
-                root_base_name = os.path.basename(root)
-                if check_is_batch_folder(root_base_name):
+                # root_base_name = os.path.basename(root)
+                # if check_is_batch_folder(root_base_name):
 
-                    a_root_series_list, a_root_id_index_list = self.peice_id2series_list(root)
-                    # print('a_root_series_list, a_root_id_index_list:::', a_root_series_list, a_root_id_index_list)
-                    # print('a_root_series_list:', a_root_series_list)
-                    # print('a_root_id_index_list:', a_root_id_index_list)
-                    # if len(a_root_series_list) == 1:
-                    #     pass
-                    if not set(a_root_id_index_list).issubset(set(id_index_list)):
-                        id_11CAN11V2Lidar_series_list += a_root_series_list
-                        id_index_list += a_root_id_index_list
-                    # 将dirs置空,后续不会再向下层文件夹继续 os.walk()迭代会从其他文件夹开始
-                    dirs[:] = []
+                a_root_series_list, a_root_id_index_list = self.peice_id2series_list(root)
+                # print('a_root_series_list, a_root_id_index_list:::', a_root_series_list, a_root_id_index_list)
+                # print('a_root_series_list:', a_root_series_list)
+                # print('a_root_id_index_list:', a_root_id_index_list)
+                # if len(a_root_series_list) == 1:
+                #     pass
+                if not set(a_root_id_index_list).issubset(set(id_index_list)):
+                    id_11CAN11V2Lidar_series_list += a_root_series_list
+                    id_index_list += a_root_id_index_list
+                # 将dirs置空,后续不会再向下层文件夹继续 os.walk()迭代会从其他文件夹开始
+                dirs[:] = []
 
         # 将读取到的列表转换为dataframe 格式 ， 并判断对应CAN、Video、Lidar文件是否完整，添加对应的 ‘Complete’ 列
         id_11CAN11V2Lidar_DF = pd.DataFrame(id_11CAN11V2Lidar_series_list, index=id_index_list,
