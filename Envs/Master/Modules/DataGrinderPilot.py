@@ -4,17 +4,17 @@
 """
 import glob
 import json
-import os
 import shutil
 import subprocess
-import sys
 import time
 import uuid
+import openpyxl
 
 import matplotlib.lines as mlines
 import numpy as np
 import pandas as pd
 import yaml
+from spire.xls import *
 from PIL import Image
 from matplotlib import patches as pc
 from matplotlib import pyplot as plt, image as mpimg
@@ -2204,7 +2204,8 @@ class DataGrinderPilotOneTask:
         scenario_tag_key = output_result['scenario_tag'].unique()
         obstacle_type_key = output_result['obstacle_type'].unique()
         region_key = output_result['region'].unique()
-        metric_key = output_result['metric'].unique()
+        metric_key = [v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metrics'].values()
+                      if v['name'] in output_result['metric'].unique()]
 
         # 首先生成columns
         columns = [
@@ -2215,18 +2216,22 @@ class DataGrinderPilotOneTask:
         for metric in metric_key:
             temp_data = output_result[output_result['metric'] == metric]
             for res_key in json.loads(temp_data.iloc[0]['result']).keys():
-                if metric == '准召信息' or ('abs_95' in res_key and '%' not in res_key):
+                if (
+                        (metric == '准召信息') or
+                        (metric in ['长度误差', '宽度误差', '高度误差'] and 'abs_95' in res_key) or
+                        ('距离误差' in metric and 'abs_95' in res_key) or
+                        ('abs_95' in res_key and '%' not in res_key)
+                ):
                     for topic in topic_key:
                         columns.append(
                             (metric, res_key, topic)
                         )
 
-        for characteristic in characteristic_key:
+        for i, characteristic in enumerate(characteristic_key):
+            path = os.path.join(json_folder, f'附件{i+1}-{characteristic}.xlsx')
 
-            path = os.path.join(json_folder, f'{characteristic}.xlsx')
             # 使用ExcelWriter将DataFrame保存到不同的sheet中
             with pd.ExcelWriter(path, engine='openpyxl') as writer:
-
                 for scenario_tag in scenario_tag_key:
                     rows = []
                     for obstacle_type in obstacle_type_key:
@@ -2243,7 +2248,9 @@ class DataGrinderPilotOneTask:
                                     (filter_data['metric'] == metric)
                                     & (filter_data['topic'] == topic)
                                 ]
-                                if len(filter2_data):
+                                if topic != '/VA/Obstacles' and '速度' in metric:
+                                    row.append(np.nan)
+                                elif len(filter2_data):
                                     c = json.loads(filter2_data.iloc[0]['result'])
                                     row.append(c[res_key])
                                 else:
@@ -2253,6 +2260,19 @@ class DataGrinderPilotOneTask:
 
                     df = pd.DataFrame(rows, columns=pd.MultiIndex.from_tuples(columns))
                     df.to_excel(writer, sheet_name=scenario_tag, merge_cells=True)
+
+            workbook = Workbook()
+            workbook.LoadFromFile(path)
+            for sheet in workbook.Worksheets:
+                sheet.DeleteRow(4)
+                sheet.DeleteColumn(1)
+            workbook.SaveToFile(path)
+            workbook.Dispose()
+            sheet_name1 = 'Evaluation Warning'
+            workbook = openpyxl.load_workbook(path)
+            worksheet = workbook[sheet_name1]
+            workbook.remove(worksheet)
+            workbook.save(path)
 
     @sync_test_result
     def visualize_output(self):

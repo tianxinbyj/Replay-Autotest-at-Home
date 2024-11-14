@@ -1227,7 +1227,7 @@ Information:
         name: 纵向速度误差
         description: 评价对目标的纵向速度的感知能力
       vy_error:
-        name: 纵向速度误差
+        name: 横向速度误差
         description: 评价对目标的横向速度的感知能力
       yaw_error:
         name: 航向角误差

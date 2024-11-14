@@ -372,6 +372,8 @@ class LengthError:
             'pred.length',
             'length.error',
             'length.error_abs',
+            'length.error%',
+            'length.error%_abs',
             'is_abnormal',
         ]
 
@@ -393,6 +395,8 @@ class LengthError:
 
         length_error = pred_length - gt_length
         length_error_abs = abs(length_error)
+        length_error_p = length_error / gt_length
+        length_error_p_abs = abs(length_error_p)
 
         is_abnormal = 0
         if abs(gt_x) <= 20:
@@ -404,6 +408,7 @@ class LengthError:
 
         return (gt_x, gt_y, gt_type, gt_road_user,
                 gt_length, pred_length, length_error, length_error_abs,
+                length_error_p, length_error_p_abs,
                 is_abnormal)
 
 
@@ -419,6 +424,8 @@ class WidthError:
             'pred.width',
             'width.error',
             'width.error_abs',
+            'width.error%',
+            'width.error%_abs',
             'is_abnormal',
         ]
 
@@ -440,6 +447,8 @@ class WidthError:
 
         width_error = pred_width - gt_width
         width_error_abs = abs(width_error)
+        width_error_p = width_error / gt_width
+        width_error_p_abs = abs(width_error_p)
 
         is_abnormal = 0
         if abs(gt_x) <= 20:
@@ -451,6 +460,7 @@ class WidthError:
 
         return (gt_x, gt_y, gt_type, gt_road_user,
                 gt_width, pred_width, width_error, width_error_abs,
+                width_error_p, width_error_p_abs,
                 is_abnormal)
 
 
@@ -466,6 +476,8 @@ class HeightError:
             'pred.height',
             'height.error',
             'height.error_abs',
+            'height.error%',
+            'height.error%_abs',
             'is_abnormal',
         ]
 
@@ -487,6 +499,8 @@ class HeightError:
 
         height_error = pred_height - gt_height
         height_error_abs = abs(height_error)
+        height_error_p = height_error / gt_height
+        height_error_p_abs = abs(height_error_p)
 
         is_abnormal = 0
         if abs(gt_x) <= 20:
@@ -498,6 +512,7 @@ class HeightError:
 
         return (gt_x, gt_y, gt_type, gt_road_user,
                 gt_height, pred_height, height_error, height_error_abs,
+                height_error_p, height_error_p_abs,
                 is_abnormal)
 
 

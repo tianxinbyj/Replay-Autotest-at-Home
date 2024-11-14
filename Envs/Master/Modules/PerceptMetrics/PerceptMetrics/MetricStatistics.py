@@ -285,11 +285,20 @@ class LengthError:
         length_origin_mean = data['length.error'].mean()
         length_origin_std = data['length.error'].std()
 
+        length_p_abs_mean = data['length.error%_abs'].mean()
+        length_p_abs_90 = data['length.error%_abs'].quantile(0.9)
+        length_p_abs_95 = data['length.error%_abs'].quantile(0.95)
+
+        length_p_origin_mean = data['length.error%'].mean()
+        length_p_origin_std = data['length.error%'].std()
+
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'length_abs_mean[m]': length_abs_mean, 'length_abs_90[m]': length_abs_90, 'length_abs_95[m]': length_abs_95,
             'length_origin_mean[m]': length_origin_mean, 'length_origin_std[m]': length_origin_std,
+            'length%_abs_mean': length_p_abs_mean, 'length%_abs_90': length_p_abs_90, 'length%_abs_95': length_p_abs_95,
+            'length%_origin_mean': length_p_origin_mean, 'length%_origin_std': length_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
 
@@ -315,11 +324,20 @@ class WidthError:
         width_origin_mean = data['width.error'].mean()
         width_origin_std = data['width.error'].std()
 
+        width_p_abs_mean = data['width.error%_abs'].mean()
+        width_p_abs_90 = data['width.error%_abs'].quantile(0.9)
+        width_p_abs_95 = data['width.error%_abs'].quantile(0.95)
+
+        width_p_origin_mean = data['width.error%'].mean()
+        width_p_origin_std = data['width.error%'].std()
+
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'width_abs_mean[m]': width_abs_mean, 'width_abs_90[m]': width_abs_90, 'width_abs_95[m]': width_abs_95,
             'width_origin_mean[m]': width_origin_mean, 'width_origin_std[m]': width_origin_std,
+            'width%_abs_mean': width_p_abs_mean, 'width%_abs_90': width_p_abs_90, 'width%_abs_95': width_p_abs_95,
+            'width%_origin_mean': width_p_origin_mean, 'width%_origin_std': width_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
 
@@ -345,11 +363,20 @@ class HeightError:
         height_origin_mean = data['height.error'].mean()
         height_origin_std = data['height.error'].std()
 
+        height_p_abs_mean = data['height.error%_abs'].mean()
+        height_p_abs_90 = data['height.error%_abs'].quantile(0.9)
+        height_p_abs_95 = data['height.error%_abs'].quantile(0.95)
+
+        height_p_origin_mean = data['height.error%'].mean()
+        height_p_origin_std = data['height.error%'].std()
+
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
             'height_abs_mean[m]': height_abs_mean, 'height_abs_90[m]': height_abs_90, 'height_abs_95[m]': height_abs_95,
             'height_origin_mean[m]': height_origin_mean, 'height_origin_std[m]': height_origin_std,
+            'height%_abs_mean': height_p_abs_mean, 'height%_abs_90': height_p_abs_90, 'height%_abs_95': height_p_abs_95,
+            'height%_origin_mean': height_p_origin_mean, 'height%_origin_std': height_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
 
