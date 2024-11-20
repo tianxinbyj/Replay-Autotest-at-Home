@@ -1132,7 +1132,7 @@ class DataGrinderPilotOneCase:
 
                         # 开始生成报告
                         uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{target_id}')
-                        report_title = f'{self.product}-{self.scenario_id}-{target_type}-{bug_type}-测试异常报告({uuid[:6]})'
+                        report_title = f'{self.product}-{self.scenario_id}-{target_type}-{bug_type}'
                         send_log(self, f'开始生成测试异常报告 {report_title}')
                         print(f'{one_bug_folder} 开始生成测试异常报告 {report_title}')
 

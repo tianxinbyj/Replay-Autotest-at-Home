@@ -441,6 +441,7 @@ ES39:
     - /VA/BackViewObstacles2dDet
     - /PI/FS/ObjTracksHorizon
     - /VA/FusObjects
+    - /PK/DR/Result
     parking:
     - /PI/EG/EgoMotionInfo
     - /VA/Slots
