@@ -889,6 +889,7 @@ class DataGrinderPilotOneCase:
 
                             print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
                             bug_info = row.to_dict()
+                            bug_info['rosbag_time'] = bug_info['pred.time_stamp'] - self.test_result['General']['time_gap']
                             bug_info['frame_index'] = frame_index
                             bug_info['camera'] = cameras
                             bug_info['bug_type'] = bug_type
@@ -1097,6 +1098,9 @@ class DataGrinderPilotOneCase:
                         with open(bug_info_json, 'r', encoding='utf-8') as f:
                             bug_info = json.load(f)
 
+                        # 获取rosbag中的时间
+                        rosbag_time = bug_info['rosbag_time']
+
                         # 获得目标类型
                         target_type = bug_info['gt.type_classification'] if bug_info['gt.flag'] \
                             else bug_info['pred.type_classification']
@@ -1158,7 +1162,7 @@ class DataGrinderPilotOneCase:
                             text_list=[
                                 f'场景名: {self.scenario_id}',
                                 f'topic: {topic}, 目标类型: {target_type}, 目标特征: {target_characteristic}',
-                                f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame',
+                                f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame / rosbag_time: {round(float(rosbag_time), 3)} sec',
                                 '红色为GroundTruth，蓝色为Prediction',
                             ],
                             img_list=img_list,
