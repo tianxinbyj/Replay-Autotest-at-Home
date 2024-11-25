@@ -434,12 +434,13 @@ ES39:
   parse_topic:
     pilot:
     - /PI/EG/EgoMotionInfo
+    - /VA/VehicleMotionIpd
     - /VA/BevObstaclesDet
     - /VA/Obstacles
     - /VA/BevLines
     - /VA/FrontWideObstacles2dDet
     - /VA/BackViewObstacles2dDet
-    - /PI/FS/ObjTracksHorizon
+    - /SA/INSPVA
     - /VA/FusObjects
     - /PK/DR/Result
     parking:
