@@ -1222,7 +1222,7 @@ class DataGrinderPilotOneCase:
                             self.version, info['name'], '&'.join(self.scenario_tag.values()),
                             topic, info['bug_items'][bug_type]['name'], target_type,
                             self.scenario_id, jira_summary, jira_description,
-                            '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}' + uuid, 0
+                            '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}', 0
                         ]
 
                         bug_jira_rows.append(jira_row)

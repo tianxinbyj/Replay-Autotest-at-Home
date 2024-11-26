@@ -30,7 +30,7 @@ def get_project_path():
 
 
 def generate_unique_id(info):
-    return hashlib.sha256(info.encode()).hexdigest()[:16]
+    return hashlib.sha256(info.encode()).hexdigest()[:8]
 
 
 def contains_chinese(s):
