@@ -378,6 +378,7 @@ class DataGrinderPilotOneCase:
             "-c", calibrated_data_path
         ]
 
+        print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
         if result.stderr:
@@ -501,6 +502,7 @@ class DataGrinderPilotOneCase:
                     "-p", topic_gt_data_path,
                 ]
 
+                print(cmd)
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
@@ -562,6 +564,7 @@ class DataGrinderPilotOneCase:
                     "-p", path,
                 ]
 
+                print(cmd)
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
@@ -612,6 +615,7 @@ class DataGrinderPilotOneCase:
                 "-f", path
             ]
 
+            print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             if result.stderr:
@@ -677,6 +681,7 @@ class DataGrinderPilotOneCase:
                     "-m", path,
                 ]
 
+                print(cmd)
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
@@ -728,6 +733,7 @@ class DataGrinderPilotOneCase:
                     "-f", metric_folder,
                 ]
 
+                print(cmd)
                 send_log(self, f'{self.test_topic} {topic} 指标评估')
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
@@ -1046,6 +1052,7 @@ class DataGrinderPilotOneCase:
                 bug_label_info_json
             ]
 
+            print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             if result.stderr:
@@ -1135,10 +1142,10 @@ class DataGrinderPilotOneCase:
                         target_characteristic = '&'.join(target_characteristic)
 
                         # 开始生成报告
-                        uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{target_id}')
-                        report_title = f'{self.product}-{self.scenario_id}-{target_type}-{bug_type}'
-                        send_log(self, f'开始生成测试异常报告 {report_title}')
-                        print(f'{one_bug_folder} 开始生成测试异常报告 {report_title}')
+                        uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{rosbag_time}-{bug_type}-{target_id}')
+                        report_title = f'{self.product}测试异常报告({uuid})'
+                        send_log(self, f'开始生成 {report_title}')
+                        print(f'{one_bug_folder} 开始生成 {report_title}')
 
                         title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure',
                                                         'TitlePage.png')
@@ -1192,7 +1199,11 @@ class DataGrinderPilotOneCase:
                             img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
                         )
 
-                        bug_report_path = report_generator.genReport(bug_report_folder, 1)
+                        bug_report_path = report_generator.genReport(
+                            compress=1,
+                            report_path=os.path.join(bug_report_folder,
+                                                     f'{self.product}-{self.scenario_id}-{target_type}-{topic_tag}-{bug_type}({uuid}).pdf')
+                        )
 
                         info = test_encyclopaedia['Information'][self.test_topic]
                         jira_summary = f'数据回灌感知测试({self.product}-{self.version}-{info["name"]})'
@@ -1478,6 +1489,7 @@ class DataGrinderPilotOneCase:
                 bug_label_info_json
             ]
 
+            print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             if result.stderr:
@@ -1971,6 +1983,10 @@ class DataGrinderPilotOneTask:
         self.tag_combination_folder = os.path.join(task_folder, '02_TagCombination')
         self.output_result_folder = os.path.join(task_folder, '03_OutputResult')
         self.region_division = self.test_config['region_division']
+        topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
+        topic_output_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
+        self.broken_scenario_list = list(topic_output_statistics[topic_output_statistics['isValid'] == 0].index)
+        print(f'Broken Scenario为{self.broken_scenario_list}, 不参与结果分析')
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
@@ -1981,12 +1997,16 @@ class DataGrinderPilotOneTask:
             }
 
             for scenario_tag in self.test_config['scenario_tag']:
-                tag_key = '&'.join(scenario_tag['tag'].values())
-                self.test_result['TagCombination'][tag_key] = {
-                    'tag': scenario_tag['tag'],
-                    'scenario_id': scenario_tag['scenario_id'],
-                    self.test_topic: {},
-                }
+                # 需要去除Broken Scenario
+                valid_scenario_list = [scenario_id for scenario_id in scenario_tag['scenario_id']
+                                       if scenario_id not in self.broken_scenario_list]
+                if len(valid_scenario_list):
+                    tag_key = '&'.join(scenario_tag['tag'].values())
+                    self.test_result['TagCombination'][tag_key] = {
+                        'tag': scenario_tag['tag'],
+                        'scenario_id': valid_scenario_list,
+                        self.test_topic: {},
+                    }
 
             self.save_test_result()
 
@@ -1997,7 +2017,7 @@ class DataGrinderPilotOneTask:
         scenario_list = []
         for scenario_tag in self.test_config['scenario_tag']:
             for scenario_id in scenario_tag['scenario_id']:
-                if scenario_id in scenario_list:
+                if scenario_id in scenario_list and scenario_id not in self.broken_scenario_list:
                     continue
 
                 scenario_list.append(scenario_id)
@@ -2106,6 +2126,7 @@ class DataGrinderPilotOneTask:
                     "-f", metric_folder,
                 ]
 
+                print(cmd)
                 send_log(self, f'{self.test_topic} {topic} 指标评估')
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)

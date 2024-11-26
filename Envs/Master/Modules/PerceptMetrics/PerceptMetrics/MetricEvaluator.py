@@ -5,6 +5,9 @@ Created on 2024/7/24.
 import numpy as np
 import pandas as pd
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def change_name(var):
     return ''.join([v.title() for v in var.split('_')])

@@ -5,6 +5,9 @@
 import warnings
 import pandas as pd
 
+import warnings
+warnings.filterwarnings("ignore")
+
 # 屏蔽特定的警告
 warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
 

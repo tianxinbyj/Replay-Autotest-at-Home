@@ -33,7 +33,7 @@ PAGE_WIDTH = landscape(A4)[0]
 
 class PDFReportTemplate:
 
-    def __init__(self, report_title, test_time, tester, version, title_page, logo, title_summary_img=None, report_path=None):
+    def __init__(self, report_title, test_time, tester, version, title_page, logo, title_summary_img=None):
         self.rightMargin = 30
         self.leftMargin = 30
         self.topMargin = 35
@@ -44,7 +44,6 @@ class PDFReportTemplate:
         self.title_summary_img = title_summary_img
         self.version = version
         self.logo = logo
-        self.report_path = report_path
         self.base_report_path = f'{report_title}.pdf'
         self.organization = '仿真开发与软件测试'
         self.tester = tester
@@ -306,9 +305,9 @@ class PDFReportTemplate:
             self.content.append(img_group)
         self.page_count += 1
 
-    def genReport(self, folder='', compress=0):
-        if self.report_path:
-            path = self.report_path
+    def genReport(self, folder='', compress=0, report_path=None):
+        if report_path:
+            path = report_path
         else:
             path = os.path.join(folder, self.base_report_path)
 
