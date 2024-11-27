@@ -2017,7 +2017,7 @@ class DataGrinderPilotOneTask:
         scenario_list = []
         for scenario_tag in self.test_config['scenario_tag']:
             for scenario_id in scenario_tag['scenario_id']:
-                if scenario_id in scenario_list and scenario_id not in self.broken_scenario_list:
+                if scenario_id in scenario_list or scenario_id in self.broken_scenario_list:
                     continue
 
                 scenario_list.append(scenario_id)
