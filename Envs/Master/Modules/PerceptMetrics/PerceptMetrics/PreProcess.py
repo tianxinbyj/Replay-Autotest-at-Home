@@ -10,6 +10,9 @@ if 'numpy' not in globals():
 import pandas as pd
 from scipy.interpolate import interp1d
 
+import warnings
+warnings.filterwarnings("ignore")
+
 parameter_container = {
     'coverage_reference_point': [2, 0, 1],
     'coverage_threshold': 0.6,

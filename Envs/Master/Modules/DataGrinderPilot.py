@@ -4,17 +4,17 @@
 """
 import glob
 import json
-import os
 import shutil
 import subprocess
-import sys
 import time
 import uuid
+import openpyxl
 
 import matplotlib.lines as mlines
 import numpy as np
 import pandas as pd
 import yaml
+from spire.xls import *
 from PIL import Image
 from matplotlib import patches as pc
 from matplotlib import pyplot as plt, image as mpimg
@@ -378,6 +378,7 @@ class DataGrinderPilotOneCase:
             "-c", calibrated_data_path
         ]
 
+        print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
         if result.stderr:
@@ -501,6 +502,7 @@ class DataGrinderPilotOneCase:
                     "-p", topic_gt_data_path,
                 ]
 
+                print(cmd)
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
@@ -562,6 +564,7 @@ class DataGrinderPilotOneCase:
                     "-p", path,
                 ]
 
+                print(cmd)
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
@@ -612,6 +615,7 @@ class DataGrinderPilotOneCase:
                 "-f", path
             ]
 
+            print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             if result.stderr:
@@ -677,6 +681,7 @@ class DataGrinderPilotOneCase:
                     "-m", path,
                 ]
 
+                print(cmd)
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
@@ -728,6 +733,7 @@ class DataGrinderPilotOneCase:
                     "-f", metric_folder,
                 ]
 
+                print(cmd)
                 send_log(self, f'{self.test_topic} {topic} 指标评估')
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
@@ -889,6 +895,7 @@ class DataGrinderPilotOneCase:
 
                             print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
                             bug_info = row.to_dict()
+                            bug_info['rosbag_time'] = bug_info['pred.time_stamp'] - self.test_result['General']['time_gap']
                             bug_info['frame_index'] = frame_index
                             bug_info['camera'] = cameras
                             bug_info['bug_type'] = bug_type
@@ -1045,6 +1052,7 @@ class DataGrinderPilotOneCase:
                 bug_label_info_json
             ]
 
+            print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             if result.stderr:
@@ -1097,6 +1105,9 @@ class DataGrinderPilotOneCase:
                         with open(bug_info_json, 'r', encoding='utf-8') as f:
                             bug_info = json.load(f)
 
+                        # 获取rosbag中的时间
+                        rosbag_time = bug_info['rosbag_time']
+
                         # 获得目标类型
                         target_type = bug_info['gt.type_classification'] if bug_info['gt.flag'] \
                             else bug_info['pred.type_classification']
@@ -1131,10 +1142,10 @@ class DataGrinderPilotOneCase:
                         target_characteristic = '&'.join(target_characteristic)
 
                         # 开始生成报告
-                        uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{bug_type}-{target_id}')
-                        report_title = f'{self.product}-{self.scenario_id}-{target_type}-{bug_type}-测试异常报告({uuid[:6]})'
-                        send_log(self, f'开始生成测试异常报告 {report_title}')
-                        print(f'{one_bug_folder} 开始生成测试异常报告 {report_title}')
+                        uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{rosbag_time}-{bug_type}-{target_id}')
+                        report_title = f'{self.product}测试异常报告({uuid})'
+                        send_log(self, f'开始生成 {report_title}')
+                        print(f'{one_bug_folder} 开始生成 {report_title}')
 
                         title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure',
                                                         'TitlePage.png')
@@ -1158,7 +1169,7 @@ class DataGrinderPilotOneCase:
                             text_list=[
                                 f'场景名: {self.scenario_id}',
                                 f'topic: {topic}, 目标类型: {target_type}, 目标特征: {target_characteristic}',
-                                f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame',
+                                f'发生时刻: {round(float(time_stamp), 3)} sec / {bug_info["frame_index"]} frame / rosbag_time: {round(float(rosbag_time), 3)} sec',
                                 '红色为GroundTruth，蓝色为Prediction',
                             ],
                             img_list=img_list,
@@ -1188,7 +1199,11 @@ class DataGrinderPilotOneCase:
                             img_list=[[os.path.join(one_bug_folder, 'bug_sketch.jpg')]],
                         )
 
-                        bug_report_path = report_generator.genReport(bug_report_folder, 1)
+                        bug_report_path = report_generator.genReport(
+                            compress=1,
+                            report_path=os.path.join(bug_report_folder,
+                                                     f'{self.product}-{self.scenario_id}-{target_type}-{topic_tag}-{bug_type}({uuid}).pdf')
+                        )
 
                         info = test_encyclopaedia['Information'][self.test_topic]
                         jira_summary = f'数据回灌感知测试({self.product}-{self.version}-{info["name"]})'
@@ -1207,7 +1222,7 @@ class DataGrinderPilotOneCase:
                             self.version, info['name'], '&'.join(self.scenario_tag.values()),
                             topic, info['bug_items'][bug_type]['name'], target_type,
                             self.scenario_id, jira_summary, jira_description,
-                            '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}' + uuid, 0
+                            '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}', 0
                         ]
 
                         bug_jira_rows.append(jira_row)
@@ -1474,6 +1489,7 @@ class DataGrinderPilotOneCase:
                 bug_label_info_json
             ]
 
+            print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             if result.stderr:
@@ -1967,6 +1983,10 @@ class DataGrinderPilotOneTask:
         self.tag_combination_folder = os.path.join(task_folder, '02_TagCombination')
         self.output_result_folder = os.path.join(task_folder, '03_OutputResult')
         self.region_division = self.test_config['region_division']
+        topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
+        topic_output_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
+        self.broken_scenario_list = list(topic_output_statistics[topic_output_statistics['isValid'] == 0].index)
+        print(f'Broken Scenario为{self.broken_scenario_list}, 不参与结果分析')
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
@@ -1977,12 +1997,16 @@ class DataGrinderPilotOneTask:
             }
 
             for scenario_tag in self.test_config['scenario_tag']:
-                tag_key = '&'.join(scenario_tag['tag'].values())
-                self.test_result['TagCombination'][tag_key] = {
-                    'tag': scenario_tag['tag'],
-                    'scenario_id': scenario_tag['scenario_id'],
-                    self.test_topic: {},
-                }
+                # 需要去除Broken Scenario
+                valid_scenario_list = [scenario_id for scenario_id in scenario_tag['scenario_id']
+                                       if scenario_id not in self.broken_scenario_list]
+                if len(valid_scenario_list):
+                    tag_key = '&'.join(scenario_tag['tag'].values())
+                    self.test_result['TagCombination'][tag_key] = {
+                        'tag': scenario_tag['tag'],
+                        'scenario_id': valid_scenario_list,
+                        self.test_topic: {},
+                    }
 
             self.save_test_result()
 
@@ -1993,7 +2017,7 @@ class DataGrinderPilotOneTask:
         scenario_list = []
         for scenario_tag in self.test_config['scenario_tag']:
             for scenario_id in scenario_tag['scenario_id']:
-                if scenario_id in scenario_list:
+                if scenario_id in scenario_list or scenario_id in self.broken_scenario_list:
                     continue
 
                 scenario_list.append(scenario_id)
@@ -2102,6 +2126,7 @@ class DataGrinderPilotOneTask:
                     "-f", metric_folder,
                 ]
 
+                print(cmd)
                 send_log(self, f'{self.test_topic} {topic} 指标评估')
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
@@ -2204,7 +2229,8 @@ class DataGrinderPilotOneTask:
         scenario_tag_key = output_result['scenario_tag'].unique()
         obstacle_type_key = output_result['obstacle_type'].unique()
         region_key = output_result['region'].unique()
-        metric_key = output_result['metric'].unique()
+        metric_key = [v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metrics'].values()
+                      if v['name'] in output_result['metric'].unique()]
 
         # 首先生成columns
         columns = [
@@ -2215,18 +2241,22 @@ class DataGrinderPilotOneTask:
         for metric in metric_key:
             temp_data = output_result[output_result['metric'] == metric]
             for res_key in json.loads(temp_data.iloc[0]['result']).keys():
-                if metric == '准召信息' or ('abs_95' in res_key and '%' not in res_key):
+                if (
+                        (metric == '准召信息') or
+                        (metric in ['长度误差', '宽度误差', '高度误差'] and 'abs_95' in res_key) or
+                        ('距离误差' in metric and 'abs_95' in res_key) or
+                        ('abs_95' in res_key and '%' not in res_key)
+                ):
                     for topic in topic_key:
                         columns.append(
                             (metric, res_key, topic)
                         )
 
-        for characteristic in characteristic_key:
+        for i, characteristic in enumerate(characteristic_key):
+            path = os.path.join(json_folder, f'附件{i+1}-{characteristic}.xlsx')
 
-            path = os.path.join(json_folder, f'{characteristic}.xlsx')
             # 使用ExcelWriter将DataFrame保存到不同的sheet中
             with pd.ExcelWriter(path, engine='openpyxl') as writer:
-
                 for scenario_tag in scenario_tag_key:
                     rows = []
                     for obstacle_type in obstacle_type_key:
@@ -2243,7 +2273,9 @@ class DataGrinderPilotOneTask:
                                     (filter_data['metric'] == metric)
                                     & (filter_data['topic'] == topic)
                                 ]
-                                if len(filter2_data):
+                                if topic != '/VA/Obstacles' and '速度' in metric:
+                                    row.append(np.nan)
+                                elif len(filter2_data):
                                     c = json.loads(filter2_data.iloc[0]['result'])
                                     row.append(c[res_key])
                                 else:
@@ -2253,6 +2285,19 @@ class DataGrinderPilotOneTask:
 
                     df = pd.DataFrame(rows, columns=pd.MultiIndex.from_tuples(columns))
                     df.to_excel(writer, sheet_name=scenario_tag, merge_cells=True)
+
+            workbook = Workbook()
+            workbook.LoadFromFile(path)
+            for sheet in workbook.Worksheets:
+                sheet.DeleteRow(4)
+                sheet.DeleteColumn(1)
+            workbook.SaveToFile(path)
+            workbook.Dispose()
+            sheet_name1 = 'Evaluation Warning'
+            workbook = openpyxl.load_workbook(path)
+            worksheet = workbook[sheet_name1]
+            workbook.remove(worksheet)
+            workbook.save(path)
 
     @sync_test_result
     def visualize_output(self):

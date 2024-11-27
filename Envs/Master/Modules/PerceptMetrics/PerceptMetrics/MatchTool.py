@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def match_timestamp(
         prediction_timestamp: List[float],

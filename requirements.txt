@@ -22,3 +22,4 @@ reportlab
 scp
 wcwidth
 pymongo
+Spire.XLS

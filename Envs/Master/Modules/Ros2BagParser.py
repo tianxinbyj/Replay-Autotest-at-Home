@@ -833,6 +833,24 @@ msg_description = {
 }
 
 data_columns = {
+    'vehicle_msgs/msg/VehicleMotionIpd':
+        [
+            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'vehicle_speed',
+            'FL_wheel_speed', 'FR_wheel_speed', 'RL_wheel_speed', 'RR_wheel_speed',
+            'front_wheel_angle', 'rear_wheel_angle',
+        ],
+    'gnss_imu_msgs/msg/Inspva':
+        [
+            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'utc_time_stamp', 'latitude', 'longitude',
+            'roll', 'pitch', 'yaw',
+        ],
+    'parking_ego_motion_msgs/msg/DrResult':
+        [
+            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'ego_x', 'ego_y', 'ego_vx', 'ego_vy', 'roll', 'pitch', 'yaw',
+        ],
     'proto_horizon_msgs/msg/Obstacles':
         [
             'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
@@ -1013,6 +1031,8 @@ data_columns = {
 }
 
 topic2msg = {
+    '/SA/INSPVA': 'gnss_imu_msgs/msg/Inspva',
+    '/PK/DR/Result': 'parking_ego_motion_msgs/msg/DrResult',
     '/VA/BevLines': 'env_perception_msgs/msg/EnvFusLines',
     '/VA/Lines': 'proto_horizon_msgs/msg/Lines',
     '/Groundtruth/VA/Lines': 'proto_horizon_msgs/msg/Lines',
@@ -1020,6 +1040,7 @@ topic2msg = {
     '/VA/FusObjects': 'proto_horizon_msgs/msg/Objects',
     '/VA/Objects': 'proto_horizon_msgs/msg/Objects',
     '/Groundtruth/VA/Objects': 'proto_horizon_msgs/msg/Objects',
+    '/VA/VehicleMotionIpd': 'vehicle_msgs/msg/VehicleMotionIpd',
     '/VA/Obstacles': 'proto_horizon_msgs/msg/Obstacles',
     '/Groundtruth/VA/Obstacles': 'proto_horizon_msgs/msg/Obstacles',
     '/VA/FrontViewObstacles': 'proto_horizon_msgs/msg/Obstacles',
@@ -1497,18 +1518,24 @@ class Ros2BagParser:
                             pt = line3d_data.points[i]
                             x_points.append(pt.x)
                             y_points.append(pt.y)
-                        start_x = x_points[0]
-                        start_y = y_points[0]
+                        # start_x = x_points[0]
+                        # start_y = y_points[0]
 
                         c_x_0 = line3d_data.x_coeffs[0]
                         c_x_1 = line3d_data.x_coeffs[1]
                         c_x_2 = line3d_data.x_coeffs[2]
                         c_x_3 = line3d_data.x_coeffs[3]
 
-                        c_y_3, c_y_2, c_y_1, c_y_0 = np.polyfit(x_points, y_points, 3)
+                        # c_y_3, c_y_2, c_y_1, c_y_0 = np.polyfit(x_points, y_points, 3)
+                        c_y_0 = line3d_data.y_coeffs[0]
+                        c_y_1 = line3d_data.y_coeffs[1]
+                        c_y_2 = line3d_data.y_coeffs[2]
+                        c_y_3 = line3d_data.y_coeffs[3]
 
+                        start_x = line3d_data.start_pt.x
+                        start_y = line3d_data.start_pt.y
                         length = line3d_data.t_max
-                        width = 0.2
+                        width = line3d_data.width
                         line_color = line3d_data.line_color
                         line_marking = line3d_data.line_marking
                         curve_type = line3d_data.curve_type
@@ -1781,6 +1808,29 @@ class Ros2BagParser:
                 queue.put([
                     local_time, time_stamp, frame_id,
                     x, y, vx, vy, steering_wheel_angle, front_wheel_angle
+                ])
+
+                self.last_timestamp[topic] = time_stamp
+
+        elif topic == '/PK/DR/Result':
+            time_stamp = msg.timestamp
+            frame_id = 0
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+            if time_stamp != self.last_timestamp[topic]:
+                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_seq = msg.header.seq
+                x = msg.position_x
+                y = msg.position_y
+                vx = msg.velocity_x
+                vy = msg.velocity_y
+                roll = msg.roll
+                pitch = msg.pitch
+                yaw = msg.headrate
+
+                queue.put([
+                    local_time, time_stamp, header_stamp, header_seq, frame_id,
+                    x, y, vx, vy, roll, pitch, yaw
                 ])
 
                 self.last_timestamp[topic] = time_stamp
@@ -2337,6 +2387,54 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
+        elif topic == '/SA/INSPVA':
+            time_stamp = msg.time_stamp.time_stamp_ns / 1e9 + msg.time_stamp.time_stamp_s
+            frame_id = 0
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+            if time_stamp != self.last_timestamp[topic]:
+                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_seq = msg.header.seq
+                utc_time_stamp = msg.utc_time_us / 1e3
+                latitude = msg.latitude
+                longitude = msg.longitude
+                roll = msg.roll
+                pitch = msg.pitch
+                yaw = msg.yaw
+
+                queue.put([
+                    local_time, time_stamp, header_stamp, header_seq, frame_id,
+                    utc_time_stamp, latitude, longitude,
+                    roll, pitch, yaw
+                ])
+
+                self.last_timestamp[topic] = time_stamp
+
+        elif topic == '/VA/VehicleMotionIpd':
+            time_stamp = msg.wheel_pulse_ts / 1e6
+            frame_id = 0
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+            if time_stamp != self.last_timestamp[topic]:
+                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_seq = msg.header.seq
+                vehicle_speed = msg.vehicle_speed / 3.6
+                FL_wheel_speed = msg.driven_left_wheel_speed / 3.6
+                FR_wheel_speed = msg.driven_right_wheel_speed / 3.6
+                RL_wheel_speed = msg.undriven_left_wheel_speed / 3.6
+                RR_wheel_speed = msg.undriven_right_wheel_speed / 3.6
+                front_wheel_angle = msg.front_wheel_angle
+                rear_wheel_angle = msg.rear_wheel_angle
+
+                queue.put([
+                    local_time, time_stamp, header_stamp, header_seq, frame_id,
+                    vehicle_speed,
+                    FL_wheel_speed, FR_wheel_speed, RL_wheel_speed, RR_wheel_speed,
+                    front_wheel_angle, rear_wheel_angle,
+                ])
+
+                self.last_timestamp[topic] = time_stamp
+
 
 class MsgSaver:
 
@@ -2572,16 +2670,22 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241104_091524/03_Workspace'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241122_010000/03_Workspace'
     J5_topic_list = [
         '/PI/EG/EgoMotionInfo',
+        '/VA/VehicleMotionIpd',
+        '/VA/BevObstaclesDet',
+        '/VA/FrontWideObstacles2dDet',
+        '/VA/BackViewObstacles2dDet',
         '/VA/Obstacles',
         '/VA/BevLines',
         '/VA/FusObjects',
+        '/PK/DR/Result',
+        '/SA/INSPVA'
     ]
     #
-    folder = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241104_091524/1'
-    bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241104_091524/01_Prediction/20241018_154712_n000002/20241018_154712_n000002_2024-11-06-10-21-38'
+    folder = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/RawData'
+    bag_path = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/20241111_093841_n000003_2024-11-22-11-57-03'
     RBP = Ros2BagParser(workspace)
     RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
 

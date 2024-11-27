@@ -32,6 +32,7 @@ class ReplayController:
         # 变量初始化
         self.thread_list = []
         self.calib_file = {}
+        self.scenario_replay_count = {}
 
         # 读取参数
         self.scenario_ids = replay_config['scenario_id']
@@ -265,23 +266,41 @@ class ReplayController:
                     self.copy_calib_file(scenario_group[0])
 
                 for scenario_id in scenario_group:
-                    self.start_replay_and_record(scenario_id)
+                    # 有的时候部分topic的计数会小于目标数量，尝试3次
+                    try_count = 0
 
                     while True:
-                        replay_process = self.replay_client.get_replay_process()
-                        send_log(self, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
-                        if float(replay_process) > self.replay_end / 100:
-                            self.stop_replay_and_record(scenario_id)
-                            break
-                        time.sleep(8)
+                        try_count += 1
+                        print(f'{scenario_id} 第{try_count}次场景录制开始')
+                        send_log(self, f'{scenario_id} 第{try_count}次场景录制开始')
+                        self.start_replay_and_record(scenario_id)
 
-                    self.parse_bag(scenario_id)
+                        while True:
+                            replay_process = self.replay_client.get_replay_process()
+                            send_log(self, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
+                            if float(replay_process) > self.replay_end / 100:
+                                self.stop_replay_and_record(scenario_id)
+                                break
+                            time.sleep(8)
+
+                        self.parse_bag(scenario_id)
+                        self.scenario_replay_count[scenario_id] = try_count
+                        scenario_is_valid = self.analyze_raw_data()
+
+                        if scenario_id in scenario_is_valid and scenario_is_valid[scenario_id] == 1:
+                            print(f'{scenario_id} 场景录制成功')
+                            send_log(self, f'{scenario_id} 场景录制成功')
+                            break
+
+                        if try_count == 3:
+                            print(f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
+                            send_log(self, f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
+                            break
+
                     t = threading.Thread(target=self.compress_bag, args=(scenario_id,))
                     t.daemon = True
                     t.start()
                     self.thread_list.append(t)
-
-                    self.analyze_raw_data()
 
         for scenario_id in self.scenario_ids:
             self.get_video_info(scenario_id)
@@ -299,6 +318,8 @@ class ReplayController:
         rows = []
         index = []
         columns = []
+        scenario_is_valid = {}
+
         for scenario_id in os.listdir(self.pred_raw_folder):
             raw_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
             if not os.path.exists(os.path.join(raw_folder, 'TestTopicInfo.yaml')):
@@ -308,30 +329,35 @@ class ReplayController:
                 test_topic = yaml.load(f, Loader=yaml.FullLoader)
 
             row = []
-            columns = []
-            valid_count = 0
-            i = 0
+            columns = list(test_topic['topics_for_parser'])
+            topic_duration = {}
             for topic in test_topic['topics_for_parser']:
                 topic_tag = topic.replace('/', '')
                 hz_data = pd.read_csv(glob.glob(os.path.join(raw_folder, f'{topic_tag}*hz.csv'))[0],
                                       index_col=False)
-                row.append('{:d}/{:d}/{:.3f}-{:.3f}'.format(
-                    len(hz_data), hz_data['count'].sum(), hz_data['time_stamp'].min(), hz_data['time_stamp'].max()))
+                if not len(hz_data):
+                    row.append('0/0/0/0-0')
+                    topic_duration[topic] = 0
+                else:
+                    topic_start_time = hz_data['time_stamp'].min()
+                    topic_end_time = hz_data['time_stamp'].max()
+                    topic_duration[topic] = topic_end_time - topic_start_time
+                    row.append('{:d}/{:d}/{:.2f}/{:.2f}-{:.2f}'.format(
+                    len(hz_data), hz_data['count'].sum(), topic_duration[topic],
+                        hz_data['time_stamp'].min(), hz_data['time_stamp'].max()))
 
-                if len(hz_data) > 500:
-                    valid_count += 1
-                columns.append(topic)
-                i += 1
-
-            if valid_count < i:
-                valid_flag = 0
-            else:
+            if max(topic_duration.values()) - min(topic_duration.values()) <= 10:
                 valid_flag = 1
+            else:
+                valid_flag = 0
 
-            row.append(valid_flag)
+            scenario_is_valid[scenario_id] = valid_flag
+            row.extend([self.scenario_replay_count[scenario_id], valid_flag])
             index.append(scenario_id)
             rows.append(row)
 
-        if columns:
-            res = pd.DataFrame(rows, columns=columns + ['valid'], index=index)
+        if len(columns):
+            res = pd.DataFrame(rows, columns=columns + ['replay_count', 'isValid'], index=index)
             res.to_csv(os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv'))
+
+        return scenario_is_valid

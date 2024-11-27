@@ -434,13 +434,15 @@ ES39:
   parse_topic:
     pilot:
     - /PI/EG/EgoMotionInfo
+    - /VA/VehicleMotionIpd
     - /VA/BevObstaclesDet
     - /VA/Obstacles
     - /VA/BevLines
     - /VA/FrontWideObstacles2dDet
     - /VA/BackViewObstacles2dDet
-    - /PI/FS/ObjTracksHorizon
+    - /SA/INSPVA
     - /VA/FusObjects
+    - /PK/DR/Result
     parking:
     - /PI/EG/EgoMotionInfo
     - /VA/Slots
@@ -1227,7 +1229,7 @@ Information:
         name: 纵向速度误差
         description: 评价对目标的纵向速度的感知能力
       vy_error:
-        name: 纵向速度误差
+        name: 横向速度误差
         description: 评价对目标的横向速度的感知能力
       yaw_error:
         name: 航向角误差

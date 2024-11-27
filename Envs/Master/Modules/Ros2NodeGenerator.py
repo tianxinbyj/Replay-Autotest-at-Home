@@ -81,7 +81,7 @@ class Ros2NodeGenerator:
                 t0 = time.time()
                 while True:
                     if os.path.exists(temp_info_txt):
-                        time.sleep(1)
+                        time.sleep(2)
                         with open(temp_info_txt, 'r') as f:
                             captured_output = f.read()
                         topic_num = int(captured_output.split('\n')[0])
@@ -141,14 +141,34 @@ class Ros2NodeGenerator:
                         print(row)
                         rows_topic.append(row)
 
-                        # time.sleep(1000000)
-
         self.msgs = pd.DataFrame(rows_all, columns=headings_all)
         self.topics = pd.DataFrame(rows_topic, columns=headings_topic)
 
         folder = os.path.join(get_project_path(), 'Docs', 'Resources', 'topics_and_msgs', '{:s}'.format(self.product))
         if not os.path.exists(folder):
             os.mkdir(folder)
+
+        # 读取是否包含时间头
+        topic_header_flag = []
+        for idx, row in self.topics.iterrows():
+            struct = row['struct']
+            full_msg_path = os.path.join(self.install_folder,
+                                         row['level_1'], 'share', row['level_1'],
+                                         'msg', f'{struct}.msg')
+            com_header_flag = False
+            try:
+                if os.path.exists(full_msg_path):
+                    with open(full_msg_path, "r", encoding='utf-8') as f:
+                        lines = f.readlines()
+                        for line in lines:
+                            if 'common_msgs/ComHeader header' in line:
+                                com_header_flag = True
+                                break
+            except:
+                pass
+
+            topic_header_flag.append(com_header_flag)
+        self.topics['topic_header_flag'] = topic_header_flag
 
         msg_file = os.path.join(folder, 'msgs.csv')
         self.msgs.to_csv(msg_file, index=False)
@@ -168,6 +188,6 @@ class Ros2NodeGenerator:
 
 
 if __name__ == "__main__":
-    ws_folder = '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240924_030000/03_Workspace'
+    ws_folder = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241118_010000/03_Workspace'
     RN = Ros2NodeGenerator(ws_folder=ws_folder, product='ES39')
     RN.get_topics()
