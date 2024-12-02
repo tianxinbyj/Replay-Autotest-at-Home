@@ -2842,9 +2842,9 @@ class DataGrinderPilotOneTask:
             self.combine_scenario_tag()
 
         if self.test_action['output_result']:
+            self.summary_bug_items()
             self.compile_statistics()
             self.visualize_output()
-            self.summary_bug_items()
 
         if self.test_action['gen_report']:
             self.gen_report()
