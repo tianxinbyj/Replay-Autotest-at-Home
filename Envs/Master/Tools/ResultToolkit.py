@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import QComboBox
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QPushButton, QWidget
 
-from Envs.Master.Uiforms.TestResultTookit import Ui_test_result_tookit
+from Envs.Master.Uiforms.TestResultToolkit import Ui_test_result_toolkit
 
 
 def edit_table(table, data_df, header):
@@ -32,7 +32,7 @@ class ResultToolkit(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.ui = Ui_test_result_tookit()
+        self.ui = Ui_test_result_toolkit()
         self.ui.setupUi(self)
         self.setFixedSize(self.width(), self.height())
         self.setWindowFlags(Qt.WindowCloseButtonHint)
