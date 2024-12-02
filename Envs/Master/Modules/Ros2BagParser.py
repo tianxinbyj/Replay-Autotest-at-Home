@@ -2671,31 +2671,29 @@ class Ros2BagClip:
 
 if __name__ == "__main__":
     workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241122_010000/03_Workspace'
-    J5_topic_list = [
-        '/PI/EG/EgoMotionInfo',
-        '/VA/VehicleMotionIpd',
-        '/VA/BevObstaclesDet',
-        '/VA/FrontWideObstacles2dDet',
-        '/VA/BackViewObstacles2dDet',
-        '/VA/Obstacles',
-        '/VA/BevLines',
-        '/VA/FusObjects',
-        '/PK/DR/Result',
-        '/SA/INSPVA'
-    ]
-    #
-    folder = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/RawData'
-    bag_path = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/20241111_093841_n000003_2024-11-22-11-57-03'
-    RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
+    # J5_topic_list = [
+    #     '/PI/EG/EgoMotionInfo',
+    #     '/VA/VehicleMotionIpd',
+    #     '/VA/BevObstaclesDet',
+    #     '/VA/FrontWideObstacles2dDet',
+    #     '/VA/BackViewObstacles2dDet',
+    #     '/VA/Obstacles',
+    #     '/VA/BevLines',
+    #     '/VA/FusObjects',
+    #     '/PK/DR/Result',
+    #     '/SA/INSPVA'
+    # ]
+    # folder = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/RawData'
+    # bag_path = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/20241111_093841_n000003_2024-11-22-11-57-03'
+    # RBP = Ros2BagParser(workspace)
+    # RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
 
+    import shutil
+    topic_list = ['/SA/INSPVA', '/PK/DR/Result', '/SOA/SDNaviLinkInfo', '/SOA/SDNaviStsInfo', '/VA/BevLines', '/FL/Localization', '/SA/GNSS']
+    src_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/raw_rosbag'
+    dst_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/ggg'
+    if os.path.exists(dst_path):
+        shutil.rmtree(dst_path)
 
-    # topic_list = ['/PI/EG/EgoMotionInfo', '/SA/INSPVA', '/PK/DR/Result', '/SOA/SDNaviLinkInfo', '/SOA/SDNaviStsInfo', '/VA/BevLines']
-    # src_path = '/home/zhangliwei01/ZONE/1018_2024/rosbag/rosbag2_2024_10_18-15_46_57/rosbag'
-    # dst_path = '/home/zhangliwei01/ZONE/1018_2024/rosbag/rosbag2_2024_10_18-15_46_57/ggg'
-    # if os.path.exists(dst_path):
-    #     shutil.rmtree(dst_path)
-    #
-    # dd = Ros2BagClip(workspace)
-    # dd.cutRosbag(src_path, dst_path, topic_list, [1729238000, 1729239000])
-
+    dd = Ros2BagClip(workspace)
+    dd.cutRosbag(src_path, dst_path, topic_list, [1732693156, 1732695736])

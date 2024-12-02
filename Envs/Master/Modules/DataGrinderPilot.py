@@ -8,19 +8,19 @@ import shutil
 import subprocess
 import time
 import uuid
-import openpyxl
 
 import matplotlib.lines as mlines
 import numpy as np
+import openpyxl
 import pandas as pd
 import yaml
-from spire.xls import *
 from PIL import Image
 from matplotlib import patches as pc
 from matplotlib import pyplot as plt, image as mpimg
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.colors import LinearSegmentedColormap
 from scipy.interpolate import interp1d
+from spire.xls import *
 
 from Utils.VideoProcess import image2video
 
@@ -62,7 +62,7 @@ class DataGrinderPilotOneCase:
     def __init__(self, scenario_unit_folder):
         # 变量初始化
         self.ego_velocity_generator = None
-        self.cut_frame_offset = 0
+        self.cut_frame_offset = -1.25
 
         print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
@@ -858,10 +858,9 @@ class DataGrinderPilotOneCase:
                         bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
                         for bug_corresponding_index in bug_corresponding_indices:
                             row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
-
                             time_stamp = row['gt.time_stamp']
                             frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
-                            # 如果这一书帧内没有gt或者没有pred，暂时先不提bug
+                            # 如果这一帧内没有gt或者没有pred，暂时先不提bug
                             if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
                                 continue
 
@@ -1659,21 +1658,59 @@ class DataGrinderPilotOneCase:
             metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
             metric_data = filter_valid_bug_data(metric_data)
             if metric == 'recall_precision':
+                # 进一步筛选出现每种类型帧数最大的3个目标
                 FP_data = metric_data[(metric_data['gt.flag'] == 0)
                                       & (metric_data['pred.flag'] == 1)]
+                bug_index_dict['false_positive'] = []
+                for key, group in FP_data.groupby('pred.type_classification'):
+                    top_values = group['pred.id'].value_counts().head(3).index
+                    top_group = group[group['pred.id'].isin(top_values)]
+                    bug_index_dict['false_positive'].extend(top_group['corresponding_index'].to_list())
+
                 FN_data = metric_data[(metric_data['gt.flag'] == 1)
                                       & (metric_data['pred.flag'] == 0)]
+                bug_index_dict['false_negative'] = []
+                for key, group in FN_data.groupby('gt.type_classification'):
+                    top_values = group['gt.id'].value_counts().head(3).index
+                    top_group = group[group['gt.id'].isin(top_values)]
+                    bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
+
                 NCTP_data = metric_data[(metric_data['CTP'] == 0)
                                         & (metric_data['gt.flag'] == 1)
                                         & (metric_data['pred.flag'] == 1)]
-
-                bug_index_dict['false_positive'] = FP_data['corresponding_index'].to_list()
-                bug_index_dict['false_negative'] = FN_data['corresponding_index'].to_list()
-                bug_index_dict['false_type'] = NCTP_data['corresponding_index'].to_list()
+                bug_index_dict['false_type'] = []
+                for key, group in NCTP_data.groupby('gt.type_classification'):
+                    top_values = group['gt.id'].value_counts().head(3).index
+                    top_group = group[group['gt.id'].isin(top_values)]
+                    bug_index_dict['false_type'].extend(top_group['corresponding_index'].to_list())
 
             else:
                 error_data = metric_data[metric_data['is_abnormal'] == 1]
-                bug_index_dict[metric] = error_data['corresponding_index'].to_list()
+                bug_index_dict[metric] = []
+                for key, group in error_data.groupby('gt.type'):
+                    # 进一步筛选出20米内误差绝对值最大，20米外误差相对值最大的前5个
+                    near_group = group[(group['gt.x'] <= 20) & (group['gt.x'] >= -20)]
+                    id_counts = near_group['gt.id'].value_counts()
+                    frequent_ids = id_counts[id_counts > 10].index
+                    filtered_df = near_group[near_group['gt.id'].isin(frequent_ids)]
+                    mean_values = filtered_df.groupby('gt.id')[f'{metric.replace("_", ".")}_abs'].mean().reset_index()
+                    top_5_ids = mean_values.sort_values(by=f'{metric.replace("_", ".")}_abs', ascending=False).head(3)['gt.id']
+                    near_top_5 = filtered_df[filtered_df['gt.id'].isin(top_5_ids)]
+
+                    far_group = group[(group['gt.x'] > 20) | (group['gt.x'] < -20)]
+                    if metric != 'yaw_error':
+                        col = f'{metric.replace("_", ".")}%_abs'
+                    else:
+                        col = f'{metric.replace("_", ".")}_abs'
+                    id_counts = far_group['gt.id'].value_counts()
+                    frequent_ids = id_counts[id_counts > 10].index
+                    filtered_df = far_group[far_group['gt.id'].isin(frequent_ids)]
+                    mean_values = filtered_df.groupby('gt.id')[col].mean().reset_index()
+                    top_5_ids = mean_values.sort_values(by=col, ascending=False).head(3)['gt.id']
+                    far_top_5 = filtered_df[filtered_df['gt.id'].isin(top_5_ids)]
+
+                    top_group = pd.concat([near_top_5, far_top_5])
+                    bug_index_dict[metric].extend(top_group['corresponding_index'].to_list())
 
         return bug_index_dict
 
@@ -2260,6 +2297,9 @@ class DataGrinderPilotOneTask:
                 for scenario_tag in scenario_tag_key:
                     rows = []
                     for obstacle_type in obstacle_type_key:
+                        if ('快速' in scenario_tag or '高速' in scenario_tag) and (obstacle_type in ['行人', '自行车']):
+                            continue
+
                         for region in region_key:
                             row = [obstacle_type, region, scenario_tag]
                             filter_data = output_result[
@@ -2626,6 +2666,20 @@ class DataGrinderPilotOneTask:
                     dataframes.append(df)
 
         bug_summary = pd.concat(dataframes, ignore_index=True)
+        bug_report_path_list = []
+        for i, row in bug_summary.iterrows():
+            topic = row['topic'].replace('/', '')
+            bug_type = row['bug_type']
+            target_type = row['target_type']
+            folder = os.path.join(bugItem_folder, topic, bug_type, target_type)
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+
+            bug_report_path = row['attachment_path']
+            shutil.copy(bug_report_path, folder)
+            bug_report_path_list.append(os.path.join(folder, os.path.basename(bug_report_path)))
+
+        bug_summary['attachment_path'] = bug_report_path_list
         bug_summary_path = os.path.join(bugItem_folder, 'bug_summary.csv')
         bug_summary.to_csv(bug_summary_path, index=False, encoding='utf_8_sig')
         self.test_result['OutputResult']['bugItems'] = self.get_relpath(bug_summary_path)

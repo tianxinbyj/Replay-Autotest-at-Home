@@ -25,6 +25,7 @@ function docker_id() {
             -v "${SELF}:${SELF}" \
             -e HOME=${HOME} \
             -e USER=${USER} \
+            -e TZ=Asia/Shanghai \
             -u $(id -u):$(id -g) \
             -v /tmp/.X11-unix:/tmp/.X11-unix \
             -e DISPLAY=$DISPLAY \

@@ -1249,7 +1249,7 @@ Information:
       false_negative:
         name: 负样本漏检测
       false_type:
-        name: 负样本漏检测
+        name: 类型错误
       x_error:
         name: 纵向距离误差
       y_error:
