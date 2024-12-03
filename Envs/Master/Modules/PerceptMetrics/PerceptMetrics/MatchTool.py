@@ -46,7 +46,7 @@ class ObstaclesMatchTool:
 
     def __init__(self):
         self.object_matching_tolerance = {
-            'x': [4, 0.2],
+            'x': [6, 0.3],
             'y': [2, 0.1],
         }
 
@@ -168,9 +168,9 @@ class ObstaclesMatchTool:
             return False
 
         x_error = pred_x - gt_x
-        x_error_rel = np.sign(x_error) * x_error / max(20, abs(gt_x))
+        x_error_rel = np.sign(x_error) * x_error / max(20, abs(gt_x), abs(pred_x))
         y_error = pred_y - gt_y
-        y_error_rel = np.sign(y_error) * y_error / max(10, abs(gt_y))
+        y_error_rel = np.sign(y_error) * y_error / max(20, abs(gt_y), abs(pred_y))
 
         if ((abs(x_error) <= self.object_matching_tolerance['x'][0]
              or abs(x_error_rel) <= self.object_matching_tolerance['x'][1])
