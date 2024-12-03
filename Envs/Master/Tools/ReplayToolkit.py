@@ -19,10 +19,8 @@ from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox
 from Envs.Master.Uiforms.ReplayToolkit import Ui_replay_toolkit
 from Utils.Libs import project_path
 
-
-def split_logicalAnd(N):
-    pos = [pow(2, i) for i in range(32) if (N >> i) & 1]
-    return pos
+import warnings
+warnings.filterwarnings("ignore")
 
 
 def timeout(sec):
@@ -134,17 +132,17 @@ class ReplayToolKit(QMainWindow):
                 gnome-terminal -- bash -c '{cmd}'
                     '''
                 )
-            elif col == 4:
-                tmp = os.path.dirname(os.path.dirname(report_path))
-                big_topic = os.path.basename(tmp)
-                dir = os.path.dirname(os.path.dirname(tmp))
-                csv_path = os.path.join(dir, 'match-wide_conf-0', 'Data', big_topic, 'corresponding_data.csv')
-                cmd = f'libreoffice --calc "{csv_path}"'
-                os.system(
-                    f'''
-                gnome-terminal -- bash -c '{cmd}'
-                    '''
-                )
+            # elif col == 4:
+            #     tmp = os.path.dirname(os.path.dirname(report_path))
+            #     big_topic = os.path.basename(tmp)
+            #     dir = os.path.dirname(os.path.dirname(tmp))
+            #     csv_path = os.path.join(dir, 'match-wide_conf-0', 'Data', big_topic, 'corresponding_data.csv')
+            #     cmd = f'libreoffice --calc "{csv_path}"'
+            #     os.system(
+            #         f'''
+            #     gnome-terminal -- bash -c '{cmd}'
+            #         '''
+            #     )
 
         def save_bug():
             for idx, le in bug_le_dict.items():
@@ -168,9 +166,10 @@ class ReplayToolKit(QMainWindow):
         bug_table_data = pd.read_csv(bug_path, index_col=None)
         if 'comment' not in bug_table_data:
             bug_table_data['comment'] = ''
-        col = ['scenario_type', 'topic', 'bug_type', 'target_type', 'scenario_id', 'uuid', 'is_valid', 'comment']
+        col = ['scenario_type', 'topic', 'bug_type', 'target_type', 'gt_target_id', 'scenario_id', 'uuid', 'is_valid', 'comment']
         data = bug_table_data[col]
-        header = ['场景类型', 'topic', '异常类型', '目标类型', '场景编号', '报告编号', '问题归属', '备注']
+        data['gt_target_id'] = data['gt_target_id'].astype(int)
+        header = ['场景类型', 'topic', '异常类型', '目标类型', '真值id', '场景编号', '报告编号', '问题归属', '备注']
         edit_table(self.ui.bug_table, data, header)
         self.ui.bug_table.setColumnWidth(len(header) - 1, 200)
 
@@ -200,7 +199,10 @@ class ReplayToolKit(QMainWindow):
                 yaml.dump({}, f, default_flow_style=False, allow_unicode=True)
         else:
             with open(self.config_yaml, 'r') as f:
-                self.replay_config = yaml.safe_load(f) 
+                self.replay_config = yaml.safe_load(f)
+            if 'bug_path' in self.replay_config and os.path.exists(self.replay_config['bug_path']):
+                self.load_bug_table(self.replay_config['bug_path'])
+
 
     def save_config(self):
         with open(self.config_yaml, 'w') as f:

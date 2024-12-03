@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1195</width>
+    <width>1253</width>
     <height>797</height>
    </rect>
   </property>
@@ -19,7 +19,7 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>1191</width>
+      <width>1251</width>
       <height>751</height>
      </rect>
     </property>
@@ -38,7 +38,7 @@
      <widget class="QLabel" name="label_13">
       <property name="geometry">
        <rect>
-        <x>530</x>
+        <x>590</x>
         <y>10</y>
         <width>541</width>
         <height>21</height>
@@ -53,7 +53,7 @@
        <rect>
         <x>10</x>
         <y>40</y>
-        <width>1171</width>
+        <width>1231</width>
         <height>671</height>
        </rect>
       </property>
@@ -61,7 +61,7 @@
      <widget class="QPushButton" name="browse_bug">
       <property name="geometry">
        <rect>
-        <x>420</x>
+        <x>480</x>
         <y>10</y>
         <width>89</width>
         <height>25</height>
@@ -76,7 +76,7 @@
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>401</width>
+        <width>461</width>
         <height>23</height>
        </rect>
       </property>
@@ -92,9 +92,9 @@
      <widget class="QPushButton" name="save_bug">
       <property name="geometry">
        <rect>
-        <x>1090</x>
+        <x>1138</x>
         <y>10</y>
-        <width>89</width>
+        <width>101</width>
         <height>25</height>
        </rect>
       </property>
@@ -110,7 +110,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1195</width>
+     <width>1253</width>
      <height>22</height>
     </rect>
    </property>
