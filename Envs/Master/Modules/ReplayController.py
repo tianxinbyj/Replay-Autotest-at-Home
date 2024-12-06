@@ -139,8 +139,6 @@ class ReplayController:
             tag=scenario_id
         )
 
-        self.get_video_info(scenario_id)
-
     def compress_bag(self, scenario_id):
         xz_l = glob.glob(os.path.join(self.pred_raw_folder,
                                       scenario_id, f'{scenario_id}*.tar.xz'))
@@ -315,6 +313,7 @@ class ReplayController:
         self.replay_client.clear_temp_folder()
 
     def analyze_raw_data(self):
+        statistics_path = os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv')
         rows = []
         index = []
         columns = []
@@ -352,12 +351,19 @@ class ReplayController:
                 valid_flag = 0
 
             scenario_is_valid[scenario_id] = valid_flag
-            row.extend([self.scenario_replay_count[scenario_id], valid_flag])
+            replay_count = 1
+            if scenario_id in self.scenario_replay_count:
+                replay_count = self.scenario_replay_count[scenario_id]
+            elif os.path.exists(statistics_path):
+                topic_output_statistics = pd.read_csv(statistics_path, index_col=0)
+                if scenario_id in topic_output_statistics.index:
+                    replay_count = topic_output_statistics.at[scenario_id, 'replay_count']
+            row.extend([replay_count, valid_flag])
             index.append(scenario_id)
             rows.append(row)
 
         if len(columns):
             res = pd.DataFrame(rows, columns=columns + ['replay_count', 'isValid'], index=index)
-            res.to_csv(os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv'))
+            res.to_csv(statistics_path)
 
         return scenario_is_valid

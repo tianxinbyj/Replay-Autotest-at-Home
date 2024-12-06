@@ -437,7 +437,6 @@ ES39:
     - /VA/VehicleMotionIpd
     - /VA/BevObstaclesDet
     - /VA/Obstacles
-    - /VA/BevLines
     - /VA/FrontWideObstacles2dDet
     - /VA/BackViewObstacles2dDet
     - /SA/INSPVA

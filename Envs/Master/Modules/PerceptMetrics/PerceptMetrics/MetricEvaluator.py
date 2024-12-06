@@ -421,10 +421,10 @@ class LengthError:
 
         is_abnormal = 0
         if abs(gt_x) <= 20:
-            if length_error_abs > 1 and length_error_p_abs > 0.2:
+            if length_error_abs > 1.5 and length_error_p_abs > 0.3:
                 is_abnormal = 1
         else:
-            if length_error_abs > 2 and length_error_p_abs > 0.2:
+            if length_error_abs > 3 and length_error_p_abs > 0.3:
                 is_abnormal = 1
 
         return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
@@ -531,10 +531,10 @@ class HeightError:
 
         is_abnormal = 0
         if abs(gt_x) <= 20:
-            if height_error_abs > 0.4:
+            if height_error_abs > 0.5:
                 is_abnormal = 1
         else:
-            if height_error_abs > 0.8:
+            if height_error_abs > 1.0:
                 is_abnormal = 1
 
         return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
