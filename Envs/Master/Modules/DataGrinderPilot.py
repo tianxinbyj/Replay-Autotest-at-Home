@@ -62,7 +62,7 @@ class DataGrinderPilotOneCase:
     def __init__(self, scenario_unit_folder):
         # 变量初始化
         self.ego_velocity_generator = None
-        self.cut_frame_offset = - 0.85
+        self.cut_frame_offset = - 1.05
 
         print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
@@ -95,8 +95,8 @@ class DataGrinderPilotOneCase:
             ]
         else:
             self.camera_list = [
-                'CAM_FISHEYE_FRONT', 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT',
-                'CAM_FISHEYE_LEFT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
+                'CAM_FISHEYE_LEFT', 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT',
+                'CAM_FISHEYE_FRONT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
             ]
 
         # 建立文件夹
@@ -198,8 +198,9 @@ class DataGrinderPilotOneCase:
                     if 'hz' not in csv_file:
                         csv_data.append(pd.read_csv(csv_file, index_col=False))
                 pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
-                self.test_result['General']['sa_time_gap'] \
-                    = float(pred_data['time_stamp'].mean() - pred_data['header_stamp'].mean())
+                if len(pred_data):
+                    self.test_result['General']['sa_time_gap'] \
+                        = float(pred_data['time_stamp'].mean() - pred_data['header_stamp'].mean())
 
         # 复制场景相关的信息, 解析相机参数
         scenario_info_folder = os.path.join(self.pred_raw_folder, 'scenario_info')
@@ -385,27 +386,28 @@ class DataGrinderPilotOneCase:
         calibrated_data = pd.read_csv(calibrated_data_path, index_col=False)
         calibrated_time_series = calibrated_data['time_stamp'].to_list()
 
-        if baseline_data['time_stamp'].std() <= 1:
+        cmd = [
+            f"{bench_config['master']['sys_interpreter']}",
+            "Api_GetTimeGap.py",
+            "-b", baseline_data_path,
+            "-c", calibrated_data_path
+        ]
+
+        print(cmd)
+        cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+        if result.stderr:
+            print("stderr:", result.stderr)
+            send_log(self, f'Api_GetTimeGap 发生错误 {result.stderr}')
+        t_delta, v_error = result.stdout.strip().split('\n')[-1].split(' ')
+        t_delta = float(t_delta)
+
+        send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
+        self.test_result['General']['vel_time_gap'] = t_delta
+
+        if 'sa_time_gap' in self.test_result['General']:
             t_delta = self.test_result['General']['sa_time_gap']
-            v_error = 0
-        else:
-            cmd = [
-                f"{bench_config['master']['sys_interpreter']}",
-                "Api_GetTimeGap.py",
-                "-b", baseline_data_path,
-                "-c", calibrated_data_path
-            ]
 
-            print(cmd)
-            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-            if result.stderr:
-                print("stderr:", result.stderr)
-                send_log(self, f'Api_GetTimeGap 发生错误 {result.stderr}')
-            t_delta, v_error = result.stdout.strip().split('\n')[-1].split(' ')
-            t_delta = float(t_delta)
-
-        send_log(self, f'最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
         self.test_result['General']['time_gap'] = t_delta
 
         time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
@@ -1278,7 +1280,7 @@ class DataGrinderPilotOneCase:
         if self.test_topic == 'Obstacles':
 
             for topic in self.test_result[self.test_topic].keys():
-                if topic == 'GroundTruth':
+                if topic == 'GroundTruth' or topic not in self.test_action['render_topic']:
                     continue
 
                 topic_tag = topic.replace('/', '')
@@ -1343,11 +1345,11 @@ class DataGrinderPilotOneCase:
                                 bug_info['bug_type'] = bug_type
                                 frame_bug_info_camera.append(bug_info)
 
-                        print(f'保存 {topic} {time_stamp}的全部信息')
+                        print(f'保存 {self.scenario_id} {topic} {time_stamp}的全部信息')
                         with open(os.path.join(one_render_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
                             json.dump(frame_bug_info_camera, f, ensure_ascii=False, indent=4)
 
-                        print(f'保存 {topic} {time_stamp} render图片')
+                        print(f'保存 {self.scenario_id} {topic} {time_stamp} render图片')
                         self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info_bev)
 
                         for camera in self.camera_list:
@@ -1380,7 +1382,7 @@ class DataGrinderPilotOneCase:
             bug_label_info_list = []
 
             for topic in self.test_result[self.test_topic].keys():
-                if topic == 'GroundTruth':
+                if topic == 'GroundTruth' or topic not in self.test_action['render_topic']:
                     continue
 
                 for characteristic in self.test_result[self.test_topic][topic]['render']:
@@ -1496,7 +1498,7 @@ class DataGrinderPilotOneCase:
 
                                 bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
-                        print(f'汇总 {topic} {characteristic} {time_stamp} camera 截图数据')
+                        print(f'汇总 {self.scenario_id} {topic} {characteristic} {time_stamp} camera 截图数据')
                         bug_label_info_list.append(bug_label_info)
 
             bug_label_info_json = os.path.join(self.RenderFolder, 'General', 'bug_label_info.json')
@@ -1583,7 +1585,7 @@ class DataGrinderPilotOneCase:
         if self.test_topic == 'Obstacles':
 
             for topic in self.test_result[self.test_topic].keys():
-                if topic == 'GroundTruth':
+                if topic == 'GroundTruth' or topic not in self.test_action['render_topic']:
                     continue
 
                 if 'render' not in self.test_result[self.test_topic][topic]:
@@ -1624,6 +1626,7 @@ class DataGrinderPilotOneCase:
                     self.test_result[self.test_topic][topic]['render'][characteristic]['video'] = self.get_relpath(combined_video)
                     fps = self.test_result[self.test_topic][topic]['match_frequency']
                     image2video(image_folder, fps, combined_video, 1400, round(1400 * height / width))
+                    shutil.rmtree(image_folder)
 
         elif self.test_topic == 'Lines':
 
@@ -1725,6 +1728,8 @@ class DataGrinderPilotOneCase:
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian', 'cyclist'])]
                 if metric in ['yaw_error']:
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian'])]
+                    error_data = error_data[~(error_data['gt.type'].isin(['cyclist'])
+                                              & error_data['gt.vel'] <= 2)]
 
                 bug_index_dict[metric] = []
                 for key, group in error_data.groupby('gt.type'):
@@ -2063,6 +2068,7 @@ class DataGrinderPilotOneTask:
         topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
         topic_output_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
         self.broken_scenario_list = list(topic_output_statistics[topic_output_statistics['isValid'] == 0].index)
+        self.valid_scenario_list = []
         print(f'Broken Scenario为{self.broken_scenario_list}, 不参与结果分析')
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
@@ -2125,6 +2131,7 @@ class DataGrinderPilotOneTask:
                     'scenario_config_yaml': os.path.join(self.scenario_unit_folder, scenario_id, 'TestConfig.yaml')
                 }
 
+        self.valid_scenario_list = scenario_list
         for scenario_run_info in scenario_run_list.values():
             self.test_result['ScenarioUnit'][scenario_run_info['scenario_id']] = (
                 self.get_relpath(scenario_run_info['scenario_unit_folder']))
@@ -2526,6 +2533,16 @@ class DataGrinderPilotOneTask:
         stat_group = statistics.groupby(group_columns)
         self.test_result['OutputResult']['visualization'] = {}
 
+        # 将速度图都移动过来
+        for root, dirs, files in os.walk(self.scenario_unit_folder):
+            for file in files:
+                if 'SyncEgoVx.png' in file:
+                    file_path = os.path.join(root, file)
+                    scenario_id = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(file_path))))
+                    if scenario_id in self.valid_scenario_list:
+                        new_file_path = os.path.join(visualization_folder, f'{scenario_id}_{os.path.basename(file_path)}')
+                        shutil.copy(file_path, new_file_path)
+
         df_tp_error = {}
         for df_name, df in stat_group:
             scenario_tag, topic, obstacle_type, characteristic, metric = df_name
@@ -2710,7 +2727,8 @@ class DataGrinderPilotOneTask:
                 if 'bug_jira_summary.csv' in file:
                     file_path = os.path.join(root, file)
                     df = pd.read_csv(file_path, index_col=False)
-                    dataframes.append(df)
+                    if len(df) and df['scenario_id'].values[0] in self.valid_scenario_list:
+                        dataframes.append(df)
 
         bug_summary = pd.concat(dataframes, ignore_index=True)
         bug_report_path_list = []

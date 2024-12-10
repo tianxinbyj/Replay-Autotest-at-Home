@@ -306,6 +306,7 @@ class YawError:
             'pred.id',
             'gt.x',
             'gt.y',
+            'gt.vel',
             'gt.type',
             'gt.road_user',
             'gt.yaw',
@@ -319,16 +320,19 @@ class YawError:
     def __call__(self, input_data):
 
         if isinstance(input_data, dict):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_yaw, pred_yaw = (
+            (gt_id, pred_id, gt_x, gt_y, gt_vx, gt_vy,
+             gt_type, gt_road_user, gt_yaw, pred_yaw) = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
+                input_data['gt.vx'], input_data['gt.vy'],
                 input_data['gt.type_classification'],
                 input_data['gt.road_user'],
                 input_data['gt.yaw'], input_data['pred.yaw'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 8):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_yaw, pred_yaw = input_data
+              and len(input_data) == 10):
+            (gt_id, pred_id, gt_x, gt_y, gt_vx, gt_vy,
+             gt_type, gt_road_user, gt_yaw, pred_yaw) = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -360,7 +364,7 @@ class YawError:
                 if abs(yaw_error) > np.deg2rad(20):
                     is_abnormal = 1
 
-        return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
+        return (gt_id, pred_id, gt_x, gt_y, np.sqrt(gt_vx ** 2 + gt_vy ** 2), gt_type, gt_road_user,
                 np.rad2deg(gt_yaw), np.rad2deg(pred_yaw), np.rad2deg(yaw_error), np.rad2deg(abs(yaw_error)),
                 is_reverse, is_abnormal)
 
