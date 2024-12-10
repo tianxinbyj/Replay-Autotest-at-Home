@@ -6,6 +6,8 @@ Created on 2024/6/20.
 import os
 import shutil
 
+import requests
+
 
 def get_project_path():
     """
@@ -65,6 +67,42 @@ def copy_to_destination(source, destination_dir):
         return None
 
     return destination
+
+
+def draw_map(data, map_path, longitude_offset=0.01113, latitude_offset=0.00385):
+    center = '{:.5f},{:.5f}'.format(data['longitude'].mean() + longitude_offset,
+                                    data['latitude'].mean() + latitude_offset)
+    marker = []
+    for idx, row in data.iterrows():
+        if idx % 1000 == 0:
+            marker.append(
+                '{:.5f},{:.5f}'.format(row['longitude'] + longitude_offset, row['latitude'] + latitude_offset))
+    marker = '|'.join(marker)
+    # 你的百度地图API密钥
+    api_key = 'kob5tDyCv7qDUGZrYjfLdQHTw7jtFkl3'
+    # 静态地图服务的基础URL
+    static_map_url = 'http://api.map.baidu.com/staticimage/v2/'
+    params = {
+        'ak': api_key,  # API密钥
+        'center': center,
+        'width': '960',  # 图片宽度
+        'height': '540',  # 图片高度
+        'zoom': '16',  # 地图缩放级别
+        'markers': marker,  # 标记点（经度，纬度）：标记标签
+        'output': 'png'  # 输出格式
+    }
+    full_url = f"{static_map_url}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
+    response = requests.get(full_url)
+
+    if response.status_code == 200:
+        # 保存图片到文件
+        with open(map_path, 'wb') as f:
+            f.write(response.content)
+        print(f"地图图片已保存为{map_path}")
+        return 1
+    else:
+        print(f"请求失败，状态码：{response.status_code}")
+        return 0
 
 
 if __name__ == '__main__':

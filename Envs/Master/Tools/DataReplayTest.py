@@ -67,7 +67,8 @@ class DataReplayTestPilot:
             # 使用第一个test_config的值作为录包的test_action依据
             test_config = self.test_config_dict[feature_group][0]
             if (test_config['test_action']['ros2bag']['record']
-                    or test_config['test_action']['ros2bag']['truth']):
+                    or test_config['test_action']['ros2bag']['truth']
+                    or test_config['test_action']['ros2bag']['video_info']):
 
                 replay_config = {
                     'product': test_config['product'],
