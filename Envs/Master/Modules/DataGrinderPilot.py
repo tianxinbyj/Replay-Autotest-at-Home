@@ -32,7 +32,7 @@ from Libs import get_project_path, copy_to_destination
 
 sys.path.append(get_project_path())
 
-from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length
+from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length, project_path
 from Utils.Libs import generate_unique_id, bench_config
 from Utils.Libs import font_size, title_font, axis_font, legend_font
 from Utils.Logger import send_log
@@ -41,6 +41,11 @@ from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 
 # 导入评测api
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics
+
+kpi_target_file_path = os.path.join(project_path, 'Docs', 'Resources', 'ObstaclesKpi.xlsx')
+kpi_target_threshold = pd.read_excel(kpi_target_file_path, sheet_name=0, header=[0, 1, 2], index_col=[0, 1])
+kpi_target_ratio = pd.read_excel(kpi_target_file_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
+kpi_date_label = '20241130'
 
 
 def sync_test_result(method):
@@ -55,6 +60,58 @@ def sync_test_result(method):
         return result
 
     return wrapper
+
+
+def get_obstacles_kpi_threshold(col_1, col_2, target_type, x=0, y=0, region=None):
+
+    def get_region_text(x, y):
+        x_text = None
+        if -100 < x <= -50:
+            x_text = 'x(-100~-50)'
+        elif -50 < x <= 0:
+            x_text = 'x(-50~0)'
+        elif 0 < x <= 50:
+            x_text = 'x(0~50)'
+        elif 50 < x <= 100:
+            x_text = 'x(50~100)'
+        elif 100 < x <= 150:
+            x_text = 'x(100~150)'
+
+        y_text = None
+        if -8 <= y <= 8:
+            y_text = 'y(-8~8)'
+
+        if x_text is None or y_text is None:
+            return None
+
+        return f'{x_text},{y_text}'
+
+    df = kpi_target_threshold
+    if region is not None:
+        region_text = region
+    else:
+        region_text = get_region_text(x, y)
+        if region_text is None:
+            return None
+
+    index = (target_type, region_text)
+    col = (col_1, col_2, '/VA/Obstacles')
+    threshold = df.at[index, col]
+    if np.isnan(threshold):
+        return None
+    else:
+        return threshold
+
+
+def get_obstacles_kpi_ratio(col_1, col_2, target_type, kpi_date_label):
+    df = kpi_target_ratio
+    index = (target_type, int(kpi_date_label))
+    col = (col_1, col_2, '/VA/Obstacles')
+    ratio = df.at[index, col]
+    if np.isnan(ratio):
+        return 1
+    else:
+        return ratio
 
 
 class DataGrinderPilotOneCase:
@@ -740,6 +797,7 @@ class DataGrinderPilotOneCase:
                 input_parameter_container = {
                     'metric_type': self.test_config['test_item'][topic],
                     'characteristic_type': self.test_config['target_characteristic'],
+                    'kpi_date_label': kpi_date_label,
                 }
                 parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
@@ -1687,12 +1745,22 @@ class DataGrinderPilotOneCase:
         for metric, data_path in metric_data_group.items():
             metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
             metric_data = filter_valid_bug_data(metric_data)
+            # 提bug的内容:
+            # 这里不能知道场景，所以无法筛选场景相关的内容
+            # 1.所有bug仅关注-50米到100米的范围，行人和两轮车只关注-50米到50米
+            # 2.行人不测长，宽，高，航向角，车速
+            # 3.两轮车不测长，宽，高，车速；低速时不测航向角
+
             if metric == 'recall_precision':
                 # 进一步筛选出现每种类型帧数最大的3个目标
                 FP_data = metric_data[(metric_data['gt.flag'] == 0)
                                       & (metric_data['pred.flag'] == 1)
                                       & (metric_data['pred.x'] <= 100)
-                                      & (metric_data['pred.x'] >= -50)]
+                                      & (metric_data['pred.x'] >= -50)
+                                      & (metric_data['pred.y'] <= 8)
+                                      & (metric_data['pred.y'] >= -8)]
+                FP_data = FP_data[~(FP_data['pred.type'].isin(['pedestrian', 'cyclist'])
+                                    & FP_data['gt.x'] > 50)]
                 bug_index_dict['false_positive'] = []
                 for key, group in FP_data.groupby('pred.type_classification'):
                     top_values = group['pred.id'].value_counts().head(3).index
@@ -1702,7 +1770,11 @@ class DataGrinderPilotOneCase:
                 FN_data = metric_data[(metric_data['gt.flag'] == 1)
                                       & (metric_data['pred.flag'] == 0)
                                       & (metric_data['gt.x'] <= 100)
-                                      & (metric_data['gt.x'] >= -50)]
+                                      & (metric_data['gt.x'] >= -50)
+                                      & (metric_data['gt.y'] <= 8)
+                                      & (metric_data['gt.y'] >= -8)]
+                FN_data = FN_data[~(FN_data['gt.type'].isin(['pedestrian', 'cyclist'])
+                                    & FN_data['gt.x'] > 50)]
                 bug_index_dict['false_negative'] = []
                 for key, group in FN_data.groupby('gt.type_classification'):
                     top_values = group['gt.id'].value_counts().head(3).index
@@ -1713,7 +1785,11 @@ class DataGrinderPilotOneCase:
                                         & (metric_data['gt.flag'] == 1)
                                         & (metric_data['pred.flag'] == 1)
                                         & (metric_data['gt.x'] <= 100)
-                                        & (metric_data['gt.x'] >= -50)]
+                                        & (metric_data['gt.x'] >= -50)
+                                        & (metric_data['gt.y'] <= 8)
+                                        & (metric_data['gt.y'] >= -8)]
+                NCTP_data = NCTP_data[~(NCTP_data['gt.type'].isin(['pedestrian', 'cyclist'])
+                                        & NCTP_data['gt.x'] > 50)]
                 bug_index_dict['false_type'] = []
                 for key, group in NCTP_data.groupby('gt.type_classification'):
                     top_values = group['gt.id'].value_counts().head(3).index
@@ -1721,10 +1797,15 @@ class DataGrinderPilotOneCase:
                     bug_index_dict['false_type'].extend(top_group['corresponding_index'].to_list())
 
             else:
+                distance_n_f = 50
                 error_data = metric_data[(metric_data['is_abnormal'] == 1)
                                          & (metric_data['gt.x'] <= 100)
-                                         & (metric_data['gt.x'] >= -50)]
-                if metric in ['width_error', 'length_error', 'height_error']:
+                                         & (metric_data['gt.x'] >= -50)
+                                         & (metric_data['gt.y'] <= 8)
+                                         & (metric_data['gt.y'] >= -8)]
+                error_data = error_data[~(error_data['gt.type'].isin(['pedestrian', 'cyclist'])
+                                          & error_data['gt.x'] > 50)]
+                if metric in ['width_error', 'length_error', 'height_error', 'vx_error', 'vy_error']:
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian', 'cyclist'])]
                 if metric in ['yaw_error']:
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian'])]
@@ -1734,15 +1815,15 @@ class DataGrinderPilotOneCase:
                 bug_index_dict[metric] = []
                 for key, group in error_data.groupby('gt.type'):
                     # 进一步筛选出20米内误差绝对值最大，20米外误差相对值最大的前5个
-                    near_group = group[(group['gt.x'] <= 20) & (group['gt.x'] >= -20)]
+                    near_group = group[(group['gt.x'] <= distance_n_f) & (group['gt.x'] >= -distance_n_f)]
                     id_counts = near_group['gt.id'].value_counts()
                     frequent_ids = id_counts[id_counts > 10].index
                     filtered_df = near_group[near_group['gt.id'].isin(frequent_ids)]
                     mean_values = filtered_df.groupby('gt.id')[f'{metric.replace("_", ".")}_abs'].mean().reset_index()
-                    top_5_ids = mean_values.sort_values(by=f'{metric.replace("_", ".")}_abs', ascending=False).head(3)['gt.id']
+                    top_5_ids = mean_values.sort_values(by=f'{metric.replace("_", ".")}_abs', ascending=False).head(4)['gt.id']
                     near_top_5 = filtered_df[filtered_df['gt.id'].isin(top_5_ids)]
 
-                    far_group = group[(group['gt.x'] > 20) | (group['gt.x'] < -20)]
+                    far_group = group[(group['gt.x'] > distance_n_f) | (group['gt.x'] < -distance_n_f)]
                     if metric != 'yaw_error':
                         col = f'{metric.replace("_", ".")}%_abs'
                     else:
@@ -1751,7 +1832,7 @@ class DataGrinderPilotOneCase:
                     frequent_ids = id_counts[id_counts > 10].index
                     filtered_df = far_group[far_group['gt.id'].isin(frequent_ids)]
                     mean_values = filtered_df.groupby('gt.id')[col].mean().reset_index()
-                    top_5_ids = mean_values.sort_values(by=col, ascending=False).head(3)['gt.id']
+                    top_5_ids = mean_values.sort_values(by=col, ascending=False).head(2)['gt.id']
                     far_top_5 = filtered_df[filtered_df['gt.id'].isin(top_5_ids)]
 
                     top_group = pd.concat([near_top_5, far_top_5])
@@ -2197,6 +2278,7 @@ class DataGrinderPilotOneTask:
                 input_parameter_container = {
                     'metric_type': self.test_config['test_item'][topic],
                     'characteristic_type': self.test_config['target_characteristic'],
+                    'kpi_date_label': kpi_date_label,
                 }
                 parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
@@ -2272,6 +2354,12 @@ class DataGrinderPilotOneTask:
                     for json_data in json_datas:
                         json_data = {**info_json_data, **json_data}
 
+                        # 在生成测试结果表格的时候，做一下筛选:
+                        # 1.速度仅在后处理存在
+                        # 2.行人不存在航向角
+                        # 3.快速和高速场景不存在行人和两轮车
+                        # 4.行人和两轮车没有那么远的测试距离
+
                         if '速度' in json_data['MetricTypeName'] and json_data['TopicName'] != '/VA/Obstacles':
                             continue
 
@@ -2279,7 +2367,11 @@ class DataGrinderPilotOneTask:
                             continue
 
                         if (('快速' in json_data['RoadTypeCondition'] or '高速' in json_data['RoadTypeCondition'])
-                                and (json_data['ObstacleName'] in ['行人', '自行车'])):
+                                and (json_data['ObstacleName'] in ['行人', '两轮车'])):
+                            continue
+
+                        if ('100~150' in json_data['RangeDetails'] and json_data['ObstacleName'] in ['行人', '两轮车']) \
+                                or ('-100~-50' in json_data['RangeDetails'] and json_data['ObstacleName'] == '行人'):
                             continue
 
                         # 保存单个json文件
@@ -2341,6 +2433,10 @@ class DataGrinderPilotOneTask:
                         ('距离误差' in metric and 'abs_95' in res_key) or
                         ('abs_95' in res_key and '%' not in res_key)
                 ):
+                    if res_key not in ['TP', 'FP', 'FN', 'CTP', 'sample_count']:
+                        columns.append(
+                            (metric, res_key, 'kpi_target')
+                        )
                     for topic in topic_key:
                         columns.append(
                             (metric, res_key, topic)
@@ -2350,11 +2446,18 @@ class DataGrinderPilotOneTask:
             path = os.path.join(json_folder, f'附件{i+1}-{characteristic}.xlsx')
 
             # 使用ExcelWriter将DataFrame保存到不同的sheet中
-            with pd.ExcelWriter(path, engine='openpyxl') as writer:
+            with (pd.ExcelWriter(path, engine='openpyxl') as writer):
                 for scenario_tag in scenario_tag_key:
                     rows = []
                     for obstacle_type in obstacle_type_key:
+                        if '快速' in obstacle_type and obstacle_type in ['行人', '两轮车']:
+                            continue
+
                         for region in region_key:
+                            if ('100~150' in region and obstacle_type in ['行人', '两轮车']) \
+                                or ('-100~-50' in region and obstacle_type == '行人'):
+                                continue
+
                             row = [obstacle_type, region, scenario_tag]
                             filter_data = output_result[
                                 (output_result['characteristic'] == characteristic)
@@ -2362,18 +2465,27 @@ class DataGrinderPilotOneTask:
                                 & (output_result['obstacle_type'] == obstacle_type)
                                 & (output_result['region'] == region)
                             ]
+
                             for metric, res_key, topic in columns[3:]:
-                                filter2_data = filter_data[
-                                    (filter_data['metric'] == metric)
-                                    & (filter_data['topic'] == topic)
-                                ]
-                                if topic != '/VA/Obstacles' and '速度' in metric:
-                                    row.append(np.nan)
-                                elif len(filter2_data):
-                                    c = json.loads(filter2_data.iloc[0]['result'])
-                                    row.append(c[res_key])
+                                if topic == 'kpi_target':
+                                    kpi_threshold = get_obstacles_kpi_threshold(metric, res_key, obstacle_type, region=region)
+                                    if kpi_threshold is None:
+                                        row.append(np.nan)
+                                    else:
+                                        kpi_ratio = get_obstacles_kpi_ratio(metric, res_key, obstacle_type, kpi_date_label)
+                                        row.append(kpi_threshold * kpi_ratio)
+
                                 else:
-                                    row.append(np.nan)
+                                    filter2_data = filter_data[
+                                        (filter_data['metric'] == metric)
+                                        & (filter_data['topic'] == topic)
+                                    ]
+
+                                    if len(filter2_data):
+                                        c = json.loads(filter2_data.iloc[0]['result'])
+                                        row.append(c[res_key])
+                                    else:
+                                        row.append(np.nan)
 
                             rows.append(row)
 
@@ -2555,7 +2667,7 @@ class DataGrinderPilotOneTask:
                 for key, value in result_dict.items():
                     df.at[index, key] = value
             df['type_cate'] = pd.Categorical(df['obstacle_type'],
-                                             categories=['小车', '大巴', '货车', '自行车', '行人'], ordered=True)
+                                             categories=['小车', '大巴', '货车', '两轮车', '行人'], ordered=True)
             df.sort_values(by=['type_cate', 'region'], inplace=True)
             drop_columns = group_columns + ['index', 'type_cate', 'result']
             df.drop(drop_columns, axis=1, inplace=True)

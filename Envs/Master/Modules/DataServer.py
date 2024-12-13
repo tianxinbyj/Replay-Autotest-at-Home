@@ -3,12 +3,12 @@
 # @FileName : DataServer.py
 # @Time     : 24/10/21 7:23 PM
 # @Author   : Bu Yujun
+import copy
 import json
 import os
 
+import pandas as pd
 from pymongo import MongoClient, ASCENDING, errors
-
-
 
 
 class DataServer:
@@ -56,25 +56,47 @@ class DataServer:
         print(f'上傳了{insert_count}條數據')
 
     def query(self, filter_condition):
-        db_filter = {key: {'$in': value} for key, value in filter_condition.items()}
-        results = self.collection.find(db_filter)
-        # 处理结果
-        for result in results:
-            print(result)
+        res = {}
+
+        for metric_type in filter_condition['MetricTypeName']:
+            metric_filter_condition = copy.deepcopy(filter_condition)
+            metric_filter_condition['MetricTypeName'] = [metric_type]
+
+            db_filter = {key: {'$in': value} for key, value in metric_filter_condition.items()}
+            results = self.collection.find(db_filter)
+
+            # 处理结果
+            dict_list = []
+
+            for result in results:
+                for k, v in result['Output'].items():
+                    result[k] = v
+
+                for k in ['_id', 'Output', 'pass_ratio%', 'uuid']:
+                    if k in result:
+                        del result[k]
+
+                dict_list.append(result)
+
+            print(pd.DataFrame(dict_list))
+            res[metric_type] = pd.DataFrame(dict_list)
+
+        return res
 
 
 if __name__ == '__main__':
     db_name = 'replay_database'
     collection_name = 'test_result'
-    path = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241022_123455/04_TestData/1-Obstacles/03_OutputResult/statistics'
+    path = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241104_091524/04_TestData/1-Obstacles/03_OutputResult/statistics'
 
     ds = DataServer(db_name, collection_name)
     # ds.drop_collection()
-    # ds.add_data(path)
+    ds.add_data(path)
     filter_condition = {
         'TopicName': ['/VA/Obstacles'],
         # 'RoadTypeCondition': ['城区道路'],
-        'MetricTypeName': ['纵向距离误差'],
+        'MetricTypeName': ['纵向距离误差', '横向距离误差'],
         'FeatureDetail': ['全局目标'],
     }
+
     ds.query(filter_condition)
