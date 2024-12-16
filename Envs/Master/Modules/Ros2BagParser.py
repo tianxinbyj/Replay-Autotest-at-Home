@@ -1304,7 +1304,7 @@ class Ros2BagParser:
             frame_id = msg.framenum
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
-            ob_id = frame_id * 256
+            ob_id = (frame_id * 64) % 200000
             if time_stamp != self.last_timestamp[topic]:
                 header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
                 header_seq = msg.header.seq
@@ -1328,6 +1328,8 @@ class Ros2BagParser:
                                 sub_type = 4
                             elif obj_data.veh_type == 2:
                                 sub_type = 5
+                            elif obj_data.veh_type == 3:
+                                sub_type = 9
                             else:
                                 sub_type = 0
                             queue.put([
@@ -1342,14 +1344,17 @@ class Ros2BagParser:
                     for ped_cyc_id in range(ped_cyc_num):
                         obj_data = ped_cyc_info_list[ped_cyc_id]
                         ob_id += 1
-                        if obj_data.obj_type == 18:
-                            obj_type_text = 'cyclist'
-                            ob_type = 18
-                        else:
-                            obj_type_text = 'pedestrian'
-                            ob_type = 2
                         world_info = obj_data.world_info
                         if world_info.center_x != 0 and world_info.center_y != 0:
+                            if obj_data.veh_type == 1:
+                                obj_type_text = 'cyclist'
+                                ob_type = 18
+                            elif obj_data.veh_type == 0:
+                                obj_type_text = 'pedestrian'
+                                ob_type = 2
+                            else:
+                                obj_type_text = 'pedestrian'
+                                ob_type = 2
                             queue.put([
                                 local_time, time_stamp, header_stamp, header_seq, frame_id,
                                 ob_id, ob_type, obj_type_text, obj_data.obj_conf, obj_data.obj_type, 0,
@@ -2670,30 +2675,30 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241122_010000/03_Workspace'
-    # J5_topic_list = [
-    #     '/PI/EG/EgoMotionInfo',
-    #     '/VA/VehicleMotionIpd',
-    #     '/VA/BevObstaclesDet',
-    #     '/VA/FrontWideObstacles2dDet',
-    #     '/VA/BackViewObstacles2dDet',
-    #     '/VA/Obstacles',
-    #     '/VA/BevLines',
-    #     '/VA/FusObjects',
-    #     '/PK/DR/Result',
-    #     '/SA/INSPVA'
-    # ]
-    # folder = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/RawData'
-    # bag_path = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/20241111_093841_n000003_2024-11-22-11-57-03'
-    # RBP = Ros2BagParser(workspace)
-    # RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
+    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/03_Workspace'
+    J5_topic_list = [
+        '/PI/EG/EgoMotionInfo',
+        '/VA/VehicleMotionIpd',
+        '/VA/BevObstaclesDet',
+        '/VA/FrontWideObstacles2dDet',
+        '/VA/BackViewObstacles2dDet',
+        '/VA/Obstacles',
+        '/VA/BevLines',
+        '/VA/FusObjects',
+        '/PK/DR/Result',
+        '/SA/INSPVA'
+    ]
+    folder = '/home/zhangliwei01/ZONE/dfg'
+    bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/01_Prediction/20241111_093841_n000013/20241111_093841_n000013_2024-12-09-19-27-03'
+    RBP = Ros2BagParser(workspace)
+    RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
 
-    import shutil
-    topic_list = ['/SA/INSPVA', '/PK/DR/Result', '/SOA/SDNaviLinkInfo', '/SOA/SDNaviStsInfo', '/VA/BevLines', '/FL/Localization', '/SA/GNSS']
-    src_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/raw_rosbag'
-    dst_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/ggg'
-    if os.path.exists(dst_path):
-        shutil.rmtree(dst_path)
-
-    dd = Ros2BagClip(workspace)
-    dd.cutRosbag(src_path, dst_path, topic_list, [1732693156, 1732695736])
+    # import shutil
+    # topic_list = ['/SA/INSPVA', '/PK/DR/Result', '/SOA/SDNaviLinkInfo', '/SOA/SDNaviStsInfo', '/VA/BevLines', '/FL/Localization', '/SA/GNSS']
+    # src_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/raw_rosbag'
+    # dst_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/ggg'
+    # if os.path.exists(dst_path):
+    #     shutil.rmtree(dst_path)
+    #
+    # dd = Ros2BagClip(workspace)
+    # dd.cutRosbag(src_path, dst_path, topic_list, [1732693156, 1732695736])
