@@ -12,7 +12,6 @@ warnings.filterwarnings("ignore")
 warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
 
 # 对车辆进行分类，分为大车，小车，行人，两轮车
-# 行人 = 2， 两轮车 = 18， 小车 = 1，大巴 = 4，货车 = 5，
 type_classification_text = {
     'car': '小车',
     'pedestrian': '行人',

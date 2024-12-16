@@ -164,7 +164,7 @@ class ObstaclesMatchTool:
 
     def get_match_flag(self, gt_type, gt_x, gt_y, pred_type, pred_x, pred_y):
         # 如果目标识别结果为人，但真值为车，或者相反，则直接显示为不匹配
-        if (gt_type == 1 and pred_type != 1) or (gt_type != 1 and pred_type == 1):
+        if (gt_type == 1 and pred_type == 2) or (gt_type == 2 and pred_type == 1):
             return False
 
         x_error = pred_x - gt_x

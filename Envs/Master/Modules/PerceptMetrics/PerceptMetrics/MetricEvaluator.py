@@ -30,7 +30,6 @@ kpi_target_threshold = pd.read_excel(kpi_target_file_path, sheet_name=0, header=
 kpi_target_ratio = pd.read_excel(kpi_target_file_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
 
 # 对车辆进行分类，分为大车，小车，行人，两轮车
-# 行人 = 2， 两轮车 = 18， 小车 = 1，大巴 = 4，货车 = 5，
 type_classification_text = {
     'car': '小车',
     'pedestrian': '行人',

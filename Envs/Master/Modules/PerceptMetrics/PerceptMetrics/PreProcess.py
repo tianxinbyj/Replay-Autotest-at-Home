@@ -118,8 +118,7 @@ def calculate_angle(x, y, z=None):
 
 class ObstaclesTypeClassification:
     """
-    对车辆进行分类，分为大巴，货车，小车，行人，两轮车
-    行人=2， 两轮车=18， 小车=1，大巴=4，货车=5，
+    对车辆进行分类，分为大车，小车，行人，两轮车
 
     """
 
