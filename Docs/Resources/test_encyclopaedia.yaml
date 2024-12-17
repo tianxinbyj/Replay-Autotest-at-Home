@@ -802,11 +802,8 @@ ES37:
     pilot:
     - /PI/EG/EgoMotionInfo
     - /VA/Obstacles
-    - /PI/FS/ObjTracksHorizon
     - /VA/Lines
-    - /VA/Objects
-    - /PI/CUS/HMIOutputES33
-    - /PP/CUS/FctDebug
+    - /SA/INSPVA
     parking:
     - /PI/EG/EgoMotionInfo
     - /VA/Slots

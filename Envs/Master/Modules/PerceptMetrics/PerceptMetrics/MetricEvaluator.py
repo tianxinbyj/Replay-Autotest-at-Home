@@ -205,10 +205,16 @@ class XError:
         x_error_p_abs = abs(x_error_p)
 
         is_abnormal = []
-        if x_limit is not None and x_error_abs > x_limit:
-            is_abnormal.append(True)
-        if x_limit_p is not None and x_error_p_abs > x_limit_p:
-            is_abnormal.append(True)
+        if x_limit is not None:
+            if x_error_abs > x_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+        if x_limit_p is not None:
+            if x_error_p_abs > x_limit_p:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
         if len(is_abnormal):
             is_abnormal = int(all(is_abnormal))
         else:
@@ -280,10 +286,16 @@ class YError:
         y_error_p_abs = abs(y_error_p)
 
         is_abnormal = []
-        if y_limit is not None and y_error_abs > y_limit:
-            is_abnormal.append(True)
-        if y_limit_p is not None and y_error_p_abs > y_limit_p:
-            is_abnormal.append(True)
+        if y_limit is not None:
+            if y_error_abs > y_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+        if y_limit_p is not None:
+            if y_error_p_abs > y_limit_p:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
         if len(is_abnormal):
             is_abnormal = int(all(is_abnormal))
         else:
@@ -350,8 +362,11 @@ class VxError:
         vx_error_p_abs = abs(vx_error_p)
 
         is_abnormal = []
-        if vx_limit is not None and vx_error_abs > vx_limit:
-            is_abnormal.append(True)
+        if vx_limit is not None:
+            if vx_error_abs > vx_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
         if len(is_abnormal):
             is_abnormal = int(all(is_abnormal))
         else:
@@ -417,8 +432,11 @@ class VyError:
         vy_error_p_abs = abs(vy_error_p)
 
         is_abnormal = []
-        if vy_limit is not None and vy_error_abs > vy_limit:
-            is_abnormal.append(True)
+        if vy_limit is not None:
+            if vy_error_abs > vy_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
         if len(is_abnormal):
             is_abnormal = int(all(is_abnormal))
         else:
@@ -578,10 +596,16 @@ class LengthError:
         length_error_p_abs = abs(length_error_p)
 
         is_abnormal = []
-        if length_limit is not None and length_error_abs > length_limit:
-            is_abnormal.append(True)
-        if length_limit_p is not None and length_error_p_abs > length_limit_p:
-            is_abnormal.append(True)
+        if length_limit is not None:
+            if length_error_abs > length_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+        if length_limit_p is not None:
+            if length_error_p_abs > length_limit_p:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
         if len(is_abnormal):
             is_abnormal = int(all(is_abnormal))
         else:
@@ -651,10 +675,16 @@ class WidthError:
         width_error_p_abs = abs(width_error_p)
 
         is_abnormal = []
-        if width_limit is not None and width_error_abs > width_limit:
-            is_abnormal.append(True)
-        if width_limit_p is not None and width_error_p_abs > width_limit_p:
-            is_abnormal.append(True)
+        if width_limit is not None:
+            if width_error_abs > width_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+        if width_limit_p is not None:
+            if width_error_p_abs > width_limit_p:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
         if len(is_abnormal):
             is_abnormal = int(all(is_abnormal))
         else:
@@ -724,10 +754,16 @@ class HeightError:
         height_error_p_abs = abs(height_error_p)
 
         is_abnormal = []
-        if height_limit is not None and height_error_abs > height_limit:
-            is_abnormal.append(True)
-        if height_limit_p is not None and height_error_p_abs > height_limit_p:
-            is_abnormal.append(True)
+        if height_limit is not None:
+            if height_error_abs > height_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+        if height_limit_p is not None:
+            if height_error_p_abs > height_limit_p:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
         if len(is_abnormal):
             is_abnormal = int(all(is_abnormal))
         else:
@@ -826,3 +862,26 @@ class ObstaclesMetricFilter:
                 data['corresponding_index'].isin(corresponding_index_dict[characteristic])]
 
         return characteristic_data_dict
+
+
+if __name__ == '__main__':
+    kpi_date_label = 20241130
+    type_classification, gt_x, gt_y = '小车',-5.477241039276123,-0.092785932123661
+
+    kpi_threshold = get_obstacles_kpi_threshold('纵向距离误差', 'x_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+
+    if kpi_threshold is None:
+        x_limit = None
+    else:
+        kpi_ratio = get_obstacles_kpi_ratio('纵向距离误差', 'x_abs_95[m]', type_classification, kpi_date_label)
+        x_limit = kpi_threshold * kpi_ratio
+    print(kpi_threshold, x_limit)
+
+    kpi_threshold = get_obstacles_kpi_threshold('纵向距离误差', 'x%_abs_95', type_classification, x=gt_x, y=gt_y)
+
+    if kpi_threshold is None:
+        x_limit_p = None
+    else:
+        kpi_ratio = get_obstacles_kpi_ratio('纵向距离误差', 'x%_abs_95', type_classification, kpi_date_label)
+        x_limit_p = kpi_threshold * kpi_ratio
+    print(kpi_threshold, x_limit_p)

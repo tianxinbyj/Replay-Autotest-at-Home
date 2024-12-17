@@ -8,6 +8,7 @@ import csv
 import glob
 import multiprocessing as mp
 import os
+import shutil
 import time
 import warnings
 from pathlib import Path
@@ -1265,7 +1266,7 @@ class Ros2BagParser:
                 veh_num = msg.veh_num
                 ped_cyc_info = msg.ped_cyc
                 ped_cyc_num = msg.ped_cyc_num
-                ob_id = frame_id * 256
+                ob_id = (frame_id * 64) % 200000
 
                 for veh_id in range(veh_num):
                     obj_data = veh_info[veh_id]
@@ -1357,7 +1358,7 @@ class Ros2BagParser:
                                 ob_type = 2
                             queue.put([
                                 local_time, time_stamp, header_stamp, header_seq, frame_id,
-                                ob_id, ob_type, obj_type_text, obj_data.obj_conf, obj_data.obj_type, 0,
+                                ob_id, ob_type, obj_type_text, obj_data.obj_conf, -1, 0,
                                 world_info.center_x, world_info.center_y, world_info.center_z,
                                 world_info.velocity_x, world_info.velocity_y, 0, 0,
                                 world_info.yaw, world_info.obj_length, world_info.obj_width, world_info.obj_height,
@@ -2676,22 +2677,42 @@ class Ros2BagClip:
 
 if __name__ == "__main__":
     workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/03_Workspace'
-    J5_topic_list = [
+    t_folder = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/01_Prediction'
+    ES39_topic_list = [
         '/PI/EG/EgoMotionInfo',
         '/VA/VehicleMotionIpd',
         '/VA/BevObstaclesDet',
         '/VA/FrontWideObstacles2dDet',
         '/VA/BackViewObstacles2dDet',
         '/VA/Obstacles',
-        '/VA/BevLines',
         '/VA/FusObjects',
         '/PK/DR/Result',
         '/SA/INSPVA'
     ]
-    folder = '/home/zhangliwei01/ZONE/dfg'
-    bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/01_Prediction/20241111_093841_n000013/20241111_093841_n000013_2024-12-09-19-27-03'
-    RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
+    for scenario_id in os.listdir(t_folder):
+
+        if scenario_id not in ['20241111_093841_n000014', '20241111_155436_n000009']:
+            continue
+
+        if not os.path.isdir(os.path.join(t_folder, scenario_id)):
+            continue
+
+        folder = os.path.join(t_folder, scenario_id, 'RawData')
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+        os.mkdir(folder)
+        ros2bag_xz_path = glob.glob(os.path.join(t_folder, scenario_id, '*.tar.xz'))[0]
+        print(f'{os.path.basename(ros2bag_xz_path)}.tar.xz 开始解压缩')
+        cmd = 'cd {:s}; tar xvf {:s}'.format(
+            os.path.dirname(ros2bag_xz_path), os.path.basename(ros2bag_xz_path)
+        )
+        os.popen(cmd).read()
+        print(f'{os.path.basename(ros2bag_xz_path)}.tar.xz 解压缩完成')
+        ros2bag_path = ros2bag_xz_path[:-7]
+
+        RBP = Ros2BagParser(workspace)
+        RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, scenario_id)
+        shutil.rmtree(ros2bag_path)
 
     # import shutil
     # topic_list = ['/SA/INSPVA', '/PK/DR/Result', '/SOA/SDNaviLinkInfo', '/SOA/SDNaviStsInfo', '/VA/BevLines', '/FL/Localization', '/SA/GNSS']
