@@ -146,9 +146,13 @@ class DataGrinderPilotOneCase:
 
         # 不同产品用不同的相机
         if self.product == 'ES37':
+            # self.camera_list = [
+            #     'CAM_FRONT_LEFT', 'CAM_FRONT_120', 'CAM_FRONT_RIGHT',
+            #     'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT',
+            # ]
             self.camera_list = [
-                'CAM_FRONT_LEFT', 'CAM_FRONT_120', 'CAM_FRONT_RIGHT',
-                'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT',
+                'CAM_FISHEYE_LEFT', 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT',
+                'CAM_FISHEYE_FRONT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
             ]
         else:
             self.camera_list = [
@@ -500,8 +504,8 @@ class DataGrinderPilotOneCase:
         ax.set_xlabel('time[second]', fontdict=axis_font)
         ax.set_ylabel('ego_vx[km/h]', fontdict=axis_font)
         ax.set_xlim(time_start, time_end)
-        ax.set_ylim(0, 140)
-        ax.set_yticks(np.arange(0, 141, 20))
+        ax.set_ylim(0, 120)
+        ax.set_yticks(np.arange(0, 121, 20))
         ax.grid('--', color='gainsboro')
         ax.tick_params(direction='out', labelsize=font_size / 1.1, length=2)
         ax.legend(loc=0, prop=legend_font)
@@ -614,42 +618,48 @@ class DataGrinderPilotOneCase:
                 # 预处理原始数据, 增加列
                 send_log(self, f'{self.test_topic} {topic} 预处理步骤 {preprocess_instance.preprocess_types}')
                 data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
-                data['time_stamp'] += time_gap
-                data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+
+                # 如果为空，比如说没有探测到任何目标，需要额外处理
                 path = os.path.join(additional_folder, 'pred_data.csv')
                 self.test_result[self.test_topic][topic]['additional']['pred_data'] = self.get_relpath(path)
-                data.to_csv(path, index=False, encoding='utf_8_sig')
+                if len(data):
+                    data['time_stamp'] += time_gap
+                    data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+                    data.to_csv(path, index=False, encoding='utf_8_sig')
+                    input_parameter_container = {
+                        'camera': self.test_result['General']['camera_position'],
+                        'coverage_reference_point': self.test_config['coverage_reference_point'],
+                        'coverage_threshold': self.test_config['coverage_threshold'],
+                        'ROI': self.test_config['detected_ROI'][topic],
+                        'lane_width': 3.6,
+                        'moving_threshold': 2,
+                        'key_coverage_threshold': 0.1,
+                    }
+                    parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
+                    with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                        json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
-                input_parameter_container = {
-                    'camera': self.test_result['General']['camera_position'],
-                    'coverage_reference_point': self.test_config['coverage_reference_point'],
-                    'coverage_threshold': self.test_config['coverage_threshold'],
-                    'ROI': self.test_config['detected_ROI'][topic],
-                    'lane_width': 3.6,
-                    'moving_threshold': 2,
-                    'key_coverage_threshold': 0.1,
-                }
-                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
-                with open(parameter_json_path, 'w', encoding='utf-8') as f:
-                    json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+                    cmd = [
+                        f"{bench_config['master']['sys_interpreter']}",
+                        "Api_ProcessRawData.py",
+                        "-r", path,
+                        "-j", parameter_json_path,
+                        "-p", path,
+                    ]
 
-                cmd = [
-                    f"{bench_config['master']['sys_interpreter']}",
-                    "Api_ProcessRawData.py",
-                    "-r", path,
-                    "-j", parameter_json_path,
-                    "-p", path,
-                ]
+                    print(cmd)
+                    cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+                    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+                    # os.remove(parameter_json_path)
+                    if result.stderr:
+                        print("stderr:", result.stderr)
+                        send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
-                print(cmd)
-                cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-                # os.remove(parameter_json_path)
-                if result.stderr:
-                    print("stderr:", result.stderr)
-                    send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
+                    data = pd.read_csv(path, index_col=False)[additional_column]
 
-                data = pd.read_csv(path, index_col=False)[additional_column]
+                else:
+                    data = pd.DataFrame(columns=additional_column)
+
                 data.to_csv(path, index=False, encoding='utf_8_sig')
 
         # 车道线
@@ -792,6 +802,13 @@ class DataGrinderPilotOneCase:
                 if 'metric' not in self.test_result[self.test_topic][topic]:
                     self.test_result[self.test_topic][topic]['metric'] = {}
 
+                # 确认是否需要继续计算
+                raw = self.test_result[self.test_topic][topic]['raw']
+                data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
+                if not len(data):
+                    print(f'{self.scenario_id} {topic} 不计算metric数据')
+                    continue
+
                 match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
 
                 input_parameter_container = {
@@ -911,6 +928,10 @@ class DataGrinderPilotOneCase:
                 print(f'出现次数低于{frame_threshold}的bug会被忽视')
 
                 # 使用total中的recall_precision数据可视化，但只抓取部分特镇的bug
+                if 'total' not in self.test_result[self.test_topic][topic]['metric']:
+                    print(f'{self.scenario_id} {topic} 不存在metric数据')
+                    continue
+
                 total_data_path = self.test_result[self.test_topic][topic]['metric']['total']['recall_precision']
                 total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
 
@@ -1759,8 +1780,8 @@ class DataGrinderPilotOneCase:
                                       & (metric_data['pred.x'] >= -50)
                                       & (metric_data['pred.y'] <= 8)
                                       & (metric_data['pred.y'] >= -8)]
-                FP_data = FP_data[~(FP_data['pred.type'].isin(['pedestrian', 'cyclist'])
-                                    & FP_data['gt.x'] > 50)]
+                FP_data = FP_data[~((FP_data['pred.type_classification'].isin(['pedestrian', 'cyclist']))
+                                    & (FP_data['pred.x'] > 50))]
                 bug_index_dict['false_positive'] = []
                 for key, group in FP_data.groupby('pred.type_classification'):
                     top_values = group['pred.id'].value_counts().head(3).index
@@ -1773,8 +1794,8 @@ class DataGrinderPilotOneCase:
                                       & (metric_data['gt.x'] >= -50)
                                       & (metric_data['gt.y'] <= 8)
                                       & (metric_data['gt.y'] >= -8)]
-                FN_data = FN_data[~(FN_data['gt.type'].isin(['pedestrian', 'cyclist'])
-                                    & FN_data['gt.x'] > 50)]
+                FN_data = FN_data[~((FN_data['gt.type_classification'].isin(['pedestrian', 'cyclist']))
+                                    & (FN_data['gt.x'] > 50))]
                 bug_index_dict['false_negative'] = []
                 for key, group in FN_data.groupby('gt.type_classification'):
                     top_values = group['gt.id'].value_counts().head(3).index
@@ -1788,8 +1809,8 @@ class DataGrinderPilotOneCase:
                                         & (metric_data['gt.x'] >= -50)
                                         & (metric_data['gt.y'] <= 8)
                                         & (metric_data['gt.y'] >= -8)]
-                NCTP_data = NCTP_data[~(NCTP_data['gt.type'].isin(['pedestrian', 'cyclist'])
-                                        & NCTP_data['gt.x'] > 50)]
+                NCTP_data = NCTP_data[~((NCTP_data['gt.type_classification'].isin(['pedestrian', 'cyclist']))
+                                        & (NCTP_data['gt.x'] > 50))]
                 bug_index_dict['false_type'] = []
                 for key, group in NCTP_data.groupby('gt.type_classification'):
                     top_values = group['gt.id'].value_counts().head(3).index
@@ -1803,14 +1824,14 @@ class DataGrinderPilotOneCase:
                                          & (metric_data['gt.x'] >= -50)
                                          & (metric_data['gt.y'] <= 8)
                                          & (metric_data['gt.y'] >= -8)]
-                error_data = error_data[~(error_data['gt.type'].isin(['pedestrian', 'cyclist'])
-                                          & error_data['gt.x'] > 50)]
+                error_data = error_data[~((error_data['gt.type'].isin(['pedestrian', 'cyclist']))
+                                          & (error_data['gt.x'] > 50))]
                 if metric in ['width_error', 'length_error', 'height_error', 'vx_error', 'vy_error']:
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian', 'cyclist'])]
                 if metric in ['yaw_error']:
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian'])]
-                    error_data = error_data[~(error_data['gt.type'].isin(['cyclist'])
-                                              & error_data['gt.vel'] <= 2)]
+                    error_data = error_data[~((error_data['gt.type'].isin(['cyclist']))
+                                              & (error_data['gt.vel'] <= 2))]
 
                 bug_index_dict[metric] = []
                 for key, group in error_data.groupby('gt.type'):
@@ -2147,8 +2168,8 @@ class DataGrinderPilotOneTask:
         self.output_result_folder = os.path.join(task_folder, '03_OutputResult')
         self.region_division = self.test_config['region_division']
         topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
-        topic_output_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
-        self.broken_scenario_list = list(topic_output_statistics[topic_output_statistics['isValid'] == 0].index)
+        self.scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
+        self.broken_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 0].index)
         self.valid_scenario_list = []
         print(f'Broken Scenario为{self.broken_scenario_list}, 不参与结果分析')
 
@@ -2159,18 +2180,6 @@ class DataGrinderPilotOneTask:
                 'TagCombination': {},
                 'OutputResult': {},
             }
-
-            for scenario_tag in self.test_config['scenario_tag']:
-                # 需要去除Broken Scenario
-                valid_scenario_list = [scenario_id for scenario_id in scenario_tag['scenario_id']
-                                       if scenario_id not in self.broken_scenario_list]
-                if len(valid_scenario_list):
-                    tag_key = '&'.join(scenario_tag['tag'].values())
-                    self.test_result['TagCombination'][tag_key] = {
-                        'tag': scenario_tag['tag'],
-                        'scenario_id': valid_scenario_list,
-                        self.test_topic: {},
-                    }
 
             self.save_test_result()
 
@@ -2226,6 +2235,18 @@ class DataGrinderPilotOneTask:
     def combine_scenario_tag(self):
         # 合并各个场景的match_data, 重新corresponding_index编号
         # 获得每一种特征的分类结果
+        for scenario_tag in self.test_config['scenario_tag']:
+            # 需要去除Broken Scenario
+            valid_scenario_list = [scenario_id for scenario_id in scenario_tag['scenario_id']
+                                   if scenario_id not in self.broken_scenario_list]
+            if len(valid_scenario_list):
+                tag_key = '&'.join(scenario_tag['tag'].values())
+                self.test_result['TagCombination'][tag_key] = {
+                    'tag': scenario_tag['tag'],
+                    'scenario_id': valid_scenario_list,
+                    self.test_topic: {},
+                }
+
         match_data_dict = {}
         for tag_key in self.test_result['TagCombination'].keys():
 
@@ -2313,6 +2334,7 @@ class DataGrinderPilotOneTask:
     def compile_statistics(self):
         # 按照数据库数据单元的方式保存数据
         # 格式为json，在文件夹内平铺
+
         json_folder = os.path.join(self.output_result_folder, 'statistics')
         create_folder(json_folder)
         json_count = 0
@@ -2328,6 +2350,9 @@ class DataGrinderPilotOneTask:
                 topic_tag = topic.replace('/', '')
 
                 for characteristic in self.test_config['target_characteristic']:
+                    if characteristic not in self.test_result['TagCombination'][tag_key][self.test_topic][topic]:
+                        continue
+
                     test_result = self.test_result['TagCombination'][tag_key][self.test_topic][topic][
                         characteristic]
 
@@ -2374,6 +2399,12 @@ class DataGrinderPilotOneTask:
                                 or ('-100~-50' in json_data['RangeDetails'] and json_data['ObstacleName'] == '行人'):
                             continue
 
+                        if json_data['TopicName'] == '/VA/PedResult' and json_data['ObstacleName'] in ['小车', '大车']:
+                            continue
+
+                        if json_data['TopicName'] == '/VA/VehicleResult' and json_data['ObstacleName'] in ['两轮车', '行人']:
+                            continue
+
                         # 保存单个json文件
                         json_count += 1
                         json_name = (f'{json_count:06d}--{self.version}--{tag_key}--{topic_tag}--{json_data["ObstacleName"]}'
@@ -2409,8 +2440,11 @@ class DataGrinderPilotOneTask:
         output_result.to_csv(path, index=False, encoding='utf_8_sig')
         self.test_result['OutputResult']['statistics'] = self.get_relpath(path)
 
+        # output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
+
         # 生成面向质量的xlsx
-        characteristic_key = ['全局目标', '关键目标']
+        characteristic_key = [test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['name']
+                              for c in self.test_config['test_action']['output_characteristic']]
         topic_key = output_result['topic'].unique()
         scenario_tag_key = output_result['scenario_tag'].unique()
         obstacle_type_key = output_result['obstacle_type'].unique()
@@ -2422,6 +2456,7 @@ class DataGrinderPilotOneTask:
         columns = [
             ('基本信息', '基本信息', 'OD类型'),
             ('基本信息', '基本信息', '目标物范围'),
+            ('基本信息', '基本信息', 'start_distance'),
             ('基本信息', '基本信息', '场景类型'),
         ]
         for metric in metric_key:
@@ -2442,15 +2477,17 @@ class DataGrinderPilotOneTask:
                             (metric, res_key, topic)
                         )
 
+        self.test_result['OutputResult']['report_table'] = {}
         for i, characteristic in enumerate(characteristic_key):
-            path = os.path.join(json_folder, f'附件{i+1}-{characteristic}.xlsx')
+            path = os.path.join(json_folder, f'{characteristic}-指标汇总.xlsx')
+            self.test_result['OutputResult']['report_table'][characteristic] = self.get_relpath(path)
 
             # 使用ExcelWriter将DataFrame保存到不同的sheet中
             with (pd.ExcelWriter(path, engine='openpyxl') as writer):
                 for scenario_tag in scenario_tag_key:
                     rows = []
                     for obstacle_type in obstacle_type_key:
-                        if '快速' in obstacle_type and obstacle_type in ['行人', '两轮车']:
+                        if '快速' in scenario_tag and obstacle_type in ['行人', '两轮车']:
                             continue
 
                         for region in region_key:
@@ -2458,7 +2495,8 @@ class DataGrinderPilotOneTask:
                                 or ('-100~-50' in region and obstacle_type == '行人'):
                                 continue
 
-                            row = [obstacle_type, region, scenario_tag]
+                            start_distance = int(region.split('~')[0].split('(')[1])
+                            row = [obstacle_type, region, start_distance, scenario_tag]
                             filter_data = output_result[
                                 (output_result['characteristic'] == characteristic)
                                 & (output_result['scenario_tag'] == scenario_tag)
@@ -2466,7 +2504,7 @@ class DataGrinderPilotOneTask:
                                 & (output_result['region'] == region)
                             ]
 
-                            for metric, res_key, topic in columns[3:]:
+                            for metric, res_key, topic in columns[4:]:
                                 if topic == 'kpi_target':
                                     kpi_threshold = get_obstacles_kpi_threshold(metric, res_key, obstacle_type, region=region)
                                     if kpi_threshold is None:
@@ -2490,6 +2528,8 @@ class DataGrinderPilotOneTask:
                             rows.append(row)
 
                     df = pd.DataFrame(rows, columns=pd.MultiIndex.from_tuples(columns))
+                    df.sort_values(by=[('基本信息', '基本信息', 'OD类型'), ('基本信息', '基本信息', 'start_distance')], inplace=True)
+                    df.drop(('基本信息', '基本信息', 'start_distance'), axis=1, inplace=True)
                     df.to_excel(writer, sheet_name=scenario_tag, merge_cells=True)
 
             workbook = Workbook()
@@ -2638,41 +2678,182 @@ class DataGrinderPilotOneTask:
             axes.set_xticks([])
             axes.set_yticks([])
 
+        def wrap_text(text, max_length):
+            wrapped_lines = []
+            for i in range(0, len(text), max_length):
+                wrapped_lines.append(text[i:i + max_length])
+            return '\n'.join(wrapped_lines)
+
         visualization_folder = os.path.join(self.output_result_folder, 'visualization')
         create_folder(visualization_folder)
+
+        # 生成测试信息总览
+        def plot_test_info(test_info, plot_path):
+
+            def plot_rect(left_bottom_pt, width, height,
+                          facecolor, text, text_angle,
+                          font_size, fill=True):
+                ax.add_patch(pc.Rectangle(
+                    xy=left_bottom_pt,
+                    width=width, height=height,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=fill,
+                    edgecolor='grey',
+                    facecolor=facecolor,
+                    linewidth=1))
+                va, ha = 'center', 'center'
+                ax.text(left_bottom_pt[0] + width / 2, left_bottom_pt[1] + height / 2, text,
+                        va=va, ha=ha, rotation=text_angle,
+                        fontsize=font_size)
+
+            cell_w = 2
+            cell_h = 0.6
+            font_size = 13
+
+            fig_height = 0
+            for i, (key, info) in enumerate(test_info.items()):
+                if not isinstance(info, dict):
+                    fig_height += cell_h
+                else:
+                    fig_height += cell_h * len(info.keys()) * 0.9
+            fig_width = cell_w * 6
+
+            fig_size = (fig_width + 0.1, fig_height + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            ax.axis('off')
+
+            left_bottom_y = 0
+            for i, (key, info) in enumerate(test_info.items()):
+                if key == '测试版本':
+                    left_bottom_y -= cell_h
+                    plot_rect(left_bottom_pt=[0, left_bottom_y],
+                              width=fig_width, height=cell_h, facecolor='lightsteelblue',
+                              text=f'<{info}>测试报告信息总览', text_angle=0, font_size=font_size * 1.2)
+                elif not isinstance(info, dict):
+                    left_bottom_y -= cell_h
+                    plot_rect(left_bottom_pt=[cell_w, left_bottom_y],
+                              width=cell_w * 5, height=cell_h, facecolor='white',
+                              text=info, text_angle=0, font_size=font_size)
+                    plot_rect(left_bottom_pt=[0, left_bottom_y],
+                              width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                              text=key, text_angle=0, font_size=font_size)
+                else:
+                    left_bottom_y -= cell_h * len(info.keys()) * 0.9
+                    text = '\n\n'.join([f'{k}:{v}' for k, v in info.items()])
+                    plot_rect(left_bottom_pt=[cell_w, left_bottom_y],
+                              width=cell_w * 5, height=cell_h * len(info.keys()) * 0.9, facecolor='white',
+                              text=text, text_angle=0, font_size=font_size)
+                    plot_rect(left_bottom_pt=[0, left_bottom_y],
+                              width=cell_w, height=cell_h * len(info.keys()) * 0.9, facecolor='lightsteelblue',
+                              text=key, text_angle=0, font_size=font_size)
+
+            ax.set_xlim(-0.1, fig_width + 0.1)
+            ax.set_ylim(-fig_height - 0.1, 0.1)
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+
+        current_version = self.test_config['version']
+        test_topic = self.test_config['test_topic']
+        version_comparison_folder = self.test_config['version_comparison']
+        old_version = ''
+        for root, dirs, files in os.walk(version_comparison_folder):
+            for file in files:
+                if 'TestConfig.yaml' in file:
+                    file_path = os.path.join(root, file)
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        old_test_config = yaml.safe_load(file)
+                    if 'version_comparison' in old_test_config and old_test_config['test_topic'] == test_topic:
+                        old_version = old_test_config['version']
+
+        output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
+        obstacle_type_key = ';'.join(output_result['obstacle_type'].unique())
+        region_key = ';'.join(output_result['region'].unique())
+        metric_key = ';'.join([v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metrics'].values()
+                      if v['name'] in output_result['metric'].unique()])
+        characteristic_key = {test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['name']:
+                                  test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['description']
+                              for c in self.test_config['test_action']['output_characteristic']}
+
+        scenario_list = {}
+        for scenario_tag in self.test_result['TagCombination']:
+            scenario_list[scenario_tag] = {}
+            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
+
+            frame, distance = 0, 0
+            for scenario_id in scenario_ids:
+                video_info_path = os.path.join(self.scenario_unit_folder, scenario_id, '00_ScenarioInfo', 'video_info.yaml')
+                with open(video_info_path, 'r', encoding='utf-8') as file:
+                    video_info = yaml.safe_load(file)
+                frame += round(video_info['duration'] * video_info['fps'] * 291 / 300)
+                ego_vx_path = os.path.join(self.scenario_unit_folder, scenario_id, '01_Data', 'General', 'pred_ego.csv')
+                ego_vx = pd.read_csv(ego_vx_path, index_col=False)
+                distance += np.ceil((ego_vx['time_stamp'].max() - ego_vx['time_stamp'].min()) * ego_vx['ego_vx'].mean() / 1000)
+            scenario_list[scenario_tag]['帧数'] = f'{frame:.0f} frame'
+            scenario_list[scenario_tag]['行程'] = f'{distance:.0f} km'
+
+        test_info = {
+            '测试版本': current_version,
+            '对比版本': old_version,
+            # 'test_date': self.test_config['test_date'],
+            '测试对象': ';'.join(self.test_config['test_item'].keys()),
+            '目标类型': obstacle_type_key,
+            '指标类型': metric_key,
+            '区域划分': region_key,
+            '特征类型': characteristic_key,
+            '测试场景类型': scenario_list,
+        }
+        plot_path = os.path.join(visualization_folder, '测试信息汇总.png')
+        send_log(self, f'{plot_path} 图片已保存')
+        self.test_result['OutputResult']['test_info'] = self.get_relpath(plot_path)
+        plot_test_info(test_info, plot_path)
+
+        # 将速度图和地图都移动过来
+        for scenario_tag in self.test_result['TagCombination']:
+            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
+            for scenario_id in scenario_ids:
+                for root, dirs, files in os.walk(os.path.join(self.scenario_unit_folder, scenario_id)):
+                    for file in files:
+                        if '_Info.jpg' in file:
+                            file_path = os.path.join(root, file)
+                            os.makedirs(os.path.join(visualization_folder, scenario_tag), exist_ok=True)
+                            new_file_path = os.path.join(visualization_folder, scenario_tag, f'{scenario_id}.jpg')
+                            shutil.copy(file_path, new_file_path)
+
+        # 按照场景和目标特征，生成各个指标的场景
         statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
         group_columns = ['scenario_tag', 'topic', 'obstacle_type', 'characteristic', 'metric']
         stat_group = statistics.groupby(group_columns)
         self.test_result['OutputResult']['visualization'] = {}
 
-        # 将速度图都移动过来
-        for root, dirs, files in os.walk(self.scenario_unit_folder):
-            for file in files:
-                if 'SyncEgoVx.png' in file:
-                    file_path = os.path.join(root, file)
-                    scenario_id = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(file_path))))
-                    if scenario_id in self.valid_scenario_list:
-                        new_file_path = os.path.join(visualization_folder, f'{scenario_id}_{os.path.basename(file_path)}')
-                        shutil.copy(file_path, new_file_path)
-
         df_tp_error = {}
         for df_name, df in stat_group:
             scenario_tag, topic, obstacle_type, characteristic, metric = df_name
+            if characteristic not in self.test_result['OutputResult']['report_table'].keys():
+                continue
 
             if characteristic == '静止目标' and '速度' in metric:
                 continue
+
+            characteristic_folder = os.path.join(visualization_folder, scenario_tag, characteristic)
+            if not os.path.exists(characteristic_folder):
+                os.makedirs(characteristic_folder)
 
             for index, row in df.iterrows():
                 result_dict = json.loads(row['result'])
                 for key, value in result_dict.items():
                     df.at[index, key] = value
             df['type_cate'] = pd.Categorical(df['obstacle_type'],
-                                             categories=['小车', '大巴', '货车', '两轮车', '行人'], ordered=True)
+                                             categories=['小车', '大车', '两轮车', '行人'], ordered=True)
             df.sort_values(by=['type_cate', 'region'], inplace=True)
             drop_columns = group_columns + ['index', 'type_cate', 'result']
             df.drop(drop_columns, axis=1, inplace=True)
             df.insert(0, 'obstacle_type', obstacle_type)
-            df.rename(columns={'region': 'grid area division[m]'}, inplace=True)
+            df.rename(columns={'region': 'Test Area[m]'}, inplace=True)
 
             columns = list(df.columns)
             columns_width = [max(get_string_display_length(c) / 5.2, 2) for c in columns]
@@ -2692,7 +2873,7 @@ class DataGrinderPilotOneTask:
 
             pic_name = '--'.join(
                 [scenario_tag, topic, characteristic, obstacle_type, metric]).replace('/', '')
-            pic_path = os.path.join(visualization_folder, f'{pic_name}.jpg')
+            pic_path = os.path.join(characteristic_folder, f'{pic_name}.jpg')
             print(f'{pic_name} 已保存')
             canvas = FigureCanvas(fig)
             canvas.print_figure(pic_path, facecolor='white', dpi=100)
@@ -2715,13 +2896,13 @@ class DataGrinderPilotOneTask:
                     'precision%': '准确率',
                     'type_accuracy%': '类型准确率'}, inplace=True)
                 df_tp_error[scenario_tag][topic][characteristic][obstacle_type].append(
-                    df[['grid area division[m]', '召回率', '准确率', '类型准确率']])
+                    df[['Test Area[m]', '召回率', '准确率', '类型准确率']])
 
             # 汇总tp_error
             else:
                 df.rename(columns={'pass_ratio%': metric}, inplace=True)
                 df_tp_error[scenario_tag][topic][characteristic][obstacle_type].append(
-                    df[['grid area division[m]', metric]])
+                    df[['Test Area[m]', metric]])
 
         # 合并tp_error的metric数据，以及可视化为饼图
         for scenario_tag in df_tp_error.keys():
@@ -2744,19 +2925,19 @@ class DataGrinderPilotOneTask:
                                 obstacle_type] = {}
 
                         # 合并表格
-                        merged_df = pd.DataFrame(columns=['grid area division[m]'])
+                        merged_df = pd.DataFrame(columns=['Test Area[m]'])
                         for one_df in df_tp_error[scenario_tag][topic][characteristic][obstacle_type]:
-                            merged_df = merged_df.merge(one_df, on='grid area division[m]', how='outer')
+                            merged_df = merged_df.merge(one_df, on='Test Area[m]', how='outer')
 
                         # 重新排列结果的顺序
-                        merged_df = merged_df.set_index('grid area division[m]', drop=True)
+                        merged_df = merged_df.set_index('Test Area[m]', drop=True)
                         result_column = test_encyclopaedia['Information'][self.test_topic]['result_column']
 
                         merged_df = merged_df[[c for c in result_column if c in merged_df.columns]]
 
                         csv_name = '--'.join([scenario_tag, topic, characteristic, obstacle_type]).replace('/', '')
-                        csv_path = os.path.join(visualization_folder, f'{csv_name}.csv')
-                        (merged_df.sort_values(by=['grid area division[m]'])
+                        csv_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{csv_name}.csv')
+                        (merged_df.sort_values(by=['Test Area[m]'])
                          .to_csv(csv_path, index=True, encoding='utf_8_sig'))
                         send_log(self, f'汇总百分比 {csv_name} 数据已保存')
 
@@ -2816,7 +2997,7 @@ class DataGrinderPilotOneTask:
 
                         pic_name = '--'.join(
                             [scenario_tag, topic, characteristic, obstacle_type]).replace('/', '')
-                        pic_path = os.path.join(visualization_folder, f'{pic_name}.jpg')
+                        pic_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{pic_name}.jpg')
                         print(f'{pic_name} 已保存')
                         canvas = FigureCanvas(fig)
                         canvas.print_figure(pic_path, facecolor='white', dpi=100)
@@ -2827,6 +3008,459 @@ class DataGrinderPilotOneTask:
                         self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
                             obstacle_type]['plot'] = self.get_relpath(pic_path)
 
+        # 生成用于汇报的图
+        def plot_single_metric(sub_data, old_data, plot_path):
+
+            def plot_rect(left_bottom_pt, width, height,
+                          facecolor, text, text_angle,
+                          font_size, alpha=1, comparison=None):
+                ratio = 1
+                if (isinstance(comparison, float) or isinstance(comparison, int)) and len(text):
+                    ratio = 0.75
+                    if comparison < 0:
+                        comparison_color = ['darkred', 'darkgreen'][metric_name != '准召信息']
+                    else:
+                        comparison_color = ['darkgreen', 'darkred'][metric_name != '准召信息']
+
+                    if '%' in text:
+                        comparison_text = f'{comparison:.2%}'
+                    elif round(comparison, 0) == comparison:
+                        comparison_text = f'{comparison:.0f}'
+                    else:
+                        comparison_text = f'{comparison:.2f}'
+
+                    ax.add_patch(pc.Rectangle(
+                        xy=(left_bottom_pt[0] + ratio * width, left_bottom_pt[1]),
+                        width=width - ratio * width, height=height,
+                        angle=0, alpha=alpha,
+                        rotation_point='xy',
+                        fill=True,
+                        edgecolor='grey',
+                        facecolor='white',
+                        linewidth=1))
+                    ax.text(left_bottom_pt[0] + (1 + ratio) * width / 2, left_bottom_pt[1] + height / 2,
+                            comparison_text,
+                            va='center', ha='center', rotation=270,
+                            fontdict={
+                                'family': 'sans-serif',  # 字体家族
+                                'color': comparison_color,  # 字体颜色
+                                'weight': 'bold',  # 字体粗细
+                                'size': font_size * 0.7,  # 字体大小
+                                'style': 'normal'  # 字体样式
+                            })
+
+                ax.add_patch(pc.Rectangle(
+                    xy=left_bottom_pt,
+                    width=width * ratio, height=height,
+                    angle=0, alpha=alpha,
+                    rotation_point='xy',
+                    fill=True,
+                    edgecolor='grey',
+                    facecolor=facecolor,
+                    linewidth=1))
+                va, ha = 'center', 'center'
+                ax.text(left_bottom_pt[0] + ratio * width / 2, left_bottom_pt[1] + height / 2, text,
+                        va=va, ha=ha, rotation=text_angle,
+                        fontsize=font_size)
+
+            cell_w = 1
+            cell_h = 0.5
+            font_size = 11
+            fig_size = ((len(sub_data.columns) + 2) * cell_w + 0.1, (len(sub_data) + 3) * cell_h + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            ax.axis('off')
+
+            metric_name = sub_data.columns[0][0]
+            tag_name = sub_data.index[0][2]
+            ax.text((len(sub_data.columns) - 2) / 2, cell_h * 2.5, f'<{tag_name}> {metric_name}',
+                    va='center', ha='center', rotation=0,
+                    fontsize=font_size * 2, color='peru')
+
+            # 原点放置在数据的左上角
+            # 画index
+            plot_rect(left_bottom_pt=(-2 * cell_w, 0),
+                      width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                      text='目标类型', text_angle=0, font_size=font_size)
+            plot_rect(left_bottom_pt=(-1 * cell_w, 0),
+                      width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                      text='测试范围[m]', text_angle=0, font_size=font_size)
+
+            last_index_0 = sub_data.index[0][0]
+            index_0_x, index_0_y = -2 * cell_w, 0
+            index_width, index_height = cell_w, 0
+            for i, index in enumerate(sub_data.index):
+                if last_index_0 != index[0]:
+                    plot_rect(left_bottom_pt=(index_0_x, index_0_y),
+                              width=index_width, height=index_height, facecolor='bisque',
+                              text=last_index_0, text_angle=0, font_size=font_size * 1.2)
+                    index_height = 0
+                index_height += cell_h
+                index_0_y -= cell_h
+                last_index_0 = index[0]
+                if i == len(sub_data.index) - 1:
+                    plot_rect(left_bottom_pt=(index_0_x, index_0_y),
+                              width=index_width, height=index_height, facecolor='bisque',
+                              text=last_index_0, text_angle=0, font_size=font_size * 1.2)
+
+                plot_rect(left_bottom_pt=(-1 * cell_w, - (i + 1) * cell_h),
+                          width=cell_w, height=cell_h, facecolor='bisque',
+                          text=index[1].replace(',', '\n'), text_angle=0, font_size=font_size)
+
+            # 画columns和data
+            last_col_0 = sub_data.columns[0][1]
+            col_0_x, col_0_y = 0, cell_h
+            col_width, col_height = 0, cell_h
+            for i, col in enumerate(sub_data.columns):
+                if last_col_0 != col[1]:
+                    plot_rect(left_bottom_pt=(col_0_x, col_0_y),
+                              width=col_width, height=col_height, facecolor='lightsteelblue',
+                              text=last_col_0, text_angle=0, font_size=font_size * 1.2)
+                    col_0_x += col_width
+                    col_width = 0
+                col_width += cell_w
+                last_col_0 = col[1]
+                if i == len(sub_data.columns) - 1:
+                    plot_rect(left_bottom_pt=(col_0_x, col_0_y),
+                              width=col_width, height=col_height, facecolor='lightsteelblue',
+                              text=last_col_0, text_angle=0, font_size=font_size * 1.2)
+
+                if col[2] != 'kpi_target':
+                    plot_rect(left_bottom_pt=(i * cell_w, 0),
+                              width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                              text=wrap_text(col[2], 10), text_angle=0, font_size=font_size)
+                    for j in range(len(sub_data.index)):
+                        value = sub_data[col].tolist()[j]
+                        if (col[0], col[1], 'kpi_target') in sub_data.columns:
+                            kpi_target = sub_data[(col[0], col[1], 'kpi_target')].tolist()[j]
+                            if np.isnan(value):
+                                text = ''
+                                color = 'lightgrey'
+                            else:
+                                if '%' in col[1]:
+                                    text = f'{value:.2%}'
+                                elif round(value, 0) == value:
+                                    text = f'{value:.0f}'
+                                else:
+                                    text = f'{value:.2f}'
+                                if np.isnan(kpi_target):
+                                    color = 'white'
+                                else:
+                                    if value < kpi_target:
+                                        color = ['lightcoral', 'limegreen'][metric_name != '准召信息']
+                                    else:
+                                        color = ['limegreen', 'lightcoral'][metric_name != '准召信息']
+                        else:
+                            if np.isnan(value):
+                                text = ''
+                                color = 'lightgrey'
+                            else:
+                                color = 'white'
+                                if '%' in col[1]:
+                                    text = f'{value:.2%}'
+                                elif round(value, 0) == value:
+                                    text = f'{value:.0f}'
+                                else:
+                                    text = f'{value:.2f}'
+
+                        #取出old_data中相应格子的值
+                        if old_data is None:
+                            comparison = None
+                        else:
+                            if col not in old_data.columns:
+                                comparison = None
+                            else:
+                                old_value = old_data[col].tolist()[j]
+                                if np.isnan(old_value) or np.isnan(value):
+                                    comparison = None
+                                else:
+                                    comparison = value - old_value
+
+                        plot_rect(left_bottom_pt=(i * cell_w, - j * cell_h - cell_h),
+                                  width=cell_w, height=cell_h, facecolor=color,
+                                  text=text, text_angle=0, font_size=font_size * 1.2, comparison=comparison)
+
+                else:
+                    plot_rect(left_bottom_pt=(i * cell_w, 0),
+                              width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                              text='指标期望', text_angle=0, font_size=font_size * 1.3)
+                    for j in range(len(sub_data.index)):
+                        value = sub_data.values[j, i]
+                        color = 'lightcyan'
+                        if np.isnan(value):
+                            text = ''
+                        elif '%' in col[1]:
+                            text = f'{value:.2%}'
+                        elif round(value, 0) == value:
+                            text = f'{value:.0f}'
+                        else:
+                            text = f'{value:.2f}'
+                        plot_rect(left_bottom_pt=(i * cell_w, - j * cell_h - cell_h),
+                                  width=cell_w, height=cell_h, facecolor=color,
+                                  text=text, text_angle=0, font_size=font_size * 1.2)
+
+            ax.set_xlim(-2 * cell_w - 0.1, len(sub_data.columns) * cell_w + 0.1)
+            ax.set_ylim(- len(sub_data) * cell_h - 0.1, 3 * cell_h + 0.1)
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+
+        def plot_summary_metric(summary_data, plot_path):
+
+            def plot_rect(left_bottom_pt, width, height,
+                          facecolor, text, text_angle,
+                          font_size, fill=True):
+
+                ax.add_patch(pc.Rectangle(
+                    xy=left_bottom_pt,
+                    width=width, height=height,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=fill,
+                    edgecolor='grey',
+                    facecolor=facecolor,
+                    linewidth=1))
+                va, ha = 'center', 'center'
+                ax.text(left_bottom_pt[0] + width / 2, left_bottom_pt[1] + height / 2, text,
+                        va=va, ha=ha, rotation=text_angle,
+                        fontsize=font_size)
+
+            cell_w = 1
+            cell_h = 0.5
+            font_size = 11
+            fig_size = ((len(summary_data.columns) + 2) * cell_w + 0.1, (len(summary_data) + 3) * cell_h + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            ax.axis('off')
+
+            tag_name = summary_data.index[0][2]
+            ax.text((len(summary_data.columns) - 2) / 2, cell_h * 2.5, tag_name,
+                    va='center', ha='center', rotation=0,
+                    fontsize=font_size * 2, color='peru')
+
+            # 原点放置在数据的左上角
+            # 画index
+            plot_rect(left_bottom_pt=(-2 * cell_w, 0),
+                      width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                      text='目标类型', text_angle=0, font_size=font_size)
+            plot_rect(left_bottom_pt=(-1 * cell_w, 0),
+                      width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                      text='测试范围[m]', text_angle=0, font_size=font_size)
+
+            last_index_0 = summary_data.index[0][0]
+            index_0_x, index_0_y = -2 * cell_w, 0
+            index_width, index_height = cell_w, 0
+            for i, index in enumerate(summary_data.index):
+                if last_index_0 != index[0]:
+                    plot_rect(left_bottom_pt=(index_0_x, index_0_y),
+                              width=index_width, height=index_height, facecolor='bisque',
+                              text=last_index_0, text_angle=0, font_size=font_size * 1.2)
+                    index_height = 0
+                index_height += cell_h
+                index_0_y -= cell_h
+                last_index_0 = index[0]
+                if i == len(summary_data.index) - 1:
+                    plot_rect(left_bottom_pt=(index_0_x, index_0_y),
+                              width=index_width, height=index_height, facecolor='bisque',
+                              text=last_index_0, text_angle=0, font_size=font_size * 1.2)
+
+                plot_rect(left_bottom_pt=(-1 * cell_w, - (i + 1) * cell_h),
+                          width=cell_w, height=cell_h, facecolor='bisque',
+                          text=index[1].replace(',', '\n'), text_angle=0, font_size=font_size)
+
+            # 画columns和data
+            last_col_0 = summary_data.columns[0][1]
+            col_0_x, col_0_y = 0, cell_h
+            col_width, col_height = 0, cell_h
+            for i, col in enumerate(summary_data.columns):
+                if last_col_0 != col[1]:
+                    plot_rect(left_bottom_pt=(col_0_x, col_0_y),
+                              width=col_width, height=col_height, facecolor='lightsteelblue',
+                              text=last_col_0, text_angle=0, font_size=font_size * 1.2)
+                    col_0_x += col_width
+                    col_width = 0
+                col_width += cell_w
+                last_col_0 = col[1]
+                if i == len(summary_data.columns) - 1:
+                    plot_rect(left_bottom_pt=(col_0_x, col_0_y),
+                              width=col_width, height=col_height, facecolor='lightsteelblue',
+                              text=last_col_0, text_angle=0, font_size=font_size * 1.2)
+
+                plot_rect(left_bottom_pt=(i * cell_w, 0),
+                          width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                          text=wrap_text(col[2], 10), text_angle=0, font_size=font_size)
+
+                good_face_image = Image.open(os.path.join(project_path, 'Docs', 'Resources', 'Icon', 'good_face.png'))
+                bad_face_image = Image.open(os.path.join(project_path, 'Docs', 'Resources', 'Icon', 'bad_face.png'))
+
+                for j in range(len(summary_data.index)):
+                    plot_rect(left_bottom_pt=(i * cell_w, -j * cell_h - cell_h),
+                              width=col_width, height=col_height, facecolor='white',
+                              text='', text_angle=0, fill=False, font_size=font_size * 1.2)
+
+                    value = summary_data.values[j, i]
+                    extend = (i * cell_w + (cell_w - cell_h) / 2, i * cell_w + cell_w - (cell_w - cell_h) / 2,
+                              -j * cell_h - cell_h, -j * cell_h)
+                    if value == 1:
+                        ax.imshow(good_face_image, extent=extend)
+                    elif value == 0:
+                        ax.imshow(bad_face_image, extent=extend)
+
+            ax.set_xlim(-2 * cell_w - 0.1, len(summary_data.columns) * cell_w + 0.1)
+            ax.set_ylim(- len(summary_data) * cell_h - 0.1, 3 * cell_h + 0.1)
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+
+        # 获取版本对比的文件夹
+        version_comparison_folder = self.test_config['version_comparison']
+        if version_comparison_folder is not None and os.path.exists(version_comparison_folder):
+            comparison_valid = 1
+        else:
+            comparison_valid = 0
+
+        self.test_result['OutputResult']['report_plot'] = {}
+        for characteristic, excel_path in self.test_result['OutputResult']['report_table'].items():
+            excel_path = self.get_abspath(excel_path)
+            self.test_result['OutputResult']['report_plot'][characteristic] = {}
+
+            # 寻找其他版本相同的文件
+            old_excel_path = None
+            if comparison_valid:
+                for root, dirs, files in os.walk(version_comparison_folder):
+                    for file in files:
+                        if os.path.basename(excel_path) in file:
+                            old_excel_path = os.path.join(root, file)
+
+            for _, scenario_tag in enumerate(pd.ExcelFile(excel_path).sheet_names):
+                data = pd.read_excel(excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
+                self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag] = {}
+
+                if old_excel_path is not None:
+                    old_data = pd.read_excel(old_excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
+                else:
+                    old_data = None
+
+                sub_data_col = {}
+                for col in data.columns:
+                    if col[0] not in sub_data_col:
+                        sub_data_col[col[0]] = []
+                    sub_data_col[col[0]].append(col)
+
+                # 获取汇总笑脸图，以及分指标kpi图
+                pass_or_fail_summary = []
+                for metric, cols in sub_data_col.items():
+
+                    if metric == '准召信息':
+                        new_cols = []
+                        for col in cols:
+                            if col[1] not in ['TP', 'CTP', 'FP', 'FN', 'sample_count']:
+                                new_cols.append(col)
+                        sub_data = data[new_cols]
+
+                        # 将sample数量也单独绘制
+                        new_cols = []
+                        for col in cols:
+                            if col[1] in ['TP', 'FP', 'FN', 'CTP']:
+                                new_cols.append(col)
+                        sample_data = data[new_cols]
+                        sample_plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
+                                                 f'{scenario_tag}--{characteristic}--样本数量.png')
+                        plot_single_metric(sample_data, old_data, sample_plot_path)
+                        self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag][
+                            '样本数量'] = self.get_relpath(sample_plot_path)
+                        send_log(self, f'{sample_plot_path} 图片已保存')
+
+                        __metrics = list(dict.fromkeys(sub_data.columns.get_level_values(1)))
+                        for __metric in __metrics:
+                            temp_data = sub_data.loc[:,
+                                        [(col_0, col_1, col_2) for col_0, col_1, col_2 in sub_data.columns if col_1 == __metric]]
+                            pass_or_fails = []
+                            for idx, row in temp_data.iterrows():
+                                pass_or_fail = []
+                                for t0, t1, topic in row.index:
+                                    if topic == 'kpi_target':
+                                        continue
+                                    if np.isnan(row[(t0, t1, topic)]) or np.isnan(row[(t0, t1, 'kpi_target')]):
+                                        pass_or_fail.append(-1)
+                                    elif row[(t0, t1, topic)] > row[(t0, t1, 'kpi_target')]:
+                                        pass_or_fail.append(1)
+                                    else:
+                                        pass_or_fail.append(0)
+                                pass_or_fails.append(pass_or_fail)
+
+                            new_data = sub_data.loc[:, [(col_0, col_1, col_2) for col_0, col_1, col_2 in temp_data.columns if
+                                                        col_2 != 'kpi_target']]
+                            pass_or_fail_data = pd.DataFrame(pass_or_fails, columns=new_data.columns, index=new_data.index)
+                            pass_or_fail_summary.append(pass_or_fail_data)
+
+                    else:
+                        sub_data = data[cols]
+                        __metrics = list(dict.fromkeys(sub_data.columns.get_level_values(1)))
+                        pass_or_fails_compare = []
+                        for __metric in __metrics:
+                            temp_data = sub_data.loc[:,
+                                        [(col_0, col_1, col_2) for col_0, col_1, col_2 in sub_data.columns if col_1 == __metric]]
+                            pass_or_fails = []
+                            for idx, row in temp_data.iterrows():
+                                pass_or_fail = []
+                                for t0, t1, topic in row.index:
+                                    if topic == 'kpi_target':
+                                        continue
+                                    if np.isnan(row[(t0, t1, topic)]) or np.isnan(row[(t0, t1, 'kpi_target')]):
+                                        pass_or_fail.append(-1)
+                                    elif row[(t0, t1, topic)] > row[(t0, t1, 'kpi_target')]:
+                                        pass_or_fail.append(0)
+                                    else:
+                                        pass_or_fail.append(1)
+                                pass_or_fails.append(pass_or_fail)
+                            pass_or_fails_compare.append(np.array(pass_or_fails))
+
+                        # 与或合并测试结果
+                        compare_res = np.zeros_like(pass_or_fails_compare[0])
+                        for ii in range(compare_res.shape[0]):
+                            for jj in range(compare_res.shape[1]):
+                                res = [pass_or_fails[ii, jj] for pass_or_fails in pass_or_fails_compare]
+                                if 1 in res:
+                                    compare_res[ii, jj] = 1
+                                elif 0 in res:
+                                    compare_res[ii, jj] = 0
+                                else:
+                                    compare_res[ii, jj] = -1
+
+                        pass_or_fail_columns = []
+                        for col_0, col_1, col_2 in sub_data.columns:
+                            if col_2 == 'kpi_target':
+                                continue
+                            if (col_0, col_0, col_2) not in pass_or_fail_columns:
+                                pass_or_fail_columns.append((col_0, col_0, col_2))
+                        pass_or_fail_data = pd.DataFrame(compare_res, columns=pass_or_fail_columns, index=sub_data.index)
+                        pass_or_fail_summary.append(pass_or_fail_data)
+
+                    plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
+                                             f'{scenario_tag}--{characteristic}--{metric}.png')
+                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag][
+                        metric] = self.get_relpath(plot_path)
+                    plot_single_metric(sub_data, old_data, plot_path)
+                    send_log(self, f'{plot_path} 图片已保存')
+
+                self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'] = []
+                plot_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{scenario_tag}--{characteristic}_summary_1.png')
+                metric_summary = pd.concat(pass_or_fail_summary[:5], axis=1)
+                plot_summary_metric(metric_summary, plot_path)
+                send_log(self, f'{plot_path} 图片已保存')
+                self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+
+                plot_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{scenario_tag}--{characteristic}_summary_2.png')
+                metric_summary = pd.concat(pass_or_fail_summary[5:], axis=1)
+                plot_summary_metric(metric_summary, plot_path)
+                send_log(self, f'{plot_path} 图片已保存')
+                self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+
     @sync_test_result
     def summary_bug_items(self):
 
@@ -2834,13 +3468,16 @@ class DataGrinderPilotOneTask:
         create_folder(bugItem_folder)
         dataframes = []
 
-        for root, dirs, files in os.walk(self.scenario_unit_folder):
-            for file in files:
-                if 'bug_jira_summary.csv' in file:
-                    file_path = os.path.join(root, file)
-                    df = pd.read_csv(file_path, index_col=False)
-                    if len(df) and df['scenario_id'].values[0] in self.valid_scenario_list:
-                        dataframes.append(df)
+        for scenario_tag in self.test_result['TagCombination']:
+            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
+            for scenario_id in scenario_ids:
+                for root, dirs, files in os.walk(os.path.join(self.scenario_unit_folder, scenario_id)):
+                    for file in files:
+                        if 'bug_jira_summary.csv' in file:
+                            file_path = os.path.join(root, file)
+                            df = pd.read_csv(file_path, index_col=False)
+                            if len(df):
+                                dataframes.append(df)
 
         bug_summary = pd.concat(dataframes, ignore_index=True)
         bug_report_path_list = []
@@ -2865,7 +3502,7 @@ class DataGrinderPilotOneTask:
     @sync_test_result
     def gen_report(self):
 
-        report_title = f'{self.product}_{self.test_topic}_数据回灌测试报告_{self.test_date.split(" ")[0]}'
+        report_title = f'{self.product}_{self.test_topic}_数据回灌感知测试报告'
         send_log(self, f'开始生成报告 {report_title}')
 
         title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'TitlePage.png')
@@ -2878,99 +3515,45 @@ class DataGrinderPilotOneTask:
                                              title_summary_img=None,
                                              logo=logo)
 
-        heading = '报告信息说明'
-        text_list = ['A.测试场景分类:']
-        for i, scenario_tag in enumerate(self.test_result['OutputResult']['visualization'].keys()):
-            text_list.append(f'     {i + 1}. {scenario_tag}')
-        text_list.append(' ')
-
-        text_list.append('B.目标特征分类:')
-        used_characteristics = ['全局目标', '关键目标']
-        for i, characteristic in enumerate(used_characteristics):
-            c_des = '未知特征'
-            for c in self.test_information["characteristic"]:
-                if self.test_information['characteristic'][c]['name'] == characteristic:
-                    c_des = self.test_information['characteristic'][c]['description']
-            text_list.append(f'     {i + 1}. {characteristic}: {c_des}')
-        text_list.append(' ')
-
-        text_list.append('C. 测试topic:')
-        for i, topic in enumerate(self.test_config['test_item'].keys()):
-            text_list.append(f'     {i + 1}. {topic}')
-        text_list.append(' ')
-
-        text_list.append('D. 测试数据查看方式:')
-        text_list.append('1. 测试结果以 Table+Pie Chart 的方式呈现，行索引为空间位置划分，列索引为测试指标')
-        text_list.append('2. 每组行索引和列索引的组合对应的图呈现为合格率，即空间内的目标的指标统计的合格率')
-        text_list.append('3. 空位置代表样本量不足以产生有统计学意义的结果')
-        text_list.append('4. 测试结果的维度: 场景分类 × 测试topic × 目标特征 × 目标分类')
-
+        heading = '报告信息总览'
         send_log(self, f'生成页面 {heading}')
         report_generator.addOnePage(
             heading=heading,
-            text_list=text_list,
-            img_list=None,
+            text_list=None,
+            img_list=[[self.get_abspath(self.test_result['OutputResult']['test_info'])]],
         )
 
-        for scenario_tag in self.test_result['OutputResult']['visualization'].keys():
+        for characteristic in self.test_result['OutputResult']['report_plot'].keys():
+            for scenario_tag in self.test_result['OutputResult']['report_plot'][characteristic]:
 
-            report_generator.addTitlePage(
-                title=scenario_tag,
-                page_type='sequence',
-                stamp=None,
-                sub_title_list=self.test_result['TagCombination'][scenario_tag]['scenario_id'],
-            )
+                send_log(self, f'生成页面 {characteristic} {scenario_tag}')
+                report_generator.addTitlePage(
+                    title=f'{scenario_tag} {characteristic}',
+                    page_type='sequence',
+                    stamp=None,
+                    sub_title_list=None,
+                )
 
-            # 测试场景展示页面
-            img_count = 0
-            img_list = []
-            for scenario_id in self.test_result['TagCombination'][scenario_tag]['scenario_id']:
-                scenario_unit_folder = os.path.join(self.scenario_unit_folder, scenario_id)
-                scenario_info_img = os.path.join(scenario_unit_folder, '00_ScenarioInfo', f'{scenario_id}_Info.jpg')
-                img_list.append([scenario_info_img])
-                img_count += 1
-                if img_count == 3 or scenario_id == self.test_result['TagCombination'][scenario_tag]['scenario_id'][-1]:
-                    report_generator.addOnePage(heading=f'{scenario_tag} 场景列表',
-                                                text_list=None,
-                                                img_list=img_list)
-                    img_list = []
-                    img_count = 0
+                for img in self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary']:
 
-            for topic in self.test_result['OutputResult']['visualization'][scenario_tag].keys():
-                for characteristic in used_characteristics:
-
-                    report_generator.addTitlePage(
-                        title=f'{topic} - {characteristic}',
-                        page_type='sequence',
-                        stamp=None,
+                    send_log(self, f'生成页面 {characteristic} {scenario_tag} Overview')
+                    report_generator.addOnePage(
+                        heading=f'{scenario_tag} Overview',
+                        text_list=['绿色笑脸 = Pass, 红色哭脸 = Fail'],
+                        img_list=[[self.get_abspath(img)]],
                     )
 
-                    for obstacle_type, v in self.test_result['OutputResult']['visualization'][scenario_tag][topic][
-                        characteristic].items():
-                        df = pd.read_csv(self.get_abspath(v['data']), index_col=0)
-                        plot = self.get_abspath(v['plot'])
+                for metric, img in self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag].items():
+                    if metric == 'summary':
+                        continue
 
-                        text_list = []
-                        mean_sorted_columns = df.mean().sort_values().index[:3]
-                        small_mean_columns = [col for col in mean_sorted_columns if df[col].mean() < 0.85]
-                        small_values_columns = [col for col in small_mean_columns for val in df[col] if val < 0.85]
-                        small_values_columns = list(set(small_values_columns))  # 去除重复列名
-                        all_values = df.stack()
-                        smallest_values = all_values.nsmallest(3)
-                        small_values_info = [f'{idx[1]}@{idx[0]}' for idx, val in smallest_values.items() if val < 0.85]
+                    send_log(self, f'生成页面 {characteristic} {scenario_tag} {metric}')
+                    report_generator.addOnePage(
+                        heading=f'{scenario_tag} {metric}',
+                        text_list=['绿色代表“Pass”和“好于”，红色代表“Fail”和“差于”', '侧边竖写数字为与对比版本的差值'],
+                        img_list=[[self.get_abspath(img)]],
+                    )
 
-                        if len(small_values_columns):
-                            text_list.append(f'表现较差的指标为{",".join(small_values_columns)}')
-                        if len(small_values_info):
-                            text_list.append(f'表现较差区域和指标组合为{",".join(small_values_info)}')
-
-                        heading = f'{scenario_tag} {topic} {characteristic} {obstacle_type}'
-                        send_log(self, f'生成页面 {heading}')
-                        report_generator.addOnePage(
-                            heading=heading,
-                            text_list=text_list,
-                            img_list=[[plot]],
-                        )
 
         report_generator.addTitlePage(title='附 录',
                                       page_type='sequence',
@@ -3009,8 +3592,25 @@ class DataGrinderPilotOneTask:
                                     text_list=text,
                                     img_list=img)
 
+        for scenario_tag in self.test_result['OutputResult']['visualization'].keys():
+
+            # 测试场景展示页面
+            img_count = 0
+            img_list = []
+            for i, scenario_id in enumerate(self.test_result['TagCombination'][scenario_tag]['scenario_id']):
+                scenario_info_img = os.path.join(self.output_result_folder, 'visualization', scenario_tag, f'{scenario_id}.jpg')
+                img_list.append([scenario_info_img])
+                img_count += 1
+                if img_count == 3 or i == len(self.test_result['TagCombination'][scenario_tag]['scenario_id'])-1:
+                    report_generator.addOnePage(heading=f'{scenario_tag} 测试场景',
+                                                text_list=None,
+                                                img_list=img_list)
+                    img_list = []
+                    img_count = 0
+
         report_generator.page_count += 1
-        self.report_path = report_generator.genReport(self.task_folder, 1)
+        self.report_path = os.path.join(self.task_folder, f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]})')
+        report_generator.genReport(report_path=self.report_path, compress=1)
 
     def start(self):
         if any([value for value in self.test_action['scenario_unit'].values()]):
@@ -3020,8 +3620,8 @@ class DataGrinderPilotOneTask:
             self.combine_scenario_tag()
 
         if self.test_action['output_result']:
-            self.summary_bug_items()
-            self.compile_statistics()
+            # self.summary_bug_items()
+            # self.compile_statistics()
             self.visualize_output()
 
         if self.test_action['gen_report']:
