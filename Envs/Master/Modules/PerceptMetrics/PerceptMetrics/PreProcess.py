@@ -287,6 +287,20 @@ class VisionAngleRange:
         return min(azimuth_list), max(azimuth_list), min(elevation_list), max(elevation_list)
 
 
+class DuplicateId:
+    """
+    去除相同的id
+
+    """
+
+    def __init__(self, input_parameter_container=None):
+        self.type = 'by_frame'
+
+    def __call__(self, input_data):
+
+        return input_data.drop_duplicates(subset=['time_stamp', 'id'], keep='first')
+
+
 class IsCoverageValid:
     """
     计算物体的被遮挡率和是否有效
@@ -681,6 +695,7 @@ class ObstaclesPreprocess:
     def __init__(self, preprocess_types=None):
         if preprocess_types is None:
             self.preprocess_types = [
+                'DuplicateId',
                 'ObstaclesTypeClassification',
                 'RectPoints', 'VisionAngleRange', 'IsObstaclesDetectedValid',
                 'IsCoverageValid', 'IsKeyObj', 'DruDirection'
