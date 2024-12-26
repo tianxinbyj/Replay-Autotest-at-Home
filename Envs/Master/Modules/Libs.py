@@ -78,6 +78,7 @@ def draw_map(data, map_path, longitude_offset=0.01113, latitude_offset=0.00385):
             marker.append(
                 '{:.5f},{:.5f}'.format(row['longitude'] + longitude_offset, row['latitude'] + latitude_offset))
     marker = '|'.join(marker)
+    print(marker)
     # 你的百度地图API密钥
     api_key = 'kob5tDyCv7qDUGZrYjfLdQHTw7jtFkl3'
     # 静态地图服务的基础URL
@@ -106,11 +107,14 @@ def draw_map(data, map_path, longitude_offset=0.01113, latitude_offset=0.00385):
 
 
 if __name__ == '__main__':
-    import yaml
-    scenario_config_yaml = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug/04_TestData/TestConfig.yaml'
-    with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
-        scenario_test_config = yaml.safe_load(file)
+    d = {
+        '20241111': {'longitude_offset': 0.01113, 'latitude_offset': 0.00385}
+    }
 
-    old_path = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug'
-    new_path = '/home/byj/ZONE/TestProject/Pilot/1J5/Replay_Debug2'
-    print(replace_path_in_dict(scenario_test_config, old_path, new_path))
+    scenario_id = '20241112_073957_n000003'
+    map_path = f'{scenario_id}.png'
+
+    import pandas as pd
+    path = f'/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840_3/01_Prediction/{scenario_id}/RawData/SAINSPVA_{scenario_id}_001_data.csv'
+    data = pd.read_csv(path)
+    draw_map(data, map_path, longitude_offset=0, latitude_offset=0)

@@ -2793,8 +2793,7 @@ class DataGrinderPilotOneTask:
                 ego_vx_path = os.path.join(self.scenario_unit_folder, scenario_id, '01_Data', 'General', 'pred_ego.csv')
                 ego_vx = pd.read_csv(ego_vx_path, index_col=False)
                 distance += np.ceil((ego_vx['time_stamp'].max() - ego_vx['time_stamp'].min()) * ego_vx['ego_vx'].mean() / 1000)
-            scenario_list[scenario_tag]['帧数'] = f'{frame:.0f} frame'
-            scenario_list[scenario_tag]['行程'] = f'{distance:.0f} km'
+            scenario_list[scenario_tag] = f'帧数-{frame:.0f} frame, 里程-{distance:.0f} km'
 
         test_info = {
             '测试版本': current_version,
@@ -3528,7 +3527,7 @@ class DataGrinderPilotOneTask:
 
                 send_log(self, f'生成页面 {characteristic} {scenario_tag}')
                 report_generator.addTitlePage(
-                    title=f'{scenario_tag} {characteristic}',
+                    title=f'{scenario_tag}<{characteristic}>',
                     page_type='sequence',
                     stamp=None,
                     sub_title_list=None,
@@ -3538,7 +3537,7 @@ class DataGrinderPilotOneTask:
 
                     send_log(self, f'生成页面 {characteristic} {scenario_tag} Overview')
                     report_generator.addOnePage(
-                        heading=f'{scenario_tag} Overview',
+                        heading=f'{scenario_tag}<{characteristic}> Overview',
                         text_list=['绿色笑脸 = Pass, 红色哭脸 = Fail'],
                         img_list=[[self.get_abspath(img)]],
                     )
@@ -3549,16 +3548,31 @@ class DataGrinderPilotOneTask:
 
                     send_log(self, f'生成页面 {characteristic} {scenario_tag} {metric}')
                     report_generator.addOnePage(
-                        heading=f'{scenario_tag} {metric}',
+                        heading=f'{scenario_tag}<{characteristic}> {metric}',
                         text_list=['绿色代表“Pass”和“好于”，红色代表“Fail”和“差于”', '侧边竖写数字为与对比版本的差值'],
                         img_list=[[self.get_abspath(img)]],
                     )
-
 
         report_generator.addTitlePage(title='附 录',
                                       page_type='sequence',
                                       stamp=None,
                                       sub_title_list=None)
+
+        for scenario_tag in self.test_result['OutputResult']['visualization'].keys():
+
+            # 测试场景展示页面
+            img_count = 0
+            img_list = []
+            for i, scenario_id in enumerate(self.test_result['TagCombination'][scenario_tag]['scenario_id']):
+                scenario_info_img = os.path.join(self.output_result_folder, 'visualization', scenario_tag, f'{scenario_id}.jpg')
+                img_list.append([scenario_info_img])
+                img_count += 1
+                if img_count == 3 or i == len(self.test_result['TagCombination'][scenario_tag]['scenario_id'])-1:
+                    report_generator.addOnePage(heading=f'{scenario_tag} 测试场景',
+                                                text_list=None,
+                                                img_list=img_list)
+                    img_list = []
+                    img_count = 0
 
         # 测试环境
         heading = '测试环境——硬件在环 | 数采回灌'
@@ -3592,22 +3606,6 @@ class DataGrinderPilotOneTask:
                                     text_list=text,
                                     img_list=img)
 
-        for scenario_tag in self.test_result['OutputResult']['visualization'].keys():
-
-            # 测试场景展示页面
-            img_count = 0
-            img_list = []
-            for i, scenario_id in enumerate(self.test_result['TagCombination'][scenario_tag]['scenario_id']):
-                scenario_info_img = os.path.join(self.output_result_folder, 'visualization', scenario_tag, f'{scenario_id}.jpg')
-                img_list.append([scenario_info_img])
-                img_count += 1
-                if img_count == 3 or i == len(self.test_result['TagCombination'][scenario_tag]['scenario_id'])-1:
-                    report_generator.addOnePage(heading=f'{scenario_tag} 测试场景',
-                                                text_list=None,
-                                                img_list=img_list)
-                    img_list = []
-                    img_count = 0
-
         report_generator.page_count += 1
         self.report_path = os.path.join(self.task_folder, f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]})')
         report_generator.genReport(report_path=self.report_path, compress=1)
@@ -3620,8 +3618,8 @@ class DataGrinderPilotOneTask:
             self.combine_scenario_tag()
 
         if self.test_action['output_result']:
-            # self.summary_bug_items()
-            # self.compile_statistics()
+            self.summary_bug_items()
+            self.compile_statistics()
             self.visualize_output()
 
         if self.test_action['gen_report']:
