@@ -340,6 +340,7 @@ class DistortCameraObject:
 
     # 从json_file中读取，是指从地平线标准格式的相机json构造相机
     # 也可以从参数传入构造一个新相机
+    # 从json进入的方式构造相机可能有问题，暂时停止使用
     def __init__(self, json_file=None, yaml_file=None, camera_par=None, camera_model='opencv_pinhole'):
         if json_file:
             self.camera_object = CameraObject(json_file=json_file)
@@ -1024,9 +1025,9 @@ def transfer_es39_2_1j5(json_folder, yaml_folder):
 
     for camera_name in mapping.keys():
 
-        json_2j5 = os.path.join(json_folder, f'{mapping[camera_name]}.json')
-        if os.path.exists(json_2j5):
-            with open(json_2j5, 'r') as f:
+        json_es39 = os.path.join(json_folder, f'{mapping[camera_name]}.json')
+        if os.path.exists(json_es39):
+            with open(json_es39, 'r') as f:
                 camera_config = json.load(f)
 
             yaml_dict = {
@@ -1052,6 +1053,92 @@ def transfer_es39_2_1j5(json_folder, yaml_folder):
                 yaml.dump(yaml_dict, f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
 
+def transfer_es39_2_2j5(json_folder_3s39, json_folder_2j5):
+
+    mapping = {
+        'fisheye_front': '7',
+        'fisheye_rear': '6',
+        'fisheye_left': '8',
+        'fisheye_right': '9',
+        'front': '5',
+        'rear': '4',
+    }
+    temp_2j5_folder = '/home/zhangliwei01/ZONE/horizon/camera'
+
+    for camera_name in mapping.keys():
+
+        json_es39 = os.path.join(json_folder_3s39, f'{camera_name}.json')
+        if os.path.exists(json_es39):
+            with open(json_es39, 'r') as f:
+                es39_camera = json.load(f)
+
+            template_json = os.path.join(temp_2j5_folder, f'camera-{mapping[camera_name]}', 'camera_0.json')
+            with open(template_json, 'r') as f:
+                temp_camera = json.load(f)
+
+            # es39的外参
+            world2camera_es39 = Rotation.from_euler('ZYX', [
+                es39_camera['yaw'], es39_camera['pitch'], es39_camera['roll']
+            ]).as_matrix()
+
+            # 2j5的外参
+            world2calib_2j5 = Rotation.from_euler('XYZ', [
+                temp_camera['vcs']['rotation'][0],
+                temp_camera['vcs']['rotation'][1],
+                temp_camera['vcs']['rotation'][2],
+            ]).as_matrix()
+            calib2camera_2j5 = np.linalg.inv(world2calib_2j5) @ world2camera_es39
+            # yaw, pitch, roll = Rotation.from_matrix(calib2camera_2j5).as_euler('ZYX')
+            roll, pitch, yaw = Rotation.from_matrix(calib2camera_2j5).as_euler('XYZ')
+
+            x = es39_camera['camera_x'] - temp_camera['vcs']['translation'][0]
+            y = es39_camera['camera_y'] - temp_camera['vcs']['translation'][1]
+            z = es39_camera['camera_z'] - temp_camera['vcs']['translation'][2]
+
+            folder_camera_2j5 = os.path.join(json_folder_2j5, f'camera-{mapping[camera_name]}')
+            if os.path.exists(folder_camera_2j5):
+                shutil.rmtree(folder_camera_2j5)
+            os.makedirs(folder_camera_2j5)
+
+            camera_json_2j5 = os.path.join(folder_camera_2j5, 'camera_0.json')
+            camera_dict = {
+                'base_calib_done': 0,
+                'binning_camera_update': 0,
+                'calib_done_ts': 0,
+                'calib_src': 0,
+                'camera_intrinsic_changed': 0,
+                'camera_x': x,
+                'camera_y': y,
+                'camera_z': z,
+                'center_u': es39_camera['center_u'],
+                'center_v': es39_camera['center_v'],
+                'check_state': 1,
+                'distort': es39_camera['distort'],
+                'error_code': '',
+                'focal_u': es39_camera['focal_u'],
+                'focal_v': es39_camera['focal_v'],
+                'fov': temp_camera['fov'],
+                'image_height': es39_camera['image_height'],
+                'image_width': es39_camera['image_width'],
+                'intric_paramater_from': temp_camera['intric_paramater_from'],
+                'is_default': 1,
+                'pitch': pitch,
+                'roll': roll,
+                'sensor_desc': '',
+                'serial_num': temp_camera['serial_num'],
+                'type': temp_camera['type'],
+                'valid_height': temp_camera['valid_height'],
+                'vcs': temp_camera['vcs'],
+                'vendor': temp_camera['vendor'],
+                'version': temp_camera['version'],
+                'yaw': yaw,
+            }
+
+            with open(camera_json_2j5, 'w+') as f:
+                json.dump(camera_dict, f, indent=2)
+
+
+
 if __name__ == '__main__':
     # json_folder = '/home/caobingqi/下载/2J5'
     # yaml_folder = '/home/caobingqi/下载/1J5'
@@ -1065,6 +1152,8 @@ if __name__ == '__main__':
     # yaml_folder = '/home/zhangliwei01/ZONE/456'
     #
     # transfer_es39_2_1j5(json_folder, yaml_folder)
-    yaml_file = '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240924_030000/01_Prediction/20241018_154712_n000002/scenario_info/yaml_calib/CAM_FRONT_120.yaml'
-    c = CameraObject(yaml_file=yaml_file)
-    print(c.world2camera(10, -3, 0))
+
+    json_folder_es39 = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/01_Prediction/20241111_093841_n000013/scenario_info/json_calib'
+    json_folder_2j5 = '/home/zhangliwei01/ZONE/dfg'
+
+    transfer_es39_2_2j5(json_folder_es39, json_folder_2j5)

@@ -437,7 +437,6 @@ ES39:
     - /VA/VehicleMotionIpd
     - /VA/BevObstaclesDet
     - /VA/Obstacles
-    - /VA/BevLines
     - /VA/FrontWideObstacles2dDet
     - /VA/BackViewObstacles2dDet
     - /SA/INSPVA
@@ -802,12 +801,11 @@ ES37:
   parse_topic:
     pilot:
     - /PI/EG/EgoMotionInfo
-    - /VA/Obstacles
-    - /PI/FS/ObjTracksHorizon
     - /VA/Lines
-    - /VA/Objects
-    - /PI/CUS/HMIOutputES33
-    - /PP/CUS/FctDebug
+    - /SA/INSPVA
+    - /VA/VehicleResult
+    - /VA/PedResult
+    - /VA/VehicleMotionIpd
     parking:
     - /PI/EG/EgoMotionInfo
     - /VA/Slots
@@ -953,6 +951,8 @@ ES37:
     - /MCU/FuncStatus
     - /PDC/PdcDebugInfo
     - /PK/TF/MapToBase
+    - /VA/VehicleResult
+    - /VA/PedResult
     parking:
     - /AEB/AEBFlag
     - /AEB/HbObstacles
@@ -1126,6 +1126,8 @@ Information:
       /VA/BevObstaclesDet: 感知BEV模型
       /VA/FrontWideObstacles2dDet: 感知Front模型
       /VA/BackViewObstacles2dDet: 感知Back模型
+      /VA/PedResult: 地平线Ped感知
+      /VA/VehicleResult: 地平线Veh感知
     description:
     - 基于动态要素感知与真值的位置坐标,
     - 获取感知与真实动态要素的关联关系,
@@ -1199,7 +1201,7 @@ Information:
         description: 前方主车道内距离最近的目标
       is_keyObj:
         name: 关键目标
-        description: 主车道内距离最近的或相邻车道内无遮挡的目标
+        description: 主车道内距离最近的或相邻车道内几乎无遮挡的目标
       is_sameDir:
         name: 同向目标
         description: 航向角在-30°～30°内的目标
@@ -1249,7 +1251,7 @@ Information:
       false_negative:
         name: 负样本漏检测
       false_type:
-        name: 负样本漏检测
+        name: 类型错误
       x_error:
         name: 纵向距离误差
       y_error:

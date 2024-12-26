@@ -118,8 +118,7 @@ def calculate_angle(x, y, z=None):
 
 class ObstaclesTypeClassification:
     """
-    对车辆进行分类，分为大巴，货车，小车，行人，自行车
-    行人=2， 自行车=18， 小车=1，大巴=4，货车=5，
+    对车辆进行分类，分为大车，小车，行人，两轮车
 
     """
 
@@ -286,6 +285,20 @@ class VisionAngleRange:
             azimuth_list = [azi if azi < np.pi else azi - 2 * np.pi for azi in azimuth_list]
 
         return min(azimuth_list), max(azimuth_list), min(elevation_list), max(elevation_list)
+
+
+class DuplicateId:
+    """
+    去除相同的id
+
+    """
+
+    def __init__(self, input_parameter_container=None):
+        self.type = 'by_frame'
+
+    def __call__(self, input_data):
+
+        return input_data.drop_duplicates(subset=['time_stamp', 'id'], keep='first')
 
 
 class IsCoverageValid:
@@ -682,6 +695,7 @@ class ObstaclesPreprocess:
     def __init__(self, preprocess_types=None):
         if preprocess_types is None:
             self.preprocess_types = [
+                'DuplicateId',
                 'ObstaclesTypeClassification',
                 'RectPoints', 'VisionAngleRange', 'IsObstaclesDetectedValid',
                 'IsCoverageValid', 'IsKeyObj', 'DruDirection'

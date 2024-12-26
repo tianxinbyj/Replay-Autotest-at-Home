@@ -17,6 +17,7 @@ class DataReplayTestPilot:
 
     def __init__(self, test_project_path):
         self.log_server = None
+        self.test_project_path = test_project_path
         workspace_folder = os.path.join(test_project_path, '03_Workspace')
         if not os.path.exists(os.path.join(workspace_folder, 'install')):
             print('未找到 03_Workspace/install 文件！')
@@ -66,7 +67,8 @@ class DataReplayTestPilot:
             # 使用第一个test_config的值作为录包的test_action依据
             test_config = self.test_config_dict[feature_group][0]
             if (test_config['test_action']['ros2bag']['record']
-                    or test_config['test_action']['ros2bag']['truth']):
+                    or test_config['test_action']['ros2bag']['truth']
+                    or test_config['test_action']['ros2bag']['video_info']):
 
                 replay_config = {
                     'product': test_config['product'],
@@ -90,8 +92,11 @@ class DataReplayTestPilot:
     def data_grinder(self):
         for feature_group in self.test_config_dict.keys():
             for task_folder in self.task_folder_dict[feature_group]:
-                if feature_group == 'pilot':
-                    DataGrinderPilotOneTask(task_folder).start()
+                if not os.path.exists(os.path.join(self.test_project_path, '01_Prediction', 'topic_output_statistics.csv')):
+                    print(task_folder, '不存在topic_output_statistics')
+                else:
+                    if feature_group == 'pilot':
+                        DataGrinderPilotOneTask(task_folder).start()
 
     def start(self):
         self.start_log_server()

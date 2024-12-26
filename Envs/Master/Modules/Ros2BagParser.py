@@ -8,6 +8,7 @@ import csv
 import glob
 import multiprocessing as mp
 import os
+import shutil
 import time
 import warnings
 from pathlib import Path
@@ -835,60 +836,60 @@ msg_description = {
 data_columns = {
     'vehicle_msgs/msg/VehicleMotionIpd':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'vehicle_speed',
             'FL_wheel_speed', 'FR_wheel_speed', 'RL_wheel_speed', 'RR_wheel_speed',
             'front_wheel_angle', 'rear_wheel_angle',
         ],
     'gnss_imu_msgs/msg/Inspva':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'utc_time_stamp', 'latitude', 'longitude',
             'roll', 'pitch', 'yaw',
         ],
     'parking_ego_motion_msgs/msg/DrResult':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'ego_x', 'ego_y', 'ego_vx', 'ego_vy', 'roll', 'pitch', 'yaw',
         ],
     'proto_horizon_msgs/msg/Obstacles':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'obstacle_type_text', 'confidence', 'sub_type', 'curr_lane',
             'x', 'y', 'z', 'vx', 'vy', 'vx_rel', 'vy_rel', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
             'is_cipv', 'is_mcp', 'status',
         ],
     'env_perception_msgs/msg/EnvFusLines':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'confidence', 'position', 'marker', 'color',
             'start_x', 'start_y', 'c_x_0', 'c_x_1', 'c_x_2', 'c_x_3',
             'c_y_0', 'c_y_1', 'c_y_2', 'c_y_3', 'length', 'width', 'curve_type',
         ],
     'proto_horizon_msgs/msg/Lines':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'confidence', 'position', 'marker', 'color',
             'start_x', 'start_y', 'c_x_0', 'c_x_1', 'c_x_2', 'c_x_3',
             'c_y_0', 'c_y_1', 'c_y_2', 'c_y_3', 'length', 'width', 'curve_type',
         ],
     'proto_horizon_msgs/msg/FusLines':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'confidence', 'position', 'marker', 'color',
             'start_x', 'start_y', 'c_x_0', 'c_x_1', 'c_x_2', 'c_x_3',
             'c_y_0', 'c_y_1', 'c_y_2', 'c_y_3', 'length', 'width', 'curve_type',
         ],
     'proto_horizon_msgs/msg/Objects':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'confidence', 'sub_type', 'curr_lane_flag',
             'x', 'y', 'z', 'x0', 'y0', 'x1', 'y1', 'x2', 'y2', 'x3', 'y3',
             'value', 'age', 'child_types',
         ],
     'sensor_abstraction_msgs/msg/RadarObjectArray':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'exist_confidence', 'obstacle_confidence',
             'x', 'y', 'vx', 'vy', 'length', 'width', 'yaw',
         ],
@@ -899,47 +900,47 @@ data_columns = {
         ],
     'pilot_perception_msg/msg/ObstaclesDet':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'obstacle_type_text', 'confidence', 'sub_type', 'curr_lane',
             'x', 'y', 'z', 'vx', 'vy', 'vx_rel', 'vy_rel', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
             'is_cipv', 'is_mcp', 'status',
         ],
     'pilot_perception_msg/msg/Obstacles2dDet':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'obstacle_type_text', 'confidence', 'sub_type', 'curr_lane',
             'x', 'y', 'z', 'vx', 'vy', 'vx_rel', 'vy_rel', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
             'is_cipv', 'is_mcp', 'status',
         ],
     'per_fusion_msgs/msg/ObjTracks':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'obstacle_type_text', 'confidence', 'sub_type', 'curr_lane',
             'x', 'y', 'z', 'vx', 'vy', 'vx_rel', 'vy_rel', 'yaw', 'length', 'width', 'height', 'age', 'coverage',
             'is_cipv', 'is_mcp', 'status',
         ],
     'pilot_perception_msg/msg/VisionLaneMarkList':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'confidence', 'position', 'marker', 'color',
             'start_x', 'start_y', 'c_x_0', 'c_x_1', 'c_x_2', 'c_x_3',
             'c_y_0', 'c_y_1', 'c_y_2', 'c_y_3', 'length', 'width', 'curve_type',
         ],
     'per_fusion_msgs/msg/LaneMarkings':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'confidence', 'position', 'marker', 'color',
             'start_x', 'start_y', 'c_x_0', 'c_x_1', 'c_x_2', 'c_x_3',
             'c_y_0', 'c_y_1', 'c_y_2', 'c_y_3', 'length', 'width', 'curve_type',
         ],
     'proto_horizon_msgs/msg/WorkCondition':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'work_condition_type', 'type',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'work_condition_type', 'type',
             'type_conf'
         ],
     'proto_horizon_msgs/msg/Freespaces':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id', 'points_num', 'label', 'x', 'y', 'z',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id', 'points_num', 'label', 'x', 'y', 'z',
             'valid'
         ],
     'proto_horizon_msgs/msg/Slots':
@@ -1042,6 +1043,8 @@ topic2msg = {
     '/Groundtruth/VA/Objects': 'proto_horizon_msgs/msg/Objects',
     '/VA/VehicleMotionIpd': 'vehicle_msgs/msg/VehicleMotionIpd',
     '/VA/Obstacles': 'proto_horizon_msgs/msg/Obstacles',
+    '/VA/VehicleResult': 'proto_horizon_msgs/msg/Obstacles',
+    '/VA/PedResult': 'proto_horizon_msgs/msg/Obstacles',
     '/Groundtruth/VA/Obstacles': 'proto_horizon_msgs/msg/Obstacles',
     '/VA/FrontViewObstacles': 'proto_horizon_msgs/msg/Obstacles',
     '/VA/BevObstaclesDet': 'pilot_perception_msg/msg/ObstaclesDet',
@@ -1245,7 +1248,101 @@ class Ros2BagParser:
                     status = world_info.measurement_status
 
                     queue.put([
-                        local_time, time_stamp, header_seq, header_stamp, frame_id,
+                        local_time, time_stamp, header_stamp, header_seq, frame_id,
+                        obstacle_id, obstacle_type, obstacle_type_text, type_conf, sub_type, curr_lane,
+                        x, y, world_info.position.z, vx, vy, vx_rel, vy_rel, yaw, length, width, height, age, coverage,
+                        is_cipv, is_mcp, status,
+                    ])
+
+                self.last_timestamp[topic] = time_stamp
+
+        if topic in ['/VA/VehicleResult', '/VA/PedResult']:
+            time_stamp = msg.exposure_time_stamp / 1000
+            frame_id = msg.frame_id
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+            if time_stamp != self.last_timestamp[topic]:
+                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_seq = msg.header.seq
+
+                for obstacle_data in msg.obstacles:
+                    obstacle_id = obstacle_data.obstacle_id
+                    if obstacle_id == 0:
+                        continue
+
+                    obstacle_type = obstacle_data.obstacle_type
+                    world_info = obstacle_data.world_info
+                    point_type = world_info.position_type
+                    a = 0 if point_type in [7, 8, 9, 0] else 1 / 2 if point_type in [4, 5, 6] else -1 / 2
+                    b = 0 if point_type in [0, 2, 5, 9] else 1 / 2 if point_type in [1, 4, 7] else -1 / 2
+
+                    if obstacle_type in [0, 1]:
+                        obstacle_type = 1
+                        obstacle_type_text = 'vehicle'
+                    elif obstacle_type == 2:
+                        obstacle_type_text = 'pedestrian'
+                    else:
+                        obstacle_type_text = 'cyclist'
+
+                    ped_yaws = {
+                        0: np.pi,
+                        1: 0,
+                        2: np.pi / 2,
+                        3: np.pi / 4,
+                        4: np.pi / 4 * 3,
+                        5: -np.pi / 2,
+                        6: -np.pi / 4 * 3,
+                        7: -np.pi / 4
+                    }
+
+                    yaw = world_info.yaw
+                    if obstacle_type_text == 'pedestrian':
+                        for category in obstacle_data.category:
+                            if category.category_property_conf and category.category_property_type == 0:
+                                yaw = ped_yaws[category.category_property]
+                                break
+
+                    sub_type = 0
+                    if obstacle_type in [0, 1]:
+                        for category in obstacle_data.category:
+                            if category.category_property_type == 0:
+                                # property_name = np.array(category.property_name, dtype=np.uint8).tobytes().decode('ascii')
+                                # property_name = ''.join([a for a in property_name if a.isalpha()])
+                                # sub_type = f'{category.category_property}-{property_name}'
+                                if category.category_property in [1, 10, 3]:
+                                    sub_type = 1
+                                elif category.category_property == 0:
+                                    sub_type = 4
+                                elif category.category_property == 2:
+                                    sub_type = 5
+                                elif category.category_property in [11, 7, 8]:
+                                    sub_type = 3
+                                elif category.category_property == 5:
+                                    sub_type = 11
+                                else:
+                                    sub_type = 10
+                                break
+
+                    length = world_info.length
+                    width = world_info.width
+                    height = world_info.height
+                    x = world_info.position.x - a * length * np.cos(yaw) + b * width * np.sin(yaw)
+                    y = world_info.position.y - a * length * np.sin(yaw) - b * width * np.cos(yaw)
+                    vx, vx_rel = world_info.vel_abs_world.vx, world_info.vel.vx
+                    vy, vy_rel = world_info.vel_abs_world.vy, world_info.vel.vy
+
+                    type_conf = obstacle_data.type_conf
+                    if type_conf > 1:
+                        type_conf = obstacle_data.type_conf / 100
+                    curr_lane = world_info.curr_lane
+                    age = obstacle_data.age
+                    coverage = world_info.cover_ratio
+                    is_cipv = world_info.is_cipv
+                    is_mcp = world_info.is_mcp
+                    status = world_info.measurement_status
+
+                    queue.put([
+                        local_time, time_stamp, header_stamp, header_seq, frame_id,
                         obstacle_id, obstacle_type, obstacle_type_text, type_conf, sub_type, curr_lane,
                         x, y, world_info.position.z, vx, vy, vx_rel, vy_rel, yaw, length, width, height, age, coverage,
                         is_cipv, is_mcp, status,
@@ -1265,13 +1362,13 @@ class Ros2BagParser:
                 veh_num = msg.veh_num
                 ped_cyc_info = msg.ped_cyc
                 ped_cyc_num = msg.ped_cyc_num
-                ob_id = frame_id * 256
+                ob_id = (frame_id * 64) % 200000
 
                 for veh_id in range(veh_num):
                     obj_data = veh_info[veh_id]
                     ob_id += 1
                     queue.put([
-                        local_time, time_stamp, header_seq, header_stamp, frame_id,
+                        local_time, time_stamp, header_stamp, header_seq, frame_id,
                         ob_id, 1, 'vehicle', obj_data.obj_confidence, obj_data.obj_type, 0,
                         obj_data.center_x, obj_data.center_y, obj_data.center_z,
                         obj_data.velocity_x, obj_data.velocity_y, 0, 0,
@@ -1289,7 +1386,7 @@ class Ros2BagParser:
                         obstacle_type_text = 'pedestrian'
                         ob_type = 2
                     queue.put([
-                        local_time, time_stamp, header_seq, header_stamp, frame_id,
+                        local_time, time_stamp, header_stamp, header_seq, frame_id,
                         ob_id, ob_type, obstacle_type_text, obj_data.obj_confidence, -1, 0,
                         obj_data.center_x, obj_data.center_y, obj_data.center_z,
                         obj_data.velocity_x, obj_data.velocity_y, 0, 0,
@@ -1304,7 +1401,7 @@ class Ros2BagParser:
             frame_id = msg.framenum
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
-            ob_id = frame_id * 256
+            ob_id = (frame_id * 64) % 200000
             if time_stamp != self.last_timestamp[topic]:
                 header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
                 header_seq = msg.header.seq
@@ -1328,10 +1425,12 @@ class Ros2BagParser:
                                 sub_type = 4
                             elif obj_data.veh_type == 2:
                                 sub_type = 5
+                            elif obj_data.veh_type == 3:
+                                sub_type = 9
                             else:
                                 sub_type = 0
                             queue.put([
-                                local_time, time_stamp, header_seq, header_stamp, frame_id,
+                                local_time, time_stamp, header_stamp, header_seq, frame_id,
                                 ob_id, 1, 'vehicle', obj_data.obj_conf, sub_type, 0,
                                 world_info.center_x, world_info.center_y, world_info.center_z,
                                 world_info.velocity_x, world_info.velocity_y, 0, 0,
@@ -1342,17 +1441,20 @@ class Ros2BagParser:
                     for ped_cyc_id in range(ped_cyc_num):
                         obj_data = ped_cyc_info_list[ped_cyc_id]
                         ob_id += 1
-                        if obj_data.obj_type == 18:
-                            obj_type_text = 'cyclist'
-                            ob_type = 18
-                        else:
-                            obj_type_text = 'pedestrian'
-                            ob_type = 2
                         world_info = obj_data.world_info
                         if world_info.center_x != 0 and world_info.center_y != 0:
+                            if obj_data.veh_type == 1:
+                                obj_type_text = 'cyclist'
+                                ob_type = 18
+                            elif obj_data.veh_type == 0:
+                                obj_type_text = 'pedestrian'
+                                ob_type = 2
+                            else:
+                                obj_type_text = 'pedestrian'
+                                ob_type = 2
                             queue.put([
-                                local_time, time_stamp, header_seq, header_stamp, frame_id,
-                                ob_id, ob_type, obj_type_text, obj_data.obj_conf, obj_data.obj_type, 0,
+                                local_time, time_stamp, header_stamp, header_seq, frame_id,
+                                ob_id, ob_type, obj_type_text, obj_data.obj_conf, -1, 0,
                                 world_info.center_x, world_info.center_y, world_info.center_z,
                                 world_info.velocity_x, world_info.velocity_y, 0, 0,
                                 world_info.yaw, world_info.obj_length, world_info.obj_width, world_info.obj_height,
@@ -1427,7 +1529,7 @@ class Ros2BagParser:
                         is_cipv = NaturalAttr.is_cipv
                         is_mcp = NaturalAttr.is_mcp
                         queue.put([
-                            local_time, time_stamp, header_seq, header_stamp, frame_id,
+                            local_time, time_stamp, header_stamp, header_seq, frame_id,
                             obstacle_id, obj_type, obj_type_text, type_conf, sub_type, 0,
                             x, y, 0, vx, vy, vx_rel, vy_rel, yaw, length, width, height, 0, 0,
                             is_cipv, is_mcp, 0,
@@ -1481,7 +1583,7 @@ class Ros2BagParser:
                         curve_type = line3d_data.curve_type
 
                         queue.put([
-                            local_time, time_stamp, header_seq, header_stamp, frame_id,
+                            local_time, time_stamp, header_stamp, header_seq, frame_id,
                             line_id, line_type, conf, line_position, line_marking, line_color,
                             start_x, start_y, c_x_0, c_x_1, c_x_2, c_x_3,
                             c_y_0, c_y_1, c_y_2, c_y_3, length, width, curve_type,
@@ -1541,7 +1643,7 @@ class Ros2BagParser:
                         curve_type = line3d_data.curve_type
 
                         queue.put([
-                            local_time, time_stamp, header_seq, header_stamp, frame_id,
+                            local_time, time_stamp, header_stamp, header_seq, frame_id,
                             line_id, line_type, conf, line_position, line_marking, line_color,
                             start_x, start_y, c_x_0, c_x_1, c_x_2, c_x_3,
                             c_y_0, c_y_1, c_y_2, c_y_3, length, width, curve_type,
@@ -1647,7 +1749,7 @@ class Ros2BagParser:
                         curve_type = 0
 
                         queue.put([
-                            local_time, time_stamp, header_seq, header_stamp, frame_id,
+                            local_time, time_stamp, header_stamp, header_seq, frame_id,
                             line_id, line_type, conf, line_position, line_marking, line_color,
                             start_x, start_y, c_x_0, c_x_1, c_x_2, c_x_3,
                             c_y_0, c_y_1, c_y_2, c_y_3, length, width, curve_type,
@@ -1708,7 +1810,7 @@ class Ros2BagParser:
                         curve_type = 2
 
                         queue.put([
-                            local_time, time_stamp, header_seq, header_stamp, frame_id,
+                            local_time, time_stamp, header_stamp, header_seq, frame_id,
                             line_id, line_type, conf, line_position, line_marker, line_color,
                             start_x, start_y, c_x_0, c_x_1, c_x_2, c_x_3,
                             c_y_0, c_y_1, c_y_2, c_y_3, length, width, curve_type,
@@ -1748,7 +1850,7 @@ class Ros2BagParser:
                     child_types = object_data.child_types
 
                     queue.put([
-                        local_time, time_stamp, header_seq, header_stamp, frame_id,
+                        local_time, time_stamp, header_stamp, header_seq, frame_id,
                         object_id, object_type, type_conf, sub_type, curr_lane_flag,
                         x, y, z, x0, y0, x1, y1, x2, y2, x3, y3,
                         value, age, child_types,
@@ -1785,7 +1887,7 @@ class Ros2BagParser:
                     vy = object_data.obj_yvel_rel
 
                     queue.put([
-                        local_time, time_stamp, header_seq, header_stamp, frame_id,
+                        local_time, time_stamp, header_stamp, header_seq, frame_id,
                         object_id, obj_type, exist_conf, obstacle_conf, x, y, vx, vy,
                         length, width, yaw,
                     ])
@@ -1848,7 +1950,7 @@ class Ros2BagParser:
                 category_property_conf = category.category_property_conf
 
                 queue.put([
-                    local_time, time_stamp, header_seq, header_stamp, category_property_type, category_property,
+                    local_time, time_stamp, header_stamp, header_seq, category_property_type, category_property,
                     category_property_conf,
                 ])
 
@@ -1867,7 +1969,7 @@ class Ros2BagParser:
                 category_property_conf = category.category_property_conf
 
                 queue.put([
-                    local_time, time_stamp, header_seq, header_stamp, category_property_type, category_property,
+                    local_time, time_stamp, header_stamp, header_seq, category_property_type, category_property,
                     category_property_conf,
                 ])
 
@@ -1891,7 +1993,7 @@ class Ros2BagParser:
                         z = points.point_vcs.z
 
                         queue.put([
-                            local_time, time_stamp, header_seq, header_stamp, frame_id, points_num, label, x, y, z,
+                            local_time, time_stamp, header_stamp, header_seq, frame_id, points_num, label, x, y, z,
                             valid
                         ])
 
@@ -1911,7 +2013,7 @@ class Ros2BagParser:
                                 z = points.point_vcs.z
 
                                 queue.put([
-                                    local_time, time_stamp, header_seq, header_stamp, frame_id, obs_counter, label, x,
+                                    local_time, time_stamp, header_stamp, header_seq, frame_id, obs_counter, label, x,
                                     y, z, obs_valid, contours_id, obj_id, obj_type
                                 ])
                         obs_counter += 1
@@ -1980,7 +2082,7 @@ class Ros2BagParser:
                         stopper_pt1_y = 0
 
                     queue.put([
-                        local_time, time_stamp, header_seq, header_stamp, frame_id, obj_id,
+                        local_time, time_stamp, header_stamp, header_seq, frame_id, obj_id,
                         obj_type, obj_conf, obj_life_time, obj_age, slot_type,
                         slot_pose_length, slot_pose_width,
                         slot_pose_angle, slot_heading, slot_center_x, slot_center_y,
@@ -2670,32 +2772,63 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/p_feature_20241122_010000/03_Workspace'
-    J5_topic_list = [
-        '/PI/EG/EgoMotionInfo',
-        '/VA/VehicleMotionIpd',
-        '/VA/BevObstaclesDet',
-        '/VA/FrontWideObstacles2dDet',
-        '/VA/BackViewObstacles2dDet',
-        '/VA/Obstacles',
-        '/VA/BevLines',
-        '/VA/FusObjects',
-        '/PK/DR/Result',
-        '/SA/INSPVA'
-    ]
+    # workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/03_Workspace'
+    # t_folder = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/01_Prediction'
+    # ES39_topic_list = [
+    #     '/PI/EG/EgoMotionInfo',
+    #     '/VA/VehicleMotionIpd',
+    #     '/VA/BevObstaclesDet',
+    #     '/VA/FrontWideObstacles2dDet',
+    #     '/VA/BackViewObstacles2dDet',
+    #     '/VA/Obstacles',
+    #     '/VA/FusObjects',
+    #     '/PK/DR/Result',
+    #     '/SA/INSPVA'
+    # ]
     #
-    folder = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/RawData'
-    bag_path = '/home/zhangliwei01/ZONE/test/20241111_093841_n000003/20241111_093841_n000003_2024-11-22-11-57-03'
-    RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(bag_path, J5_topic_list, folder, 'xxxxxxxx')
+    # for scenario_id in os.listdir(t_folder):
+    #
+    #     if scenario_id not in ['20241111_093841_n000014', '20241111_155436_n000009']:
+    #         continue
+    #
+    #     if not os.path.isdir(os.path.join(t_folder, scenario_id)):
+    #         continue
+    #
+    #     folder = os.path.join(t_folder, scenario_id, 'RawData')
+    #     if os.path.exists(folder):
+    #         shutil.rmtree(folder)
+    #     os.mkdir(folder)
+    #     ros2bag_xz_path = glob.glob(os.path.join(t_folder, scenario_id, '*.tar.xz'))[0]
+    #     print(f'{os.path.basename(ros2bag_xz_path)}.tar.xz 开始解压缩')
+    #     cmd = 'cd {:s}; tar xvf {:s}'.format(
+    #         os.path.dirname(ros2bag_xz_path), os.path.basename(ros2bag_xz_path)
+    #     )
+    #     os.popen(cmd).read()
+    #     print(f'{os.path.basename(ros2bag_xz_path)}.tar.xz 解压缩完成')
+    #     ros2bag_path = ros2bag_xz_path[:-7]
+    #
+    #     RBP = Ros2BagParser(workspace)
+    #     RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, scenario_id)
+    #     shutil.rmtree(ros2bag_path)
 
-
-    # topic_list = ['/PI/EG/EgoMotionInfo', '/SA/INSPVA', '/PK/DR/Result', '/SOA/SDNaviLinkInfo', '/SOA/SDNaviStsInfo', '/VA/BevLines']
-    # src_path = '/home/zhangliwei01/ZONE/1018_2024/rosbag/rosbag2_2024_10_18-15_46_57/rosbag'
-    # dst_path = '/home/zhangliwei01/ZONE/1018_2024/rosbag/rosbag2_2024_10_18-15_46_57/ggg'
+    # import shutil
+    # topic_list = ['/SA/INSPVA', '/PK/DR/Result', '/SOA/SDNaviLinkInfo', '/SOA/SDNaviStsInfo', '/VA/BevLines', '/FL/Localization', '/SA/GNSS']
+    # src_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/raw_rosbag'
+    # dst_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/ggg'
     # if os.path.exists(dst_path):
     #     shutil.rmtree(dst_path)
     #
     # dd = Ros2BagClip(workspace)
-    # dd.cutRosbag(src_path, dst_path, topic_list, [1729238000, 1729239000])
+    # dd.cutRosbag(src_path, dst_path, topic_list, [1732693156, 1732695736])
 
+    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/03_Workspace'
+    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/2J5/es37_p_feature_20241119_030000/01_Prediction/20241111_093841_n000013/20241111_093841_n000013_2024-12-18-16-30-10'
+    folder = '/home/zhangliwei01/ZONE/TestProject/2J5/es37_p_feature_20241119_030000/01_Prediction/20241111_093841_n000013/RawData'
+    ES39_topic_list = [
+        '/PI/EG/EgoMotionInfo',
+        '/VA/VehicleResult',
+        '/VA/PedResult',
+    ]
+
+    RBP = Ros2BagParser(workspace)
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, 'xxxxxxxxx')

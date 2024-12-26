@@ -8,6 +8,7 @@ matplotlib
 dateparser
 paramiko
 PyQt5
+pyqt5-tools
 ping3
 PyQt-Fluent-Widgets
 pyyaml

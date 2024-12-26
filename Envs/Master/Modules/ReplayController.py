@@ -14,7 +14,7 @@ import pandas as pd
 import yaml
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-from Libs import get_project_path
+from Libs import get_project_path, draw_map
 from Ros2BagParser import Ros2BagParser
 from Ros2BagRecorder import Ros2BagRecorder
 
@@ -139,8 +139,6 @@ class ReplayController:
             tag=scenario_id
         )
 
-        self.get_video_info(scenario_id)
-
     def compress_bag(self, scenario_id):
         xz_l = glob.glob(os.path.join(self.pred_raw_folder,
                                       scenario_id, f'{scenario_id}*.tar.xz'))
@@ -223,6 +221,22 @@ class ReplayController:
         else:
             send_log(self, f'{scenario_id} /PI/EG/EgoMotionInfo 数据为空')
 
+        sainspva_data_list = []
+        sainspva_csv_list = glob.glob(os.path.join(parser_folder, f'SAINSPVA_{scenario_id}*data.csv'))
+        if len(sainspva_csv_list):
+            for sainspva_csv in sainspva_csv_list:
+                sainspva_data = pd.read_csv(sainspva_csv, index_col=None)
+                if len(sainspva_data):
+                    sainspva_data_list.append(sainspva_data)
+
+            if len(sainspva_data_list):
+                sainspva_data = pd.concat(sainspva_data_list).sort_values(by=['time_stamp'])
+                map_path = os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info', f'{scenario_id}_map.png')
+                try:
+                    draw_map(sainspva_data, map_path)
+                except Exception as e:
+                    print(e, f'绘制{scenario_id}地图失败')
+
     def get_annotation(self):
         if not os.path.isdir(self.gt_raw_folder):
             os.makedirs(self.gt_raw_folder)
@@ -302,8 +316,9 @@ class ReplayController:
                     t.start()
                     self.thread_list.append(t)
 
-        for scenario_id in self.scenario_ids:
-            self.get_video_info(scenario_id)
+        if self.replay_action['video_info']:
+            for scenario_id in self.scenario_ids:
+                self.get_video_info(scenario_id)
 
         send_log(self, '等待所有线程都结束')
         print('等待所有线程都结束')
@@ -315,6 +330,7 @@ class ReplayController:
         self.replay_client.clear_temp_folder()
 
     def analyze_raw_data(self):
+        statistics_path = os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv')
         rows = []
         index = []
         columns = []
@@ -352,12 +368,19 @@ class ReplayController:
                 valid_flag = 0
 
             scenario_is_valid[scenario_id] = valid_flag
-            row.extend([self.scenario_replay_count[scenario_id], valid_flag])
+            replay_count = 1
+            if scenario_id in self.scenario_replay_count:
+                replay_count = self.scenario_replay_count[scenario_id]
+            elif os.path.exists(statistics_path):
+                topic_output_statistics = pd.read_csv(statistics_path, index_col=0)
+                if scenario_id in topic_output_statistics.index:
+                    replay_count = topic_output_statistics.at[scenario_id, 'replay_count']
+            row.extend([replay_count, valid_flag])
             index.append(scenario_id)
             rows.append(row)
 
         if len(columns):
             res = pd.DataFrame(rows, columns=columns + ['replay_count', 'isValid'], index=index)
-            res.to_csv(os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv'))
+            res.to_csv(statistics_path)
 
         return scenario_is_valid
