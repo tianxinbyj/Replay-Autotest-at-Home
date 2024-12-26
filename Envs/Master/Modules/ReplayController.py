@@ -41,6 +41,7 @@ class ReplayController:
         self.replay_action = replay_config['replay_action']
         self.bag_update = self.replay_action['bag_update']
         self.replay_end = self.replay_action['replay_end']
+        self.truth_source = self.replay_action['truth_source']
 
         self.product = replay_config['product']
         feature_group = replay_config['feature_group']
@@ -243,7 +244,10 @@ class ReplayController:
 
         for scenario_id in self.scenario_ids:
             send_log(self, f'获取真值 {scenario_id}')
-            remote_folder = f'/media/data/annotation/{scenario_id}'
+            if not len(self.truth_source):
+                remote_folder = f'/media/data/annotation/{scenario_id}'
+            else:
+                remote_folder = f'/media/data/annotation/{scenario_id}_{self.truth_source}'
             local_folder = os.path.join(self.gt_raw_folder, scenario_id)
             self.replay_client.scp_folder_remote_to_local(local_folder, remote_folder)
 
