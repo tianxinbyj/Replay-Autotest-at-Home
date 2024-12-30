@@ -1774,6 +1774,7 @@ class DataGrinderPilotOneCase:
 
             if metric == 'recall_precision':
                 # 进一步筛选出现每种类型帧数最大的3个目标
+                bug_index_dict['false_positive'] = []
                 FP_data = metric_data[(metric_data['gt.flag'] == 0)
                                       & (metric_data['pred.flag'] == 1)
                                       & (metric_data['pred.x'] <= 100)
@@ -1782,26 +1783,33 @@ class DataGrinderPilotOneCase:
                                       & (metric_data['pred.y'] >= -8)]
                 FP_data = FP_data[~((FP_data['pred.type_classification'].isin(['pedestrian', 'cyclist']))
                                     & (FP_data['pred.x'] > 50))]
-                bug_index_dict['false_positive'] = []
                 for key, group in FP_data.groupby('pred.type_classification'):
                     top_values = group['pred.id'].value_counts().head(3).index
                     top_group = group[group['pred.id'].isin(top_values)]
                     bug_index_dict['false_positive'].extend(top_group['corresponding_index'].to_list())
 
+                # 对漏检需要观察100-150米之内的bug
+                bug_index_dict['false_negative'] = []
                 FN_data = metric_data[(metric_data['gt.flag'] == 1)
                                       & (metric_data['pred.flag'] == 0)
-                                      & (metric_data['gt.x'] <= 100)
-                                      & (metric_data['gt.x'] >= -50)
                                       & (metric_data['gt.y'] <= 8)
                                       & (metric_data['gt.y'] >= -8)]
                 FN_data = FN_data[~((FN_data['gt.type_classification'].isin(['pedestrian', 'cyclist']))
-                                    & (FN_data['gt.x'] > 50))]
-                bug_index_dict['false_negative'] = []
-                for key, group in FN_data.groupby('gt.type_classification'):
+                                    & ((FN_data['gt.x'] > 50) | (FN_data['gt.x'] < -50)))]
+                FN_data_near = FN_data[(metric_data['gt.x'] <= 100)
+                                      & (metric_data['gt.x'] >= -50)]
+                for key, group in FN_data_near.groupby('gt.type_classification'):
                     top_values = group['gt.id'].value_counts().head(3).index
                     top_group = group[group['gt.id'].isin(top_values)]
                     bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
+                FN_data_far = FN_data[(metric_data['gt.x'] <= 150)
+                                      & (metric_data['gt.x'] >= 100)]
+                for key, group in FN_data_far.groupby('gt.type_classification'):
+                    top_values = group['gt.id'].value_counts().head(1).index
+                    top_group = group[group['gt.id'].isin(top_values)]
+                    bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
 
+                bug_index_dict['false_type'] = []
                 NCTP_data = metric_data[(metric_data['CTP'] == 0)
                                         & (metric_data['gt.flag'] == 1)
                                         & (metric_data['pred.flag'] == 1)
@@ -1811,9 +1819,8 @@ class DataGrinderPilotOneCase:
                                         & (metric_data['gt.y'] >= -8)]
                 NCTP_data = NCTP_data[~((NCTP_data['gt.type_classification'].isin(['pedestrian', 'cyclist']))
                                         & (NCTP_data['gt.x'] > 50))]
-                bug_index_dict['false_type'] = []
                 for key, group in NCTP_data.groupby('gt.type_classification'):
-                    top_values = group['gt.id'].value_counts().head(3).index
+                    top_values = group['gt.id'].value_counts().head(2).index
                     top_group = group[group['gt.id'].isin(top_values)]
                     bug_index_dict['false_type'].extend(top_group['corresponding_index'].to_list())
 
