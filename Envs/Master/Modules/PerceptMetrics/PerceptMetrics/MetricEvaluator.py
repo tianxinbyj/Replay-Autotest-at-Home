@@ -809,7 +809,14 @@ class ObstaclesMetricEvaluator:
                 result_df.columns = func.columns
                 result_df = pd.concat([data, result_df], axis=1)
             else:
-                result_df = tp_data.apply(lambda row: func(row.to_dict(), kpi_date_label), axis=1, result_type='expand')
+                if metric in ['vx_error', 'vy_error']:
+                    result_df = tp_data.drop(data[
+                                  (data['gt.vx'] > 60) | (data['gt.vx'] < -60)
+                                  | (data['gt.vy'] > 60) | (data['gt.vy'] < -60)
+                                  ].index, axis=0).apply(lambda row: func(row.to_dict(), kpi_date_label), axis=1,
+                                              result_type='expand')
+                else:
+                    result_df = tp_data.apply(lambda row: func(row.to_dict(), kpi_date_label), axis=1, result_type='expand')
                 result_df.columns = func.columns
                 result_df['corresponding_index'] = tp_data['corresponding_index']
 

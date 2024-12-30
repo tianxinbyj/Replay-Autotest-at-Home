@@ -192,19 +192,30 @@ class RectPoints:
         if isinstance(input_data, dict):
             x = input_data['x']
             y = input_data['y']
+            type_ = input_data['type_classification']
             yaw = input_data['yaw']
             length = input_data['length']
             width = input_data['width']
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 5):
-            x, y, yaw, length, width = input_data
+              and len(input_data) == 6):
+            x, y, type_, yaw, length, width = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 计算距离
         distance = np.sqrt(x ** 2 + y ** 2)
+
+        if type_ == 'car':
+            width_limit = length * 0.255 + 0.65
+            width = np.minimum(width_limit, width)
+        elif type_ == 'truck_bus':
+            width = np.minimum(2.6, width)
+        elif type_ == 'pedestrian':
+            width = np.minimum(0.8, width)
+        elif type_ == 'cyclist':
+            width = np.minimum(1, width)
 
         # 使用旋转矩阵计算矩形左下角点a的坐标
         a = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
