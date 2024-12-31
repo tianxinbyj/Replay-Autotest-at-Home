@@ -1766,12 +1766,13 @@ class DataGrinderPilotOneCase:
         for metric, data_path in metric_data_group.items():
             metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
             metric_data = filter_valid_bug_data(metric_data)
+
             # 提bug的内容:
             # 这里不能知道场景，所以无法筛选场景相关的内容
             # 1.所有bug仅关注-50米到100米的范围，行人和两轮车只关注-50米到50米
             # 2.行人不测长，宽，高，航向角，车速
-            # 3.两轮车不测长，宽，高，车速；低速时不测航向角
-
+            # 3.两轮车不测长，宽，高；低速时不测航向角，车速
+            # 4.长宽高误差必须针对类型判断正确的样本
             if metric == 'recall_precision':
                 # 进一步筛选出现每种类型帧数最大的3个目标
                 bug_index_dict['false_positive'] = []
@@ -1833,9 +1834,10 @@ class DataGrinderPilotOneCase:
                                          & (metric_data['gt.y'] >= -8)]
                 error_data = error_data[~((error_data['gt.type'].isin(['pedestrian', 'cyclist']))
                                           & (error_data['gt.x'] > 50))]
-                if metric in ['width_error', 'length_error', 'height_error', 'vx_error', 'vy_error']:
+                if metric in ['width_error', 'length_error', 'height_error']:
+                    error_data = error_data[(error_data['gt.type'] == error_data['pred.type'])]
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian', 'cyclist'])]
-                if metric in ['yaw_error']:
+                if metric in ['vx_error', 'vy_error', 'yaw_error']:
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian'])]
                     error_data = error_data[~((error_data['gt.type'].isin(['cyclist']))
                                               & (error_data['gt.vel'] <= 2))]

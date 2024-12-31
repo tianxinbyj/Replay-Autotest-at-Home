@@ -547,6 +547,7 @@ class LengthError:
             'gt.x',
             'gt.y',
             'gt.type',
+            'pred.type',
             'gt.road_user',
             'gt.length',
             'pred.length',
@@ -560,16 +561,16 @@ class LengthError:
     def __call__(self, input_data, kpi_date_label):
 
         if isinstance(input_data, dict):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_length, pred_length = (
+            gt_id, pred_id, gt_x, gt_y, gt_type, pred_type, gt_road_user, gt_length, pred_length = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
-                input_data['gt.type_classification'],
+                input_data['gt.type_classification'], input_data['pred.type_classification'],
                 input_data['gt.road_user'],
                 input_data['gt.length'], input_data['pred.length'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 8):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_length, pred_length = input_data
+              and len(input_data) == 9):
+            gt_id, pred_id, gt_x, gt_y, gt_type, pred_type, gt_road_user, gt_length, pred_length = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -611,7 +612,7 @@ class LengthError:
         else:
             is_abnormal = 0
 
-        return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
+        return (gt_id, pred_id, gt_x, gt_y, gt_type, pred_type, gt_road_user,
                 gt_length, pred_length, length_error, length_error_abs,
                 length_error_p, length_error_p_abs,
                 is_abnormal)
@@ -626,6 +627,7 @@ class WidthError:
             'gt.x',
             'gt.y',
             'gt.type',
+            'pred.type',
             'gt.road_user',
             'gt.width',
             'pred.width',
@@ -639,16 +641,16 @@ class WidthError:
     def __call__(self, input_data, kpi_date_label):
 
         if isinstance(input_data, dict):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_width, pred_width = (
+            gt_id, pred_id, gt_x, gt_y, gt_type, pred_type, gt_road_user, gt_width, pred_width = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
-                input_data['gt.type_classification'],
+                input_data['gt.type_classification'], input_data['pred.type_classification'],
                 input_data['gt.road_user'],
                 input_data['gt.width'], input_data['pred.width'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 8):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_width, pred_width = input_data
+              and len(input_data) == 9):
+            gt_id, pred_id, gt_x, gt_y, gt_type, pred_type, gt_road_user, gt_width, pred_width = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -690,7 +692,7 @@ class WidthError:
         else:
             is_abnormal = 0
 
-        return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
+        return (gt_id, pred_id, gt_x, gt_y, gt_type, pred_type, gt_road_user,
                 gt_width, pred_width, width_error, width_error_abs,
                 width_error_p, width_error_p_abs,
                 is_abnormal)
@@ -705,6 +707,7 @@ class HeightError:
             'gt.x',
             'gt.y',
             'gt.type',
+            'pred.type',
             'gt.road_user',
             'gt.height',
             'pred.height',
@@ -718,16 +721,16 @@ class HeightError:
     def __call__(self, input_data, kpi_date_label):
 
         if isinstance(input_data, dict):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_height, pred_height = (
+            gt_id, pred_id, gt_x, gt_y, gt_type, pred_type, gt_road_user, gt_height, pred_height = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
-                input_data['gt.type_classification'],
+                input_data['gt.type_classification'], input_data['pred.type_classification'],
                 input_data['gt.road_user'],
                 input_data['gt.height'], input_data['pred.height'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 8):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_height, pred_height = input_data
+              and len(input_data) == 9):
+            gt_id, pred_id, gt_x, gt_y, gt_type, pred_type, gt_road_user, gt_height, pred_height = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -769,7 +772,7 @@ class HeightError:
         else:
             is_abnormal = 0
 
-        return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
+        return (gt_id, pred_id, gt_x, gt_y, gt_type, pred_type, gt_road_user,
                 gt_height, pred_height, height_error, height_error_abs,
                 height_error_p, height_error_p_abs,
                 is_abnormal)
