@@ -208,14 +208,14 @@ class RectPoints:
         distance = np.sqrt(x ** 2 + y ** 2)
 
         if type_ == 'car':
-            width_limit = length * 0.255 + 0.65
+            width_limit = length * 0.255 + 0.7
             width = np.minimum(width_limit, width)
         elif type_ == 'truck_bus':
-            width = np.minimum(2.6, width)
+            width = np.minimum(width, 2.6)
         elif type_ == 'pedestrian':
-            width = np.minimum(0.8, width)
+            width = np.minimum(width, 0.8)
         elif type_ == 'cyclist':
-            width = np.minimum(1, width)
+            width = np.minimum(width, 1)
 
         # 使用旋转矩阵计算矩形左下角点a的坐标
         a = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(

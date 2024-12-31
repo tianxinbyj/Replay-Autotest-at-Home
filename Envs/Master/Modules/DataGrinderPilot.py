@@ -2768,14 +2768,15 @@ class DataGrinderPilotOneTask:
         test_topic = self.test_config['test_topic']
         version_comparison_folder = self.test_config['version_comparison']
         old_version = ''
-        for root, dirs, files in os.walk(version_comparison_folder):
-            for file in files:
-                if 'TestConfig.yaml' in file:
-                    file_path = os.path.join(root, file)
-                    with open(file_path, 'r', encoding='utf-8') as file:
-                        old_test_config = yaml.safe_load(file)
-                    if 'version_comparison' in old_test_config and old_test_config['test_topic'] == test_topic:
-                        old_version = old_test_config['version']
+        if version_comparison_folder is not None and os.path.exists(version_comparison_folder):
+            for root, dirs, files in os.walk(version_comparison_folder):
+                for file in files:
+                    if 'TestConfig.yaml' in file:
+                        file_path = os.path.join(root, file)
+                        with open(file_path, 'r', encoding='utf-8') as file:
+                            old_test_config = yaml.safe_load(file)
+                        if 'version_comparison' in old_test_config and old_test_config['test_topic'] == test_topic:
+                            old_version = old_test_config['version']
 
         output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
         obstacle_type_key = ';'.join(output_result['obstacle_type'].unique())
