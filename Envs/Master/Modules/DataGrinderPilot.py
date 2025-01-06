@@ -45,7 +45,7 @@ from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchT
 kpi_target_file_path = os.path.join(project_path, 'Docs', 'Resources', 'ObstaclesKpi.xlsx')
 kpi_target_threshold = pd.read_excel(kpi_target_file_path, sheet_name=0, header=[0, 1, 2], index_col=[0, 1])
 kpi_target_ratio = pd.read_excel(kpi_target_file_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
-kpi_date_label = '20241130'
+kpi_date_label = '20241230'
 
 
 def sync_test_result(method):
@@ -247,6 +247,22 @@ class DataGrinderPilotOneCase:
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
                 pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result['General']['pred_ego'] = self.get_relpath(path)
+
+            # elif topic == '/VA/VehicleMotionIpd':
+            #     send_log(self, f'Prediction 正在读取{topic}, 用于时间同步')
+            #
+            #     # 读取原始数据
+            #     csv_list = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*.csv'))
+            #     csv_data = []
+            #     for csv_file in sorted(csv_list, reverse=False):
+            #         if 'hz' not in csv_file:
+            #             csv_data.append(pd.read_csv(csv_file, index_col=False))
+            #     pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
+            #     pred_data['ego_vx'] = pred_data['vehicle_speed']
+            #     create_folder(os.path.join(self.DataFolder, 'General'), update=False)
+            #     path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
+            #     pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
+            #     self.test_result['General']['pred_ego'] = self.get_relpath(path)
 
             # 拿到/SA/INSPVA得到的时间差
             elif topic == '/SA/INSPVA':
@@ -2362,6 +2378,9 @@ class DataGrinderPilotOneTask:
                     if characteristic not in self.test_result['TagCombination'][tag_key][self.test_topic][topic]:
                         continue
 
+                    if characteristic not in self.test_config['test_action']['output_characteristic']:
+                        continue
+
                     test_result = self.test_result['TagCombination'][tag_key][self.test_topic][topic][
                         characteristic]
 
@@ -2449,9 +2468,7 @@ class DataGrinderPilotOneTask:
         output_result.to_csv(path, index=False, encoding='utf_8_sig')
         self.test_result['OutputResult']['statistics'] = self.get_relpath(path)
 
-        # output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
-
-        # 生成面向质量的xlsx
+        # 生成以场景类型作为sheet的xlsx
         characteristic_key = [test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['name']
                               for c in self.test_config['test_action']['output_characteristic']]
         topic_key = output_result['topic'].unique()
@@ -3072,6 +3089,7 @@ class DataGrinderPilotOneTask:
                         va=va, ha=ha, rotation=text_angle,
                         fontsize=font_size)
 
+            color_for_sheet = []
             cell_w = 1
             cell_h = 0.5
             font_size = 11
@@ -3175,6 +3193,9 @@ class DataGrinderPilotOneTask:
                                 else:
                                     text = f'{value:.2f}'
 
+                        # 用于为excel表格涂色
+                        color_for_sheet.append([list(col), j, color])
+
                         #取出old_data中相应格子的值
                         if old_data is None:
                             comparison = None
@@ -3211,10 +3232,15 @@ class DataGrinderPilotOneTask:
                                   width=cell_w, height=cell_h, facecolor=color,
                                   text=text, text_angle=0, font_size=font_size * 1.2)
 
+                        # 用于为excel表格涂色
+                        color_for_sheet.append([list(col), j, color])
+
             ax.set_xlim(-2 * cell_w - 0.1, len(sub_data.columns) * cell_w + 0.1)
             ax.set_ylim(- len(sub_data) * cell_h - 0.1, 3 * cell_h + 0.1)
             canvas = FigureCanvas(fig)
             canvas.print_figure(plot_path, facecolor='white', dpi=100)
+
+            return color_for_sheet
 
         def plot_summary_metric(summary_data, plot_path):
 
@@ -3332,10 +3358,13 @@ class DataGrinderPilotOneTask:
         else:
             comparison_valid = 0
 
+        # excel的涂色字典
+        color_for_sheets = {}
         self.test_result['OutputResult']['report_plot'] = {}
         for characteristic, excel_path in self.test_result['OutputResult']['report_table'].items():
             excel_path = self.get_abspath(excel_path)
             self.test_result['OutputResult']['report_plot'][characteristic] = {}
+            color_for_sheets[characteristic] = {}
 
             # 寻找其他版本相同的文件
             old_excel_path = None
@@ -3348,6 +3377,7 @@ class DataGrinderPilotOneTask:
             for _, scenario_tag in enumerate(pd.ExcelFile(excel_path).sheet_names):
                 data = pd.read_excel(excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
                 self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag] = {}
+                color_for_sheets[characteristic][scenario_tag] = []
 
                 if old_excel_path is not None:
                     old_data = pd.read_excel(old_excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
@@ -3454,7 +3484,7 @@ class DataGrinderPilotOneTask:
                                              f'{scenario_tag}--{characteristic}--{metric}.png')
                     self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag][
                         metric] = self.get_relpath(plot_path)
-                    plot_single_metric(sub_data, old_data, plot_path)
+                    color_for_sheets[characteristic][scenario_tag].extend(plot_single_metric(sub_data, old_data, plot_path))
                     send_log(self, f'{plot_path} 图片已保存')
 
                 self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'] = []
@@ -3469,6 +3499,18 @@ class DataGrinderPilotOneTask:
                 plot_summary_metric(metric_summary, plot_path)
                 send_log(self, f'{plot_path} 图片已保存')
                 self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+
+        with open(os.path.join(visualization_folder, 'color_for_sheets.yaml'), 'w', encoding='utf-8') as f:
+            yaml.dump(color_for_sheets,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+        # 根据比对结果，对excel源文件涂色
+        print('===========================')
+        for characteristic, v in color_for_sheets.items():
+            print(characteristic)
+            for scenario_tag, vv in v.items():
+                print(scenario_tag)
+                print(vv)
+        print('===========================')
 
     @sync_test_result
     def summary_bug_items(self):
@@ -3488,25 +3530,26 @@ class DataGrinderPilotOneTask:
                             if len(df):
                                 dataframes.append(df)
 
-        bug_summary = pd.concat(dataframes, ignore_index=True)
-        bug_report_path_list = []
-        for i, row in bug_summary.iterrows():
-            topic = row['topic'].replace('/', '')
-            bug_type = row['bug_type']
-            target_type = row['target_type']
-            folder = os.path.join(bugItem_folder, bug_type, topic, target_type)
-            if not os.path.exists(folder):
-                os.makedirs(folder)
+        if len(dataframes):
+            bug_summary = pd.concat(dataframes, ignore_index=True)
+            bug_report_path_list = []
+            for i, row in bug_summary.iterrows():
+                topic = row['topic'].replace('/', '')
+                bug_type = row['bug_type']
+                target_type = row['target_type']
+                folder = os.path.join(bugItem_folder, bug_type, topic, target_type)
+                if not os.path.exists(folder):
+                    os.makedirs(folder)
 
-            bug_report_path = row['attachment_path']
-            shutil.copy(bug_report_path, folder)
-            bug_report_path_list.append(os.path.join(folder, os.path.basename(bug_report_path)))
+                bug_report_path = row['attachment_path']
+                shutil.copy(bug_report_path, folder)
+                bug_report_path_list.append(os.path.join(folder, os.path.basename(bug_report_path)))
 
-        bug_summary['attachment_path'] = bug_report_path_list
-        bug_summary_path = os.path.join(bugItem_folder, 'bug_summary.csv')
-        (bug_summary.sort_values(by=['bug_type', 'scenario_id', 'gt_target_id'])
-         .to_csv(bug_summary_path, index=False, encoding='utf_8_sig'))
-        self.test_result['OutputResult']['bugItems'] = self.get_relpath(bug_summary_path)
+            bug_summary['attachment_path'] = bug_report_path_list
+            bug_summary_path = os.path.join(bugItem_folder, 'bug_summary.csv')
+            (bug_summary.sort_values(by=['bug_type', 'scenario_id', 'gt_target_id'])
+             .to_csv(bug_summary_path, index=False, encoding='utf_8_sig'))
+            self.test_result['OutputResult']['bugItems'] = self.get_relpath(bug_summary_path)
 
     @sync_test_result
     def gen_report(self):

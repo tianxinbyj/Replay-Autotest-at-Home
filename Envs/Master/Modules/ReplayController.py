@@ -310,7 +310,7 @@ class ReplayController:
                             send_log(self, f'{scenario_id} 场景录制成功')
                             break
 
-                        if try_count == 3:
+                        if try_count == self.replay_action['retest']:
                             print(f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
                             send_log(self, f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
                             break
@@ -349,12 +349,18 @@ class ReplayController:
                 test_topic = yaml.load(f, Loader=yaml.FullLoader)
 
             row = []
-            columns = list(test_topic['topics_for_parser'])
+            columns = []
             topic_duration = {}
             for topic in test_topic['topics_for_parser']:
+                if topic in []:
+                    continue
+
+                columns.append(topic)
+
                 topic_tag = topic.replace('/', '')
                 hz_data = pd.read_csv(glob.glob(os.path.join(raw_folder, f'{topic_tag}*hz.csv'))[0],
                                       index_col=False)
+
                 if not len(hz_data):
                     row.append('0/0/0/0-0')
                     topic_duration[topic] = 0
@@ -379,12 +385,12 @@ class ReplayController:
                 topic_output_statistics = pd.read_csv(statistics_path, index_col=0)
                 if scenario_id in topic_output_statistics.index:
                     replay_count = topic_output_statistics.at[scenario_id, 'replay_count']
-            row.extend([replay_count, valid_flag])
+            row.extend([time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), replay_count, valid_flag])
             index.append(scenario_id)
             rows.append(row)
 
         if len(columns):
-            res = pd.DataFrame(rows, columns=columns + ['replay_count', 'isValid'], index=index)
+            res = pd.DataFrame(rows, columns=columns + ['record_time', 'replay_count', 'isValid'], index=index)
             res.to_csv(statistics_path)
 
         return scenario_is_valid

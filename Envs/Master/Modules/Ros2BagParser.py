@@ -837,7 +837,7 @@ data_columns = {
     'vehicle_msgs/msg/VehicleMotionIpd':
         [
             'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
-            'vehicle_speed',
+            'vehicle_speed', 'shaft_spd',
             'FL_wheel_speed', 'FR_wheel_speed', 'RL_wheel_speed', 'RR_wheel_speed',
             'front_wheel_angle', 'rear_wheel_angle',
         ],
@@ -1160,16 +1160,19 @@ class Ros2BagParser:
             time_df['time_stamp'] = self.time_saver[topic]
             time_df['frame_id'] = self.frame_id_saver[topic]
             time_df = time_df.sort_values(by=['time_stamp', 'local_time'])
-            new_time_df = time_df.drop_duplicates(subset=['time_stamp'], keep='first').iloc[10:]
+            new_time_df = time_df.drop_duplicates(subset=['time_stamp'], keep='first')
             s = time_df['time_stamp'].value_counts()
             new_time_df['count'] = [s.loc[t] for t in new_time_df['time_stamp'].values]
+            if len(new_time_df) > 20:
+                new_time_df = new_time_df.drop_duplicates(subset=['time_stamp'], keep='first').iloc[10:]
 
             print(f'======正在计算{topic}的hz======')
-            if (len(local_time_saver[topic]) > 20
-                    and new_time_df['time_stamp'].max() - new_time_df['time_stamp'].min() > 10):
-                hz = (len(new_time_df) - 1) / (new_time_df['time_stamp'].max() - new_time_df['time_stamp'].min())
-            else:
-                hz = 0
+            hz = 0
+            if len(local_time_saver[topic]) > 20:
+                if new_time_df['time_stamp'].max() - new_time_df['time_stamp'].min() > 10:
+                    hz = (len(new_time_df) - 1) / (new_time_df['time_stamp'].max() - new_time_df['time_stamp'].min())
+                else:
+                    hz = (len(time_df) - 1) / (time_df['local_time'].max() - time_df['local_time'].min())
 
             time_csv = os.path.join(folder, '{:s}_{:.2f}_hz.csv'.format(topic.replace('/', ''), hz))
             new_time_df.to_csv(time_csv, index=False)
@@ -2525,12 +2528,13 @@ class Ros2BagParser:
                 FR_wheel_speed = msg.driven_right_wheel_speed / 3.6
                 RL_wheel_speed = msg.undriven_left_wheel_speed / 3.6
                 RR_wheel_speed = msg.undriven_right_wheel_speed / 3.6
+                shaft_spd = msg.ept_input_shaft_spd
                 front_wheel_angle = msg.front_wheel_angle
                 rear_wheel_angle = msg.rear_wheel_angle
 
                 queue.put([
                     local_time, time_stamp, header_stamp, header_seq, frame_id,
-                    vehicle_speed,
+                    vehicle_speed, shaft_spd,
                     FL_wheel_speed, FR_wheel_speed, RL_wheel_speed, RR_wheel_speed,
                     front_wheel_angle, rear_wheel_angle,
                 ])
@@ -2821,13 +2825,19 @@ if __name__ == "__main__":
     # dd = Ros2BagClip(workspace)
     # dd.cutRosbag(src_path, dst_path, topic_list, [1732693156, 1732695736])
 
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/03_Workspace'
-    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/2J5/es37_p_feature_20241119_030000/01_Prediction/20241111_093841_n000013/20241111_093841_n000013_2024-12-18-16-30-10'
-    folder = '/home/zhangliwei01/ZONE/TestProject/2J5/es37_p_feature_20241119_030000/01_Prediction/20241111_093841_n000013/RawData'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20241227_010000/03_Workspace'
+    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/test_actc_noa_huanyuan_ac37t_7346-load_test_env0-1'
+    folder = '/home/zhangliwei01/ZONE/TestProject/456'
     ES39_topic_list = [
-        '/PI/EG/EgoMotionInfo',
-        '/VA/VehicleResult',
-        '/VA/PedResult',
+            '/PI/EG/EgoMotionInfo',
+            '/VA/VehicleMotionIpd',
+            '/VA/BevObstaclesDet',
+            '/VA/FrontWideObstacles2dDet',
+            '/VA/BackViewObstacles2dDet',
+            '/VA/Obstacles',
+            '/VA/FusObjects',
+            '/PK/DR/Result',
+            '/SA/INSPVA',
     ]
 
     RBP = Ros2BagParser(workspace)
