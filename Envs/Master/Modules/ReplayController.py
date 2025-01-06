@@ -33,6 +33,7 @@ class ReplayController:
         self.thread_list = []
         self.calib_file = {}
         self.scenario_replay_count = {}
+        self.scenario_replay_datetime = {}
 
         # 读取参数
         self.scenario_ids = replay_config['scenario_id']
@@ -303,6 +304,7 @@ class ReplayController:
 
                         self.parse_bag(scenario_id)
                         self.scenario_replay_count[scenario_id] = try_count
+                        self.scenario_replay_datetime[scenario_id] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                         scenario_is_valid = self.analyze_raw_data()
 
                         if scenario_id in scenario_is_valid and scenario_is_valid[scenario_id] == 1:
@@ -358,8 +360,11 @@ class ReplayController:
                 columns.append(topic)
 
                 topic_tag = topic.replace('/', '')
-                hz_data = pd.read_csv(glob.glob(os.path.join(raw_folder, f'{topic_tag}*hz.csv'))[0],
-                                      index_col=False)
+                hz_path_list = glob.glob(os.path.join(raw_folder, f'{topic_tag}*hz.csv'))
+                if len(hz_path_list):
+                    hz_data = pd.read_csv(hz_path_list[0], index_col=False)
+                else:
+                    hz_data = pd.DataFrame()
 
                 if not len(hz_data):
                     row.append('0/0/0/0-0')
@@ -379,13 +384,16 @@ class ReplayController:
 
             scenario_is_valid[scenario_id] = valid_flag
             replay_count = 1
+            date_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             if scenario_id in self.scenario_replay_count:
                 replay_count = self.scenario_replay_count[scenario_id]
+                date_time = self.scenario_replay_datetime[scenario_id]
             elif os.path.exists(statistics_path):
                 topic_output_statistics = pd.read_csv(statistics_path, index_col=0)
                 if scenario_id in topic_output_statistics.index:
                     replay_count = topic_output_statistics.at[scenario_id, 'replay_count']
-            row.extend([time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), replay_count, valid_flag])
+                    date_time = topic_output_statistics.at[scenario_id, 'record_time']
+            row.extend([date_time, replay_count, valid_flag])
             index.append(scenario_id)
             rows.append(row)
 

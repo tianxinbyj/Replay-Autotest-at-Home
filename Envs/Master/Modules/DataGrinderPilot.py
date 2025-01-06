@@ -4,6 +4,7 @@
 """
 import glob
 import json
+import os.path
 import shutil
 import subprocess
 import time
@@ -19,6 +20,7 @@ from matplotlib import patches as pc
 from matplotlib import pyplot as plt, image as mpimg
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.colors import LinearSegmentedColormap
+from openpyxl.styles import PatternFill, Border, Side, Alignment
 from scipy.interpolate import interp1d
 from spire.xls import *
 
@@ -3358,8 +3360,7 @@ class DataGrinderPilotOneTask:
         else:
             comparison_valid = 0
 
-        # excel的涂色字典
-        color_for_sheets = {}
+        color_for_sheets = {} # excel的涂色字典
         self.test_result['OutputResult']['report_plot'] = {}
         for characteristic, excel_path in self.test_result['OutputResult']['report_table'].items():
             excel_path = self.get_abspath(excel_path)
@@ -3503,14 +3504,54 @@ class DataGrinderPilotOneTask:
         with open(os.path.join(visualization_folder, 'color_for_sheets.yaml'), 'w', encoding='utf-8') as f:
             yaml.dump(color_for_sheets,
                       f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+
         # 根据比对结果，对excel源文件涂色
-        print('===========================')
-        for characteristic, v in color_for_sheets.items():
-            print(characteristic)
-            for scenario_tag, vv in v.items():
-                print(scenario_tag)
-                print(vv)
-        print('===========================')
+        fill_type = {
+            'lightcoral': PatternFill(fill_type="solid", start_color="FFB6C1"),
+            'limegreen': PatternFill(fill_type="solid", start_color="32CD32"),
+            'lightcyan': PatternFill(fill_type="solid", start_color="E0FFFF"),
+            'lightgrey': PatternFill(fill_type="solid", start_color="D3D3D3"),
+            'white': PatternFill(fill_type="solid", start_color="FFFFFF")
+        }
+        color_list = [
+                         'CC4422', '33FF57', '2244CC', 'CC2288', '8822CC',
+                         'CCAA00', '8B4513', 'D45A4A', '6600A3', 'A68C67',
+                     ] * 20
+
+        for characteristic, file in self.test_result['OutputResult']['report_table'].items():
+            workbook = openpyxl.load_workbook(self.get_abspath(file))
+            for scenario_tag in workbook.sheetnames:
+                sheet = workbook[scenario_tag]
+                sheet_colors = color_for_sheets[characteristic][scenario_tag]
+                max_column = sheet.max_column
+
+                column, i = 1, 0
+                while column <= max_column:
+                    if sheet.cell(row=1, column=column).value is not None:
+                        i += 1
+                    sheet.cell(row=1, column=column).fill = PatternFill(fill_type="solid", start_color=color_list[i])
+                    column += 1
+
+                for color_item in sheet_colors:
+                    column = 1
+                    while sheet.cell(row=1, column=column).value != color_item[0][0] and column <= max_column:
+                        column += 1
+                    while sheet.cell(row=2, column=column).value != color_item[0][1] and column <= max_column:
+                        column += 1
+                    while sheet.cell(row=3, column=column).value != color_item[0][2] and column <= max_column:
+                        column += 1
+                    if column <= max_column:
+                        cell = sheet.cell(row=color_item[1] + 4, column=column)
+                        cell.fill = fill_type[color_item[2]]
+                        cell.border = Border(
+                            left=Side(style='thin', color="000000"),
+                            right=Side(style='thin', color="000000"),
+                            top=Side(style='thin', color="000000"),
+                            bottom=Side(style='thin', color="000000")
+                        )
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+            workbook.save(os.path.join(visualization_folder, f'{characteristic}.xlsx'))
 
     @sync_test_result
     def summary_bug_items(self):
