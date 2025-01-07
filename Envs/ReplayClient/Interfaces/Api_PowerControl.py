@@ -27,11 +27,11 @@ def main():
         res = versionControl.check_power_on_success()
     elif command == 'off':
         res = versionControl.power_ctrl_power_off()
-    elif command == 'switch2remote':
+    elif command == 'remote':
         res = versionControl.switch_to_remote_mode()
-    elif command == 'switch2panel':
+    elif command == 'panel':
         res = versionControl.switch_to_panel_mode()
-    elif command == 'get_power':
+    elif command == 'power':
         res = versionControl.get_power_status()
     else:
         res = False
