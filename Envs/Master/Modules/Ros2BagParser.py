@@ -865,6 +865,7 @@ data_columns = {
             'id', 'type', 'confidence', 'position', 'marker', 'color',
             'start_x', 'start_y', 'c_x_0', 'c_x_1', 'c_x_2', 'c_x_3',
             'c_y_0', 'c_y_1', 'c_y_2', 'c_y_3', 'length', 'width', 'curve_type',
+            'point_num', 'x_points', 'y_points',
         ],
     'proto_horizon_msgs/msg/Lines':
         [
@@ -1595,7 +1596,7 @@ class Ros2BagParser:
                 self.last_timestamp[topic] = time_stamp
 
         elif topic in ['/VA/BevLines']:
-            time_stamp = msg.exposure_time_stamp / 1e9
+            time_stamp = msg.exposure_time_stamp / 1e3
             frame_id = msg.frame_id
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
@@ -1613,43 +1614,52 @@ class Ros2BagParser:
                     line_type = line_data.line_type
                     line_position = line_data.line_position
                     conf = line_data.confidence
+                    extra_type = line_data.extra_type
 
                     line3d_data = line_data.lines_3d[0]
                     points_num = line3d_data.points_num
-                    if points_num >= 3:
+                    if points_num >= 2:
                         x_points = []
                         y_points = []
                         for i in range(points_num):
                             pt = line3d_data.points[i]
                             x_points.append(pt.x)
                             y_points.append(pt.y)
-                        # start_x = x_points[0]
-                        # start_y = y_points[0]
+                        start_x = x_points[0]
+                        start_y = y_points[0]
 
                         c_x_0 = line3d_data.x_coeffs[0]
                         c_x_1 = line3d_data.x_coeffs[1]
                         c_x_2 = line3d_data.x_coeffs[2]
                         c_x_3 = line3d_data.x_coeffs[3]
 
-                        # c_y_3, c_y_2, c_y_1, c_y_0 = np.polyfit(x_points, y_points, 3)
-                        c_y_0 = line3d_data.y_coeffs[0]
-                        c_y_1 = line3d_data.y_coeffs[1]
-                        c_y_2 = line3d_data.y_coeffs[2]
-                        c_y_3 = line3d_data.y_coeffs[3]
+                        # c_y_0 = line3d_data.y_coeffs[0]
+                        # c_y_1 = line3d_data.y_coeffs[1]
+                        # c_y_2 = line3d_data.y_coeffs[2]
+                        # c_y_3 = line3d_data.y_coeffs[3]
+                        c_y_3, c_y_2, c_y_1, c_y_0 = np.polyfit(x_points, y_points, 3)
 
-                        start_x = line3d_data.start_pt.x
-                        start_y = line3d_data.start_pt.y
-                        length = line3d_data.t_max
-                        width = line3d_data.width
+                        end_x = x_points[points_num - 1]
+
+                        length = abs(end_x - start_x)
+                        width = 0.2
                         line_color = line3d_data.line_color
-                        line_marking = line3d_data.line_marking
-                        curve_type = line3d_data.curve_type
+                        if line_type == 2:
+                            line_marking = 2
+                        elif line_type == 1:
+                            line_marking = extra_type & 0xF
+                        else:
+                            line_marking = 0
+
+                        x_point_str = ','.join([f'{x:.3f}' for x in x_points])
+                        y_point_str = ','.join([f'{y:.3f}' for y in y_points])
 
                         queue.put([
-                            local_time, time_stamp, header_stamp, header_seq, frame_id,
+                            local_time, time_stamp, header_seq, header_stamp, frame_id,
                             line_id, line_type, conf, line_position, line_marking, line_color,
                             start_x, start_y, c_x_0, c_x_1, c_x_2, c_x_3,
-                            c_y_0, c_y_1, c_y_2, c_y_3, length, width, curve_type,
+                            c_y_0, c_y_1, c_y_2, c_y_3, length, width, extra_type,
+                            points_num, x_point_str, y_point_str,
                         ])
 
                 self.last_timestamp[topic] = time_stamp
@@ -2825,19 +2835,20 @@ if __name__ == "__main__":
     # dd = Ros2BagClip(workspace)
     # dd.cutRosbag(src_path, dst_path, topic_list, [1732693156, 1732695736])
 
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20241227_010000/03_Workspace'
-    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/test_actc_noa_huanyuan_ac37t_7346-load_test_env0-1'
-    folder = '/home/zhangliwei01/ZONE/TestProject/456'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/03_Workspace'
+    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/01_Prediction/20241111_093841_n000013/20241111_093841_n000013_2025-01-07-11-39-42'
+    folder = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/123'
     ES39_topic_list = [
             '/PI/EG/EgoMotionInfo',
-            '/VA/VehicleMotionIpd',
-            '/VA/BevObstaclesDet',
-            '/VA/FrontWideObstacles2dDet',
-            '/VA/BackViewObstacles2dDet',
+            # '/VA/VehicleMotionIpd',
+            # '/VA/BevObstaclesDet',
+            # '/VA/FrontWideObstacles2dDet',
+            # '/VA/BackViewObstacles2dDet',
+            '/VA/BevLines',
             '/VA/Obstacles',
-            '/VA/FusObjects',
-            '/PK/DR/Result',
-            '/SA/INSPVA',
+            # '/PI/FS/ObjTracksHorizon',
+            # '/PK/DR/Result',
+            # '/SA/INSPVA',
     ]
 
     RBP = Ros2BagParser(workspace)

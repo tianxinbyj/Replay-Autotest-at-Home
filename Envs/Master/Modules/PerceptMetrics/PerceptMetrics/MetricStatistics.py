@@ -278,7 +278,7 @@ class LengthError:
         if not isinstance(input_data, pd.DataFrame):
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        data = input_data
+        data = input_data[input_data['gt.type'] == input_data['pred.type']]
 
         length_abs_mean = data['length.error_abs'].mean()
         length_abs_68 = data['length.error_abs'].quantile(0.68)
@@ -317,7 +317,7 @@ class WidthError:
         if not isinstance(input_data, pd.DataFrame):
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        data = input_data
+        data = input_data[input_data['gt.type'] == input_data['pred.type']]
 
         width_abs_mean = data['width.error_abs'].mean()
         width_abs_68 = data['width.error_abs'].quantile(0.68)
@@ -356,7 +356,7 @@ class HeightError:
         if not isinstance(input_data, pd.DataFrame):
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        data = input_data
+        data = input_data[input_data['gt.type'] == input_data['pred.type']]
 
         height_abs_mean = data['height.error_abs'].mean()
         height_abs_68 = data['height.error_abs'].quantile(0.68)
