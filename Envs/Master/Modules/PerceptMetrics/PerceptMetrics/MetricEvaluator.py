@@ -158,6 +158,7 @@ class XError:
             'gt.y',
             'gt.type',
             'gt.road_user',
+            'pred.type',
             'pred.x',
             'x.error',
             'x.error_abs',
@@ -169,16 +170,17 @@ class XError:
     def __call__(self, input_data, kpi_date_label):
 
         if isinstance(input_data, dict):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_x = (
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_type, pred_x = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
                 input_data['gt.type_classification'],
                 input_data['gt.road_user'],
+                input_data['pred.type_classification'],
                 input_data['pred.x'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 7):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_x = input_data
+              and len(input_data) == 8):
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_type, pred_x = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -221,7 +223,7 @@ class XError:
             is_abnormal = 0
 
         return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
-                pred_x, x_error, x_error_abs, x_error_p, x_error_p_abs,
+                pred_type, pred_x, x_error, x_error_abs, x_error_p, x_error_p_abs,
                 is_abnormal)
 
 
@@ -239,6 +241,7 @@ class YError:
             'gt.y',
             'gt.type',
             'gt.road_user',
+            'pred.type',
             'pred.y',
             'y.error',
             'y.error_abs',
@@ -250,16 +253,17 @@ class YError:
     def __call__(self, input_data, kpi_date_label):
 
         if isinstance(input_data, dict):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_y = (
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_type, pred_y = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
                 input_data['gt.type_classification'],
                 input_data['gt.road_user'],
+                input_data['pred.type_classification'],
                 input_data['pred.y'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 7):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_y = input_data
+              and len(input_data) == 8):
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_type, pred_y = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -302,7 +306,7 @@ class YError:
             is_abnormal = 0
 
         return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
-                pred_y, y_error, y_error_abs, y_error_p, y_error_p_abs,
+                pred_type, pred_y, y_error, y_error_abs, y_error_p, y_error_p_abs,
                 is_abnormal)
 
 
@@ -322,6 +326,7 @@ class VxError:
             'gt.road_user',
             'gt.vx',
             'gt.vel',
+            'pred.type',
             'pred.vx',
             'vx.error',
             'vx.error_abs',
@@ -333,17 +338,18 @@ class VxError:
     def __call__(self, input_data, kpi_date_label):
 
         if isinstance(input_data, dict):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_vx, gt_vy, pred_vx = (
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_vx, gt_vy, pred_type, pred_vx = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
                 input_data['gt.type_classification'],
                 input_data['gt.road_user'],
                 input_data['gt.vx'], input_data['gt.vy'],
+                input_data['pred.type_classification'],
                 input_data['pred.vx'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 9):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_vx, gt_vy, pred_vx = input_data
+              and len(input_data) == 10):
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_vx, gt_vy, pred_type, pred_vx = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -374,7 +380,7 @@ class VxError:
             is_abnormal = 0
 
         return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
-                gt_vx, np.sqrt(gt_vx ** 2 + gt_vy ** 2), pred_vx,
+                gt_vx, np.sqrt(gt_vx ** 2 + gt_vy ** 2), pred_type, pred_vx,
                 vx_error, vx_error_abs, vx_error_p, vx_error_p_abs,
                 is_abnormal)
 
@@ -395,6 +401,7 @@ class VyError:
             'gt.road_user',
             'gt.vy',
             'gt.vel',
+            'pred.type',
             'pred.vy',
             'vy.error',
             'vy.error_abs',
@@ -406,17 +413,18 @@ class VyError:
     def __call__(self, input_data, kpi_date_label):
 
         if isinstance(input_data, dict):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_vx, gt_vy, pred_vy = (
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_vx, gt_vy, pred_type, pred_vy = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
                 input_data['gt.type_classification'],
                 input_data['gt.road_user'],
                 input_data['gt.vx'], input_data['gt.vy'],
+                input_data['pred.type_classification'],
                 input_data['pred.vy'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 9):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_vx, gt_vy, pred_vy = input_data
+              and len(input_data) == 10):
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, gt_vx, gt_vy, pred_type, pred_vy = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -447,7 +455,7 @@ class VyError:
             is_abnormal = 0
 
         return (gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user,
-                gt_vy, np.sqrt(gt_vx ** 2 + gt_vy ** 2), pred_vy,
+                gt_vy, np.sqrt(gt_vx ** 2 + gt_vy ** 2), pred_type, pred_vy,
                 vy_error, vy_error_abs, vy_error_p, vy_error_p_abs,
                 is_abnormal)
 
@@ -468,6 +476,7 @@ class YawError:
             'gt.type',
             'gt.road_user',
             'gt.yaw',
+            'pred.type',
             'pred.yaw',
             'yaw.error',
             'yaw.error_abs',
@@ -479,18 +488,20 @@ class YawError:
 
         if isinstance(input_data, dict):
             (gt_id, pred_id, gt_x, gt_y, gt_vx, gt_vy,
-             gt_type, gt_road_user, gt_yaw, pred_yaw) = (
+             gt_type, gt_road_user, gt_yaw, pred_type, pred_yaw) = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
                 input_data['gt.vx'], input_data['gt.vy'],
                 input_data['gt.type_classification'],
                 input_data['gt.road_user'],
-                input_data['gt.yaw'], input_data['pred.yaw'])
+                input_data['gt.yaw'],
+                input_data['pred.type_classification'],
+                input_data['pred.yaw'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 10):
+              and len(input_data) == 11):
             (gt_id, pred_id, gt_x, gt_y, gt_vx, gt_vy,
-             gt_type, gt_road_user, gt_yaw, pred_yaw) = input_data
+             gt_type, gt_road_user, gt_yaw, pred_type, pred_yaw) = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -526,7 +537,8 @@ class YawError:
                 is_abnormal = 1
 
         return (gt_id, pred_id, gt_x, gt_y, np.sqrt(gt_vx ** 2 + gt_vy ** 2), gt_type, gt_road_user,
-                np.rad2deg(gt_yaw), np.rad2deg(pred_yaw), np.rad2deg(yaw_error), np.rad2deg(abs(yaw_error)),
+                np.rad2deg(gt_yaw), pred_type, np.rad2deg(pred_yaw),
+                np.rad2deg(yaw_error), np.rad2deg(abs(yaw_error)),
                 is_reverse, is_abnormal)
 
     def make_yaw_pi(self, yaw):

@@ -399,6 +399,7 @@ class ReplayController:
 
         if len(columns):
             res = pd.DataFrame(rows, columns=columns + ['record_time', 'replay_count', 'isValid'], index=index)
+            res.sort_values(by='record_time', inplace=True)
             res.to_csv(statistics_path)
 
         return scenario_is_valid

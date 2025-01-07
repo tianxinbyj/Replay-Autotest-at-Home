@@ -1849,11 +1849,11 @@ class DataGrinderPilotOneCase:
                                          & (metric_data['gt.x'] <= 100)
                                          & (metric_data['gt.x'] >= -50)
                                          & (metric_data['gt.y'] <= 8)
-                                         & (metric_data['gt.y'] >= -8)]
+                                         & (metric_data['gt.y'] >= -8)
+                                         & (metric_data['gt.type'] == metric_data['pred.type'])]
                 error_data = error_data[~((error_data['gt.type'].isin(['pedestrian', 'cyclist']))
                                           & (error_data['gt.x'] > 50))]
                 if metric in ['width_error', 'length_error', 'height_error']:
-                    error_data = error_data[(error_data['gt.type'] == error_data['pred.type'])]
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian', 'cyclist'])]
                 if metric in ['vx_error', 'vy_error', 'yaw_error']:
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian'])]
