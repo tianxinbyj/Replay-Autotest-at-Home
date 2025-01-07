@@ -9,7 +9,7 @@ import os
 def get_project_path():
     """
     获取项目路径的函数。
-    遍历当前文件的父目录，直到找到包含'Tests/conftest.py'的路径为止。
+    遍历当前文件的父目录，直到找到包含'Tests/requirements.txt'的路径为止。
     """
     folder = os.path.dirname(os.path.abspath(__file__))  # 获取当前文件所在的绝对路径的目录
     while True:
