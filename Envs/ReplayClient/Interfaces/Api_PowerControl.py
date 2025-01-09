@@ -18,21 +18,26 @@ def main():
     args = parser.parse_args()
 
     command = args.command
-    versionControl = VersionControl()
+    try:
+        versionControl = VersionControl()
+    except Exception as err:
+        print(False)
+        return
 
-    if command == 'on_without_wait':
+    if command == 'on':
         res = versionControl.power_ctrl_power_on()
-    elif command == 'on_with_wait':
+    elif command == 'on_with_waiting':
         versionControl.power_ctrl_power_on()
         res = versionControl.check_power_on_success()
     elif command == 'off':
         res = versionControl.power_ctrl_power_off()
+    elif command == 'power':
+        res = versionControl.power_ctrl_get_status()
     elif command == 'remote':
         res = versionControl.switch_to_remote_mode()
     elif command == 'panel':
         res = versionControl.switch_to_panel_mode()
-    elif command == 'power':
-        res = versionControl.get_power_status()
+
     else:
         res = False
 

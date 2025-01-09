@@ -2,18 +2,10 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2023/8/10 上午9:41
 # @Author  : Cen Zhengfeng
+
 import json
 import subprocess
 import sys
-import os
-
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MetricStatistics import characteristic_text
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from Libs import get_project_path
-sys.path.append(get_project_path())
-
-from Utils.Libs import test_encyclopaedia, create_folder, bench_config
 import datetime
 import glob
 import os
@@ -21,9 +13,13 @@ import os
 import yaml
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from Libs import get_project_path
+sys.path.append(get_project_path())
+from Utils.Libs import test_encyclopaedia, create_folder, bench_config, project_path
+
 import warnings
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 warnings.filterwarnings("ignore")
 
@@ -270,7 +266,7 @@ class ScenarioAnalyzer:
 
     def __init__(self):
         self.annotation_folder = '/media/data/annotation'
-        self.scenario_summary_path = os.path.join(self.annotation_folder, 'scenario_summary.json')
+        self.scenario_summary_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_summary.json')
         if os.path.exists(self.scenario_summary_path):
             with open(self.scenario_summary_path, 'r', encoding='utf-8') as f:
                 self.scenario_summary = json.load(f)
@@ -278,24 +274,23 @@ class ScenarioAnalyzer:
             self.scenario_summary = {}
 
     def start(self, update=False):
-        for f in os.listdir(self.annotation_folder):
+        for i, f in enumerate(os.listdir(self.annotation_folder)):
             folder = os.path.join(self.annotation_folder, f)
             if os.path.isdir(folder) and os.path.exists(os.path.join(folder, 'yaml_management.yaml')):
-                res = SingleScenarioObstaclesAnalyzer(folder).start()
-                if not res:
-                    print(f'分析场景 {f}失败')
-                    continue
-
-                print(f'分析场景 {f}, 结果为{res}')
-                key = f"{res['scenario_id']}-{res['truth_source']}"
+                obstacle_analyzer = SingleScenarioObstaclesAnalyzer(folder)
+                key = f"{obstacle_analyzer.analysis['scenario_id']}-{obstacle_analyzer.analysis['truth_source']}"
                 if key not in self.scenario_summary or update:
-                    self.scenario_summary[key] = res
-
-                with open(self.scenario_summary_path, 'w', encoding='utf-8') as f:
-                    json.dump(self.scenario_summary, f, ensure_ascii=True, indent=4)
+                    print(f'No.{i + 1} 分析场景 {f}')
+                    res = obstacle_analyzer.start()
+                    if not res:
+                        print(f'No.{i + 1} 分析场景 {f}失败')
+                    else:
+                        with open(self.scenario_summary_path, 'w', encoding='utf-8') as f:
+                            json.dump(self.scenario_summary, f, ensure_ascii=True, indent=4)
+                else:
+                    print(f'No.{i + 1} 场景 {f} 已存在，不进行再次分析')
 
 
 if __name__ == "__main__":
-    folder = '/media/data/annotation/20241111_125838_n000004'
     SS = ScenarioAnalyzer()
-    SS.start(update=True)
+    SS.start(update=False)
