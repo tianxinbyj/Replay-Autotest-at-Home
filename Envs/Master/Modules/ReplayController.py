@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -38,6 +39,7 @@ class ReplayController:
         # 定义异常累计分数，高了将重启板子
         self.abnormal_score = 0
         self.reboot_count = 0
+        self.invalid_scenario_list = []
 
         # 读取参数
         self.scenario_ids = replay_config['scenario_id']
@@ -327,15 +329,20 @@ class ReplayController:
                     t.start()
                     self.thread_list.append(t)
 
+                    # 积分触发重启控制器，并将invalid场景重新测试
+                    if self.abnormal_score > 10:
+                        if self.reboot_power():
+                            self.wait_for_threading()
+
+
+
+
+
         if self.replay_action['video_info']:
             for scenario_id in self.scenario_ids:
                 self.get_video_info(scenario_id)
 
-        send_log(self, '等待所有线程都结束')
-        print('等待所有线程都结束')
-        for t in self.thread_list:
-            t.join()
-        self.thread_list.clear()
+        self.wait_for_threading()
 
         send_log(self, '清理临时文件夹')
         self.replay_client.clear_temp_folder()
@@ -406,5 +413,31 @@ class ReplayController:
             res = pd.DataFrame(rows, columns=columns + ['record_time', 'replay_count', 'isValid'], index=index)
             res.sort_values(by='record_time', inplace=True)
             res.to_csv(statistics_path)
+            self.invalid_scenario_list = res[res['isValid'] == 0].index.tolist()
+
+            # 计算失效积分
+            # 每一个invalid场景增加1分，每次出现0/0/0/0-0增加1分
+            # 超过10分，触发重启并重新测试invalid的场景
+            self.abnormal_score = len(self.invalid_scenario_list) + np.sum(res.values == '0/0/0/0-0')
+        else:
+            self.invalid_scenario_list = []
 
         return scenario_is_valid
+
+    def wait_for_threading(self):
+        send_log(self, '等待所有线程都结束')
+        print('等待所有线程都结束')
+        for t in self.thread_list:
+            t.join()
+        self.thread_list.clear()
+
+    def reboot_power(self):
+        for _ in range(3):
+            self.replay_client.control_power('off')
+            time.sleep(15)
+            res = self.replay_client.control_power('on_with_waiting')
+            if res:
+                return True
+            time.sleep(5)
+
+        return False
