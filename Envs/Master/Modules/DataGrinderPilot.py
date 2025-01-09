@@ -2940,7 +2940,7 @@ class DataGrinderPilotOneTask:
         scenario_list = {}
         total_frame = 0
         total_distance = 0
-        for scenario_tag in self.test_result['TagCombination']:
+        for i, scenario_tag in enumerate(self.test_result['TagCombination']):
             scenario_list[scenario_tag] = {}
             scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
 
@@ -2956,7 +2956,7 @@ class DataGrinderPilotOneTask:
 
             total_frame += frame
             total_distance += distance
-            scenario_list[scenario_tag] = f'帧数-{frame:.0f} frame, 里程-{distance:.0f} km'
+            scenario_list[scenario_tag] = f'帧数-{frame:.0f} frame, 里程-{distance:.0f} km     ------- Page {3 + 12 * i}'
 
         test_info = {
             '测试版本': current_version,
@@ -3737,6 +3737,10 @@ class DataGrinderPilotOneTask:
         )
 
         for characteristic in self.test_result['OutputResult']['report_plot'].keys():
+
+            if characteristic != '关键目标':
+                continue
+
             for scenario_tag in self.test_result['OutputResult']['report_plot'][characteristic]:
 
                 send_log(self, f'生成页面 {characteristic} {scenario_tag}')
@@ -3820,7 +3824,7 @@ class DataGrinderPilotOneTask:
                                     text_list=text,
                                     img_list=img)
 
-        report_generator.page_count += 1
+        report_generator.page_count += 0
         self.report_path = os.path.join(self.task_folder, f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]})')
         report_generator.genReport(report_path=self.report_path, compress=1)
 
@@ -3831,9 +3835,11 @@ class DataGrinderPilotOneTask:
         if self.test_action['tag_combination']:
             self.combine_scenario_tag()
 
-        if self.test_action['output_result']:
+        if self.test_action['statistics']:
             self.summary_bug_items()
             self.compile_statistics()
+
+        if self.test_action['visualization']:
             self.visualize_output()
 
         if self.test_action['gen_report']:
