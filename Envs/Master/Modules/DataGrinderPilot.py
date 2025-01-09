@@ -2184,6 +2184,7 @@ class DataGrinderPilotOneTask:
         self.product = self.test_config['product']
         self.version = self.test_config['version']
         self.test_topic = self.test_config['test_topic']
+        self.truth_source = self.test_config['test_action']['ros2bag']['truth_source']
         self.test_date = str(self.test_config['test_date'])
         self.test_db_id = generate_unique_id(''.join([self.product, self.version, self.test_date]))
         self.test_information = test_encyclopaedia['Information'][self.test_topic]
@@ -2358,15 +2359,81 @@ class DataGrinderPilotOneTask:
                             os.path.join(metric_folder, characteristic, metric))
 
     @sync_test_result
+    def summary_bug_items(self):
+
+        bugItem_folder = os.path.join(self.output_result_folder, 'bugItems')
+        create_folder(bugItem_folder)
+        dataframes = []
+
+        for scenario_tag in self.test_result['TagCombination']:
+            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
+            for scenario_id in scenario_ids:
+                for root, dirs, files in os.walk(os.path.join(self.scenario_unit_folder, scenario_id)):
+                    for file in files:
+                        if 'bug_jira_summary.csv' in file:
+                            file_path = os.path.join(root, file)
+                            df = pd.read_csv(file_path, index_col=False)
+                            if len(df):
+                                dataframes.append(df)
+
+        if len(dataframes):
+            bug_summary = pd.concat(dataframes, ignore_index=True)
+            bug_report_path_list = []
+            for i, row in bug_summary.iterrows():
+                topic = row['topic'].replace('/', '')
+                bug_type = row['bug_type']
+                target_type = row['target_type']
+                folder = os.path.join(bugItem_folder, bug_type, topic, target_type)
+                if not os.path.exists(folder):
+                    os.makedirs(folder)
+
+                bug_report_path = row['attachment_path']
+                shutil.copy(bug_report_path, folder)
+                bug_report_path_list.append(os.path.join(folder, os.path.basename(bug_report_path)))
+
+            bug_summary['attachment_path'] = bug_report_path_list
+            bug_summary_path = os.path.join(bugItem_folder, 'bug_summary.csv')
+            (bug_summary.sort_values(by=['bug_type', 'scenario_id', 'gt_target_id'])
+             .to_csv(bug_summary_path, index=False, encoding='utf_8_sig'))
+            self.test_result['OutputResult']['bugItems'] = self.get_relpath(bug_summary_path)
+
+    @sync_test_result
     def compile_statistics(self):
         # 按照数据库数据单元的方式保存数据
         # 格式为json，在文件夹内平铺
 
-        json_folder = os.path.join(self.output_result_folder, 'statistics')
-        create_folder(json_folder)
+        statistics_folder = os.path.join(self.output_result_folder, 'statistics')
+        create_folder(statistics_folder)
+
+        # 统计目标个数
+        total_scenario_summary_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_summary.json')
+        with open(total_scenario_summary_path, 'r', encoding='utf-8') as f:
+            total_scenario_summary = json.load(f)
+
+        scenario_summary = {}
+        for tag_key in self.test_result['TagCombination'].keys():
+            scenario_list = self.test_result['TagCombination'][tag_key]['scenario_id']
+            scenario_summary[tag_key] = {}
+
+            for scenario_id in scenario_list:
+                if f'{scenario_id}-{self.truth_source}' not in total_scenario_summary.keys():
+                    continue
+
+                scenario_summary[tag_key][scenario_id] = {}
+                for characteristic in self.test_config['test_action']['output_characteristic']:
+                    scenario_summary[tag_key][scenario_id][characteristic] = (
+                        total_scenario_summary)[f'{scenario_id}-{self.truth_source}']['obstacles'][characteristic]
+
+        scenario_summary_path = os.path.join(statistics_folder, 'scenario_summary.json')
+        with open(scenario_summary_path, 'w', encoding='utf-8') as f:
+            json.dump(scenario_summary, f, ensure_ascii=False, indent=4)
+
+        self.test_result['OutputResult']['scenario_summary'] = self.get_relpath(scenario_summary_path)
+        # ====================
+
+        # 生成用于上传数据库的json文件，以及汇总结果OutputResult
         json_count = 0
         json_rows = []
-
         for tag_key in self.test_result['TagCombination'].keys():
             tag = self.test_result['TagCombination'][tag_key]['tag']
             scenario_list = self.test_result['TagCombination'][tag_key]['scenario_id']
@@ -2439,7 +2506,7 @@ class DataGrinderPilotOneTask:
                         json_count += 1
                         json_name = (f'{json_count:06d}--{self.version}--{tag_key}--{topic_tag}--{json_data["ObstacleName"]}'
                                      f'--{json_data["RangeDetails"]}--{json_data["FeatureDetail"]}--{json_data["MetricTypeName"]}.json')
-                        json_path = os.path.join(json_folder, json_name)
+                        json_path = os.path.join(statistics_folder, json_name)
 
                         frequency_threshold = self.test_result['TagCombination'][tag_key][self.test_topic][topic][
                                                   'frequency'] * 2
@@ -2463,12 +2530,13 @@ class DataGrinderPilotOneTask:
                             ]
                         )
 
-        path = os.path.join(json_folder, 'output_result.csv')
+        path = os.path.join(statistics_folder, 'output_result.csv')
         output_result = pd.DataFrame(json_rows, columns=[
             'index', 'version', 'scenario_tag', 'topic', 'obstacle_type', 'region',
             'characteristic', 'metric', 'sample_count', 'result'])
         output_result.to_csv(path, index=False, encoding='utf_8_sig')
         self.test_result['OutputResult']['statistics'] = self.get_relpath(path)
+        # ====================
 
         # 生成以场景类型作为sheet的xlsx
         characteristic_key = [test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['name']
@@ -2479,7 +2547,6 @@ class DataGrinderPilotOneTask:
         region_key = output_result['region'].unique()
         metric_key = [v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metrics'].values()
                       if v['name'] in output_result['metric'].unique()]
-
         # 首先生成columns
         columns = [
             ('基本信息', '基本信息', 'OD类型'),
@@ -2507,7 +2574,7 @@ class DataGrinderPilotOneTask:
 
         self.test_result['OutputResult']['report_table'] = {}
         for i, characteristic in enumerate(characteristic_key):
-            path = os.path.join(json_folder, f'{characteristic}-指标汇总.xlsx')
+            path = os.path.join(statistics_folder, f'{characteristic}-指标汇总.xlsx')
             self.test_result['OutputResult']['report_table'][characteristic] = self.get_relpath(path)
 
             # 使用ExcelWriter将DataFrame保存到不同的sheet中
@@ -2572,6 +2639,7 @@ class DataGrinderPilotOneTask:
             worksheet = workbook[sheet_name1]
             workbook.remove(worksheet)
             workbook.save(path)
+        # ====================
 
     @sync_test_result
     def visualize_output(self):
@@ -2785,6 +2853,46 @@ class DataGrinderPilotOneTask:
             canvas = FigureCanvas(fig)
             canvas.print_figure(plot_path, facecolor='white', dpi=100)
 
+        def plot_title_table(title_dict, plot_path):
+            fig = plt.figure(figsize=(4 * len(title_dict), 3.5))
+            fig.tight_layout()
+            plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+            grid = plt.GridSpec(1, 1, wspace=0.05, hspace=0.05)
+            ax_title_page = fig.add_subplot(grid[0, 0])
+            for pos in ['right', 'top', 'left', 'bottom']:
+                ax_title_page.spines[pos].set_visible(False)
+
+            center_x = 2
+            for k, v in title_dict.items():
+                ax_title_page.text(center_x, 0.875, k,
+                                   va='center', ha='center',
+                                   fontdict={
+                                       'style': 'normal',
+                                       'weight': 'normal',
+                                       'color': 'black',
+                                       'size': font_size * 2.5,
+                                   })
+                ax_title_page.text(center_x, -0.875, str(v),
+                                   va='center', ha='center',
+                                   fontdict={
+                                       'family': 'Ubuntu',
+                                       'style': 'normal',
+                                       'weight': 'bold',
+                                       'color': 'orange',
+                                       'size': font_size * 6,
+                                   })
+                center_x += 4
+
+            ax_title_page.set_xlim(0, len(title_dict) * 4)
+            ax_title_page.set_ylim(-1.75, 1.75)
+            ax_title_page.set_xticks([])
+            ax_title_page.set_yticks([])
+
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+            fig.clf()
+            plt.close()
+
         current_version = self.test_config['version']
         test_topic = self.test_config['test_topic']
         version_comparison_folder = self.test_config['version_comparison']
@@ -2800,7 +2908,6 @@ class DataGrinderPilotOneTask:
                             old_version = old_test_config['version']
 
         output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
-        obstacle_type_key = ';'.join(output_result['obstacle_type'].unique())
         region_key = ';'.join(output_result['region'].unique())
         metric_key = ';'.join([v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metrics'].values()
                       if v['name'] in output_result['metric'].unique()])
@@ -2808,7 +2915,31 @@ class DataGrinderPilotOneTask:
                                   test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['description']
                               for c in self.test_config['test_action']['output_characteristic']}
 
+        with open(self.get_abspath(self.test_result['OutputResult']['scenario_summary']), 'r', encoding='utf-8') as file:
+            scenario_summary = json.load(file)
+
+        target_num, ru_num = {}, {}
+        for scenario_tag in scenario_summary:
+            for scenario_id in scenario_summary[scenario_tag]:
+                for target_type in scenario_summary[scenario_tag][scenario_id]['is_coverageValid']:
+                    if target_type in self.test_information['type']:
+                        if target_type in ['cyclist', 'pedestrian']:
+                            ru = 'VRU'
+                        else:
+                            ru = 'DRU'
+                        if ru not in ru_num:
+                            ru_num[ru] = 0
+                        ru_num[ru] += scenario_summary[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
+
+                        target_type_text = self.test_information['type'][target_type]['name']
+                        if target_type_text not in target_num:
+                            target_num[target_type_text] = 0
+                        target_num[target_type_text] += scenario_summary[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
+
+
         scenario_list = {}
+        total_frame = 0
+        total_distance = 0
         for scenario_tag in self.test_result['TagCombination']:
             scenario_list[scenario_tag] = {}
             scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
@@ -2822,14 +2953,17 @@ class DataGrinderPilotOneTask:
                 ego_vx_path = os.path.join(self.scenario_unit_folder, scenario_id, '01_Data', 'General', 'pred_ego.csv')
                 ego_vx = pd.read_csv(ego_vx_path, index_col=False)
                 distance += np.ceil((ego_vx['time_stamp'].max() - ego_vx['time_stamp'].min()) * ego_vx['ego_vx'].mean() / 1000)
+
+            total_frame += frame
+            total_distance += distance
             scenario_list[scenario_tag] = f'帧数-{frame:.0f} frame, 里程-{distance:.0f} km'
 
         test_info = {
             '测试版本': current_version,
-            '对比版本': old_version,
+            '版本对比': f'{current_version} <--> {old_version}',
             # 'test_date': self.test_config['test_date'],
             '测试对象': ';'.join(self.test_config['test_item'].keys()),
-            '目标类型': obstacle_type_key,
+            '目标类型': ';'.join([f'{k}-{v}' for k, v in target_num.items()]),
             '指标类型': metric_key,
             '区域划分': region_key,
             '特征类型': characteristic_key,
@@ -2839,6 +2973,18 @@ class DataGrinderPilotOneTask:
         send_log(self, f'{plot_path} 图片已保存')
         self.test_result['OutputResult']['test_info'] = self.get_relpath(plot_path)
         plot_test_info(test_info, plot_path)
+
+        title_summary = {
+            '回灌帧数\n(千帧)': f'{(total_frame / 1000):.0f}',
+            '场景里程\n(千米)': f'{total_distance:.0f}',
+            '场景类型\n(类)': len(self.test_result['TagCombination'].keys()),
+        }
+        for ru, num in ru_num.items():
+            title_summary[f'{ru}\n(千)'] = f'{(num / 1000):.0f}'
+        plot_path = os.path.join(visualization_folder, '测试报告首页.png')
+        plot_title_table(title_summary, plot_path)
+        self.test_result['OutputResult']['test_title'] = self.get_relpath(plot_path)
+        # ====================
 
         # 将速度图和地图都移动过来
         for scenario_tag in self.test_result['TagCombination']:
@@ -2851,6 +2997,7 @@ class DataGrinderPilotOneTask:
                             os.makedirs(os.path.join(visualization_folder, scenario_tag), exist_ok=True)
                             new_file_path = os.path.join(visualization_folder, scenario_tag, f'{scenario_id}.jpg')
                             shutil.copy(file_path, new_file_path)
+        # ====================
 
         # 按照场景和目标特征，生成各个指标的场景
         statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
@@ -2931,6 +3078,7 @@ class DataGrinderPilotOneTask:
                 df.rename(columns={'pass_ratio%': metric}, inplace=True)
                 df_tp_error[scenario_tag][topic][characteristic][obstacle_type].append(
                     df[['Test Area[m]', metric]])
+        # ====================
 
         # 合并tp_error的metric数据，以及可视化为饼图
         for scenario_tag in df_tp_error.keys():
@@ -3035,6 +3183,7 @@ class DataGrinderPilotOneTask:
 
                         self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
                             obstacle_type]['plot'] = self.get_relpath(pic_path)
+        # ====================
 
         # 生成用于汇报的图
         def plot_single_metric(sub_data, old_data, plot_path):
@@ -3360,12 +3509,14 @@ class DataGrinderPilotOneTask:
         else:
             comparison_valid = 0
 
+        metric_pass_ratio_by_characteristic_scenario = {} # 用于统计各特征和场景下的指标合格率
         color_for_sheets = {} # excel的涂色字典
         self.test_result['OutputResult']['report_plot'] = {}
         for characteristic, excel_path in self.test_result['OutputResult']['report_table'].items():
             excel_path = self.get_abspath(excel_path)
             self.test_result['OutputResult']['report_plot'][characteristic] = {}
             color_for_sheets[characteristic] = {}
+            metric_pass_ratio_by_characteristic_scenario[characteristic] = {}
 
             # 寻找其他版本相同的文件
             old_excel_path = None
@@ -3501,11 +3652,19 @@ class DataGrinderPilotOneTask:
                 send_log(self, f'{plot_path} 图片已保存')
                 self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
 
+                metric_pass_count = np.sum(pd.concat(pass_or_fail_summary, axis=1).values == 1)
+                metric_fail_count = np.sum(pd.concat(pass_or_fail_summary, axis=1).values == 0)
+                metric_pass_ratio_by_characteristic_scenario[characteristic][scenario_tag] = {
+                    'pass_count': int(metric_pass_count), 'fail_count': int(metric_fail_count),
+                    'ratio': float(metric_pass_count / (metric_pass_count + metric_fail_count))}
+
+        self.test_result['OutputResult']['metric_pass_ratio'] = metric_pass_ratio_by_characteristic_scenario
+        # ====================
+
+        # 根据比对结果，对excel源文件涂色
         with open(os.path.join(visualization_folder, 'color_for_sheets.yaml'), 'w', encoding='utf-8') as f:
             yaml.dump(color_for_sheets,
                       f, encoding='utf-8', allow_unicode=True, sort_keys=False)
-
-        # 根据比对结果，对excel源文件涂色
         fill_type = {
             'lightcoral': PatternFill(fill_type="solid", start_color="FFB6C1"),
             'limegreen': PatternFill(fill_type="solid", start_color="32CD32"),
@@ -3554,45 +3713,6 @@ class DataGrinderPilotOneTask:
             workbook.save(os.path.join(visualization_folder, f'{characteristic}.xlsx'))
 
     @sync_test_result
-    def summary_bug_items(self):
-
-        bugItem_folder = os.path.join(self.output_result_folder, 'bugItems')
-        create_folder(bugItem_folder)
-        dataframes = []
-
-        for scenario_tag in self.test_result['TagCombination']:
-            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
-            for scenario_id in scenario_ids:
-                for root, dirs, files in os.walk(os.path.join(self.scenario_unit_folder, scenario_id)):
-                    for file in files:
-                        if 'bug_jira_summary.csv' in file:
-                            file_path = os.path.join(root, file)
-                            df = pd.read_csv(file_path, index_col=False)
-                            if len(df):
-                                dataframes.append(df)
-
-        if len(dataframes):
-            bug_summary = pd.concat(dataframes, ignore_index=True)
-            bug_report_path_list = []
-            for i, row in bug_summary.iterrows():
-                topic = row['topic'].replace('/', '')
-                bug_type = row['bug_type']
-                target_type = row['target_type']
-                folder = os.path.join(bugItem_folder, bug_type, topic, target_type)
-                if not os.path.exists(folder):
-                    os.makedirs(folder)
-
-                bug_report_path = row['attachment_path']
-                shutil.copy(bug_report_path, folder)
-                bug_report_path_list.append(os.path.join(folder, os.path.basename(bug_report_path)))
-
-            bug_summary['attachment_path'] = bug_report_path_list
-            bug_summary_path = os.path.join(bugItem_folder, 'bug_summary.csv')
-            (bug_summary.sort_values(by=['bug_type', 'scenario_id', 'gt_target_id'])
-             .to_csv(bug_summary_path, index=False, encoding='utf_8_sig'))
-            self.test_result['OutputResult']['bugItems'] = self.get_relpath(bug_summary_path)
-
-    @sync_test_result
     def gen_report(self):
 
         report_title = f'{self.product}_{self.test_topic}_数据回灌感知测试报告'
@@ -3605,7 +3725,7 @@ class DataGrinderPilotOneTask:
                                              tester='Hil_DataReplay_TestStand',
                                              version=self.version,
                                              title_page=title_background,
-                                             title_summary_img=None,
+                                             title_summary_img=self.get_abspath(self.test_result['OutputResult']['test_title']),
                                              logo=logo)
 
         heading = '报告信息总览'

@@ -35,6 +35,10 @@ class ReplayController:
         self.scenario_replay_count = {}
         self.scenario_replay_datetime = {}
 
+        # 定义异常累计分数，高了将重启板子
+        self.abnormal_score = 0
+        self.reboot_count = 0
+
         # 读取参数
         self.scenario_ids = replay_config['scenario_id']
         self.pred_raw_folder = replay_config['pred_folder']
@@ -303,13 +307,14 @@ class ReplayController:
                             time.sleep(8)
 
                         self.parse_bag(scenario_id)
+
                         self.scenario_replay_count[scenario_id] = try_count
                         self.scenario_replay_datetime[scenario_id] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                         scenario_is_valid = self.analyze_raw_data()
 
                         if scenario_id in scenario_is_valid and scenario_is_valid[scenario_id] == 1:
-                            print(f'{scenario_id} 场景录制成功')
-                            send_log(self, f'{scenario_id} 场景录制成功')
+                            print(f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
+                            send_log(self, f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
                             break
 
                         if try_count == self.replay_action['retest']:

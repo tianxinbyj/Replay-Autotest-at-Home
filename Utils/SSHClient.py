@@ -277,15 +277,23 @@ class SSHClient:
         print(command)
         self.send_cmd(command)
 
+    def control_power(self, power_command):
+        command = f'cd {self.interface_path} && python3 Api_PowerControl.py -c {power_command}'
+
+        print(command)
+        res = self.send_cmd(command)
+
+        try:
+            r = eval(res.strip().split('\n')[-1])
+            return r
+        except:
+            return False
+
 
 if __name__ == '__main__':
     ssh = SSHClient()
-    local_folder = '/home/zhangliwei01/ZONE/TestProject/2J5/pilot/01_Prediction/20230602_144755_n000003/scenario_info/es37_calib'
-    remote_folder = '/home/vcar/work'
-    # ssh.scp_folder_local_to_remote(local_folder, remote_folder)
-
-    ssh.flash_camera_config('ES37')
-
-    scenario_id = '20230602_144755_n000003'
- 
-    local_folder = '/home/caobingqi/ZONE/Data/TestProject/1J5/Pilot/debug'
+    ssh.control_power('off')
+    res = ssh.control_power('on_with_waiting')
+    print(res)
+    res = ssh.control_power('power')
+    print(res)

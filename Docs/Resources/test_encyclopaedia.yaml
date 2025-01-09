@@ -1254,6 +1254,15 @@ Information:
         name: 宽度误差
       height_error:
         name: 高度误差
+    type:
+      car:
+        name: 小车
+      pedestrian:
+        name: 行人
+      truck_bus:
+        name: 大车
+      cyclist:
+        name: 两轮车
   Lines:
     name: 车道线
     topics:
