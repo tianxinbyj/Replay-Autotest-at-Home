@@ -181,10 +181,11 @@ class SingleScenarioObstaclesAnalyzer:
 
     def analyze_ego(self):
         ego_data = pd.read_csv(os.path.join(self.tmp_folder, 'gt_ego.csv'))
-        low_ego_data = ego_data[(ego_data['ego_vx'] < 3) & (ego_data['ego_vx'] > -3)]
-        high_ego_data = ego_data[(ego_data['ego_vx'] >= 3) | (ego_data['ego_vx'] <= -3)]
+        ego_data['ego_v'] = ego_data.apply(lambda v: np.abs(v['ego_vx']), axis=1)
+        low_ego_data = ego_data[ego_data['ego_v'] < 3]
+        high_ego_data = ego_data[ego_data['ego_v'] >= 3]
         self.analysis['label']['low_velocity_ratio[%]'] = len(low_ego_data) / len(ego_data)
-        self.analysis['label']['average_ego_velocity[m/s]'] = float(high_ego_data['ego_vx'].mean())
+        self.analysis['label']['average_ego_velocity[m/s]'] = float(high_ego_data['ego_v'].mean())
 
     def analyze_obstacles(self):
 
@@ -246,9 +247,9 @@ class SingleScenarioObstaclesAnalyzer:
         self.analysis['label']['average_velocity[m/s]'] = float(
             total_data['average_velocity[m/s]'].sum() / len(total_data))
         self.analysis['label']['flow[/s]'] = float(
-            total_data['average_velocity[m/s]'].sum() / len(total_data))
+            total_data['flow[/s]'].sum() / len(total_data))
         self.analysis['label']['area_occ[%]'] = float(
-            total_data['average_velocity[m/s]'].sum() / len(total_data))
+            total_data['area_occ[%]'].sum() / len(total_data))
 
     def start(self):
         self.analyze_time()
@@ -285,6 +286,8 @@ class ScenarioAnalyzer:
                     if not res:
                         print(f'No.{i + 1} 分析场景 {f}失败')
                     else:
+                        self.scenario_summary[key] = res
+                        print(f'No.{i + 1} {key} 已保存')
                         with open(self.scenario_summary_path, 'w', encoding='utf-8') as f:
                             json.dump(self.scenario_summary, f, ensure_ascii=True, indent=4)
                 else:
@@ -293,4 +296,4 @@ class ScenarioAnalyzer:
 
 if __name__ == "__main__":
     SS = ScenarioAnalyzer()
-    SS.start(update=False)
+    SS.start(update=True)

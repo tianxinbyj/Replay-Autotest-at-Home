@@ -1859,6 +1859,8 @@ class DataGrinderPilotOneCase:
                     error_data = error_data[~error_data['gt.type'].isin(['pedestrian'])]
                     error_data = error_data[~((error_data['gt.type'].isin(['cyclist']))
                                               & (error_data['gt.vel'] <= 2))]
+                if metric == 'yaw_error':
+                    error_data = error_data[error_data['yaw.error_abs'] > 20]
 
                 bug_index_dict[metric] = []
                 for key, group in error_data.groupby('gt.type'):
