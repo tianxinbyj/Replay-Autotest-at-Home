@@ -2197,9 +2197,8 @@ class DataGrinderPilotOneTask:
         self.region_division = self.test_config['region_division']
         topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
         self.scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
-        self.broken_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 0].index)
-        self.valid_scenario_list = []
-        print(f'Broken Scenario为{self.broken_scenario_list}, 不参与结果分析')
+        self.valid_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 1].index)
+        print(f'Valid Scenario为{self.valid_scenario_list}, 不参与结果分析')
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
@@ -2218,7 +2217,7 @@ class DataGrinderPilotOneTask:
         scenario_list = []
         for scenario_tag in self.test_config['scenario_tag']:
             for scenario_id in scenario_tag['scenario_id']:
-                if scenario_id in scenario_list or scenario_id in self.broken_scenario_list:
+                if scenario_id in scenario_list or scenario_id not in self.valid_scenario_list:
                     continue
 
                 scenario_list.append(scenario_id)
@@ -2249,7 +2248,6 @@ class DataGrinderPilotOneTask:
                     'scenario_config_yaml': os.path.join(self.scenario_unit_folder, scenario_id, 'TestConfig.yaml')
                 }
 
-        self.valid_scenario_list = scenario_list
         for scenario_run_info in scenario_run_list.values():
             self.test_result['ScenarioUnit'][scenario_run_info['scenario_id']] = (
                 self.get_relpath(scenario_run_info['scenario_unit_folder']))
@@ -2266,7 +2264,7 @@ class DataGrinderPilotOneTask:
         for scenario_tag in self.test_config['scenario_tag']:
             # 需要去除Broken Scenario
             valid_scenario_list = [scenario_id for scenario_id in scenario_tag['scenario_id']
-                                   if scenario_id not in self.broken_scenario_list]
+                                   if scenario_id in self.valid_scenario_list]
             if len(valid_scenario_list):
                 tag_key = '&'.join(scenario_tag['tag'].values())
                 self.test_result['TagCombination'][tag_key] = {

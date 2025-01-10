@@ -270,6 +270,45 @@ class ReplayController:
         # 调用接口复制参数进ECU
         self.replay_client.flash_camera_config(ecu_type=self.product)
 
+    def replay_one_scenario(self, scenario_id):
+        # 有的时候部分topic的计数会小于目标数量，尝试3次
+        try_count = 0
+
+        while True:
+            try_count += 1
+            print(f'{scenario_id} 第{try_count}次场景录制开始')
+            send_log(self, f'{scenario_id} 第{try_count}次场景录制开始')
+            self.start_replay_and_record(scenario_id)
+
+            while True:
+                replay_process = self.replay_client.get_replay_process()
+                send_log(self, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
+                if float(replay_process) > self.replay_end / 100:
+                    self.stop_replay_and_record(scenario_id)
+                    break
+                time.sleep(8)
+
+            self.parse_bag(scenario_id)
+
+            self.scenario_replay_count[scenario_id] = try_count
+            self.scenario_replay_datetime[scenario_id] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            scenario_is_valid = self.analyze_raw_data()
+
+            if scenario_id in scenario_is_valid and scenario_is_valid[scenario_id] == 1:
+                print(f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
+                send_log(self, f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
+                break
+
+            if try_count == self.replay_action['retest']:
+                print(f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
+                send_log(self, f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
+                break
+
+        t = threading.Thread(target=self.compress_bag, args=(scenario_id,))
+        t.daemon = True
+        t.start()
+        self.thread_list.append(t)
+
     def start(self):
 
         # 1.获取真值，线程中执行
@@ -292,49 +331,25 @@ class ReplayController:
 
                 for scenario_id in scenario_group:
                     # 有的时候部分topic的计数会小于目标数量，尝试3次
-                    try_count = 0
+                    self.replay_one_scenario(scenario_id)
 
-                    while True:
-                        try_count += 1
-                        print(f'{scenario_id} 第{try_count}次场景录制开始')
-                        send_log(self, f'{scenario_id} 第{try_count}次场景录制开始')
-                        self.start_replay_and_record(scenario_id)
-
-                        while True:
-                            replay_process = self.replay_client.get_replay_process()
-                            send_log(self, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
-                            if float(replay_process) > self.replay_end / 100:
-                                self.stop_replay_and_record(scenario_id)
-                                break
-                            time.sleep(8)
-
-                        self.parse_bag(scenario_id)
-
-                        self.scenario_replay_count[scenario_id] = try_count
-                        self.scenario_replay_datetime[scenario_id] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                        scenario_is_valid = self.analyze_raw_data()
-
-                        if scenario_id in scenario_is_valid and scenario_is_valid[scenario_id] == 1:
-                            print(f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
-                            send_log(self, f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
+                    # 积分触发重启控制器，并将invalid场景的数据删除重新测试
+                    if self.abnormal_score > 5:
+                        send_log(self, f'积分 = {self.abnormal_score}, 触发重启机制')
+                        if not self.reboot_power():
+                            send_log(self, '重启失败，后续场景不再录制')
                             break
-
-                        if try_count == self.replay_action['retest']:
-                            print(f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
-                            send_log(self, f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
-                            break
-
-                    t = threading.Thread(target=self.compress_bag, args=(scenario_id,))
-                    t.daemon = True
-                    t.start()
-                    self.thread_list.append(t)
-
-                    # 积分触发重启控制器，并将invalid场景重新测试
-                    if self.abnormal_score > 10:
-                        if self.reboot_power():
+                        else:
                             self.wait_for_threading()
+                            for invalid_scenario_id in self.invalid_scenario_list:
+                                raw_folder = os.path.join(self.pred_raw_folder, invalid_scenario_id, 'RawData')
+                                if os.path.exists(raw_folder):
+                                    shutil.rmtree(raw_folder)
 
+                            for invalid_scenario_id in self.invalid_scenario_list:
+                                self.replay_one_scenario(invalid_scenario_id)
 
+                # 最后再将invalid的场景再测一次
 
 
 
@@ -421,6 +436,7 @@ class ReplayController:
             self.abnormal_score = len(self.invalid_scenario_list) + np.sum(res.values == '0/0/0/0-0')
         else:
             self.invalid_scenario_list = []
+            self.abnormal_score = 0
 
         return scenario_is_valid
 
