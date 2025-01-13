@@ -14,6 +14,8 @@ import yaml
 import pandas as pd
 import numpy as np
 
+from BenchDBMS import BenchDBMS
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from Libs import get_project_path
 sys.path.append(get_project_path())
@@ -23,6 +25,9 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+scenario_analysis_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_analysis.json')
+scenario_road_weather_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_road_weather.csv')
+scenario_summary_path =  os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_summary.csv')
 colors = ['#3682be', '#45a776', '#f05326', '#b3974e', '#38cb7d', '#ddae33', '#844bb3',
           '#93c555', '#5f6694', '#df3881']
 
@@ -105,13 +110,18 @@ class SingleScenarioObstaclesAnalyzer:
         ego_data_path = os.path.join(self.gt_raw_folder, 'od_ego.csv')
         if not os.path.exists(ego_data_path):
             print('GroundTruth未找到自车速度数据')
+            ego_data = pd.DataFrame(columns=['time_stamp', 'ego_vx'])
+            ego_data['time_stamp'] = gt_timestamp['time_stamp']
+            ego_data['ego_vx'] = 0
+            self.analysis['label']['ego_vx_flag'] = False
         else:
             # print(f'GroundTruth 正在读取{os.path.basename(ego_data_path)}, 用于时间同步')
             ego_data = pd.read_csv(os.path.join(self.gt_raw_folder, 'od_ego.csv'))[
                 ['ego_timestamp', 'INS_Speed']].rename(
                 columns={'ego_timestamp': 'time_stamp', 'INS_Speed': 'ego_vx'})
-            path = os.path.join(self.tmp_folder, 'gt_ego.csv')
-            ego_data.to_csv(path, index=False, encoding='utf_8_sig')
+            self.analysis['label']['ego_vx_flag'] = True
+        path = os.path.join(self.tmp_folder, 'gt_ego.csv')
+        ego_data.to_csv(path, index=False, encoding='utf_8_sig')
 
         return True
 
@@ -185,7 +195,10 @@ class SingleScenarioObstaclesAnalyzer:
         low_ego_data = ego_data[ego_data['ego_v'] < 3]
         high_ego_data = ego_data[ego_data['ego_v'] >= 3]
         self.analysis['label']['low_velocity_ratio[%]'] = len(low_ego_data) / len(ego_data)
-        self.analysis['label']['average_ego_velocity[m/s]'] = float(high_ego_data['ego_v'].mean())
+        if len(high_ego_data):
+            self.analysis['label']['average_ego_velocity[m/s]'] = float(high_ego_data['ego_v'].mean())
+        else:
+            self.analysis['label']['average_ego_velocity[m/s]'] = 0
 
     def analyze_obstacles(self):
 
@@ -267,12 +280,11 @@ class ScenarioAnalyzer:
 
     def __init__(self):
         self.annotation_folder = '/media/data/annotation'
-        self.scenario_summary_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_summary.json')
-        if os.path.exists(self.scenario_summary_path):
-            with open(self.scenario_summary_path, 'r', encoding='utf-8') as f:
-                self.scenario_summary = json.load(f)
+        if os.path.exists(scenario_analysis_path):
+            with open(scenario_analysis_path, 'r', encoding='utf-8') as f:
+                self.scenario_analysis = json.load(f)
         else:
-            self.scenario_summary = {}
+            self.scenario_analysis = {}
 
     def start(self, update=False):
         for i, f in enumerate(os.listdir(self.annotation_folder)):
@@ -280,20 +292,91 @@ class ScenarioAnalyzer:
             if os.path.isdir(folder) and os.path.exists(os.path.join(folder, 'yaml_management.yaml')):
                 obstacle_analyzer = SingleScenarioObstaclesAnalyzer(folder)
                 key = f"{obstacle_analyzer.analysis['scenario_id']}-{obstacle_analyzer.analysis['truth_source']}"
-                if key not in self.scenario_summary or update:
+                if key not in self.scenario_analysis or update:
                     print(f'No.{i + 1} 分析场景 {f}')
                     res = obstacle_analyzer.start()
                     if not res:
                         print(f'No.{i + 1} 分析场景 {f}失败')
                     else:
-                        self.scenario_summary[key] = res
+                        self.scenario_analysis[key] = res
                         print(f'No.{i + 1} {key} 已保存')
-                        with open(self.scenario_summary_path, 'w', encoding='utf-8') as f:
-                            json.dump(self.scenario_summary, f, ensure_ascii=True, indent=4)
+                        with open(scenario_analysis_path, 'w', encoding='utf-8') as f:
+                            json.dump(self.scenario_analysis, f, ensure_ascii=True, indent=4)
                 else:
                     print(f'No.{i + 1} 场景 {f} 已存在，不进行再次分析')
 
 
+class ScenarioInfoSummary:
+
+    def __init__(self):
+
+        # 汇总包含真值的场景列表
+        if os.path.exists(scenario_analysis_path):
+            with open(scenario_analysis_path, 'r', encoding='utf-8') as f:
+                self.scenario_analysis = json.load(f)
+            self.analysis_label = list(list(self.scenario_analysis.values())[0]['label'].keys())
+        else:
+            self.scenario_analysis = {}
+            self.analysis_label = []
+
+        scenario_list_with_analysis = {}
+        for scenario_analysis in self.scenario_analysis.values():
+            scenario_id = scenario_analysis['scenario_id']
+            truth_source = scenario_analysis['truth_source']
+            if truth_source not in scenario_list_with_analysis:
+                scenario_list_with_analysis[truth_source] = []
+            scenario_list_with_analysis[truth_source].append(scenario_id)
+
+        print(scenario_list_with_analysis)
+
+        # 汇总肉眼分析过weather和road的场景
+        if os.path.exists(scenario_road_weather_path):
+            scenario_rc = pd.read_csv(scenario_road_weather_path, index_col=False)
+            self.scenario_road_weather = scenario_rc[(scenario_rc['road_level'].notna())
+                        & (scenario_rc['weather'].notna())
+                        & (scenario_rc['road_level'] != '其他')
+                        & (scenario_rc['select4test'] == 1)]
+            scenario_list_with_road_weather = self.scenario_road_weather['batch_id'].to_list()
+        else:
+            scenario_list_with_road_weather = []
+            self.scenario_road_weather = pd.DataFrame()
+
+        print(len(scenario_list_with_road_weather))
+        print(scenario_list_with_road_weather)
+
+        # 汇总包含视频文件的场景
+        temp = BenchDBMS().id_11CAN11V2Lidar_path_DF.sort_index()
+        temp.drop(temp[temp['Complete'] == False].index, inplace=True)
+        scenario_list_with_video = temp['id'].to_list()
+
+        print(len(scenario_list_with_video))
+        print(scenario_list_with_video)
+
+        self.scenario_list_with_analysis = scenario_list_with_analysis
+        self.scenario_list_with_road_weather = scenario_list_with_road_weather
+        self.scenario_list_with_video = scenario_list_with_video
+
+    def get_scenario_combination(self):
+        columns = ['scenario_id', 'truth_source', 'road_level', 'weather'] + self.analysis_label
+        rows = []
+        for truth_source in self.scenario_list_with_analysis:
+            temp = sorted(list(set(self.scenario_list_with_analysis[truth_source])
+                                           & (set(self.scenario_list_with_road_weather)
+                                              & set(self.scenario_list_with_video))))
+
+            for scenario_id in temp:
+                road_level = self.scenario_road_weather[self.scenario_road_weather['batch_id'] == scenario_id]['road_level'].iloc[0]
+                weather = self.scenario_road_weather[self.scenario_road_weather['batch_id'] == scenario_id]['weather'].iloc[0]
+                analysis_label = self.scenario_analysis[f'{scenario_id}-{truth_source}']['label'].values()
+                row = [scenario_id, truth_source, road_level, weather, *analysis_label]
+                rows.append(row)
+
+        pd.DataFrame(rows, columns=columns).to_csv(scenario_summary_path, index=False)
+
+
 if __name__ == "__main__":
-    SS = ScenarioAnalyzer()
-    SS.start(update=True)
+    SA = ScenarioAnalyzer()
+    SA.start(update=False)
+
+    SS = ScenarioInfoSummary()
+    SS.get_scenario_combination()

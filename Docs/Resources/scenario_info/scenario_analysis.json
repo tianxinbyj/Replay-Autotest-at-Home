@@ -7,8 +7,8 @@
             "low_velocity_ratio[%]": 0.5700996677740864,
             "average_ego_velocity[m/s]": 8.432610959874054,
             "average_velocity[m/s]": 2.971395494463878,
-            "flow[/s]": 2.971395494463878,
-            "area_occ[%]": 2.971395494463878
+            "flow[/s]": 0.2250609817668827,
+            "area_occ[%]": 0.07303595381533644
         },
         "obstacles": {
             "is_coverageValid": {
@@ -293,8 +293,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.703815634549652,
             "average_velocity[m/s]": 19.382320343706404,
-            "flow[/s]": 19.382320343706404,
-            "area_occ[%]": 19.382320343706404
+            "flow[/s]": 0.7016420654529263,
+            "area_occ[%]": 0.04697261869802381
         },
         "obstacles": {
             "is_coverageValid": {
@@ -451,8 +451,8 @@
             "low_velocity_ratio[%]": 0.1865217391304348,
             "average_ego_velocity[m/s]": 5.221553301951389,
             "average_velocity[m/s]": 0.22492393346967307,
-            "flow[/s]": 0.22492393346967307,
-            "area_occ[%]": 0.22492393346967307
+            "flow[/s]": 0.0075213134984449,
+            "area_occ[%]": 0.029928404434502908
         },
         "obstacles": {
             "is_coverageValid": {
@@ -737,8 +737,8 @@
             "low_velocity_ratio[%]": 0.027897708402524077,
             "average_ego_velocity[m/s]": 12.216056382000385,
             "average_velocity[m/s]": 8.09630982061171,
-            "flow[/s]": 8.09630982061171,
-            "area_occ[%]": 8.09630982061171
+            "flow[/s]": 0.9247032731907278,
+            "area_occ[%]": 0.08545413878458236
         },
         "obstacles": {
             "is_coverageValid": {
@@ -1023,8 +1023,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.876653295771195,
             "average_velocity[m/s]": 20.107750220547878,
-            "flow[/s]": 20.107750220547878,
-            "area_occ[%]": 20.107750220547878
+            "flow[/s]": 0.9105626776970869,
+            "area_occ[%]": 0.027982840827825192
         },
         "obstacles": {
             "is_coverageValid": {
@@ -1181,8 +1181,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.09409941874688296,
-            "flow[/s]": 0.09409941874688296,
-            "area_occ[%]": 0.09409941874688296
+            "flow[/s]": 0.0036216038927214212,
+            "area_occ[%]": 0.0003513323744483662
         },
         "obstacles": {
             "is_coverageValid": {
@@ -1403,8 +1403,8 @@
             "low_velocity_ratio[%]": 0.6518420179223365,
             "average_ego_velocity[m/s]": 6.528138101385024,
             "average_velocity[m/s]": 0.5976136354482013,
-            "flow[/s]": 0.5976136354482013,
-            "area_occ[%]": 0.5976136354482013
+            "flow[/s]": 0.03669577568887135,
+            "area_occ[%]": 0.055632425508756654
         },
         "obstacles": {
             "is_coverageValid": {
@@ -1689,8 +1689,8 @@
             "low_velocity_ratio[%]": 0.41958541815582556,
             "average_ego_velocity[m/s]": 6.630331646926297,
             "average_velocity[m/s]": 2.13803925829688,
-            "flow[/s]": 2.13803925829688,
-            "area_occ[%]": 2.13803925829688
+            "flow[/s]": 0.10664952745919858,
+            "area_occ[%]": 0.018033492339439506
         },
         "obstacles": {
             "is_coverageValid": {
@@ -1975,8 +1975,8 @@
             "low_velocity_ratio[%]": 0.5482907401261201,
             "average_ego_velocity[m/s]": 8.5227410255505,
             "average_velocity[m/s]": 3.1285847553754356,
-            "flow[/s]": 3.1285847553754356,
-            "area_occ[%]": 3.1285847553754356
+            "flow[/s]": 0.42181823856228173,
+            "area_occ[%]": 0.10491588675791164
         },
         "obstacles": {
             "is_coverageValid": {
@@ -2261,8 +2261,8 @@
             "low_velocity_ratio[%]": 0.3857901726427623,
             "average_ego_velocity[m/s]": 8.61971726984591,
             "average_velocity[m/s]": 5.192364165025997,
-            "flow[/s]": 5.192364165025997,
-            "area_occ[%]": 5.192364165025997
+            "flow[/s]": 0.27549463045795614,
+            "area_occ[%]": 0.0317434470358323
         },
         "obstacles": {
             "is_coverageValid": {
@@ -2547,8 +2547,8 @@
             "low_velocity_ratio[%]": 0.6570480928689884,
             "average_ego_velocity[m/s]": 5.264905675236907,
             "average_velocity[m/s]": 1.4619162406037056,
-            "flow[/s]": 1.4619162406037056,
-            "area_occ[%]": 1.4619162406037056
+            "flow[/s]": 0.13265418228912684,
+            "area_occ[%]": 0.04066479548881304
         },
         "obstacles": {
             "is_coverageValid": {
@@ -2833,8 +2833,8 @@
             "low_velocity_ratio[%]": 0.47179827471798275,
             "average_ego_velocity[m/s]": 13.53262860286775,
             "average_velocity[m/s]": 4.962986998157846,
-            "flow[/s]": 4.962986998157846,
-            "area_occ[%]": 4.962986998157846
+            "flow[/s]": 0.33191896792424824,
+            "area_occ[%]": 0.09624798358263854
         },
         "obstacles": {
             "is_coverageValid": {
@@ -3119,8 +3119,8 @@
             "low_velocity_ratio[%]": 0.3705667882001989,
             "average_ego_velocity[m/s]": 11.9992473883777,
             "average_velocity[m/s]": 2.890311692439125,
-            "flow[/s]": 2.890311692439125,
-            "area_occ[%]": 2.890311692439125
+            "flow[/s]": 0.09539536216254973,
+            "area_occ[%]": 0.011735198966825225
         },
         "obstacles": {
             "is_coverageValid": {
@@ -3405,8 +3405,8 @@
             "low_velocity_ratio[%]": 0.07664233576642336,
             "average_ego_velocity[m/s]": 6.945583260234979,
             "average_velocity[m/s]": 6.497395995200119,
-            "flow[/s]": 6.497395995200119,
-            "area_occ[%]": 6.497395995200119
+            "flow[/s]": 1.068813580091144,
+            "area_occ[%]": 0.16137712979543323
         },
         "obstacles": {
             "is_coverageValid": {
@@ -3563,8 +3563,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.59797055919305,
             "average_velocity[m/s]": 16.02963211018627,
-            "flow[/s]": 16.02963211018627,
-            "area_occ[%]": 16.02963211018627
+            "flow[/s]": 0.4273016611125114,
+            "area_occ[%]": 0.011278112507419884
         },
         "obstacles": {
             "is_coverageValid": {
@@ -3721,8 +3721,8 @@
             "low_velocity_ratio[%]": 0.1736824660258535,
             "average_ego_velocity[m/s]": 11.546463760945198,
             "average_velocity[m/s]": 6.476410438745292,
-            "flow[/s]": 6.476410438745292,
-            "area_occ[%]": 6.476410438745292
+            "flow[/s]": 0.3246266911107687,
+            "area_occ[%]": 0.029086827473209655
         },
         "obstacles": {
             "is_coverageValid": {
@@ -4007,8 +4007,8 @@
             "low_velocity_ratio[%]": 0.08204956463496316,
             "average_ego_velocity[m/s]": 9.704820738096213,
             "average_velocity[m/s]": 4.723590308838875,
-            "flow[/s]": 4.723590308838875,
-            "area_occ[%]": 4.723590308838875
+            "flow[/s]": 0.14229424716147493,
+            "area_occ[%]": 0.00921592098169004
         },
         "obstacles": {
             "is_coverageValid": {
@@ -4293,8 +4293,8 @@
             "low_velocity_ratio[%]": 0.2773722627737226,
             "average_ego_velocity[m/s]": 10.380972547307815,
             "average_velocity[m/s]": 6.294770382294894,
-            "flow[/s]": 6.294770382294894,
-            "area_occ[%]": 6.294770382294894
+            "flow[/s]": 0.2969465407273253,
+            "area_occ[%]": 0.039539139542535025
         },
         "obstacles": {
             "is_coverageValid": {
@@ -4579,8 +4579,8 @@
             "low_velocity_ratio[%]": 0.10152621101526212,
             "average_ego_velocity[m/s]": 8.359330491442096,
             "average_velocity[m/s]": 6.405391562269677,
-            "flow[/s]": 6.405391562269677,
-            "area_occ[%]": 6.405391562269677
+            "flow[/s]": 0.46178354519624687,
+            "area_occ[%]": 0.0468379915416767
         },
         "obstacles": {
             "is_coverageValid": {
@@ -4865,8 +4865,8 @@
             "low_velocity_ratio[%]": 0.06509465293922286,
             "average_ego_velocity[m/s]": 13.883153563409673,
             "average_velocity[m/s]": 5.814414938132302,
-            "flow[/s]": 5.814414938132302,
-            "area_occ[%]": 5.814414938132302
+            "flow[/s]": 0.3855745923389737,
+            "area_occ[%]": 0.05367225285625118
         },
         "obstacles": {
             "is_coverageValid": {
@@ -5023,8 +5023,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.730422960356602,
             "average_velocity[m/s]": 13.563548051905741,
-            "flow[/s]": 13.563548051905741,
-            "area_occ[%]": 13.563548051905741
+            "flow[/s]": 0.3533904150301914,
+            "area_occ[%]": 0.010047625846850625
         },
         "obstacles": {
             "is_coverageValid": {
@@ -5181,8 +5181,8 @@
             "low_velocity_ratio[%]": 0.2708885941644562,
             "average_ego_velocity[m/s]": 16.19514174025511,
             "average_velocity[m/s]": 13.43005438849241,
-            "flow[/s]": 13.43005438849241,
-            "area_occ[%]": 13.43005438849241
+            "flow[/s]": 0.40006636705719745,
+            "area_occ[%]": 0.036416515854335765
         },
         "obstacles": {
             "is_coverageValid": {
@@ -5339,8 +5339,8 @@
             "low_velocity_ratio[%]": 0.2527363184079602,
             "average_ego_velocity[m/s]": 7.692924316015129,
             "average_velocity[m/s]": 2.2720372767214903,
-            "flow[/s]": 2.2720372767214903,
-            "area_occ[%]": 2.2720372767214903
+            "flow[/s]": 0.08823678321524527,
+            "area_occ[%]": 0.017127462481025545
         },
         "obstacles": {
             "is_coverageValid": {
@@ -5625,8 +5625,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.068135826968955,
             "average_velocity[m/s]": 17.371439196873677,
-            "flow[/s]": 17.371439196873677,
-            "area_occ[%]": 17.371439196873677
+            "flow[/s]": 1.139814535514963,
+            "area_occ[%]": 0.07623134370475486
         },
         "obstacles": {
             "is_coverageValid": {
@@ -5847,8 +5847,8 @@
             "low_velocity_ratio[%]": 0.3113273106323836,
             "average_ego_velocity[m/s]": 7.912210055003854,
             "average_velocity[m/s]": 1.1961384733950906,
-            "flow[/s]": 1.1961384733950906,
-            "area_occ[%]": 1.1961384733950906
+            "flow[/s]": 0.04629299696955875,
+            "area_occ[%]": 0.01876789577827162
         },
         "obstacles": {
             "is_coverageValid": {
@@ -6133,8 +6133,8 @@
             "low_velocity_ratio[%]": 0.16478779840848806,
             "average_ego_velocity[m/s]": 12.186351407563322,
             "average_velocity[m/s]": 7.733541348583428,
-            "flow[/s]": 7.733541348583428,
-            "area_occ[%]": 7.733541348583428
+            "flow[/s]": 0.25014780673594633,
+            "area_occ[%]": 0.025997295924364144
         },
         "obstacles": {
             "is_coverageValid": {
@@ -6419,8 +6419,8 @@
             "low_velocity_ratio[%]": 0.4516672280229033,
             "average_ego_velocity[m/s]": 13.592974350405559,
             "average_velocity[m/s]": 2.9987796160800992,
-            "flow[/s]": 2.9987796160800992,
-            "area_occ[%]": 2.9987796160800992
+            "flow[/s]": 0.1597184973503576,
+            "area_occ[%]": 0.04748249421388391
         },
         "obstacles": {
             "is_coverageValid": {
@@ -6705,8 +6705,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.7331678185486119,
-            "flow[/s]": 0.7331678185486119,
-            "area_occ[%]": 0.7331678185486119
+            "flow[/s]": 0.03762584842183481,
+            "area_occ[%]": 0.010620797217005203
         },
         "obstacles": {
             "is_coverageValid": {
@@ -6991,8 +6991,8 @@
             "low_velocity_ratio[%]": 0.19191249585681142,
             "average_ego_velocity[m/s]": 22.70662078963038,
             "average_velocity[m/s]": 16.929004049788407,
-            "flow[/s]": 16.929004049788407,
-            "area_occ[%]": 16.929004049788407
+            "flow[/s]": 0.5630952037160842,
+            "area_occ[%]": 0.041678894998258866
         },
         "obstacles": {
             "is_coverageValid": {
@@ -7213,8 +7213,8 @@
             "low_velocity_ratio[%]": 0.45737976782752904,
             "average_ego_velocity[m/s]": 4.994580857619679,
             "average_velocity[m/s]": 0.0681176139086562,
-            "flow[/s]": 0.0681176139086562,
-            "area_occ[%]": 0.0681176139086562
+            "flow[/s]": 0.005389251236167986,
+            "area_occ[%]": 0.028008015913264232
         },
         "obstacles": {
             "is_coverageValid": {
@@ -7499,8 +7499,8 @@
             "low_velocity_ratio[%]": 0.4980092899800929,
             "average_ego_velocity[m/s]": 13.487503900011092,
             "average_velocity[m/s]": 5.396975525243498,
-            "flow[/s]": 5.396975525243498,
-            "area_occ[%]": 5.396975525243498
+            "flow[/s]": 0.31139199864605327,
+            "area_occ[%]": 0.07781446239829173
         },
         "obstacles": {
             "is_coverageValid": {
@@ -7785,8 +7785,8 @@
             "low_velocity_ratio[%]": 0.12860457408021214,
             "average_ego_velocity[m/s]": 12.514314718961081,
             "average_velocity[m/s]": 9.590811393840179,
-            "flow[/s]": 9.590811393840179,
-            "area_occ[%]": 9.590811393840179
+            "flow[/s]": 0.6135522050544814,
+            "area_occ[%]": 0.05608747096248145
         },
         "obstacles": {
             "is_coverageValid": {
@@ -8071,8 +8071,8 @@
             "low_velocity_ratio[%]": 0.0019933554817275745,
             "average_ego_velocity[m/s]": 17.222634515495656,
             "average_velocity[m/s]": 18.360087311828558,
-            "flow[/s]": 18.360087311828558,
-            "area_occ[%]": 18.360087311828558
+            "flow[/s]": 1.1553430664915516,
+            "area_occ[%]": 0.036469714742749446
         },
         "obstacles": {
             "is_coverageValid": {
@@ -8293,8 +8293,8 @@
             "low_velocity_ratio[%]": 0.4245847176079734,
             "average_ego_velocity[m/s]": 11.094461882499845,
             "average_velocity[m/s]": 6.654140342368211,
-            "flow[/s]": 6.654140342368211,
-            "area_occ[%]": 6.654140342368211
+            "flow[/s]": 0.45996611139613564,
+            "area_occ[%]": 0.06486411829686184
         },
         "obstacles": {
             "is_coverageValid": {
@@ -8579,8 +8579,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.288574424195797,
             "average_velocity[m/s]": 13.11857994142948,
-            "flow[/s]": 13.11857994142948,
-            "area_occ[%]": 13.11857994142948
+            "flow[/s]": 0.38148486428738604,
+            "area_occ[%]": 0.025018036886927837
         },
         "obstacles": {
             "is_coverageValid": {
@@ -8865,8 +8865,8 @@
             "low_velocity_ratio[%]": 0.43421926910299,
             "average_ego_velocity[m/s]": 13.882222189038064,
             "average_velocity[m/s]": 7.636087581605643,
-            "flow[/s]": 7.636087581605643,
-            "area_occ[%]": 7.636087581605643
+            "flow[/s]": 0.5800403162167054,
+            "area_occ[%]": 0.06588898975815392
         },
         "obstacles": {
             "is_coverageValid": {
@@ -9151,8 +9151,8 @@
             "low_velocity_ratio[%]": 0.1077943615257048,
             "average_ego_velocity[m/s]": 7.287674112656746,
             "average_velocity[m/s]": 6.798856398831811,
-            "flow[/s]": 6.798856398831811,
-            "area_occ[%]": 6.798856398831811
+            "flow[/s]": 0.7974740760457524,
+            "area_occ[%]": 0.09751938792404526
         },
         "obstacles": {
             "is_coverageValid": {
@@ -9373,8 +9373,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 1.0468602085129048,
-            "flow[/s]": 1.0468602085129048,
-            "area_occ[%]": 1.0468602085129048
+            "flow[/s]": 0.02427183600224052,
+            "area_occ[%]": 0.003559515711288162
         },
         "obstacles": {
             "is_coverageValid": {
@@ -9659,8 +9659,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.23936150239058,
             "average_velocity[m/s]": 12.884344462472832,
-            "flow[/s]": 12.884344462472832,
-            "area_occ[%]": 12.884344462472832
+            "flow[/s]": 0.2765744424364308,
+            "area_occ[%]": 0.0074409498072471845
         },
         "obstacles": {
             "is_coverageValid": {
@@ -9753,8 +9753,8 @@
             "low_velocity_ratio[%]": 0.1761194029850746,
             "average_ego_velocity[m/s]": 12.120010471094442,
             "average_velocity[m/s]": 9.621219879257,
-            "flow[/s]": 9.621219879257,
-            "area_occ[%]": 9.621219879257
+            "flow[/s]": 0.49493902244063,
+            "area_occ[%]": 0.04345930049875933
         },
         "obstacles": {
             "is_coverageValid": {
@@ -10039,8 +10039,8 @@
             "low_velocity_ratio[%]": 0.8461538461538461,
             "average_ego_velocity[m/s]": 13.500219308096787,
             "average_velocity[m/s]": 3.629513122789405,
-            "flow[/s]": 3.629513122789405,
-            "area_occ[%]": 3.629513122789405
+            "flow[/s]": 0.2108139094835014,
+            "area_occ[%]": 0.04419850304952291
         },
         "obstacles": {
             "is_coverageValid": {
@@ -10261,8 +10261,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 1.81913630225592,
-            "flow[/s]": 1.81913630225592,
-            "area_occ[%]": 1.81913630225592
+            "flow[/s]": 0.10641036093845102,
+            "area_occ[%]": 0.006423671758087236
         },
         "obstacles": {
             "is_coverageValid": {
@@ -10547,8 +10547,8 @@
             "low_velocity_ratio[%]": 0.5185922974767596,
             "average_ego_velocity[m/s]": 14.335268556496192,
             "average_velocity[m/s]": 7.372715904319797,
-            "flow[/s]": 7.372715904319797,
-            "area_occ[%]": 7.372715904319797
+            "flow[/s]": 0.4194557462957844,
+            "area_occ[%]": 0.07187218138834206
         },
         "obstacles": {
             "is_coverageValid": {
@@ -10833,8 +10833,8 @@
             "low_velocity_ratio[%]": 0.5492210805435863,
             "average_ego_velocity[m/s]": 10.436922491473311,
             "average_velocity[m/s]": 4.656444592818618,
-            "flow[/s]": 4.656444592818618,
-            "area_occ[%]": 4.656444592818618
+            "flow[/s]": 0.2975209076508584,
+            "area_occ[%]": 0.06270402017029907
         },
         "obstacles": {
             "is_coverageValid": {
@@ -11119,8 +11119,8 @@
             "low_velocity_ratio[%]": 0.10823373173970784,
             "average_ego_velocity[m/s]": 11.192907103743025,
             "average_velocity[m/s]": 9.50234142159136,
-            "flow[/s]": 9.50234142159136,
-            "area_occ[%]": 9.50234142159136
+            "flow[/s]": 0.6305943170784142,
+            "area_occ[%]": 0.04635847536614353
         },
         "obstacles": {
             "is_coverageValid": {
@@ -11405,8 +11405,8 @@
             "low_velocity_ratio[%]": 0.30255728993689807,
             "average_ego_velocity[m/s]": 13.01241276616142,
             "average_velocity[m/s]": 5.305459238492985,
-            "flow[/s]": 5.305459238492985,
-            "area_occ[%]": 5.305459238492985
+            "flow[/s]": 0.2661651484898609,
+            "area_occ[%]": 0.031382161775566846
         },
         "obstacles": {
             "is_coverageValid": {
@@ -11691,8 +11691,8 @@
             "low_velocity_ratio[%]": 0.37541418157720347,
             "average_ego_velocity[m/s]": 12.206101960149304,
             "average_velocity[m/s]": 4.107522848117665,
-            "flow[/s]": 4.107522848117665,
-            "area_occ[%]": 4.107522848117665
+            "flow[/s]": 0.19740463658227098,
+            "area_occ[%]": 0.051899766495568746
         },
         "obstacles": {
             "is_coverageValid": {
@@ -11977,8 +11977,8 @@
             "low_velocity_ratio[%]": 0.45249169435215947,
             "average_ego_velocity[m/s]": 9.361216156517418,
             "average_velocity[m/s]": 4.479292111636164,
-            "flow[/s]": 4.479292111636164,
-            "area_occ[%]": 4.479292111636164
+            "flow[/s]": 0.5453162801189322,
+            "area_occ[%]": 0.04897177121828374
         },
         "obstacles": {
             "is_coverageValid": {
@@ -12263,8 +12263,8 @@
             "low_velocity_ratio[%]": 0.329688535453943,
             "average_ego_velocity[m/s]": 12.200919616122206,
             "average_velocity[m/s]": 8.38998966168096,
-            "flow[/s]": 8.38998966168096,
-            "area_occ[%]": 8.38998966168096
+            "flow[/s]": 0.43638056948357595,
+            "area_occ[%]": 0.09033209087032566
         },
         "obstacles": {
             "is_coverageValid": {
@@ -12549,8 +12549,8 @@
             "low_velocity_ratio[%]": 0.3950944647000331,
             "average_ego_velocity[m/s]": 9.12803587495464,
             "average_velocity[m/s]": 4.57429086119493,
-            "flow[/s]": 4.57429086119493,
-            "area_occ[%]": 4.57429086119493
+            "flow[/s]": 0.47820582942607376,
+            "area_occ[%]": 0.08615949082445186
         },
         "obstacles": {
             "is_coverageValid": {
@@ -12835,8 +12835,8 @@
             "low_velocity_ratio[%]": 0.25725999316706527,
             "average_ego_velocity[m/s]": 5.6806306726031055,
             "average_velocity[m/s]": 0.4576578834627883,
-            "flow[/s]": 0.4576578834627883,
-            "area_occ[%]": 0.4576578834627883
+            "flow[/s]": 0.013427516521927897,
+            "area_occ[%]": 0.026491310951727968
         },
         "obstacles": {
             "is_coverageValid": {
@@ -13121,8 +13121,8 @@
             "low_velocity_ratio[%]": 0.26244193762441936,
             "average_ego_velocity[m/s]": 11.559636765109811,
             "average_velocity[m/s]": 6.618027016911362,
-            "flow[/s]": 6.618027016911362,
-            "area_occ[%]": 6.618027016911362
+            "flow[/s]": 0.25483811881344454,
+            "area_occ[%]": 0.031892255500762516
         },
         "obstacles": {
             "is_coverageValid": {
@@ -13407,8 +13407,8 @@
             "low_velocity_ratio[%]": 0.45336873547958845,
             "average_ego_velocity[m/s]": 10.350339900817593,
             "average_velocity[m/s]": 5.314365069888381,
-            "flow[/s]": 5.314365069888381,
-            "area_occ[%]": 5.314365069888381
+            "flow[/s]": 0.3575721025746557,
+            "area_occ[%]": 0.0797761372439459
         },
         "obstacles": {
             "is_coverageValid": {
@@ -13693,8 +13693,8 @@
             "low_velocity_ratio[%]": 0.12802653399668326,
             "average_ego_velocity[m/s]": 16.601947428473686,
             "average_velocity[m/s]": 6.6240823505380835,
-            "flow[/s]": 6.6240823505380835,
-            "area_occ[%]": 6.6240823505380835
+            "flow[/s]": 0.18744699637248768,
+            "area_occ[%]": 0.01284319885764013
         },
         "obstacles": {
             "is_coverageValid": {
@@ -13979,8 +13979,8 @@
             "low_velocity_ratio[%]": 0.3525305410122164,
             "average_ego_velocity[m/s]": 6.0514978127338175,
             "average_velocity[m/s]": 0.48608337833865706,
-            "flow[/s]": 0.48608337833865706,
-            "area_occ[%]": 0.48608337833865706
+            "flow[/s]": 0.026296218557737158,
+            "area_occ[%]": 0.03499987606190197
         },
         "obstacles": {
             "is_coverageValid": {
@@ -14265,8 +14265,8 @@
             "low_velocity_ratio[%]": 0.3823920265780731,
             "average_ego_velocity[m/s]": 11.345948807073576,
             "average_velocity[m/s]": 5.371841118486414,
-            "flow[/s]": 5.371841118486414,
-            "area_occ[%]": 5.371841118486414
+            "flow[/s]": 0.26918072597309456,
+            "area_occ[%]": 0.0409245656515887
         },
         "obstacles": {
             "is_coverageValid": {
@@ -14551,8 +14551,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.5111247670236853,
-            "flow[/s]": 0.5111247670236853,
-            "area_occ[%]": 0.5111247670236853
+            "flow[/s]": 0.01435262920842041,
+            "area_occ[%]": 0.0004979638884495901
         },
         "obstacles": {
             "is_coverageValid": {
@@ -14837,8 +14837,8 @@
             "low_velocity_ratio[%]": 0.2057749751078659,
             "average_ego_velocity[m/s]": 6.027433736723833,
             "average_velocity[m/s]": 1.0112603856957523,
-            "flow[/s]": 1.0112603856957523,
-            "area_occ[%]": 1.0112603856957523
+            "flow[/s]": 0.056854030634556504,
+            "area_occ[%]": 0.0496116939426588
         },
         "obstacles": {
             "is_coverageValid": {
@@ -15123,8 +15123,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.274226772532224,
             "average_velocity[m/s]": 15.138617037242874,
-            "flow[/s]": 15.138617037242874,
-            "area_occ[%]": 15.138617037242874
+            "flow[/s]": 0.7658891705653122,
+            "area_occ[%]": 0.05458824815969986
         },
         "obstacles": {
             "is_coverageValid": {
@@ -15281,8 +15281,8 @@
             "low_velocity_ratio[%]": 0.36779324055666,
             "average_ego_velocity[m/s]": 14.143591625260607,
             "average_velocity[m/s]": 9.36958398507823,
-            "flow[/s]": 9.36958398507823,
-            "area_occ[%]": 9.36958398507823
+            "flow[/s]": 0.7255577946564876,
+            "area_occ[%]": 0.10940331658619296
         },
         "obstacles": {
             "is_coverageValid": {
@@ -15439,8 +15439,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.20480768215115,
             "average_velocity[m/s]": 16.6163429492887,
-            "flow[/s]": 16.6163429492887,
-            "area_occ[%]": 16.6163429492887
+            "flow[/s]": 0.73906349454098,
+            "area_occ[%]": 0.028862684955340716
         },
         "obstacles": {
             "is_coverageValid": {
@@ -15597,8 +15597,8 @@
             "low_velocity_ratio[%]": 0.34239310573417303,
             "average_ego_velocity[m/s]": 9.909758395365168,
             "average_velocity[m/s]": 6.1439301541456555,
-            "flow[/s]": 6.1439301541456555,
-            "area_occ[%]": 6.1439301541456555
+            "flow[/s]": 0.5137129409512039,
+            "area_occ[%]": 0.07139112561944583
         },
         "obstacles": {
             "is_coverageValid": {
@@ -15883,8 +15883,8 @@
             "low_velocity_ratio[%]": 0.28148886673313395,
             "average_ego_velocity[m/s]": 7.25952311967061,
             "average_velocity[m/s]": 3.34547927845999,
-            "flow[/s]": 3.34547927845999,
-            "area_occ[%]": 3.34547927845999
+            "flow[/s]": 0.15662920240833267,
+            "area_occ[%]": 0.018884746640606874
         },
         "obstacles": {
             "is_coverageValid": {
@@ -16169,8 +16169,8 @@
             "low_velocity_ratio[%]": 0.3466003316749585,
             "average_ego_velocity[m/s]": 11.798430322269498,
             "average_velocity[m/s]": 5.468329552744751,
-            "flow[/s]": 5.468329552744751,
-            "area_occ[%]": 5.468329552744751
+            "flow[/s]": 0.286788238161206,
+            "area_occ[%]": 0.04793802567602987
         },
         "obstacles": {
             "is_coverageValid": {
@@ -16455,8 +16455,8 @@
             "low_velocity_ratio[%]": 0.2171142467000455,
             "average_ego_velocity[m/s]": 10.561350560049679,
             "average_velocity[m/s]": 6.671548817062068,
-            "flow[/s]": 6.671548817062068,
-            "area_occ[%]": 6.671548817062068
+            "flow[/s]": 0.2604895398944731,
+            "area_occ[%]": 0.019091409083780243
         },
         "obstacles": {
             "is_coverageValid": {
@@ -16741,8 +16741,8 @@
             "low_velocity_ratio[%]": 0.0403530895334174,
             "average_ego_velocity[m/s]": 8.54727244392801,
             "average_velocity[m/s]": 1.781922090685164,
-            "flow[/s]": 1.781922090685164,
-            "area_occ[%]": 1.781922090685164
+            "flow[/s]": 0.0773327193162549,
+            "area_occ[%]": 0.015833771160013218
         },
         "obstacles": {
             "is_coverageValid": {
@@ -17027,8 +17027,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.50677851426641,
             "average_velocity[m/s]": 17.107624049788765,
-            "flow[/s]": 17.107624049788765,
-            "area_occ[%]": 17.107624049788765
+            "flow[/s]": 0.71975435759026,
+            "area_occ[%]": 0.033915782031221586
         },
         "obstacles": {
             "is_coverageValid": {
@@ -17185,8 +17185,8 @@
             "low_velocity_ratio[%]": 0.47277556440903057,
             "average_ego_velocity[m/s]": 9.559375544639318,
             "average_velocity[m/s]": 3.1141270987402874,
-            "flow[/s]": 3.1141270987402874,
-            "area_occ[%]": 3.1141270987402874
+            "flow[/s]": 0.17628282204557638,
+            "area_occ[%]": 0.06495796886331207
         },
         "obstacles": {
             "is_coverageValid": {
@@ -17471,8 +17471,8 @@
             "low_velocity_ratio[%]": 0.2778884462151394,
             "average_ego_velocity[m/s]": 11.315197614691723,
             "average_velocity[m/s]": 5.960672447737278,
-            "flow[/s]": 5.960672447737278,
-            "area_occ[%]": 5.960672447737278
+            "flow[/s]": 0.19879235712672236,
+            "area_occ[%]": 0.0318426748403155
         },
         "obstacles": {
             "is_coverageValid": {
@@ -17757,8 +17757,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.39107005167196734,
-            "flow[/s]": 0.39107005167196734,
-            "area_occ[%]": 0.39107005167196734
+            "flow[/s]": 0.017371106310004925,
+            "area_occ[%]": 0.000940931686360109
         },
         "obstacles": {
             "is_coverageValid": {
@@ -17979,8 +17979,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.025554194383933,
             "average_velocity[m/s]": 15.918683492209794,
-            "flow[/s]": 15.918683492209794,
-            "area_occ[%]": 15.918683492209794
+            "flow[/s]": 0.4961116359240165,
+            "area_occ[%]": 0.014417117730723685
         },
         "obstacles": {
             "is_coverageValid": {
@@ -18137,8 +18137,8 @@
             "low_velocity_ratio[%]": 0.37782204515272244,
             "average_ego_velocity[m/s]": 11.29730389479512,
             "average_velocity[m/s]": 7.578133544446809,
-            "flow[/s]": 7.578133544446809,
-            "area_occ[%]": 7.578133544446809
+            "flow[/s]": 0.5718353542136186,
+            "area_occ[%]": 0.08887772609901998
         },
         "obstacles": {
             "is_coverageValid": {
@@ -18423,8 +18423,8 @@
             "low_velocity_ratio[%]": 0.27233477250083027,
             "average_ego_velocity[m/s]": 14.523288790464727,
             "average_velocity[m/s]": 1.4772981454710878,
-            "flow[/s]": 1.4772981454710878,
-            "area_occ[%]": 1.4772981454710878
+            "flow[/s]": 0.049293839446292884,
+            "area_occ[%]": 0.02223604489137677
         },
         "obstacles": {
             "is_coverageValid": {
@@ -18709,8 +18709,8 @@
             "low_velocity_ratio[%]": 0.4429329794293298,
             "average_ego_velocity[m/s]": 8.555639342937958,
             "average_velocity[m/s]": 5.278000289191596,
-            "flow[/s]": 5.278000289191596,
-            "area_occ[%]": 5.278000289191596
+            "flow[/s]": 0.4007313554366561,
+            "area_occ[%]": 0.10241643551554368
         },
         "obstacles": {
             "is_coverageValid": {
@@ -18995,8 +18995,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.709930873992274,
             "average_velocity[m/s]": 17.5563682984066,
-            "flow[/s]": 17.5563682984066,
-            "area_occ[%]": 17.5563682984066
+            "flow[/s]": 0.8028603018707028,
+            "area_occ[%]": 0.043730726973744825
         },
         "obstacles": {
             "is_coverageValid": {
@@ -19153,8 +19153,8 @@
             "low_velocity_ratio[%]": 0.3240556660039761,
             "average_ego_velocity[m/s]": 12.42150814182618,
             "average_velocity[m/s]": 8.268531744166213,
-            "flow[/s]": 8.268531744166213,
-            "area_occ[%]": 8.268531744166213
+            "flow[/s]": 0.2506877515587595,
+            "area_occ[%]": 0.03600652126507829
         },
         "obstacles": {
             "is_coverageValid": {
@@ -19439,8 +19439,8 @@
             "low_velocity_ratio[%]": 0.2902155887230514,
             "average_ego_velocity[m/s]": 11.76816077042963,
             "average_velocity[m/s]": 8.363831905972091,
-            "flow[/s]": 8.363831905972091,
-            "area_occ[%]": 8.363831905972091
+            "flow[/s]": 0.5115404049078748,
+            "area_occ[%]": 0.08155501876229206
         },
         "obstacles": {
             "is_coverageValid": {
@@ -19725,8 +19725,8 @@
             "low_velocity_ratio[%]": 0.254479097544791,
             "average_ego_velocity[m/s]": 11.905406970472722,
             "average_velocity[m/s]": 7.094185296487307,
-            "flow[/s]": 7.094185296487307,
-            "area_occ[%]": 7.094185296487307
+            "flow[/s]": 0.27498599518533917,
+            "area_occ[%]": 0.031315245743106214
         },
         "obstacles": {
             "is_coverageValid": {
@@ -20011,8 +20011,8 @@
             "low_velocity_ratio[%]": 0.22835820895522388,
             "average_ego_velocity[m/s]": 10.42797832954783,
             "average_velocity[m/s]": 7.1429614390978,
-            "flow[/s]": 7.1429614390978,
-            "area_occ[%]": 7.1429614390978
+            "flow[/s]": 0.6358334292854086,
+            "area_occ[%]": 0.06539968460846532
         },
         "obstacles": {
             "is_coverageValid": {
@@ -20297,8 +20297,8 @@
             "low_velocity_ratio[%]": 0.04285714285714286,
             "average_ego_velocity[m/s]": 21.653738803145206,
             "average_velocity[m/s]": 19.405507379078948,
-            "flow[/s]": 19.405507379078948,
-            "area_occ[%]": 19.405507379078948
+            "flow[/s]": 0.5762256758311533,
+            "area_occ[%]": 0.023055797760974085
         },
         "obstacles": {
             "is_coverageValid": {
@@ -20583,8 +20583,8 @@
             "low_velocity_ratio[%]": 0.12155430089671206,
             "average_ego_velocity[m/s]": 9.316250297117323,
             "average_velocity[m/s]": 6.129531592942937,
-            "flow[/s]": 6.129531592942937,
-            "area_occ[%]": 6.129531592942937
+            "flow[/s]": 0.2204051961601187,
+            "area_occ[%]": 0.02403126967567042
         },
         "obstacles": {
             "is_coverageValid": {
@@ -20869,8 +20869,8 @@
             "low_velocity_ratio[%]": 0.24593639575971732,
             "average_ego_velocity[m/s]": 17.0734002470635,
             "average_velocity[m/s]": 3.8613078610318943,
-            "flow[/s]": 3.8613078610318943,
-            "area_occ[%]": 3.8613078610318943
+            "flow[/s]": 0.10665298700566897,
+            "area_occ[%]": 0.02312539310942323
         },
         "obstacles": {
             "is_coverageValid": {
@@ -21155,8 +21155,8 @@
             "low_velocity_ratio[%]": 0.017224246439218285,
             "average_ego_velocity[m/s]": 12.977735237678294,
             "average_velocity[m/s]": 12.320131780727284,
-            "flow[/s]": 12.320131780727284,
-            "area_occ[%]": 12.320131780727284
+            "flow[/s]": 1.2045204867604216,
+            "area_occ[%]": 0.09162448439681052
         },
         "obstacles": {
             "is_coverageValid": {
@@ -21377,8 +21377,8 @@
             "low_velocity_ratio[%]": 0.032525721871888486,
             "average_ego_velocity[m/s]": 11.754876103981895,
             "average_velocity[m/s]": 9.7084171011038,
-            "flow[/s]": 9.7084171011038,
-            "area_occ[%]": 9.7084171011038
+            "flow[/s]": 0.3573320911201129,
+            "area_occ[%]": 0.028611539897505103
         },
         "obstacles": {
             "is_coverageValid": {
@@ -21663,8 +21663,8 @@
             "low_velocity_ratio[%]": 0.33322259136212623,
             "average_ego_velocity[m/s]": 9.554311812072473,
             "average_velocity[m/s]": 6.739807790428001,
-            "flow[/s]": 6.739807790428001,
-            "area_occ[%]": 6.739807790428001
+            "flow[/s]": 0.37541919946822466,
+            "area_occ[%]": 0.0635752400269273
         },
         "obstacles": {
             "is_coverageValid": {
@@ -21949,8 +21949,8 @@
             "low_velocity_ratio[%]": 0.5597609561752988,
             "average_ego_velocity[m/s]": 6.083507733467298,
             "average_velocity[m/s]": 0.195719403039168,
-            "flow[/s]": 0.195719403039168,
-            "area_occ[%]": 0.195719403039168
+            "flow[/s]": 0.011480930325722961,
+            "area_occ[%]": 0.06792477145673335
         },
         "obstacles": {
             "is_coverageValid": {
@@ -22235,8 +22235,8 @@
             "low_velocity_ratio[%]": 0.6432360742705571,
             "average_ego_velocity[m/s]": 10.495917809497024,
             "average_velocity[m/s]": 4.212773784095118,
-            "flow[/s]": 4.212773784095118,
-            "area_occ[%]": 4.212773784095118
+            "flow[/s]": 0.21558938778049594,
+            "area_occ[%]": 0.09226411573867538
         },
         "obstacles": {
             "is_coverageValid": {
@@ -22521,8 +22521,8 @@
             "low_velocity_ratio[%]": 0.09353233830845771,
             "average_ego_velocity[m/s]": 17.55850934685694,
             "average_velocity[m/s]": 12.505207001174673,
-            "flow[/s]": 12.505207001174673,
-            "area_occ[%]": 12.505207001174673
+            "flow[/s]": 0.46290421535943105,
+            "area_occ[%]": 0.060462520414350074
         },
         "obstacles": {
             "is_coverageValid": {
@@ -22679,8 +22679,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 16.525982275199258,
             "average_velocity[m/s]": 15.395430959046982,
-            "flow[/s]": 15.395430959046982,
-            "area_occ[%]": 15.395430959046982
+            "flow[/s]": 1.1616383191086028,
+            "area_occ[%]": 0.06340685112395299
         },
         "obstacles": {
             "is_coverageValid": {
@@ -22837,8 +22837,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 16.93087624065284,
             "average_velocity[m/s]": 13.094224304217386,
-            "flow[/s]": 13.094224304217386,
-            "area_occ[%]": 13.094224304217386
+            "flow[/s]": 0.3877200826826499,
+            "area_occ[%]": 0.03476512331824086
         },
         "obstacles": {
             "is_coverageValid": {
@@ -22995,8 +22995,8 @@
             "low_velocity_ratio[%]": 0.5411686586985391,
             "average_ego_velocity[m/s]": 11.150090110457237,
             "average_velocity[m/s]": 4.88177317835118,
-            "flow[/s]": 4.88177317835118,
-            "area_occ[%]": 4.88177317835118
+            "flow[/s]": 0.3303169642574045,
+            "area_occ[%]": 0.058904422800028375
         },
         "obstacles": {
             "is_coverageValid": {
@@ -23281,8 +23281,8 @@
             "low_velocity_ratio[%]": 0.2492619148038802,
             "average_ego_velocity[m/s]": 7.77593641107002,
             "average_velocity[m/s]": 5.226664691221572,
-            "flow[/s]": 5.226664691221572,
-            "area_occ[%]": 5.226664691221572
+            "flow[/s]": 0.220173698321662,
+            "area_occ[%]": 0.030532805765621795
         },
         "obstacles": {
             "is_coverageValid": {
@@ -23567,8 +23567,8 @@
             "low_velocity_ratio[%]": 0.22004357298474944,
             "average_ego_velocity[m/s]": 10.787499489397977,
             "average_velocity[m/s]": 2.239057235843001,
-            "flow[/s]": 2.239057235843001,
-            "area_occ[%]": 2.239057235843001
+            "flow[/s]": 0.04757769262913601,
+            "area_occ[%]": 0.02595904167696954
         },
         "obstacles": {
             "is_coverageValid": {
@@ -23853,8 +23853,8 @@
             "low_velocity_ratio[%]": 0.24178013948854202,
             "average_ego_velocity[m/s]": 7.452927464724527,
             "average_velocity[m/s]": 3.466376089734171,
-            "flow[/s]": 3.466376089734171,
-            "area_occ[%]": 3.466376089734171
+            "flow[/s]": 0.11771106704281128,
+            "area_occ[%]": 0.013948763534944954
         },
         "obstacles": {
             "is_coverageValid": {
@@ -24139,8 +24139,8 @@
             "low_velocity_ratio[%]": 0.25904825737265413,
             "average_ego_velocity[m/s]": 15.919551984803379,
             "average_velocity[m/s]": 11.536593484467211,
-            "flow[/s]": 11.536593484467211,
-            "area_occ[%]": 11.536593484467211
+            "flow[/s]": 0.4691340305285295,
+            "area_occ[%]": 0.06268186355228639
         },
         "obstacles": {
             "is_coverageValid": {
@@ -24425,8 +24425,8 @@
             "low_velocity_ratio[%]": 0.44451827242524916,
             "average_ego_velocity[m/s]": 9.651026835281883,
             "average_velocity[m/s]": 5.245454373399905,
-            "flow[/s]": 5.245454373399905,
-            "area_occ[%]": 5.245454373399905
+            "flow[/s]": 0.5133984708593103,
+            "area_occ[%]": 0.13821937041015392
         },
         "obstacles": {
             "is_coverageValid": {
@@ -24711,8 +24711,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.30045021419348,
             "average_velocity[m/s]": 19.013608857262376,
-            "flow[/s]": 19.013608857262376,
-            "area_occ[%]": 19.013608857262376
+            "flow[/s]": 0.9964751633414559,
+            "area_occ[%]": 0.03129053297067172
         },
         "obstacles": {
             "is_coverageValid": {
@@ -24933,8 +24933,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 22.210915951456524,
             "average_velocity[m/s]": 14.579780384417175,
-            "flow[/s]": 14.579780384417175,
-            "area_occ[%]": 14.579780384417175
+            "flow[/s]": 0.42072435266533653,
+            "area_occ[%]": 0.014643352368383088
         },
         "obstacles": {
             "is_coverageValid": {
@@ -25091,8 +25091,8 @@
             "low_velocity_ratio[%]": 0.15387171817879694,
             "average_ego_velocity[m/s]": 9.756490320458903,
             "average_velocity[m/s]": 3.505471579629536,
-            "flow[/s]": 3.505471579629536,
-            "area_occ[%]": 3.505471579629536
+            "flow[/s]": 0.08681785653043703,
+            "area_occ[%]": 0.016427185956204623
         },
         "obstacles": {
             "is_coverageValid": {
@@ -25377,8 +25377,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 1.083827052386764,
-            "flow[/s]": 1.083827052386764,
-            "area_occ[%]": 1.083827052386764
+            "flow[/s]": 0.04579152932749051,
+            "area_occ[%]": 0.0129671629416123
         },
         "obstacles": {
             "is_coverageValid": {
@@ -25663,8 +25663,8 @@
             "low_velocity_ratio[%]": 0.5096090125911199,
             "average_ego_velocity[m/s]": 8.885797519780494,
             "average_velocity[m/s]": 3.1503614797727146,
-            "flow[/s]": 3.1503614797727146,
-            "area_occ[%]": 3.1503614797727146
+            "flow[/s]": 0.23992462521860555,
+            "area_occ[%]": 0.08160337903203058
         },
         "obstacles": {
             "is_coverageValid": {
@@ -25949,8 +25949,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.503970817798645,
             "average_velocity[m/s]": 20.866135282359146,
-            "flow[/s]": 20.866135282359146,
-            "area_occ[%]": 20.866135282359146
+            "flow[/s]": 0.8088520331948268,
+            "area_occ[%]": 0.02353873058394519
         },
         "obstacles": {
             "is_coverageValid": {
@@ -26107,8 +26107,8 @@
             "low_velocity_ratio[%]": 0.31296171927468097,
             "average_ego_velocity[m/s]": 19.274250772108896,
             "average_velocity[m/s]": 7.20762150824857,
-            "flow[/s]": 7.20762150824857,
-            "area_occ[%]": 7.20762150824857
+            "flow[/s]": 0.25870596854535766,
+            "area_occ[%]": 0.02978076928494533
         },
         "obstacles": {
             "is_coverageValid": {
@@ -26393,8 +26393,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 22.130278705601985,
             "average_velocity[m/s]": 7.087510643872328,
-            "flow[/s]": 7.087510643872328,
-            "area_occ[%]": 7.087510643872328
+            "flow[/s]": 0.14558457731002633,
+            "area_occ[%]": 0.003728491358893818
         },
         "obstacles": {
             "is_coverageValid": {
@@ -26487,8 +26487,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.095741523056233,
             "average_velocity[m/s]": 17.966108568589288,
-            "flow[/s]": 17.966108568589288,
-            "area_occ[%]": 17.966108568589288
+            "flow[/s]": 1.2350233359550693,
+            "area_occ[%]": 0.05285377707623382
         },
         "obstacles": {
             "is_coverageValid": {
@@ -26645,8 +26645,8 @@
             "low_velocity_ratio[%]": 0.6550348953140578,
             "average_ego_velocity[m/s]": 5.201906512697767,
             "average_velocity[m/s]": 1.6563376804697418,
-            "flow[/s]": 1.6563376804697418,
-            "area_occ[%]": 1.6563376804697418
+            "flow[/s]": 0.07646280927233262,
+            "area_occ[%]": 0.027282194063693033
         },
         "obstacles": {
             "is_coverageValid": {
@@ -26931,8 +26931,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.650210781552445,
             "average_velocity[m/s]": 14.944245077846105,
-            "flow[/s]": 14.944245077846105,
-            "area_occ[%]": 14.944245077846105
+            "flow[/s]": 0.41277135809862514,
+            "area_occ[%]": 0.026590239945094803
         },
         "obstacles": {
             "is_coverageValid": {
@@ -27089,8 +27089,8 @@
             "low_velocity_ratio[%]": 0.3635759388501163,
             "average_ego_velocity[m/s]": 11.685857448254179,
             "average_velocity[m/s]": 3.6025902940890178,
-            "flow[/s]": 3.6025902940890178,
-            "area_occ[%]": 3.6025902940890178
+            "flow[/s]": 0.1314343144088259,
+            "area_occ[%]": 0.010440196113858454
         },
         "obstacles": {
             "is_coverageValid": {
@@ -27375,8 +27375,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.874260411482492,
             "average_velocity[m/s]": 18.844223523258666,
-            "flow[/s]": 18.844223523258666,
-            "area_occ[%]": 18.844223523258666
+            "flow[/s]": 1.05161053718264,
+            "area_occ[%]": 0.04329405181982029
         },
         "obstacles": {
             "is_coverageValid": {
@@ -27533,8 +27533,8 @@
             "low_velocity_ratio[%]": 0.3810470510271703,
             "average_ego_velocity[m/s]": 10.058127624830291,
             "average_velocity[m/s]": 6.312298392436534,
-            "flow[/s]": 6.312298392436534,
-            "area_occ[%]": 6.312298392436534
+            "flow[/s]": 0.5394297308780093,
+            "area_occ[%]": 0.10906320693827568
         },
         "obstacles": {
             "is_coverageValid": {
@@ -27819,8 +27819,8 @@
             "low_velocity_ratio[%]": 0.01690420947961551,
             "average_ego_velocity[m/s]": 15.83075603575459,
             "average_velocity[m/s]": 14.357235932475495,
-            "flow[/s]": 14.357235932475495,
-            "area_occ[%]": 14.357235932475495
+            "flow[/s]": 0.8141360157971578,
+            "area_occ[%]": 0.0542667579352623
         },
         "obstacles": {
             "is_coverageValid": {
@@ -27977,8 +27977,8 @@
             "low_velocity_ratio[%]": 0.010956175298804782,
             "average_ego_velocity[m/s]": 7.023297981833323,
             "average_velocity[m/s]": 2.0514333114950625,
-            "flow[/s]": 2.0514333114950625,
-            "area_occ[%]": 2.0514333114950625
+            "flow[/s]": 0.04565330213302152,
+            "area_occ[%]": 0.01327214067453266
         },
         "obstacles": {
             "is_coverageValid": {
@@ -28263,8 +28263,8 @@
             "low_velocity_ratio[%]": 0.36578073089700996,
             "average_ego_velocity[m/s]": 14.871588855216864,
             "average_velocity[m/s]": 6.33080903652202,
-            "flow[/s]": 6.33080903652202,
-            "area_occ[%]": 6.33080903652202
+            "flow[/s]": 0.3488989420371861,
+            "area_occ[%]": 0.09042977666192274
         },
         "obstacles": {
             "is_coverageValid": {
@@ -28549,8 +28549,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.660880570226762,
             "average_velocity[m/s]": 16.971442460053638,
-            "flow[/s]": 16.971442460053638,
-            "area_occ[%]": 16.971442460053638
+            "flow[/s]": 0.5367774935049485,
+            "area_occ[%]": 0.014495746149287269
         },
         "obstacles": {
             "is_coverageValid": {
@@ -28707,8 +28707,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 15.403829627092403,
             "average_velocity[m/s]": 13.364791389238485,
-            "flow[/s]": 13.364791389238485,
-            "area_occ[%]": 13.364791389238485
+            "flow[/s]": 0.36125593482653123,
+            "area_occ[%]": 0.010974097261904521
         },
         "obstacles": {
             "is_coverageValid": {
@@ -28929,8 +28929,8 @@
             "low_velocity_ratio[%]": 0.004638833664678595,
             "average_ego_velocity[m/s]": 15.6146423337304,
             "average_velocity[m/s]": 14.804325923313067,
-            "flow[/s]": 14.804325923313067,
-            "area_occ[%]": 14.804325923313067
+            "flow[/s]": 0.9198831997341728,
+            "area_occ[%]": 0.0724343572733858
         },
         "obstacles": {
             "is_coverageValid": {
@@ -29151,8 +29151,8 @@
             "low_velocity_ratio[%]": 0.21246271130261848,
             "average_ego_velocity[m/s]": 14.03874727341061,
             "average_velocity[m/s]": 7.030898573079587,
-            "flow[/s]": 7.030898573079587,
-            "area_occ[%]": 7.030898573079587
+            "flow[/s]": 0.22127502992281664,
+            "area_occ[%]": 0.027303341880314833
         },
         "obstacles": {
             "is_coverageValid": {
@@ -29437,8 +29437,8 @@
             "low_velocity_ratio[%]": 0.29976813514408746,
             "average_ego_velocity[m/s]": 13.309777157534489,
             "average_velocity[m/s]": 5.99722628546969,
-            "flow[/s]": 5.99722628546969,
-            "area_occ[%]": 5.99722628546969
+            "flow[/s]": 0.15090540211546102,
+            "area_occ[%]": 0.017615180916755728
         },
         "obstacles": {
             "is_coverageValid": {
@@ -29723,8 +29723,8 @@
             "low_velocity_ratio[%]": 0.26749271137026237,
             "average_ego_velocity[m/s]": 6.02138939141041,
             "average_velocity[m/s]": 0.4542505598217337,
-            "flow[/s]": 0.4542505598217337,
-            "area_occ[%]": 0.4542505598217337
+            "flow[/s]": 0.013539481545097211,
+            "area_occ[%]": 0.0208125867836804
         },
         "obstacles": {
             "is_coverageValid": {
@@ -30009,8 +30009,8 @@
             "low_velocity_ratio[%]": 0.06372386325921009,
             "average_ego_velocity[m/s]": 24.188703653703385,
             "average_velocity[m/s]": 13.814979163386493,
-            "flow[/s]": 13.814979163386493,
-            "area_occ[%]": 13.814979163386493
+            "flow[/s]": 0.3902870077486622,
+            "area_occ[%]": 0.016225236756818848
         },
         "obstacles": {
             "is_coverageValid": {
@@ -30231,8 +30231,8 @@
             "low_velocity_ratio[%]": 0.34649850647195485,
             "average_ego_velocity[m/s]": 11.127201061917175,
             "average_velocity[m/s]": 6.558999302691182,
-            "flow[/s]": 6.558999302691182,
-            "area_occ[%]": 6.558999302691182
+            "flow[/s]": 0.37480895436897693,
+            "area_occ[%]": 0.09260565692843586
         },
         "obstacles": {
             "is_coverageValid": {
@@ -30517,8 +30517,8 @@
             "low_velocity_ratio[%]": 0.25580623755806237,
             "average_ego_velocity[m/s]": 11.370182317226952,
             "average_velocity[m/s]": 8.301603283441768,
-            "flow[/s]": 8.301603283441768,
-            "area_occ[%]": 8.301603283441768
+            "flow[/s]": 0.39564989500128384,
+            "area_occ[%]": 0.04565970400763309
         },
         "obstacles": {
             "is_coverageValid": {
@@ -30803,8 +30803,8 @@
             "low_velocity_ratio[%]": 0.44223107569721115,
             "average_ego_velocity[m/s]": 10.956078214162872,
             "average_velocity[m/s]": 4.472558136140869,
-            "flow[/s]": 4.472558136140869,
-            "area_occ[%]": 4.472558136140869
+            "flow[/s]": 0.33760302701292644,
+            "area_occ[%]": 0.09724013595090542
         },
         "obstacles": {
             "is_coverageValid": {
@@ -31089,8 +31089,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.33359662013872,
             "average_velocity[m/s]": 18.86939641171348,
-            "flow[/s]": 18.86939641171348,
-            "area_occ[%]": 18.86939641171348
+            "flow[/s]": 0.8716539306110908,
+            "area_occ[%]": 0.025671843693407043
         },
         "obstacles": {
             "is_coverageValid": {
@@ -31247,8 +31247,8 @@
             "low_velocity_ratio[%]": 0.4606205250596659,
             "average_ego_velocity[m/s]": 10.286490723974234,
             "average_velocity[m/s]": 2.9011530509065677,
-            "flow[/s]": 2.9011530509065677,
-            "area_occ[%]": 2.9011530509065677
+            "flow[/s]": 0.16902332104124368,
+            "area_occ[%]": 0.03139842290857375
         },
         "obstacles": {
             "is_coverageValid": {
@@ -31533,8 +31533,8 @@
             "low_velocity_ratio[%]": 0.44267726971504306,
             "average_ego_velocity[m/s]": 10.733448154435855,
             "average_velocity[m/s]": 3.8773169626218493,
-            "flow[/s]": 3.8773169626218493,
-            "area_occ[%]": 3.8773169626218493
+            "flow[/s]": 0.178445042883496,
+            "area_occ[%]": 0.04334432660413827
         },
         "obstacles": {
             "is_coverageValid": {
@@ -31819,8 +31819,8 @@
             "low_velocity_ratio[%]": 0.09093926319283106,
             "average_ego_velocity[m/s]": 15.740864688786942,
             "average_velocity[m/s]": 11.017975855414946,
-            "flow[/s]": 11.017975855414946,
-            "area_occ[%]": 11.017975855414946
+            "flow[/s]": 0.3901253231971405,
+            "area_occ[%]": 0.02215845994332597
         },
         "obstacles": {
             "is_coverageValid": {
@@ -32041,8 +32041,8 @@
             "low_velocity_ratio[%]": 0.4951811232967763,
             "average_ego_velocity[m/s]": 13.751283150428687,
             "average_velocity[m/s]": 6.3546136498376296,
-            "flow[/s]": 6.3546136498376296,
-            "area_occ[%]": 6.3546136498376296
+            "flow[/s]": 0.35131836278371836,
+            "area_occ[%]": 0.08398654937311181
         },
         "obstacles": {
             "is_coverageValid": {
@@ -32327,8 +32327,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.7864281404058,
             "average_velocity[m/s]": 13.366671151515769,
-            "flow[/s]": 13.366671151515769,
-            "area_occ[%]": 13.366671151515769
+            "flow[/s]": 0.3856730870033819,
+            "area_occ[%]": 0.029839798708555156
         },
         "obstacles": {
             "is_coverageValid": {
@@ -32613,8 +32613,8 @@
             "low_velocity_ratio[%]": 0.2452704945237305,
             "average_ego_velocity[m/s]": 11.036708790373153,
             "average_velocity[m/s]": 5.371486160418257,
-            "flow[/s]": 5.371486160418257,
-            "area_occ[%]": 5.371486160418257
+            "flow[/s]": 0.21132959720938382,
+            "area_occ[%]": 0.05831511448534949
         },
         "obstacles": {
             "is_coverageValid": {
@@ -32899,8 +32899,8 @@
             "low_velocity_ratio[%]": 0.5690571049136787,
             "average_ego_velocity[m/s]": 9.304878011322904,
             "average_velocity[m/s]": 3.646597440663761,
-            "flow[/s]": 3.646597440663761,
-            "area_occ[%]": 3.646597440663761
+            "flow[/s]": 0.3626245975519572,
+            "area_occ[%]": 0.0966056449911092
         },
         "obstacles": {
             "is_coverageValid": {
@@ -33185,8 +33185,8 @@
             "low_velocity_ratio[%]": 0.3557692307692308,
             "average_ego_velocity[m/s]": 8.221551304432884,
             "average_velocity[m/s]": 3.7346481051795117,
-            "flow[/s]": 3.7346481051795117,
-            "area_occ[%]": 3.7346481051795117
+            "flow[/s]": 0.20121116707900258,
+            "area_occ[%]": 0.04136796027898265
         },
         "obstacles": {
             "is_coverageValid": {
@@ -33471,8 +33471,8 @@
             "low_velocity_ratio[%]": 0.5922362309223623,
             "average_ego_velocity[m/s]": 8.397665668057659,
             "average_velocity[m/s]": 1.7474776080406125,
-            "flow[/s]": 1.7474776080406125,
-            "area_occ[%]": 1.7474776080406125
+            "flow[/s]": 0.05040671336616029,
+            "area_occ[%]": 0.01675642404329061
         },
         "obstacles": {
             "is_coverageValid": {
@@ -33757,8 +33757,8 @@
             "low_velocity_ratio[%]": 0.4233576642335766,
             "average_ego_velocity[m/s]": 11.233774331414384,
             "average_velocity[m/s]": 4.874541667542367,
-            "flow[/s]": 4.874541667542367,
-            "area_occ[%]": 4.874541667542367
+            "flow[/s]": 0.4659136679696734,
+            "area_occ[%]": 0.09073074498930596
         },
         "obstacles": {
             "is_coverageValid": {
@@ -34043,8 +34043,8 @@
             "low_velocity_ratio[%]": 0.29700690713737526,
             "average_ego_velocity[m/s]": 13.007330322109455,
             "average_velocity[m/s]": 3.1013725802117285,
-            "flow[/s]": 3.1013725802117285,
-            "area_occ[%]": 3.1013725802117285
+            "flow[/s]": 0.10086018889681224,
+            "area_occ[%]": 0.016585480770523586
         },
         "obstacles": {
             "is_coverageValid": {
@@ -34329,8 +34329,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.32565897367284136,
-            "flow[/s]": 0.32565897367284136,
-            "area_occ[%]": 0.32565897367284136
+            "flow[/s]": 0.011692260539459876,
+            "area_occ[%]": 0.0011064744788305022
         },
         "obstacles": {
             "is_coverageValid": {
@@ -34551,8 +34551,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 23.876282384829377,
             "average_velocity[m/s]": 17.420010386447615,
-            "flow[/s]": 17.420010386447615,
-            "area_occ[%]": 17.420010386447615
+            "flow[/s]": 0.6252901771981213,
+            "area_occ[%]": 0.02649893962657654
         },
         "obstacles": {
             "is_coverageValid": {
@@ -34773,8 +34773,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.158491766895477,
             "average_velocity[m/s]": 13.047395018751985,
-            "flow[/s]": 13.047395018751985,
-            "area_occ[%]": 13.047395018751985
+            "flow[/s]": 0.5500769822626296,
+            "area_occ[%]": 0.040907931254141966
         },
         "obstacles": {
             "is_coverageValid": {
@@ -34995,8 +34995,8 @@
             "low_velocity_ratio[%]": 0.12276045122760451,
             "average_ego_velocity[m/s]": 15.874662106679175,
             "average_velocity[m/s]": 12.561572653041452,
-            "flow[/s]": 12.561572653041452,
-            "area_occ[%]": 12.561572653041452
+            "flow[/s]": 0.592171658551069,
+            "area_occ[%]": 0.04545867945838592
         },
         "obstacles": {
             "is_coverageValid": {
@@ -35281,8 +35281,8 @@
             "low_velocity_ratio[%]": 0.4810882548108825,
             "average_ego_velocity[m/s]": 12.513987314213267,
             "average_velocity[m/s]": 7.141678054654974,
-            "flow[/s]": 7.141678054654974,
-            "area_occ[%]": 7.141678054654974
+            "flow[/s]": 0.409635600838839,
+            "area_occ[%]": 0.07251172060730801
         },
         "obstacles": {
             "is_coverageValid": {
@@ -35567,8 +35567,8 @@
             "low_velocity_ratio[%]": 0.541445623342175,
             "average_ego_velocity[m/s]": 12.335282203173689,
             "average_velocity[m/s]": 3.6247509510538447,
-            "flow[/s]": 3.6247509510538447,
-            "area_occ[%]": 3.6247509510538447
+            "flow[/s]": 0.28653316347686697,
+            "area_occ[%]": 0.07557751206153596
         },
         "obstacles": {
             "is_coverageValid": {
@@ -35853,8 +35853,8 @@
             "low_velocity_ratio[%]": 0.3593905266644584,
             "average_ego_velocity[m/s]": 10.590544866307445,
             "average_velocity[m/s]": 5.427565753582055,
-            "flow[/s]": 5.427565753582055,
-            "area_occ[%]": 5.427565753582055
+            "flow[/s]": 0.3811825638896183,
+            "area_occ[%]": 0.061314356582921226
         },
         "obstacles": {
             "is_coverageValid": {
@@ -36139,8 +36139,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.43319368030081,
             "average_velocity[m/s]": 17.46421876627354,
-            "flow[/s]": 17.46421876627354,
-            "area_occ[%]": 17.46421876627354
+            "flow[/s]": 0.6241987556855135,
+            "area_occ[%]": 0.04365600091855021
         },
         "obstacles": {
             "is_coverageValid": {
@@ -36361,8 +36361,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 12.494033542058325,
             "average_velocity[m/s]": 11.590482311459647,
-            "flow[/s]": 11.590482311459647,
-            "area_occ[%]": 11.590482311459647
+            "flow[/s]": 0.8768860962904577,
+            "area_occ[%]": 0.09886479791884217
         },
         "obstacles": {
             "is_coverageValid": {
@@ -36647,8 +36647,8 @@
             "low_velocity_ratio[%]": 0.3103219382675075,
             "average_ego_velocity[m/s]": 10.506499367453252,
             "average_velocity[m/s]": 6.7678837748145515,
-            "flow[/s]": 6.7678837748145515,
-            "area_occ[%]": 6.7678837748145515
+            "flow[/s]": 0.663619343662493,
+            "area_occ[%]": 0.12710545759521696
         },
         "obstacles": {
             "is_coverageValid": {
@@ -36805,8 +36805,8 @@
             "low_velocity_ratio[%]": 0.6535145888594165,
             "average_ego_velocity[m/s]": 13.042381857913076,
             "average_velocity[m/s]": 1.605757553739504,
-            "flow[/s]": 1.605757553739504,
-            "area_occ[%]": 1.605757553739504
+            "flow[/s]": 0.06963149684431173,
+            "area_occ[%]": 0.059388600057903716
         },
         "obstacles": {
             "is_coverageValid": {
@@ -37091,8 +37091,8 @@
             "low_velocity_ratio[%]": 0.3854581673306773,
             "average_ego_velocity[m/s]": 11.979447213203311,
             "average_velocity[m/s]": 5.961091355733981,
-            "flow[/s]": 5.961091355733981,
-            "area_occ[%]": 5.961091355733981
+            "flow[/s]": 0.41136744006537646,
+            "area_occ[%]": 0.029241737882534286
         },
         "obstacles": {
             "is_coverageValid": {
@@ -37377,8 +37377,8 @@
             "low_velocity_ratio[%]": 0.11787365177195686,
             "average_ego_velocity[m/s]": 7.049360581985207,
             "average_velocity[m/s]": 4.610573558989504,
-            "flow[/s]": 4.610573558989504,
-            "area_occ[%]": 4.610573558989504
+            "flow[/s]": 0.4354876620828084,
+            "area_occ[%]": 0.06792295857539485
         },
         "obstacles": {
             "is_coverageValid": {
@@ -37663,8 +37663,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 22.703577275140127,
             "average_velocity[m/s]": 13.6867571984273,
-            "flow[/s]": 13.6867571984273,
-            "area_occ[%]": 13.6867571984273
+            "flow[/s]": 0.31823508982688303,
+            "area_occ[%]": 0.008781920561744889
         },
         "obstacles": {
             "is_coverageValid": {
@@ -37821,8 +37821,8 @@
             "low_velocity_ratio[%]": 0.5587649402390438,
             "average_ego_velocity[m/s]": 6.679568016053682,
             "average_velocity[m/s]": 1.0857484864327605,
-            "flow[/s]": 1.0857484864327605,
-            "area_occ[%]": 1.0857484864327605
+            "flow[/s]": 0.028740042913844962,
+            "area_occ[%]": 0.010245333304443079
         },
         "obstacles": {
             "is_coverageValid": {
@@ -38107,8 +38107,8 @@
             "low_velocity_ratio[%]": 0.08482142857142858,
             "average_ego_velocity[m/s]": 8.138915719771251,
             "average_velocity[m/s]": 2.668291818429568,
-            "flow[/s]": 2.668291818429568,
-            "area_occ[%]": 2.668291818429568
+            "flow[/s]": 0.059769192076700776,
+            "area_occ[%]": 0.008087280246656814
         },
         "obstacles": {
             "is_coverageValid": {
@@ -38393,8 +38393,8 @@
             "low_velocity_ratio[%]": 0.34239310573417303,
             "average_ego_velocity[m/s]": 14.267494073438067,
             "average_velocity[m/s]": 8.562300771312762,
-            "flow[/s]": 8.562300771312762,
-            "area_occ[%]": 8.562300771312762
+            "flow[/s]": 0.5326276365560745,
+            "area_occ[%]": 0.08339316681293388
         },
         "obstacles": {
             "is_coverageValid": {
@@ -38679,8 +38679,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.15931435718372,
             "average_velocity[m/s]": 18.357923623735743,
-            "flow[/s]": 18.357923623735743,
-            "area_occ[%]": 18.357923623735743
+            "flow[/s]": 0.7638169179167748,
+            "area_occ[%]": 0.020916379219220703
         },
         "obstacles": {
             "is_coverageValid": {
@@ -38773,8 +38773,8 @@
             "low_velocity_ratio[%]": 0.7269409422694094,
             "average_ego_velocity[m/s]": 7.697242894410218,
             "average_velocity[m/s]": 1.4662139990910537,
-            "flow[/s]": 1.4662139990910537,
-            "area_occ[%]": 1.4662139990910537
+            "flow[/s]": 0.05008809223951023,
+            "area_occ[%]": 0.022625552697206553
         },
         "obstacles": {
             "is_coverageValid": {
@@ -39059,8 +39059,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.07774034227644,
             "average_velocity[m/s]": 18.793438047238972,
-            "flow[/s]": 18.793438047238972,
-            "area_occ[%]": 18.793438047238972
+            "flow[/s]": 0.605050036709763,
+            "area_occ[%]": 0.016843897175904763
         },
         "obstacles": {
             "is_coverageValid": {
@@ -39217,8 +39217,8 @@
             "low_velocity_ratio[%]": 0.07235313640889479,
             "average_ego_velocity[m/s]": 12.74356977525892,
             "average_velocity[m/s]": 10.925361012201227,
-            "flow[/s]": 10.925361012201227,
-            "area_occ[%]": 10.925361012201227
+            "flow[/s]": 0.4769188452934548,
+            "area_occ[%]": 0.042097778937768324
         },
         "obstacles": {
             "is_coverageValid": {
@@ -39503,8 +39503,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.110245213747262,
             "average_velocity[m/s]": 21.061466526340233,
-            "flow[/s]": 21.061466526340233,
-            "area_occ[%]": 21.061466526340233
+            "flow[/s]": 1.2467994509339113,
+            "area_occ[%]": 0.03548481498804671
         },
         "obstacles": {
             "is_coverageValid": {
@@ -39661,8 +39661,8 @@
             "low_velocity_ratio[%]": 0.0241801921165949,
             "average_ego_velocity[m/s]": 14.015364992966559,
             "average_velocity[m/s]": 13.66161651026966,
-            "flow[/s]": 13.66161651026966,
-            "area_occ[%]": 13.66161651026966
+            "flow[/s]": 1.0402658150941377,
+            "area_occ[%]": 0.08677128357898231
         },
         "obstacles": {
             "is_coverageValid": {
@@ -39947,8 +39947,8 @@
             "low_velocity_ratio[%]": 0.6321036889332003,
             "average_ego_velocity[m/s]": 6.778533613778712,
             "average_velocity[m/s]": 3.2009888356854734,
-            "flow[/s]": 3.2009888356854734,
-            "area_occ[%]": 3.2009888356854734
+            "flow[/s]": 0.3502487239343765,
+            "area_occ[%]": 0.1268342600170452
         },
         "obstacles": {
             "is_coverageValid": {
@@ -40233,8 +40233,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 23.59081257165349,
             "average_velocity[m/s]": 18.67061723988398,
-            "flow[/s]": 18.67061723988398,
-            "area_occ[%]": 18.67061723988398
+            "flow[/s]": 0.49834585208301146,
+            "area_occ[%]": 0.020898402192124972
         },
         "obstacles": {
             "is_coverageValid": {
@@ -40455,8 +40455,8 @@
             "low_velocity_ratio[%]": 0.684822318166722,
             "average_ego_velocity[m/s]": 9.412096221781129,
             "average_velocity[m/s]": 3.0125850127623632,
-            "flow[/s]": 3.0125850127623632,
-            "area_occ[%]": 3.0125850127623632
+            "flow[/s]": 0.19514368623709513,
+            "area_occ[%]": 0.08870632789922954
         },
         "obstacles": {
             "is_coverageValid": {
@@ -40613,8 +40613,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 16.595104915376442,
             "average_velocity[m/s]": 4.816596038031305,
-            "flow[/s]": 4.816596038031305,
-            "area_occ[%]": 4.816596038031305
+            "flow[/s]": 0.1290610908690582,
+            "area_occ[%]": 0.009923081119564695
         },
         "obstacles": {
             "is_coverageValid": {
@@ -40899,8 +40899,8 @@
             "low_velocity_ratio[%]": 0.4078860172299536,
             "average_ego_velocity[m/s]": 10.051607026157262,
             "average_velocity[m/s]": 4.441795718006196,
-            "flow[/s]": 4.441795718006196,
-            "area_occ[%]": 4.441795718006196
+            "flow[/s]": 0.20146030561257083,
+            "area_occ[%]": 0.03968805531022475
         },
         "obstacles": {
             "is_coverageValid": {
@@ -41185,8 +41185,8 @@
             "low_velocity_ratio[%]": 0.36939404313591234,
             "average_ego_velocity[m/s]": 6.73515934522196,
             "average_velocity[m/s]": 1.0534733574510606,
-            "flow[/s]": 1.0534733574510606,
-            "area_occ[%]": 1.0534733574510606
+            "flow[/s]": 0.01962234476945318,
+            "area_occ[%]": 0.008388343623987153
         },
         "obstacles": {
             "is_coverageValid": {
@@ -41471,8 +41471,8 @@
             "low_velocity_ratio[%]": 0.27405441274054415,
             "average_ego_velocity[m/s]": 5.138524362003563,
             "average_velocity[m/s]": 4.353046923669396,
-            "flow[/s]": 4.353046923669396,
-            "area_occ[%]": 4.353046923669396
+            "flow[/s]": 0.8841462377411617,
+            "area_occ[%]": 0.11444623076992926
         },
         "obstacles": {
             "is_coverageValid": {
@@ -41693,8 +41693,8 @@
             "low_velocity_ratio[%]": 0.4165283770328576,
             "average_ego_velocity[m/s]": 7.240046317124394,
             "average_velocity[m/s]": 5.911505971411854,
-            "flow[/s]": 5.911505971411854,
-            "area_occ[%]": 5.911505971411854
+            "flow[/s]": 0.7415650213791708,
+            "area_occ[%]": 0.14961941063308185
         },
         "obstacles": {
             "is_coverageValid": {
@@ -41915,8 +41915,8 @@
             "low_velocity_ratio[%]": 0.1598537720172815,
             "average_ego_velocity[m/s]": 16.301598313960092,
             "average_velocity[m/s]": 10.1090452766331,
-            "flow[/s]": 10.1090452766331,
-            "area_occ[%]": 10.1090452766331
+            "flow[/s]": 0.5797917358660027,
+            "area_occ[%]": 0.038478919184609155
         },
         "obstacles": {
             "is_coverageValid": {
@@ -42201,8 +42201,8 @@
             "low_velocity_ratio[%]": 0.4134808853118712,
             "average_ego_velocity[m/s]": 13.35670814137925,
             "average_velocity[m/s]": 3.0305668098014107,
-            "flow[/s]": 3.0305668098014107,
-            "area_occ[%]": 3.0305668098014107
+            "flow[/s]": 0.10366391841094273,
+            "area_occ[%]": 0.02554096877089338
         },
         "obstacles": {
             "is_coverageValid": {
@@ -42487,8 +42487,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.690638416074837,
             "average_velocity[m/s]": 19.36754813283649,
-            "flow[/s]": 19.36754813283649,
-            "area_occ[%]": 19.36754813283649
+            "flow[/s]": 1.028770066658215,
+            "area_occ[%]": 0.03952915793180307
         },
         "obstacles": {
             "is_coverageValid": {
@@ -42645,8 +42645,8 @@
             "low_velocity_ratio[%]": 0.48241539482415396,
             "average_ego_velocity[m/s]": 7.201910432638266,
             "average_velocity[m/s]": 3.158814765718159,
-            "flow[/s]": 3.158814765718159,
-            "area_occ[%]": 3.158814765718159
+            "flow[/s]": 0.26851652177193214,
+            "area_occ[%]": 0.046640691807236505
         },
         "obstacles": {
             "is_coverageValid": {
@@ -42931,8 +42931,8 @@
             "low_velocity_ratio[%]": 0.5462073534282875,
             "average_ego_velocity[m/s]": 14.506127381672824,
             "average_velocity[m/s]": 5.346369983034859,
-            "flow[/s]": 5.346369983034859,
-            "area_occ[%]": 5.346369983034859
+            "flow[/s]": 0.3189664537397142,
+            "area_occ[%]": 0.04712128962007022
         },
         "obstacles": {
             "is_coverageValid": {
@@ -43217,8 +43217,8 @@
             "low_velocity_ratio[%]": 0.23240371845949534,
             "average_ego_velocity[m/s]": 5.274271505307986,
             "average_velocity[m/s]": 1.8690481661494796,
-            "flow[/s]": 1.8690481661494796,
-            "area_occ[%]": 1.8690481661494796
+            "flow[/s]": 0.06075901330606599,
+            "area_occ[%]": 0.03412161269102188
         },
         "obstacles": {
             "is_coverageValid": {
@@ -43503,8 +43503,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.4630159585172304,
-            "flow[/s]": 0.4630159585172304,
-            "area_occ[%]": 0.4630159585172304
+            "flow[/s]": 0.024290280558213417,
+            "area_occ[%]": 0.015487004963385955
         },
         "obstacles": {
             "is_coverageValid": {
@@ -43789,8 +43789,8 @@
             "low_velocity_ratio[%]": 0.16572567253404186,
             "average_ego_velocity[m/s]": 8.375826814372068,
             "average_velocity[m/s]": 2.8841193590855556,
-            "flow[/s]": 2.8841193590855556,
-            "area_occ[%]": 2.8841193590855556
+            "flow[/s]": 0.14700676520473124,
+            "area_occ[%]": 0.03023254397405721
         },
         "obstacles": {
             "is_coverageValid": {
@@ -44075,8 +44075,8 @@
             "low_velocity_ratio[%]": 0.5736074270557029,
             "average_ego_velocity[m/s]": 9.301871198146932,
             "average_velocity[m/s]": 1.9685945211765328,
-            "flow[/s]": 1.9685945211765328,
-            "area_occ[%]": 1.9685945211765328
+            "flow[/s]": 0.06599154756565163,
+            "area_occ[%]": 0.03499911588834336
         },
         "obstacles": {
             "is_coverageValid": {
@@ -44361,8 +44361,8 @@
             "low_velocity_ratio[%]": 0.3444038525406842,
             "average_ego_velocity[m/s]": 8.499734640483798,
             "average_velocity[m/s]": 4.382435949108176,
-            "flow[/s]": 4.382435949108176,
-            "area_occ[%]": 4.382435949108176
+            "flow[/s]": 0.523068084706993,
+            "area_occ[%]": 0.08710135406070578
         },
         "obstacles": {
             "is_coverageValid": {
@@ -44647,8 +44647,8 @@
             "low_velocity_ratio[%]": 0.04212271973466003,
             "average_ego_velocity[m/s]": 24.556052567473408,
             "average_velocity[m/s]": 17.991487482131095,
-            "flow[/s]": 17.991487482131095,
-            "area_occ[%]": 17.991487482131095
+            "flow[/s]": 0.7254036426329021,
+            "area_occ[%]": 0.02379712286919087
         },
         "obstacles": {
             "is_coverageValid": {
@@ -44869,8 +44869,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.110320365219092,
             "average_velocity[m/s]": 16.520030946809822,
-            "flow[/s]": 16.520030946809822,
-            "area_occ[%]": 16.520030946809822
+            "flow[/s]": 0.6134892579289691,
+            "area_occ[%]": 0.025884780353207033
         },
         "obstacles": {
             "is_coverageValid": {
@@ -45027,8 +45027,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 26.25358935475468,
             "average_velocity[m/s]": 24.103024496321897,
-            "flow[/s]": 24.103024496321897,
-            "area_occ[%]": 24.103024496321897
+            "flow[/s]": 0.8979027241033667,
+            "area_occ[%]": 0.028573226800230573
         },
         "obstacles": {
             "is_coverageValid": {
@@ -45185,8 +45185,8 @@
             "low_velocity_ratio[%]": 0.27973421926910297,
             "average_ego_velocity[m/s]": 6.549292065890513,
             "average_velocity[m/s]": 1.8188103176131805,
-            "flow[/s]": 1.8188103176131805,
-            "area_occ[%]": 1.8188103176131805
+            "flow[/s]": 0.05489013840927363,
+            "area_occ[%]": 0.01704639160924212
         },
         "obstacles": {
             "is_coverageValid": {
@@ -45471,8 +45471,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.238811742586154,
             "average_velocity[m/s]": 15.981814617994685,
-            "flow[/s]": 15.981814617994685,
-            "area_occ[%]": 15.981814617994685
+            "flow[/s]": 1.0809633869209254,
+            "area_occ[%]": 0.05395427975787237
         },
         "obstacles": {
             "is_coverageValid": {
@@ -45629,8 +45629,8 @@
             "low_velocity_ratio[%]": 0.4897214854111406,
             "average_ego_velocity[m/s]": 9.424723091336176,
             "average_velocity[m/s]": 3.2146704726143174,
-            "flow[/s]": 3.2146704726143174,
-            "area_occ[%]": 3.2146704726143174
+            "flow[/s]": 0.15299615142317965,
+            "area_occ[%]": 0.02229921895574607
         },
         "obstacles": {
             "is_coverageValid": {
@@ -45915,8 +45915,8 @@
             "low_velocity_ratio[%]": 0.3890365448504983,
             "average_ego_velocity[m/s]": 5.429015320108403,
             "average_velocity[m/s]": 0.450700611588336,
-            "flow[/s]": 0.450700611588336,
-            "area_occ[%]": 0.450700611588336
+            "flow[/s]": 0.018730691998824465,
+            "area_occ[%]": 0.040111709568889334
         },
         "obstacles": {
             "is_coverageValid": {
@@ -46201,8 +46201,8 @@
             "low_velocity_ratio[%]": 0.0912106135986733,
             "average_ego_velocity[m/s]": 12.094194568943804,
             "average_velocity[m/s]": 9.944723952627822,
-            "flow[/s]": 9.944723952627822,
-            "area_occ[%]": 9.944723952627822
+            "flow[/s]": 0.3725978775159831,
+            "area_occ[%]": 0.03181159148826646
         },
         "obstacles": {
             "is_coverageValid": {
@@ -46487,8 +46487,8 @@
             "low_velocity_ratio[%]": 0.38423318979794635,
             "average_ego_velocity[m/s]": 13.69459292515431,
             "average_velocity[m/s]": 6.824545007836191,
-            "flow[/s]": 6.824545007836191,
-            "area_occ[%]": 6.824545007836191
+            "flow[/s]": 0.5206309917931433,
+            "area_occ[%]": 0.1015020320999011
         },
         "obstacles": {
             "is_coverageValid": {
@@ -46709,8 +46709,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.581353399699744,
             "average_velocity[m/s]": 20.169833548996195,
-            "flow[/s]": 20.169833548996195,
-            "area_occ[%]": 20.169833548996195
+            "flow[/s]": 0.9168488266540821,
+            "area_occ[%]": 0.025308205960871098
         },
         "obstacles": {
             "is_coverageValid": {
@@ -46803,8 +46803,8 @@
             "low_velocity_ratio[%]": 0.16771627444481274,
             "average_ego_velocity[m/s]": 16.21160420199781,
             "average_velocity[m/s]": 5.579696994623757,
-            "flow[/s]": 5.579696994623757,
-            "area_occ[%]": 5.579696994623757
+            "flow[/s]": 0.11251298516607687,
+            "area_occ[%]": 0.011277958866079187
         },
         "obstacles": {
             "is_coverageValid": {
@@ -47089,8 +47089,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.81699288329977,
             "average_velocity[m/s]": 18.119800937539758,
-            "flow[/s]": 18.119800937539758,
-            "area_occ[%]": 18.119800937539758
+            "flow[/s]": 0.5493376014402692,
+            "area_occ[%]": 0.015701730022765245
         },
         "obstacles": {
             "is_coverageValid": {
@@ -47247,8 +47247,8 @@
             "low_velocity_ratio[%]": 0.4309428950863214,
             "average_ego_velocity[m/s]": 7.671275866212477,
             "average_velocity[m/s]": 3.2895500931222643,
-            "flow[/s]": 3.2895500931222643,
-            "area_occ[%]": 3.2895500931222643
+            "flow[/s]": 0.328758995615701,
+            "area_occ[%]": 0.06598169193700326
         },
         "obstacles": {
             "is_coverageValid": {
@@ -47533,8 +47533,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 16.902389815349814,
             "average_velocity[m/s]": 16.94168643450722,
-            "flow[/s]": 16.94168643450722,
-            "area_occ[%]": 16.94168643450722
+            "flow[/s]": 1.0701677453728045,
+            "area_occ[%]": 0.05828714705467482
         },
         "obstacles": {
             "is_coverageValid": {
@@ -47691,8 +47691,8 @@
             "low_velocity_ratio[%]": 0.46715328467153283,
             "average_ego_velocity[m/s]": 10.600517424373223,
             "average_velocity[m/s]": 5.34876131975684,
-            "flow[/s]": 5.34876131975684,
-            "area_occ[%]": 5.34876131975684
+            "flow[/s]": 0.23938323042930526,
+            "area_occ[%]": 0.06942520474003382
         },
         "obstacles": {
             "is_coverageValid": {
@@ -47913,8 +47913,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 14.049276292640272,
             "average_velocity[m/s]": 13.862806972423323,
-            "flow[/s]": 13.862806972423323,
-            "area_occ[%]": 13.862806972423323
+            "flow[/s]": 1.11114682593182,
+            "area_occ[%]": 0.054312812263680774
         },
         "obstacles": {
             "is_coverageValid": {
@@ -48135,8 +48135,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.137472395400142,
             "average_velocity[m/s]": 10.86329077439715,
-            "flow[/s]": 10.86329077439715,
-            "area_occ[%]": 10.86329077439715
+            "flow[/s]": 0.28291576668236557,
+            "area_occ[%]": 0.017017663174451813
         },
         "obstacles": {
             "is_coverageValid": {
@@ -48357,8 +48357,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 22.49548472857887,
             "average_velocity[m/s]": 22.19433874948545,
-            "flow[/s]": 22.19433874948545,
-            "area_occ[%]": 22.19433874948545
+            "flow[/s]": 1.1068247105643172,
+            "area_occ[%]": 0.036238795436530795
         },
         "obstacles": {
             "is_coverageValid": {
@@ -48579,8 +48579,8 @@
             "low_velocity_ratio[%]": 0.4271040424121935,
             "average_ego_velocity[m/s]": 9.385607434532558,
             "average_velocity[m/s]": 6.430856401454058,
-            "flow[/s]": 6.430856401454058,
-            "area_occ[%]": 6.430856401454058
+            "flow[/s]": 0.3388768166025481,
+            "area_occ[%]": 0.02103491716244301
         },
         "obstacles": {
             "is_coverageValid": {
@@ -48865,8 +48865,8 @@
             "low_velocity_ratio[%]": 0.3291307232913072,
             "average_ego_velocity[m/s]": 10.187115904603349,
             "average_velocity[m/s]": 3.077878151743221,
-            "flow[/s]": 3.077878151743221,
-            "area_occ[%]": 3.077878151743221
+            "flow[/s]": 0.14319719605490172,
+            "area_occ[%]": 0.03348140453577805
         },
         "obstacles": {
             "is_coverageValid": {
@@ -49151,8 +49151,8 @@
             "low_velocity_ratio[%]": 0.2532619605219137,
             "average_ego_velocity[m/s]": 10.027459661699964,
             "average_velocity[m/s]": 2.8752098158269295,
-            "flow[/s]": 2.8752098158269295,
-            "area_occ[%]": 2.8752098158269295
+            "flow[/s]": 0.11091753570640828,
+            "area_occ[%]": 0.011926732990810917
         },
         "obstacles": {
             "is_coverageValid": {
@@ -49437,8 +49437,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.794011673526377,
             "average_velocity[m/s]": 20.37202749369766,
-            "flow[/s]": 20.37202749369766,
-            "area_occ[%]": 20.37202749369766
+            "flow[/s]": 0.9160480399634062,
+            "area_occ[%]": 0.05670060390421029
         },
         "obstacles": {
             "is_coverageValid": {
@@ -49595,8 +49595,8 @@
             "low_velocity_ratio[%]": 0.8431893687707641,
             "average_ego_velocity[m/s]": 8.09144580818839,
             "average_velocity[m/s]": 1.283996168607087,
-            "flow[/s]": 1.283996168607087,
-            "area_occ[%]": 1.283996168607087
+            "flow[/s]": 0.030787184092201516,
+            "area_occ[%]": 0.005080312387106018
         },
         "obstacles": {
             "is_coverageValid": {
@@ -49881,8 +49881,8 @@
             "low_velocity_ratio[%]": 0.9323607427055703,
             "average_ego_velocity[m/s]": 4.058054407437642,
             "average_velocity[m/s]": 0.038194447146207934,
-            "flow[/s]": 0.038194447146207934,
-            "area_occ[%]": 0.038194447146207934
+            "flow[/s]": 0.003328047320066013,
+            "area_occ[%]": 0.06778164647188116
         },
         "obstacles": {
             "is_coverageValid": {
@@ -50103,8 +50103,8 @@
             "low_velocity_ratio[%]": 0.2769485903814262,
             "average_ego_velocity[m/s]": 11.231435221160224,
             "average_velocity[m/s]": 7.129915402199225,
-            "flow[/s]": 7.129915402199225,
-            "area_occ[%]": 7.129915402199225
+            "flow[/s]": 0.42950110062918573,
+            "area_occ[%]": 0.08179153000388609
         },
         "obstacles": {
             "is_coverageValid": {
@@ -50389,8 +50389,8 @@
             "low_velocity_ratio[%]": 0.6015909844216109,
             "average_ego_velocity[m/s]": 9.810429323334464,
             "average_velocity[m/s]": 3.178020266279907,
-            "flow[/s]": 3.178020266279907,
-            "area_occ[%]": 3.178020266279907
+            "flow[/s]": 0.17644786991408265,
+            "area_occ[%]": 0.051815307251879765
         },
         "obstacles": {
             "is_coverageValid": {
@@ -50675,8 +50675,8 @@
             "low_velocity_ratio[%]": 0.24776119402985075,
             "average_ego_velocity[m/s]": 12.724686004497388,
             "average_velocity[m/s]": 6.262962990491741,
-            "flow[/s]": 6.262962990491741,
-            "area_occ[%]": 6.262962990491741
+            "flow[/s]": 0.28972072680425187,
+            "area_occ[%]": 0.031581474637870366
         },
         "obstacles": {
             "is_coverageValid": {
@@ -50961,8 +50961,8 @@
             "low_velocity_ratio[%]": 0.39256061109266027,
             "average_ego_velocity[m/s]": 14.036898023773244,
             "average_velocity[m/s]": 4.696355719738176,
-            "flow[/s]": 4.696355719738176,
-            "area_occ[%]": 4.696355719738176
+            "flow[/s]": 0.17924000418392197,
+            "area_occ[%]": 0.0473768228970767
         },
         "obstacles": {
             "is_coverageValid": {
@@ -51247,8 +51247,8 @@
             "low_velocity_ratio[%]": 0.47778514588859416,
             "average_ego_velocity[m/s]": 10.61943092073713,
             "average_velocity[m/s]": 6.884293552937917,
-            "flow[/s]": 6.884293552937917,
-            "area_occ[%]": 6.884293552937917
+            "flow[/s]": 0.5469110520492003,
+            "area_occ[%]": 0.10391019012798572
         },
         "obstacles": {
             "is_coverageValid": {
@@ -51533,8 +51533,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 16.758247311572486,
             "average_velocity[m/s]": 17.65322168977698,
-            "flow[/s]": 17.65322168977698,
-            "area_occ[%]": 17.65322168977698
+            "flow[/s]": 0.4728397949682627,
+            "area_occ[%]": 0.012196561768787187
         },
         "obstacles": {
             "is_coverageValid": {
@@ -51627,8 +51627,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.0264585395347,
             "average_velocity[m/s]": 14.753754872434506,
-            "flow[/s]": 14.753754872434506,
-            "area_occ[%]": 14.753754872434506
+            "flow[/s]": 0.33862944188328326,
+            "area_occ[%]": 0.00855566458534413
         },
         "obstacles": {
             "is_coverageValid": {
@@ -51721,8 +51721,8 @@
             "low_velocity_ratio[%]": 0.2543103448275862,
             "average_ego_velocity[m/s]": 7.597028865237509,
             "average_velocity[m/s]": 2.5210507193266363,
-            "flow[/s]": 2.5210507193266363,
-            "area_occ[%]": 2.5210507193266363
+            "flow[/s]": 0.08540446546942908,
+            "area_occ[%]": 0.025532181559021257
         },
         "obstacles": {
             "is_coverageValid": {
@@ -52007,8 +52007,8 @@
             "low_velocity_ratio[%]": 0.24389416553595658,
             "average_ego_velocity[m/s]": 23.54308853089515,
             "average_velocity[m/s]": 11.635703100891007,
-            "flow[/s]": 11.635703100891007,
-            "area_occ[%]": 11.635703100891007
+            "flow[/s]": 0.22872703360798746,
+            "area_occ[%]": 0.007999266228078346
         },
         "obstacles": {
             "is_coverageValid": {
@@ -52293,8 +52293,8 @@
             "low_velocity_ratio[%]": 0.0798542080848244,
             "average_ego_velocity[m/s]": 6.8666312111595955,
             "average_velocity[m/s]": 1.0439574714560682,
-            "flow[/s]": 1.0439574714560682,
-            "area_occ[%]": 1.0439574714560682
+            "flow[/s]": 0.030263061486530646,
+            "area_occ[%]": 0.012932453863695641
         },
         "obstacles": {
             "is_coverageValid": {
@@ -52579,8 +52579,8 @@
             "low_velocity_ratio[%]": 0.22019077901430842,
             "average_ego_velocity[m/s]": 12.73212412810836,
             "average_velocity[m/s]": 4.859185008341688,
-            "flow[/s]": 4.859185008341688,
-            "area_occ[%]": 4.859185008341688
+            "flow[/s]": 0.14011258089492337,
+            "area_occ[%]": 0.01394179647843499
         },
         "obstacles": {
             "is_coverageValid": {
@@ -52801,8 +52801,8 @@
             "low_velocity_ratio[%]": 0.2723051409618574,
             "average_ego_velocity[m/s]": 13.088075661181099,
             "average_velocity[m/s]": 5.914764698200324,
-            "flow[/s]": 5.914764698200324,
-            "area_occ[%]": 5.914764698200324
+            "flow[/s]": 0.189264205487193,
+            "area_occ[%]": 0.04101552377968079
         },
         "obstacles": {
             "is_coverageValid": {
@@ -53087,8 +53087,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.223807786124453,
             "average_velocity[m/s]": 12.066252018277254,
-            "flow[/s]": 12.066252018277254,
-            "area_occ[%]": 12.066252018277254
+            "flow[/s]": 0.5033561416652701,
+            "area_occ[%]": 0.04152326636660999
         },
         "obstacles": {
             "is_coverageValid": {
@@ -53309,8 +53309,8 @@
             "low_velocity_ratio[%]": 0.21333775713337758,
             "average_ego_velocity[m/s]": 11.252337729061066,
             "average_velocity[m/s]": 7.7905687168820865,
-            "flow[/s]": 7.7905687168820865,
-            "area_occ[%]": 7.7905687168820865
+            "flow[/s]": 0.5124463292530795,
+            "area_occ[%]": 0.08367937448823899
         },
         "obstacles": {
             "is_coverageValid": {
@@ -53595,8 +53595,8 @@
             "low_velocity_ratio[%]": 0.6194779116465864,
             "average_ego_velocity[m/s]": 10.1758239964382,
             "average_velocity[m/s]": 1.7456040664762074,
-            "flow[/s]": 1.7456040664762074,
-            "area_occ[%]": 1.7456040664762074
+            "flow[/s]": 0.08109985052310748,
+            "area_occ[%]": 0.02317077053202257
         },
         "obstacles": {
             "is_coverageValid": {
@@ -53881,8 +53881,8 @@
             "low_velocity_ratio[%]": 0.27846000663790244,
             "average_ego_velocity[m/s]": 14.926807560938263,
             "average_velocity[m/s]": 6.947553351424966,
-            "flow[/s]": 6.947553351424966,
-            "area_occ[%]": 6.947553351424966
+            "flow[/s]": 0.2505165223971657,
+            "area_occ[%]": 0.042891763061010925
         },
         "obstacles": {
             "is_coverageValid": {
@@ -54167,8 +54167,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.363115296123514,
             "average_velocity[m/s]": 19.039070978833614,
-            "flow[/s]": 19.039070978833614,
-            "area_occ[%]": 19.039070978833614
+            "flow[/s]": 0.671755350785382,
+            "area_occ[%]": 0.019175689866807615
         },
         "obstacles": {
             "is_coverageValid": {
@@ -54261,8 +54261,8 @@
             "low_velocity_ratio[%]": 0.2108933909000332,
             "average_ego_velocity[m/s]": 16.691445615957882,
             "average_velocity[m/s]": 11.189272166529948,
-            "flow[/s]": 11.189272166529948,
-            "area_occ[%]": 11.189272166529948
+            "flow[/s]": 0.3141095704404015,
+            "area_occ[%]": 0.02598347650027573
         },
         "obstacles": {
             "is_coverageValid": {
@@ -54483,8 +54483,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.43016603483151,
             "average_velocity[m/s]": 16.62581544541506,
-            "flow[/s]": 16.62581544541506,
-            "area_occ[%]": 16.62581544541506
+            "flow[/s]": 0.5477071266026176,
+            "area_occ[%]": 0.015152673130877078
         },
         "obstacles": {
             "is_coverageValid": {
@@ -54641,8 +54641,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.205602644609623,
             "average_velocity[m/s]": 16.862800474495437,
-            "flow[/s]": 16.862800474495437,
-            "area_occ[%]": 16.862800474495437
+            "flow[/s]": 0.5459249883393807,
+            "area_occ[%]": 0.03305527754743813
         },
         "obstacles": {
             "is_coverageValid": {
@@ -54863,8 +54863,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 15.461810256111704,
             "average_velocity[m/s]": 13.853247484945177,
-            "flow[/s]": 13.853247484945177,
-            "area_occ[%]": 13.853247484945177
+            "flow[/s]": 0.8029154168133433,
+            "area_occ[%]": 0.056572860031503636
         },
         "obstacles": {
             "is_coverageValid": {
@@ -55149,8 +55149,8 @@
             "low_velocity_ratio[%]": 0.16407026847862113,
             "average_ego_velocity[m/s]": 8.189779082997086,
             "average_velocity[m/s]": 6.079192024109219,
-            "flow[/s]": 6.079192024109219,
-            "area_occ[%]": 6.079192024109219
+            "flow[/s]": 0.6993455925387223,
+            "area_occ[%]": 0.10276658249599611
         },
         "obstacles": {
             "is_coverageValid": {
@@ -55371,8 +55371,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 3.0729418429787696,
-            "flow[/s]": 3.0729418429787696,
-            "area_occ[%]": 3.0729418429787696
+            "flow[/s]": 0.1694745137063746,
+            "area_occ[%]": 0.015418419738602574
         },
         "obstacles": {
             "is_coverageValid": {
@@ -55657,8 +55657,8 @@
             "low_velocity_ratio[%]": 0.5240464344941956,
             "average_ego_velocity[m/s]": 8.981445595943969,
             "average_velocity[m/s]": 3.974470987678893,
-            "flow[/s]": 3.974470987678893,
-            "area_occ[%]": 3.974470987678893
+            "flow[/s]": 0.45475298563740935,
+            "area_occ[%]": 0.11252175077611273
         },
         "obstacles": {
             "is_coverageValid": {
@@ -55943,8 +55943,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 15.767178729705002,
             "average_velocity[m/s]": 12.192077343029895,
-            "flow[/s]": 12.192077343029895,
-            "area_occ[%]": 12.192077343029895
+            "flow[/s]": 0.6006454884226438,
+            "area_occ[%]": 0.04732168192641895
         },
         "obstacles": {
             "is_coverageValid": {
@@ -56229,8 +56229,8 @@
             "low_velocity_ratio[%]": 0.30912106135986733,
             "average_ego_velocity[m/s]": 11.994095339205078,
             "average_velocity[m/s]": 6.078845668278841,
-            "flow[/s]": 6.078845668278841,
-            "area_occ[%]": 6.078845668278841
+            "flow[/s]": 0.531090741817756,
+            "area_occ[%]": 0.07956915742146235
         },
         "obstacles": {
             "is_coverageValid": {
@@ -56515,8 +56515,8 @@
             "low_velocity_ratio[%]": 0.22480106100795755,
             "average_ego_velocity[m/s]": 14.386916491391824,
             "average_velocity[m/s]": 5.1263138391690335,
-            "flow[/s]": 5.1263138391690335,
-            "area_occ[%]": 5.1263138391690335
+            "flow[/s]": 0.15588887849887173,
+            "area_occ[%]": 0.015130859256800902
         },
         "obstacles": {
             "is_coverageValid": {
@@ -56801,8 +56801,8 @@
             "low_velocity_ratio[%]": 0.5430089671205579,
             "average_ego_velocity[m/s]": 10.959592565374319,
             "average_velocity[m/s]": 4.586309337348976,
-            "flow[/s]": 4.586309337348976,
-            "area_occ[%]": 4.586309337348976
+            "flow[/s]": 0.265106280450277,
+            "area_occ[%]": 0.042453570489576854
         },
         "obstacles": {
             "is_coverageValid": {
@@ -57087,8 +57087,8 @@
             "low_velocity_ratio[%]": 0.06758957654723127,
             "average_ego_velocity[m/s]": 18.524263471703343,
             "average_velocity[m/s]": 16.462889458390283,
-            "flow[/s]": 16.462889458390283,
-            "area_occ[%]": 16.462889458390283
+            "flow[/s]": 0.4759987700457532,
+            "area_occ[%]": 0.024608371728882736
         },
         "obstacles": {
             "is_coverageValid": {
@@ -57373,8 +57373,8 @@
             "low_velocity_ratio[%]": 0.4557213930348259,
             "average_ego_velocity[m/s]": 9.88884629032221,
             "average_velocity[m/s]": 5.361569617448373,
-            "flow[/s]": 5.361569617448373,
-            "area_occ[%]": 5.361569617448373
+            "flow[/s]": 0.568835487277058,
+            "area_occ[%]": 0.11961556915159711
         },
         "obstacles": {
             "is_coverageValid": {
@@ -57659,8 +57659,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.566443523431055,
             "average_velocity[m/s]": 19.223592865237457,
-            "flow[/s]": 19.223592865237457,
-            "area_occ[%]": 19.223592865237457
+            "flow[/s]": 0.7170317188829286,
+            "area_occ[%]": 0.03817632837556682
         },
         "obstacles": {
             "is_coverageValid": {
@@ -57817,8 +57817,8 @@
             "low_velocity_ratio[%]": 0.24078379275988043,
             "average_ego_velocity[m/s]": 7.565954892236938,
             "average_velocity[m/s]": 5.473273512806299,
-            "flow[/s]": 5.473273512806299,
-            "area_occ[%]": 5.473273512806299
+            "flow[/s]": 0.6375533943739835,
+            "area_occ[%]": 0.1515813729660511
         },
         "obstacles": {
             "is_coverageValid": {
@@ -58039,8 +58039,8 @@
             "low_velocity_ratio[%]": 0.33576884755895053,
             "average_ego_velocity[m/s]": 9.57952830350399,
             "average_velocity[m/s]": 5.695409027924368,
-            "flow[/s]": 5.695409027924368,
-            "area_occ[%]": 5.695409027924368
+            "flow[/s]": 0.5100087757163206,
+            "area_occ[%]": 0.061989371011083996
         },
         "obstacles": {
             "is_coverageValid": {
@@ -58325,8 +58325,8 @@
             "low_velocity_ratio[%]": 0.5582089552238806,
             "average_ego_velocity[m/s]": 9.326817759164461,
             "average_velocity[m/s]": 4.5665962718196145,
-            "flow[/s]": 4.5665962718196145,
-            "area_occ[%]": 4.5665962718196145
+            "flow[/s]": 0.5016119881469432,
+            "area_occ[%]": 0.06784728626706552
         },
         "obstacles": {
             "is_coverageValid": {
@@ -58611,8 +58611,8 @@
             "low_velocity_ratio[%]": 0.12437810945273632,
             "average_ego_velocity[m/s]": 15.260861784219742,
             "average_velocity[m/s]": 7.585789937179348,
-            "flow[/s]": 7.585789937179348,
-            "area_occ[%]": 7.585789937179348
+            "flow[/s]": 0.21728208987117598,
+            "area_occ[%]": 0.024526917835545066
         },
         "obstacles": {
             "is_coverageValid": {
@@ -58897,8 +58897,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.89279062287572,
             "average_velocity[m/s]": 19.150300782042923,
-            "flow[/s]": 19.150300782042923,
-            "area_occ[%]": 19.150300782042923
+            "flow[/s]": 0.628522306263562,
+            "area_occ[%]": 0.015280314035003685
         },
         "obstacles": {
             "is_coverageValid": {
@@ -58991,8 +58991,8 @@
             "low_velocity_ratio[%]": 0.24892134085628942,
             "average_ego_velocity[m/s]": 11.323849424976613,
             "average_velocity[m/s]": 7.639856654252534,
-            "flow[/s]": 7.639856654252534,
-            "area_occ[%]": 7.639856654252534
+            "flow[/s]": 0.4494166461594069,
+            "area_occ[%]": 0.07830545313011256
         },
         "obstacles": {
             "is_coverageValid": {
@@ -59277,8 +59277,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.606360883658926,
             "average_velocity[m/s]": 16.008454877929037,
-            "flow[/s]": 16.008454877929037,
-            "area_occ[%]": 16.008454877929037
+            "flow[/s]": 0.5591161274501569,
+            "area_occ[%]": 0.01648435951384902
         },
         "obstacles": {
             "is_coverageValid": {
@@ -59435,8 +59435,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.69141265188352,
             "average_velocity[m/s]": 19.21308743478027,
-            "flow[/s]": 19.21308743478027,
-            "area_occ[%]": 19.21308743478027
+            "flow[/s]": 1.1341553607693624,
+            "area_occ[%]": 0.047285801856549355
         },
         "obstacles": {
             "is_coverageValid": {
@@ -59657,8 +59657,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.80950362590521,
             "average_velocity[m/s]": 14.096703392318423,
-            "flow[/s]": 14.096703392318423,
-            "area_occ[%]": 14.096703392318423
+            "flow[/s]": 0.4133898244659034,
+            "area_occ[%]": 0.051242132877977443
         },
         "obstacles": {
             "is_coverageValid": {
@@ -59943,8 +59943,8 @@
             "low_velocity_ratio[%]": 0.3541114058355438,
             "average_ego_velocity[m/s]": 7.095030669803737,
             "average_velocity[m/s]": 1.712659142200914,
-            "flow[/s]": 1.712659142200914,
-            "area_occ[%]": 1.712659142200914
+            "flow[/s]": 0.060794889512016066,
+            "area_occ[%]": 0.01767302316248877
         },
         "obstacles": {
             "is_coverageValid": {
@@ -60229,8 +60229,8 @@
             "low_velocity_ratio[%]": 0.3599602253894597,
             "average_ego_velocity[m/s]": 9.65438652310206,
             "average_velocity[m/s]": 3.7710094934133953,
-            "flow[/s]": 3.7710094934133953,
-            "area_occ[%]": 3.7710094934133953
+            "flow[/s]": 0.10805105955848839,
+            "area_occ[%]": 0.009354224194149423
         },
         "obstacles": {
             "is_coverageValid": {
@@ -60515,8 +60515,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.70208689262127,
             "average_velocity[m/s]": 17.401386363427466,
-            "flow[/s]": 17.401386363427466,
-            "area_occ[%]": 17.401386363427466
+            "flow[/s]": 0.9509380981311203,
+            "area_occ[%]": 0.0529974612926053
         },
         "obstacles": {
             "is_coverageValid": {
@@ -60673,8 +60673,8 @@
             "low_velocity_ratio[%]": 0.23209549071618038,
             "average_ego_velocity[m/s]": 11.053260814134733,
             "average_velocity[m/s]": 7.870570974975373,
-            "flow[/s]": 7.870570974975373,
-            "area_occ[%]": 7.870570974975373
+            "flow[/s]": 0.5028944263327241,
+            "area_occ[%]": 0.07828361332818781
         },
         "obstacles": {
             "is_coverageValid": {
@@ -60959,8 +60959,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.570426837271455,
             "average_velocity[m/s]": 19.957018517521693,
-            "flow[/s]": 19.957018517521693,
-            "area_occ[%]": 19.957018517521693
+            "flow[/s]": 1.2683953764170381,
+            "area_occ[%]": 0.03540154062758518
         },
         "obstacles": {
             "is_coverageValid": {
@@ -61053,8 +61053,8 @@
             "low_velocity_ratio[%]": 0.24144802391232148,
             "average_ego_velocity[m/s]": 5.188483404716552,
             "average_velocity[m/s]": 0.9228634928994534,
-            "flow[/s]": 0.9228634928994534,
-            "area_occ[%]": 0.9228634928994534
+            "flow[/s]": 0.04611023173748482,
+            "area_occ[%]": 0.03464349287509686
         },
         "obstacles": {
             "is_coverageValid": {
@@ -61339,8 +61339,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 24.304784682558395,
             "average_velocity[m/s]": 5.6333307469169025,
-            "flow[/s]": 5.6333307469169025,
-            "area_occ[%]": 5.6333307469169025
+            "flow[/s]": 0.09723618738859345,
+            "area_occ[%]": 0.010297512985315223
         },
         "obstacles": {
             "is_coverageValid": {
@@ -61625,8 +61625,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.063996326385823,
             "average_velocity[m/s]": 20.632732567102547,
-            "flow[/s]": 20.632732567102547,
-            "area_occ[%]": 20.632732567102547
+            "flow[/s]": 0.9649086210196541,
+            "area_occ[%]": 0.026020296331653946
         },
         "obstacles": {
             "is_coverageValid": {
@@ -61719,8 +61719,8 @@
             "low_velocity_ratio[%]": 0.02782378270950646,
             "average_ego_velocity[m/s]": 16.876605979100606,
             "average_velocity[m/s]": 17.89926452548439,
-            "flow[/s]": 17.89926452548439,
-            "area_occ[%]": 17.89926452548439
+            "flow[/s]": 1.3094356302593484,
+            "area_occ[%]": 0.052389896067912285
         },
         "obstacles": {
             "is_coverageValid": {
@@ -61877,8 +61877,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.507031026410377,
             "average_velocity[m/s]": 16.62585813985143,
-            "flow[/s]": 16.62585813985143,
-            "area_occ[%]": 16.62585813985143
+            "flow[/s]": 0.4468552827099461,
+            "area_occ[%]": 0.02705692380912361
         },
         "obstacles": {
             "is_coverageValid": {
@@ -62035,8 +62035,8 @@
             "low_velocity_ratio[%]": 0.13579017264276227,
             "average_ego_velocity[m/s]": 8.311727952096172,
             "average_velocity[m/s]": 8.624891578708919,
-            "flow[/s]": 8.624891578708919,
-            "area_occ[%]": 8.624891578708919
+            "flow[/s]": 0.8527063125150349,
+            "area_occ[%]": 0.09331323425063798
         },
         "obstacles": {
             "is_coverageValid": {
@@ -62257,8 +62257,8 @@
             "low_velocity_ratio[%]": 0.7395348837209302,
             "average_ego_velocity[m/s]": 10.137941139084953,
             "average_velocity[m/s]": 2.420704850564855,
-            "flow[/s]": 2.420704850564855,
-            "area_occ[%]": 2.420704850564855
+            "flow[/s]": 0.2539648942730805,
+            "area_occ[%]": 0.10246895565737763
         },
         "obstacles": {
             "is_coverageValid": {
@@ -62543,8 +62543,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.1030343845315343,
-            "flow[/s]": 0.1030343845315343,
-            "area_occ[%]": 0.1030343845315343
+            "flow[/s]": 0.004460866759639818,
+            "area_occ[%]": 0.001099195291409103
         },
         "obstacles": {
             "is_coverageValid": {
@@ -62701,8 +62701,8 @@
             "low_velocity_ratio[%]": 0.6261620185922975,
             "average_ego_velocity[m/s]": 8.008207051410979,
             "average_velocity[m/s]": 3.2368582862296273,
-            "flow[/s]": 3.2368582862296273,
-            "area_occ[%]": 3.2368582862296273
+            "flow[/s]": 0.238288806762634,
+            "area_occ[%]": 0.07143687300185779
         },
         "obstacles": {
             "is_coverageValid": {
@@ -62987,8 +62987,8 @@
             "low_velocity_ratio[%]": 0.06017287234042553,
             "average_ego_velocity[m/s]": 8.646455317957054,
             "average_velocity[m/s]": 4.940999136578038,
-            "flow[/s]": 4.940999136578038,
-            "area_occ[%]": 4.940999136578038
+            "flow[/s]": 0.11715222226619759,
+            "area_occ[%]": 0.013315075450599668
         },
         "obstacles": {
             "is_coverageValid": {
@@ -63273,8 +63273,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 15.46388855460941,
             "average_velocity[m/s]": 14.345186963778898,
-            "flow[/s]": 14.345186963778898,
-            "area_occ[%]": 14.345186963778898
+            "flow[/s]": 0.5841315115774504,
+            "area_occ[%]": 0.025522639588394975
         },
         "obstacles": {
             "is_coverageValid": {
@@ -63495,8 +63495,8 @@
             "low_velocity_ratio[%]": 0.16683283482884678,
             "average_ego_velocity[m/s]": 13.928031461477564,
             "average_velocity[m/s]": 10.47165446159729,
-            "flow[/s]": 10.47165446159729,
-            "area_occ[%]": 10.47165446159729
+            "flow[/s]": 0.4237749193475365,
+            "area_occ[%]": 0.03770008100019644
         },
         "obstacles": {
             "is_coverageValid": {
@@ -63781,8 +63781,8 @@
             "low_velocity_ratio[%]": 0.712342402123424,
             "average_ego_velocity[m/s]": 6.015460616577043,
             "average_velocity[m/s]": 2.2197936746977573,
-            "flow[/s]": 2.2197936746977573,
-            "area_occ[%]": 2.2197936746977573
+            "flow[/s]": 0.2836048424769383,
+            "area_occ[%]": 0.07335318003726496
         },
         "obstacles": {
             "is_coverageValid": {
@@ -64067,8 +64067,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 16.433622692244754,
             "average_velocity[m/s]": 16.199592231773483,
-            "flow[/s]": 16.199592231773483,
-            "area_occ[%]": 16.199592231773483
+            "flow[/s]": 0.6036523780031396,
+            "area_occ[%]": 0.034010572077918556
         },
         "obstacles": {
             "is_coverageValid": {
@@ -64225,8 +64225,8 @@
             "low_velocity_ratio[%]": 0.35671483961931616,
             "average_ego_velocity[m/s]": 13.532547442945715,
             "average_velocity[m/s]": 2.89902275390437,
-            "flow[/s]": 2.89902275390437,
-            "area_occ[%]": 2.89902275390437
+            "flow[/s]": 0.09432593244020747,
+            "area_occ[%]": 0.013412803393227772
         },
         "obstacles": {
             "is_coverageValid": {
@@ -64511,8 +64511,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.596716523843522,
             "average_velocity[m/s]": 13.260312014932996,
-            "flow[/s]": 13.260312014932996,
-            "area_occ[%]": 13.260312014932996
+            "flow[/s]": 0.8478049844428802,
+            "area_occ[%]": 0.036961182335914784
         },
         "obstacles": {
             "is_coverageValid": {
@@ -64669,8 +64669,8 @@
             "low_velocity_ratio[%]": 0.40053138492195284,
             "average_ego_velocity[m/s]": 11.279960075970171,
             "average_velocity[m/s]": 6.550517637963049,
-            "flow[/s]": 6.550517637963049,
-            "area_occ[%]": 6.550517637963049
+            "flow[/s]": 0.4452555874364754,
+            "area_occ[%]": 0.07620624155363445
         },
         "obstacles": {
             "is_coverageValid": {
@@ -64955,8 +64955,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.512839432649834,
             "average_velocity[m/s]": 18.318594123861715,
-            "flow[/s]": 18.318594123861715,
-            "area_occ[%]": 18.318594123861715
+            "flow[/s]": 0.652102091259501,
+            "area_occ[%]": 0.03231431911351062
         },
         "obstacles": {
             "is_coverageValid": {
@@ -65241,8 +65241,8 @@
             "low_velocity_ratio[%]": 0.4287135278514589,
             "average_ego_velocity[m/s]": 10.96852329077585,
             "average_velocity[m/s]": 4.967376581595666,
-            "flow[/s]": 4.967376581595666,
-            "area_occ[%]": 4.967376581595666
+            "flow[/s]": 0.26455752179876163,
+            "area_occ[%]": 0.05038357219902184
         },
         "obstacles": {
             "is_coverageValid": {
@@ -65527,8 +65527,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 15.163360232172238,
             "average_velocity[m/s]": 14.140912550081355,
-            "flow[/s]": 14.140912550081355,
-            "area_occ[%]": 14.140912550081355
+            "flow[/s]": 0.7395164268379656,
+            "area_occ[%]": 0.042679520803284444
         },
         "obstacles": {
             "is_coverageValid": {
@@ -65813,8 +65813,8 @@
             "low_velocity_ratio[%]": 0.2991708126036484,
             "average_ego_velocity[m/s]": 12.486971885290295,
             "average_velocity[m/s]": 8.237519048688085,
-            "flow[/s]": 8.237519048688085,
-            "area_occ[%]": 8.237519048688085
+            "flow[/s]": 0.6028365033104333,
+            "area_occ[%]": 0.06723026675687925
         },
         "obstacles": {
             "is_coverageValid": {
@@ -66099,8 +66099,8 @@
             "low_velocity_ratio[%]": 0.4113357640039775,
             "average_ego_velocity[m/s]": 8.277633905142277,
             "average_velocity[m/s]": 3.9070398309197647,
-            "flow[/s]": 3.9070398309197647,
-            "area_occ[%]": 3.9070398309197647
+            "flow[/s]": 0.3862477364806389,
+            "area_occ[%]": 0.07290647287311736
         },
         "obstacles": {
             "is_coverageValid": {
@@ -66385,8 +66385,8 @@
             "low_velocity_ratio[%]": 0.22358803986710962,
             "average_ego_velocity[m/s]": 14.785352355147408,
             "average_velocity[m/s]": 5.881514290790712,
-            "flow[/s]": 5.881514290790712,
-            "area_occ[%]": 5.881514290790712
+            "flow[/s]": 0.15399818448228755,
+            "area_occ[%]": 0.01383602226337503
         },
         "obstacles": {
             "is_coverageValid": {
@@ -66671,8 +66671,8 @@
             "low_velocity_ratio[%]": 0.5813305468477882,
             "average_ego_velocity[m/s]": 7.627212937977072,
             "average_velocity[m/s]": 3.433316504853883,
-            "flow[/s]": 3.433316504853883,
-            "area_occ[%]": 3.433316504853883
+            "flow[/s]": 0.29879814013784295,
+            "area_occ[%]": 0.0671531475533428
         },
         "obstacles": {
             "is_coverageValid": {
@@ -66957,8 +66957,8 @@
             "low_velocity_ratio[%]": 0.06686626746506986,
             "average_ego_velocity[m/s]": 17.847362643512174,
             "average_velocity[m/s]": 10.809660059572415,
-            "flow[/s]": 10.809660059572415,
-            "area_occ[%]": 10.809660059572415
+            "flow[/s]": 0.2579517467762082,
+            "area_occ[%]": 0.016383843498468963
         },
         "obstacles": {
             "is_coverageValid": {
@@ -67115,8 +67115,8 @@
             "low_velocity_ratio[%]": 0.31893687707641194,
             "average_ego_velocity[m/s]": 12.884096519074788,
             "average_velocity[m/s]": 8.118408818725857,
-            "flow[/s]": 8.118408818725857,
-            "area_occ[%]": 8.118408818725857
+            "flow[/s]": 0.49320977096604385,
+            "area_occ[%]": 0.07864346189839466
         },
         "obstacles": {
             "is_coverageValid": {
@@ -67401,8 +67401,8 @@
             "low_velocity_ratio[%]": 0.4761273209549072,
             "average_ego_velocity[m/s]": 10.326997609983517,
             "average_velocity[m/s]": 3.204913751382857,
-            "flow[/s]": 3.204913751382857,
-            "area_occ[%]": 3.204913751382857
+            "flow[/s]": 0.13987860954005235,
+            "area_occ[%]": 0.02715395336398553
         },
         "obstacles": {
             "is_coverageValid": {
@@ -67687,8 +67687,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.087184910753656,
             "average_velocity[m/s]": 17.039497270711813,
-            "flow[/s]": 17.039497270711813,
-            "area_occ[%]": 17.039497270711813
+            "flow[/s]": 0.8670004459411664,
+            "area_occ[%]": 0.038388210604908844
         },
         "obstacles": {
             "is_coverageValid": {
@@ -67973,8 +67973,8 @@
             "low_velocity_ratio[%]": 0.09435215946843854,
             "average_ego_velocity[m/s]": 13.086368347561192,
             "average_velocity[m/s]": 4.191083926952133,
-            "flow[/s]": 4.191083926952133,
-            "area_occ[%]": 4.191083926952133
+            "flow[/s]": 0.17411661624755959,
+            "area_occ[%]": 0.04253402478059021
         },
         "obstacles": {
             "is_coverageValid": {
@@ -68259,8 +68259,8 @@
             "low_velocity_ratio[%]": 0.11361377939715138,
             "average_ego_velocity[m/s]": 7.04588172280735,
             "average_velocity[m/s]": 6.538130317919997,
-            "flow[/s]": 6.538130317919997,
-            "area_occ[%]": 6.538130317919997
+            "flow[/s]": 1.0464764117501182,
+            "area_occ[%]": 0.09498607365636313
         },
         "obstacles": {
             "is_coverageValid": {
@@ -68545,8 +68545,8 @@
             "low_velocity_ratio[%]": 0.6552980132450331,
             "average_ego_velocity[m/s]": 6.029027042654589,
             "average_velocity[m/s]": 0.5385312806052713,
-            "flow[/s]": 0.5385312806052713,
-            "area_occ[%]": 0.5385312806052713
+            "flow[/s]": 0.02033598934608244,
+            "area_occ[%]": 0.013957560795111117
         },
         "obstacles": {
             "is_coverageValid": {
@@ -68831,8 +68831,8 @@
             "low_velocity_ratio[%]": 0.9585406301824212,
             "average_ego_velocity[m/s]": 4.830579313278198,
             "average_velocity[m/s]": 0.947089725200768,
-            "flow[/s]": 0.947089725200768,
-            "area_occ[%]": 0.947089725200768
+            "flow[/s]": 0.01990770651984177,
+            "area_occ[%]": 0.002864122494720433
         },
         "obstacles": {
             "is_coverageValid": {
@@ -69053,8 +69053,8 @@
             "low_velocity_ratio[%]": 0.48055461616503214,
             "average_ego_velocity[m/s]": 11.39315676006178,
             "average_velocity[m/s]": 6.462109125268421,
-            "flow[/s]": 6.462109125268421,
-            "area_occ[%]": 6.462109125268421
+            "flow[/s]": 0.4279265104037465,
+            "area_occ[%]": 0.05935198240925906
         },
         "obstacles": {
             "is_coverageValid": {
@@ -69339,8 +69339,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.064026110822503,
             "average_velocity[m/s]": 12.136679754695885,
-            "flow[/s]": 12.136679754695885,
-            "area_occ[%]": 12.136679754695885
+            "flow[/s]": 0.32908386249649757,
+            "area_occ[%]": 0.017622038479149674
         },
         "obstacles": {
             "is_coverageValid": {
@@ -69625,8 +69625,8 @@
             "low_velocity_ratio[%]": 0.018230029830957905,
             "average_ego_velocity[m/s]": 21.33892371532162,
             "average_velocity[m/s]": 15.935657549937014,
-            "flow[/s]": 15.935657549937014,
-            "area_occ[%]": 15.935657549937014
+            "flow[/s]": 0.33890730253500256,
+            "area_occ[%]": 0.019305000052407206
         },
         "obstacles": {
             "is_coverageValid": {
@@ -69911,8 +69911,8 @@
             "low_velocity_ratio[%]": 0.4423076923076923,
             "average_ego_velocity[m/s]": 11.375879022936191,
             "average_velocity[m/s]": 6.058410729061257,
-            "flow[/s]": 6.058410729061257,
-            "area_occ[%]": 6.058410729061257
+            "flow[/s]": 0.5001824265474689,
+            "area_occ[%]": 0.12607588483997392
         },
         "obstacles": {
             "is_coverageValid": {
@@ -70197,8 +70197,8 @@
             "low_velocity_ratio[%]": 0.399734395750332,
             "average_ego_velocity[m/s]": 12.07987523237161,
             "average_velocity[m/s]": 6.802053845409583,
-            "flow[/s]": 6.802053845409583,
-            "area_occ[%]": 6.802053845409583
+            "flow[/s]": 0.48712846755083544,
+            "area_occ[%]": 0.1096084906679523
         },
         "obstacles": {
             "is_coverageValid": {
@@ -70483,8 +70483,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 23.1035238579138,
             "average_velocity[m/s]": 14.416089627753554,
-            "flow[/s]": 14.416089627753554,
-            "area_occ[%]": 14.416089627753554
+            "flow[/s]": 0.36847356711853974,
+            "area_occ[%]": 0.01878429005137352
         },
         "obstacles": {
             "is_coverageValid": {
@@ -70769,8 +70769,8 @@
             "low_velocity_ratio[%]": 0.40622906898861355,
             "average_ego_velocity[m/s]": 8.484450894026049,
             "average_velocity[m/s]": 4.796958295144809,
-            "flow[/s]": 4.796958295144809,
-            "area_occ[%]": 4.796958295144809
+            "flow[/s]": 0.3931305232502224,
+            "area_occ[%]": 0.054211456531291495
         },
         "obstacles": {
             "is_coverageValid": {
@@ -70991,8 +70991,8 @@
             "low_velocity_ratio[%]": 0.2536520584329349,
             "average_ego_velocity[m/s]": 13.02834850380005,
             "average_velocity[m/s]": 4.823804492920219,
-            "flow[/s]": 4.823804492920219,
-            "area_occ[%]": 4.823804492920219
+            "flow[/s]": 0.1160297641527228,
+            "area_occ[%]": 0.016562656696993534
         },
         "obstacles": {
             "is_coverageValid": {
@@ -71277,8 +71277,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 22.94894722845379,
             "average_velocity[m/s]": 13.422422480333191,
-            "flow[/s]": 13.422422480333191,
-            "area_occ[%]": 13.422422480333191
+            "flow[/s]": 0.30838806813885106,
+            "area_occ[%]": 0.015245591630280988
         },
         "obstacles": {
             "is_coverageValid": {
@@ -71499,8 +71499,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.73471619318683,
             "average_velocity[m/s]": 15.595538299457,
-            "flow[/s]": 15.595538299457,
-            "area_occ[%]": 15.595538299457
+            "flow[/s]": 0.43228803716948555,
+            "area_occ[%]": 0.02588783777691647
         },
         "obstacles": {
             "is_coverageValid": {
@@ -71721,8 +71721,8 @@
             "low_velocity_ratio[%]": 0.007638658253072069,
             "average_ego_velocity[m/s]": 16.826037211750087,
             "average_velocity[m/s]": 11.199441427864606,
-            "flow[/s]": 11.199441427864606,
-            "area_occ[%]": 11.199441427864606
+            "flow[/s]": 0.31595561282121964,
+            "area_occ[%]": 0.031237551802419033
         },
         "obstacles": {
             "is_coverageValid": {
@@ -72007,8 +72007,8 @@
             "low_velocity_ratio[%]": 0.2973421926910299,
             "average_ego_velocity[m/s]": 9.000771768267837,
             "average_velocity[m/s]": 3.5986623188149056,
-            "flow[/s]": 3.5986623188149056,
-            "area_occ[%]": 3.5986623188149056
+            "flow[/s]": 0.1895211845962382,
+            "area_occ[%]": 0.03075554578372627
         },
         "obstacles": {
             "is_coverageValid": {
@@ -72293,8 +72293,8 @@
             "low_velocity_ratio[%]": 0.4469847581179589,
             "average_ego_velocity[m/s]": 10.958601567615213,
             "average_velocity[m/s]": 5.598587630468837,
-            "flow[/s]": 5.598587630468837,
-            "area_occ[%]": 5.598587630468837
+            "flow[/s]": 0.32030843113689134,
+            "area_occ[%]": 0.06631695637373823
         },
         "obstacles": {
             "is_coverageValid": {
@@ -72579,8 +72579,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.226688790020756,
             "average_velocity[m/s]": 18.284738496691,
-            "flow[/s]": 18.284738496691,
-            "area_occ[%]": 18.284738496691
+            "flow[/s]": 0.8210598514246256,
+            "area_occ[%]": 0.023246343875361973
         },
         "obstacles": {
             "is_coverageValid": {
@@ -72737,8 +72737,8 @@
             "low_velocity_ratio[%]": 0.149734395750332,
             "average_ego_velocity[m/s]": 13.538200967808061,
             "average_velocity[m/s]": 7.425043030980291,
-            "flow[/s]": 7.425043030980291,
-            "area_occ[%]": 7.425043030980291
+            "flow[/s]": 0.31456144934357844,
+            "area_occ[%]": 0.05451381487616789
         },
         "obstacles": {
             "is_coverageValid": {
@@ -73023,8 +73023,8 @@
             "low_velocity_ratio[%]": 0.706312292358804,
             "average_ego_velocity[m/s]": 7.359671299274151,
             "average_velocity[m/s]": 2.293271614655767,
-            "flow[/s]": 2.293271614655767,
-            "area_occ[%]": 2.293271614655767
+            "flow[/s]": 0.36826188812748617,
+            "area_occ[%]": 0.13237500427744156
         },
         "obstacles": {
             "is_coverageValid": {
@@ -73309,8 +73309,8 @@
             "low_velocity_ratio[%]": 0.030222517436067752,
             "average_ego_velocity[m/s]": 11.420849623990385,
             "average_velocity[m/s]": 11.015745977419076,
-            "flow[/s]": 11.015745977419076,
-            "area_occ[%]": 11.015745977419076
+            "flow[/s]": 0.9697477699838932,
+            "area_occ[%]": 0.06733312440870999
         },
         "obstacles": {
             "is_coverageValid": {
@@ -73467,8 +73467,8 @@
             "low_velocity_ratio[%]": 0.06363937686443487,
             "average_ego_velocity[m/s]": 5.070363530015523,
             "average_velocity[m/s]": 5.15456506256095,
-            "flow[/s]": 5.15456506256095,
-            "area_occ[%]": 5.15456506256095
+            "flow[/s]": 0.6913984045073656,
+            "area_occ[%]": 0.16360232443940176
         },
         "obstacles": {
             "is_coverageValid": {
@@ -73689,8 +73689,8 @@
             "low_velocity_ratio[%]": 0.34007292011932383,
             "average_ego_velocity[m/s]": 12.639018953774576,
             "average_velocity[m/s]": 5.077775984141641,
-            "flow[/s]": 5.077775984141641,
-            "area_occ[%]": 5.077775984141641
+            "flow[/s]": 0.2683933870522858,
+            "area_occ[%]": 0.0977460035754724
         },
         "obstacles": {
             "is_coverageValid": {
@@ -73975,8 +73975,8 @@
             "low_velocity_ratio[%]": 0.5492537313432836,
             "average_ego_velocity[m/s]": 10.661973026940892,
             "average_velocity[m/s]": 5.355019662531821,
-            "flow[/s]": 5.355019662531821,
-            "area_occ[%]": 5.355019662531821
+            "flow[/s]": 0.3967982585678235,
+            "area_occ[%]": 0.14325443727081544
         },
         "obstacles": {
             "is_coverageValid": {
@@ -74197,8 +74197,8 @@
             "low_velocity_ratio[%]": 0.40351458885941643,
             "average_ego_velocity[m/s]": 12.748561310993425,
             "average_velocity[m/s]": 7.313038478006375,
-            "flow[/s]": 7.313038478006375,
-            "area_occ[%]": 7.313038478006375
+            "flow[/s]": 0.3503863744041548,
+            "area_occ[%]": 0.04647941655645585
         },
         "obstacles": {
             "is_coverageValid": {
@@ -74419,8 +74419,8 @@
             "low_velocity_ratio[%]": 0.3254888962545575,
             "average_ego_velocity[m/s]": 10.712917229467294,
             "average_velocity[m/s]": 3.9200134968893527,
-            "flow[/s]": 3.9200134968893527,
-            "area_occ[%]": 3.9200134968893527
+            "flow[/s]": 0.3677448675613628,
+            "area_occ[%]": 0.07571110779770737
         },
         "obstacles": {
             "is_coverageValid": {
@@ -74705,8 +74705,8 @@
             "low_velocity_ratio[%]": 0.45014905597880095,
             "average_ego_velocity[m/s]": 11.37480962333909,
             "average_velocity[m/s]": 5.843527607782762,
-            "flow[/s]": 5.843527607782762,
-            "area_occ[%]": 5.843527607782762
+            "flow[/s]": 0.28871318629899867,
+            "area_occ[%]": 0.06260304206201793
         },
         "obstacles": {
             "is_coverageValid": {
@@ -74991,8 +74991,8 @@
             "low_velocity_ratio[%]": 0.2431086017934241,
             "average_ego_velocity[m/s]": 13.274527863903808,
             "average_velocity[m/s]": 5.26863609153143,
-            "flow[/s]": 5.26863609153143,
-            "area_occ[%]": 5.26863609153143
+            "flow[/s]": 0.1422743322426884,
+            "area_occ[%]": 0.018433410733818864
         },
         "obstacles": {
             "is_coverageValid": {
@@ -75277,8 +75277,8 @@
             "low_velocity_ratio[%]": 0.34306569343065696,
             "average_ego_velocity[m/s]": 11.89585814500096,
             "average_velocity[m/s]": 7.452191089414922,
-            "flow[/s]": 7.452191089414922,
-            "area_occ[%]": 7.452191089414922
+            "flow[/s]": 0.5112180567541723,
+            "area_occ[%]": 0.07283212671083306
         },
         "obstacles": {
             "is_coverageValid": {
@@ -75563,8 +75563,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.661755841130244,
             "average_velocity[m/s]": 20.914946438849235,
-            "flow[/s]": 20.914946438849235,
-            "area_occ[%]": 20.914946438849235
+            "flow[/s]": 1.0393389403082556,
+            "area_occ[%]": 0.030656084090829493
         },
         "obstacles": {
             "is_coverageValid": {
@@ -75785,8 +75785,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.36318734272560266,
-            "flow[/s]": 0.36318734272560266,
-            "area_occ[%]": 0.36318734272560266
+            "flow[/s]": 0.03441140078681204,
+            "area_occ[%]": 0.020520504785374472
         },
         "obstacles": {
             "is_coverageValid": {
@@ -76071,8 +76071,8 @@
             "low_velocity_ratio[%]": 0.51438127090301,
             "average_ego_velocity[m/s]": 8.987025811652506,
             "average_velocity[m/s]": 1.733459154553314,
-            "flow[/s]": 1.733459154553314,
-            "area_occ[%]": 1.733459154553314
+            "flow[/s]": 0.05884856741377044,
+            "area_occ[%]": 0.01681266644566816
         },
         "obstacles": {
             "is_coverageValid": {
@@ -76357,8 +76357,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.76212365300265,
             "average_velocity[m/s]": 19.81151062739388,
-            "flow[/s]": 19.81151062739388,
-            "area_occ[%]": 19.81151062739388
+            "flow[/s]": 1.6058495342982662,
+            "area_occ[%]": 0.04816713014322116
         },
         "obstacles": {
             "is_coverageValid": {
@@ -76515,8 +76515,8 @@
             "low_velocity_ratio[%]": 0.10723771580345286,
             "average_ego_velocity[m/s]": 16.8962324731365,
             "average_velocity[m/s]": 12.10457499010877,
-            "flow[/s]": 12.10457499010877,
-            "area_occ[%]": 12.10457499010877
+            "flow[/s]": 0.6093554506149127,
+            "area_occ[%]": 0.032378955972732285
         },
         "obstacles": {
             "is_coverageValid": {
@@ -76801,8 +76801,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.470291629853175,
             "average_velocity[m/s]": 19.76856465984345,
-            "flow[/s]": 19.76856465984345,
-            "area_occ[%]": 19.76856465984345
+            "flow[/s]": 1.179038539872723,
+            "area_occ[%]": 0.03441012087328042
         },
         "obstacles": {
             "is_coverageValid": {
@@ -76959,8 +76959,8 @@
             "low_velocity_ratio[%]": 0.5911052107534019,
             "average_ego_velocity[m/s]": 13.447849186983975,
             "average_velocity[m/s]": 4.9229334720558615,
-            "flow[/s]": 4.9229334720558615,
-            "area_occ[%]": 4.9229334720558615
+            "flow[/s]": 0.16509852588193916,
+            "area_occ[%]": 0.028101386774612172
         },
         "obstacles": {
             "is_coverageValid": {
@@ -77245,8 +77245,8 @@
             "low_velocity_ratio[%]": 0.496684350132626,
             "average_ego_velocity[m/s]": 11.509606807756487,
             "average_velocity[m/s]": 6.47285710517894,
-            "flow[/s]": 6.47285710517894,
-            "area_occ[%]": 6.47285710517894
+            "flow[/s]": 0.3778455267753459,
+            "area_occ[%]": 0.05735745716643563
         },
         "obstacles": {
             "is_coverageValid": {
@@ -77531,8 +77531,8 @@
             "low_velocity_ratio[%]": 0.31409618573797676,
             "average_ego_velocity[m/s]": 12.349393842298703,
             "average_velocity[m/s]": 8.524376127511912,
-            "flow[/s]": 8.524376127511912,
-            "area_occ[%]": 8.524376127511912
+            "flow[/s]": 0.5733811382557269,
+            "area_occ[%]": 0.07341747120902035
         },
         "obstacles": {
             "is_coverageValid": {
@@ -77817,8 +77817,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.5791343503820805,
-            "flow[/s]": 0.5791343503820805,
-            "area_occ[%]": 0.5791343503820805
+            "flow[/s]": 0.04721766168281137,
+            "area_occ[%]": 0.019662069404116876
         },
         "obstacles": {
             "is_coverageValid": {
@@ -78103,8 +78103,8 @@
             "low_velocity_ratio[%]": 0.5086378737541528,
             "average_ego_velocity[m/s]": 12.702644244652491,
             "average_velocity[m/s]": 5.021342974576076,
-            "flow[/s]": 5.021342974576076,
-            "area_occ[%]": 5.021342974576076
+            "flow[/s]": 0.23557696243311033,
+            "area_occ[%]": 0.038614683462174566
         },
         "obstacles": {
             "is_coverageValid": {
@@ -78325,8 +78325,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.743445088218098,
-            "flow[/s]": 0.743445088218098,
-            "area_occ[%]": 0.743445088218098
+            "flow[/s]": 0.14971889507333863,
+            "area_occ[%]": 0.05469888521378314
         },
         "obstacles": {
             "is_coverageValid": {
@@ -78547,8 +78547,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.981859121174065,
             "average_velocity[m/s]": 18.754839177450467,
-            "flow[/s]": 18.754839177450467,
-            "area_occ[%]": 18.754839177450467
+            "flow[/s]": 1.153293692512511,
+            "area_occ[%]": 0.03791739516078229
         },
         "obstacles": {
             "is_coverageValid": {
@@ -78705,8 +78705,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.159259555354033,
             "average_velocity[m/s]": 15.193191500254445,
-            "flow[/s]": 15.193191500254445,
-            "area_occ[%]": 15.193191500254445
+            "flow[/s]": 0.49217484024039043,
+            "area_occ[%]": 0.015126605694200483
         },
         "obstacles": {
             "is_coverageValid": {
@@ -78863,8 +78863,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.685916976109997,
             "average_velocity[m/s]": 9.532909508730409,
-            "flow[/s]": 9.532909508730409,
-            "area_occ[%]": 9.532909508730409
+            "flow[/s]": 0.21794126453586896,
+            "area_occ[%]": 0.01703990734412397
         },
         "obstacles": {
             "is_coverageValid": {
@@ -79021,8 +79021,8 @@
             "low_velocity_ratio[%]": 0.19191249585681142,
             "average_ego_velocity[m/s]": 10.054727867453483,
             "average_velocity[m/s]": 3.860151477286803,
-            "flow[/s]": 3.860151477286803,
-            "area_occ[%]": 3.860151477286803
+            "flow[/s]": 0.16128609441811576,
+            "area_occ[%]": 0.019469123940989392
         },
         "obstacles": {
             "is_coverageValid": {
@@ -79307,8 +79307,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 1.0325180217620697,
-            "flow[/s]": 1.0325180217620697,
-            "area_occ[%]": 1.0325180217620697
+            "flow[/s]": 0.228207114993621,
+            "area_occ[%]": 0.05400592659855978
         },
         "obstacles": {
             "is_coverageValid": {
@@ -79593,8 +79593,8 @@
             "low_velocity_ratio[%]": 0.7288416860272154,
             "average_ego_velocity[m/s]": 8.52776164173934,
             "average_velocity[m/s]": 3.1351556184115115,
-            "flow[/s]": 3.1351556184115115,
-            "area_occ[%]": 3.1351556184115115
+            "flow[/s]": 0.44401014720324905,
+            "area_occ[%]": 0.12733378900356537
         },
         "obstacles": {
             "is_coverageValid": {
@@ -79815,8 +79815,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.81098819845123,
             "average_velocity[m/s]": 16.08431876854295,
-            "flow[/s]": 16.08431876854295,
-            "area_occ[%]": 16.08431876854295
+            "flow[/s]": 0.8073910009864819,
+            "area_occ[%]": 0.031361464586754144
         },
         "obstacles": {
             "is_coverageValid": {
@@ -80037,8 +80037,8 @@
             "low_velocity_ratio[%]": 0.6765194287612089,
             "average_ego_velocity[m/s]": 11.235133017113077,
             "average_velocity[m/s]": 3.9733156562481002,
-            "flow[/s]": 3.9733156562481002,
-            "area_occ[%]": 3.9733156562481002
+            "flow[/s]": 0.4415651601907795,
+            "area_occ[%]": 0.10455149934057978
         },
         "obstacles": {
             "is_coverageValid": {
@@ -80323,8 +80323,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.23699109916284797,
-            "flow[/s]": 0.23699109916284797,
-            "area_occ[%]": 0.23699109916284797
+            "flow[/s]": 0.02665342906645052,
+            "area_occ[%]": 0.02845924774251543
         },
         "obstacles": {
             "is_coverageValid": {
@@ -80609,8 +80609,8 @@
             "low_velocity_ratio[%]": 0.19321597252039502,
             "average_ego_velocity[m/s]": 10.382824059050408,
             "average_velocity[m/s]": 7.890083224357752,
-            "flow[/s]": 7.890083224357752,
-            "area_occ[%]": 7.890083224357752
+            "flow[/s]": 0.6056278441961994,
+            "area_occ[%]": 0.07229718785995705
         },
         "obstacles": {
             "is_coverageValid": {
@@ -80895,8 +80895,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.421751026767204,
             "average_velocity[m/s]": 16.10637636135539,
-            "flow[/s]": 16.10637636135539,
-            "area_occ[%]": 16.10637636135539
+            "flow[/s]": 0.5927157995842371,
+            "area_occ[%]": 0.034260039590325156
         },
         "obstacles": {
             "is_coverageValid": {
@@ -81181,8 +81181,8 @@
             "low_velocity_ratio[%]": 0.2550513415038092,
             "average_ego_velocity[m/s]": 12.604383867229023,
             "average_velocity[m/s]": 8.8760524125825,
-            "flow[/s]": 8.8760524125825,
-            "area_occ[%]": 8.8760524125825
+            "flow[/s]": 0.46879379762897233,
+            "area_occ[%]": 0.05894978422541518
         },
         "obstacles": {
             "is_coverageValid": {
@@ -81467,8 +81467,8 @@
             "low_velocity_ratio[%]": 0.47429519071310117,
             "average_ego_velocity[m/s]": 13.595400360330046,
             "average_velocity[m/s]": 6.360770845458007,
-            "flow[/s]": 6.360770845458007,
-            "area_occ[%]": 6.360770845458007
+            "flow[/s]": 0.26217566473564774,
+            "area_occ[%]": 0.06760113042948385
         },
         "obstacles": {
             "is_coverageValid": {
@@ -81753,8 +81753,8 @@
             "low_velocity_ratio[%]": 0.06624710168930109,
             "average_ego_velocity[m/s]": 12.676711022917283,
             "average_velocity[m/s]": 9.946682164747685,
-            "flow[/s]": 9.946682164747685,
-            "area_occ[%]": 9.946682164747685
+            "flow[/s]": 0.5772777103122413,
+            "area_occ[%]": 0.10418359794456956
         },
         "obstacles": {
             "is_coverageValid": {
@@ -82039,8 +82039,8 @@
             "low_velocity_ratio[%]": 0.3540907585293143,
             "average_ego_velocity[m/s]": 11.907328080030588,
             "average_velocity[m/s]": 6.533152507975861,
-            "flow[/s]": 6.533152507975861,
-            "area_occ[%]": 6.533152507975861
+            "flow[/s]": 0.2221669346876091,
+            "area_occ[%]": 0.020905718929608613
         },
         "obstacles": {
             "is_coverageValid": {
@@ -82325,8 +82325,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.143766735021178,
             "average_velocity[m/s]": 20.163370675885258,
-            "flow[/s]": 20.163370675885258,
-            "area_occ[%]": 20.163370675885258
+            "flow[/s]": 0.8595842968939088,
+            "area_occ[%]": 0.029718906095129755
         },
         "obstacles": {
             "is_coverageValid": {
@@ -82547,8 +82547,8 @@
             "low_velocity_ratio[%]": 0.16755142667551426,
             "average_ego_velocity[m/s]": 13.226924138793246,
             "average_velocity[m/s]": 10.50752005203246,
-            "flow[/s]": 10.50752005203246,
-            "area_occ[%]": 10.50752005203246
+            "flow[/s]": 0.32048539030137185,
+            "area_occ[%]": 0.031445070000796584
         },
         "obstacles": {
             "is_coverageValid": {
@@ -82833,8 +82833,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.235170957495605,
             "average_velocity[m/s]": 18.440557558139165,
-            "flow[/s]": 18.440557558139165,
-            "area_occ[%]": 18.440557558139165
+            "flow[/s]": 0.5289555948545017,
+            "area_occ[%]": 0.01873041970219039
         },
         "obstacles": {
             "is_coverageValid": {
@@ -82991,8 +82991,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.09764773488806378,
-            "flow[/s]": 0.09764773488806378,
-            "area_occ[%]": 0.09764773488806378
+            "flow[/s]": 0.006441026022928281,
+            "area_occ[%]": 0.017604336807183884
         },
         "obstacles": {
             "is_coverageValid": {
@@ -83213,8 +83213,8 @@
             "low_velocity_ratio[%]": 0.3008614976805832,
             "average_ego_velocity[m/s]": 11.115074100652578,
             "average_velocity[m/s]": 4.830609444451986,
-            "flow[/s]": 4.830609444451986,
-            "area_occ[%]": 4.830609444451986
+            "flow[/s]": 0.19407257279412826,
+            "area_occ[%]": 0.021597311099514075
         },
         "obstacles": {
             "is_coverageValid": {
@@ -83499,8 +83499,8 @@
             "low_velocity_ratio[%]": 0.2909754479097545,
             "average_ego_velocity[m/s]": 14.743912394157235,
             "average_velocity[m/s]": 9.315755608074744,
-            "flow[/s]": 9.315755608074744,
-            "area_occ[%]": 9.315755608074744
+            "flow[/s]": 0.33112295319914203,
+            "area_occ[%]": 0.0330852760490288
         },
         "obstacles": {
             "is_coverageValid": {
@@ -83785,8 +83785,8 @@
             "low_velocity_ratio[%]": 0.3521033454786353,
             "average_ego_velocity[m/s]": 7.253356217606667,
             "average_velocity[m/s]": 4.4459744563173365,
-            "flow[/s]": 4.4459744563173365,
-            "area_occ[%]": 4.4459744563173365
+            "flow[/s]": 0.5351852231408739,
+            "area_occ[%]": 0.07095381145591208
         },
         "obstacles": {
             "is_coverageValid": {
@@ -84071,8 +84071,8 @@
             "low_velocity_ratio[%]": 0.26085515412661586,
             "average_ego_velocity[m/s]": 10.372679362061847,
             "average_velocity[m/s]": 5.82100882430364,
-            "flow[/s]": 5.82100882430364,
-            "area_occ[%]": 5.82100882430364
+            "flow[/s]": 0.4467771998838054,
+            "area_occ[%]": 0.054416662788278156
         },
         "obstacles": {
             "is_coverageValid": {
@@ -84357,8 +84357,8 @@
             "low_velocity_ratio[%]": 0.31164951875207436,
             "average_ego_velocity[m/s]": 7.9086936954822,
             "average_velocity[m/s]": 3.742547136073758,
-            "flow[/s]": 3.742547136073758,
-            "area_occ[%]": 3.742547136073758
+            "flow[/s]": 0.2674113535327937,
+            "area_occ[%]": 0.039046098781841856
         },
         "obstacles": {
             "is_coverageValid": {
@@ -84643,8 +84643,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.885426326267442,
             "average_velocity[m/s]": 19.150176729940718,
-            "flow[/s]": 19.150176729940718,
-            "area_occ[%]": 19.150176729940718
+            "flow[/s]": 0.8121466816912892,
+            "area_occ[%]": 0.025852396119557326
         },
         "obstacles": {
             "is_coverageValid": {
@@ -84865,8 +84865,8 @@
             "low_velocity_ratio[%]": 0.7434971098265896,
             "average_ego_velocity[m/s]": 6.477923391570507,
             "average_velocity[m/s]": 0.14288901678284177,
-            "flow[/s]": 0.14288901678284177,
-            "area_occ[%]": 0.14288901678284177
+            "flow[/s]": 0.011396071053669883,
+            "area_occ[%]": 0.04351559642666276
         },
         "obstacles": {
             "is_coverageValid": {
@@ -85151,8 +85151,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.154601088569397,
             "average_velocity[m/s]": 19.66469271999632,
-            "flow[/s]": 19.66469271999632,
-            "area_occ[%]": 19.66469271999632
+            "flow[/s]": 1.2203044444184972,
+            "area_occ[%]": 0.035570111040301486
         },
         "obstacles": {
             "is_coverageValid": {
@@ -85309,8 +85309,8 @@
             "low_velocity_ratio[%]": 0.3870646766169154,
             "average_ego_velocity[m/s]": 12.822597169901902,
             "average_velocity[m/s]": 8.342041859327637,
-            "flow[/s]": 8.342041859327637,
-            "area_occ[%]": 8.342041859327637
+            "flow[/s]": 0.4271963479514231,
+            "area_occ[%]": 0.05612404879433344
         },
         "obstacles": {
             "is_coverageValid": {
@@ -85531,8 +85531,8 @@
             "low_velocity_ratio[%]": 0.0978441127694859,
             "average_ego_velocity[m/s]": 14.139355967851246,
             "average_velocity[m/s]": 7.589158314445507,
-            "flow[/s]": 7.589158314445507,
-            "area_occ[%]": 7.589158314445507
+            "flow[/s]": 0.22576750648663882,
+            "area_occ[%]": 0.022951671010794056
         },
         "obstacles": {
             "is_coverageValid": {
@@ -85817,8 +85817,8 @@
             "low_velocity_ratio[%]": 0.17801394885420127,
             "average_ego_velocity[m/s]": 15.177443538916231,
             "average_velocity[m/s]": 9.607762226518398,
-            "flow[/s]": 9.607762226518398,
-            "area_occ[%]": 9.607762226518398
+            "flow[/s]": 0.27249483168461736,
+            "area_occ[%]": 0.01642467272243081
         },
         "obstacles": {
             "is_coverageValid": {
@@ -86103,8 +86103,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 22.364691183045235,
             "average_velocity[m/s]": 15.568502495125347,
-            "flow[/s]": 15.568502495125347,
-            "area_occ[%]": 15.568502495125347
+            "flow[/s]": 0.42534082885232644,
+            "area_occ[%]": 0.013093928028502108
         },
         "obstacles": {
             "is_coverageValid": {
@@ -86261,8 +86261,8 @@
             "low_velocity_ratio[%]": 0.21750663129973474,
             "average_ego_velocity[m/s]": 11.412765081757206,
             "average_velocity[m/s]": 6.143914311711828,
-            "flow[/s]": 6.143914311711828,
-            "area_occ[%]": 6.143914311711828
+            "flow[/s]": 0.23465398902023343,
+            "area_occ[%]": 0.04361086173790174
         },
         "obstacles": {
             "is_coverageValid": {
@@ -86547,8 +86547,8 @@
             "low_velocity_ratio[%]": 0.39482415394824155,
             "average_ego_velocity[m/s]": 10.948068196444135,
             "average_velocity[m/s]": 3.1709458358618274,
-            "flow[/s]": 3.1709458358618274,
-            "area_occ[%]": 3.1709458358618274
+            "flow[/s]": 0.1443824276966404,
+            "area_occ[%]": 0.031315230967864136
         },
         "obstacles": {
             "is_coverageValid": {
@@ -86833,8 +86833,8 @@
             "low_velocity_ratio[%]": 0.06695392774279085,
             "average_ego_velocity[m/s]": 8.647820993511546,
             "average_velocity[m/s]": 7.5491956298508045,
-            "flow[/s]": 7.5491956298508045,
-            "area_occ[%]": 7.5491956298508045
+            "flow[/s]": 0.9315598533383563,
+            "area_occ[%]": 0.07959356148273314
         },
         "obstacles": {
             "is_coverageValid": {
@@ -87055,8 +87055,8 @@
             "low_velocity_ratio[%]": 0.05533465871438038,
             "average_ego_velocity[m/s]": 11.456333568413104,
             "average_velocity[m/s]": 2.5665903966268755,
-            "flow[/s]": 2.5665903966268755,
-            "area_occ[%]": 2.5665903966268755
+            "flow[/s]": 0.10944744757745992,
+            "area_occ[%]": 0.03156494095286539
         },
         "obstacles": {
             "is_coverageValid": {
@@ -87341,8 +87341,8 @@
             "low_velocity_ratio[%]": 0.004970178926441352,
             "average_ego_velocity[m/s]": 15.228706493244305,
             "average_velocity[m/s]": 15.649421603096215,
-            "flow[/s]": 15.649421603096215,
-            "area_occ[%]": 15.649421603096215
+            "flow[/s]": 0.5223995227936593,
+            "area_occ[%]": 0.027344744215824467
         },
         "obstacles": {
             "is_coverageValid": {
@@ -87563,8 +87563,8 @@
             "low_velocity_ratio[%]": 0.1951543312313309,
             "average_ego_velocity[m/s]": 12.797249491091856,
             "average_velocity[m/s]": 8.674088768596365,
-            "flow[/s]": 8.674088768596365,
-            "area_occ[%]": 8.674088768596365
+            "flow[/s]": 0.39082246755336286,
+            "area_occ[%]": 0.03903309125653447
         },
         "obstacles": {
             "is_coverageValid": {
@@ -87849,8 +87849,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.17368267416242,
             "average_velocity[m/s]": 19.23836690984758,
-            "flow[/s]": 19.23836690984758,
-            "area_occ[%]": 19.23836690984758
+            "flow[/s]": 0.8797784336141313,
+            "area_occ[%]": 0.05291119194909888
         },
         "obstacles": {
             "is_coverageValid": {
@@ -88071,8 +88071,8 @@
             "low_velocity_ratio[%]": 0.6664451827242525,
             "average_ego_velocity[m/s]": 10.916366601607715,
             "average_velocity[m/s]": 3.5983079322075344,
-            "flow[/s]": 3.5983079322075344,
-            "area_occ[%]": 3.5983079322075344
+            "flow[/s]": 0.3710654126097782,
+            "area_occ[%]": 0.11394811627174059
         },
         "obstacles": {
             "is_coverageValid": {
@@ -88357,8 +88357,8 @@
             "low_velocity_ratio[%]": 0.96318407960199,
             "average_ego_velocity[m/s]": 4.508926885622042,
             "average_velocity[m/s]": 0.9762490333358673,
-            "flow[/s]": 0.9762490333358673,
-            "area_occ[%]": 0.9762490333358673
+            "flow[/s]": 0.22537959206078897,
+            "area_occ[%]": 0.03636590205035993
         },
         "obstacles": {
             "is_coverageValid": {
@@ -88643,8 +88643,8 @@
             "low_velocity_ratio[%]": 0.2283438433455028,
             "average_ego_velocity[m/s]": 13.756225720682451,
             "average_velocity[m/s]": 9.157218963669242,
-            "flow[/s]": 9.157218963669242,
-            "area_occ[%]": 9.157218963669242
+            "flow[/s]": 0.3964453532270971,
+            "area_occ[%]": 0.061933837699131286
         },
         "obstacles": {
             "is_coverageValid": {
@@ -88929,8 +88929,8 @@
             "low_velocity_ratio[%]": 0.7363877822045153,
             "average_ego_velocity[m/s]": 5.82868139329425,
             "average_velocity[m/s]": 1.863680367807628,
-            "flow[/s]": 1.863680367807628,
-            "area_occ[%]": 1.863680367807628
+            "flow[/s]": 0.18113917919695588,
+            "area_occ[%]": 0.04679195148585474
         },
         "obstacles": {
             "is_coverageValid": {
@@ -89215,8 +89215,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.804795633195784,
             "average_velocity[m/s]": 14.583858257684714,
-            "flow[/s]": 14.583858257684714,
-            "area_occ[%]": 14.583858257684714
+            "flow[/s]": 0.5476549712812583,
+            "area_occ[%]": 0.023427447197697418
         },
         "obstacles": {
             "is_coverageValid": {
@@ -89501,8 +89501,8 @@
             "low_velocity_ratio[%]": 0.37715803452855245,
             "average_ego_velocity[m/s]": 10.649714033995101,
             "average_velocity[m/s]": 6.225081350613285,
-            "flow[/s]": 6.225081350613285,
-            "area_occ[%]": 6.225081350613285
+            "flow[/s]": 0.6835418535166428,
+            "area_occ[%]": 0.1074292550742295
         },
         "obstacles": {
             "is_coverageValid": {
@@ -89787,8 +89787,8 @@
             "low_velocity_ratio[%]": 0.14389920424403183,
             "average_ego_velocity[m/s]": 11.354332845678263,
             "average_velocity[m/s]": 6.061756600939227,
-            "flow[/s]": 6.061756600939227,
-            "area_occ[%]": 6.061756600939227
+            "flow[/s]": 0.19761585606394758,
+            "area_occ[%]": 0.01872174014460522
         },
         "obstacles": {
             "is_coverageValid": {
@@ -90073,8 +90073,8 @@
             "low_velocity_ratio[%]": 0.7335766423357665,
             "average_ego_velocity[m/s]": 5.432851829980112,
             "average_velocity[m/s]": 1.4421336552170332,
-            "flow[/s]": 1.4421336552170332,
-            "area_occ[%]": 1.4421336552170332
+            "flow[/s]": 0.2066561257351173,
+            "area_occ[%]": 0.10760772343919763
         },
         "obstacles": {
             "is_coverageValid": {
@@ -90359,8 +90359,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 19.45786915191873,
             "average_velocity[m/s]": 15.77726970620686,
-            "flow[/s]": 15.77726970620686,
-            "area_occ[%]": 15.77726970620686
+            "flow[/s]": 0.34960923853207876,
+            "area_occ[%]": 0.011591043780903606
         },
         "obstacles": {
             "is_coverageValid": {
@@ -90645,8 +90645,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 20.72314870096471,
             "average_velocity[m/s]": 11.270852953526246,
-            "flow[/s]": 11.270852953526246,
-            "area_occ[%]": 11.270852953526246
+            "flow[/s]": 0.39951786574638526,
+            "area_occ[%]": 0.012228662441742299
         },
         "obstacles": {
             "is_coverageValid": {
@@ -90803,8 +90803,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.4167302246772243,
-            "flow[/s]": 0.4167302246772243,
-            "area_occ[%]": 0.4167302246772243
+            "flow[/s]": 0.04184537472012808,
+            "area_occ[%]": 0.024174061778179903
         },
         "obstacles": {
             "is_coverageValid": {
@@ -91089,8 +91089,8 @@
             "low_velocity_ratio[%]": 0.38402915838303514,
             "average_ego_velocity[m/s]": 13.310685736444318,
             "average_velocity[m/s]": 7.768907308736611,
-            "flow[/s]": 7.768907308736611,
-            "area_occ[%]": 7.768907308736611
+            "flow[/s]": 0.33714526230031433,
+            "area_occ[%]": 0.06156070439290391
         },
         "obstacles": {
             "is_coverageValid": {
@@ -91375,8 +91375,8 @@
             "low_velocity_ratio[%]": 0.7525670751904604,
             "average_ego_velocity[m/s]": 5.286014630931767,
             "average_velocity[m/s]": 0.7417334381220206,
-            "flow[/s]": 0.7417334381220206,
-            "area_occ[%]": 0.7417334381220206
+            "flow[/s]": 0.12342384042563982,
+            "area_occ[%]": 0.054366817674106234
         },
         "obstacles": {
             "is_coverageValid": {
@@ -91661,8 +91661,8 @@
             "low_velocity_ratio[%]": 0.2637508283631544,
             "average_ego_velocity[m/s]": 13.008152648417612,
             "average_velocity[m/s]": 3.5781069046427505,
-            "flow[/s]": 3.5781069046427505,
-            "area_occ[%]": 3.5781069046427505
+            "flow[/s]": 0.11484473883441206,
+            "area_occ[%]": 0.023296505789558195
         },
         "obstacles": {
             "is_coverageValid": {
@@ -91947,8 +91947,8 @@
             "low_velocity_ratio[%]": 0.5711915034848988,
             "average_ego_velocity[m/s]": 8.290691908299001,
             "average_velocity[m/s]": 4.220626561730759,
-            "flow[/s]": 4.220626561730759,
-            "area_occ[%]": 4.220626561730759
+            "flow[/s]": 0.1957449892701706,
+            "area_occ[%]": 0.05599482236004724
         },
         "obstacles": {
             "is_coverageValid": {
@@ -92233,8 +92233,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 21.379821190467247,
             "average_velocity[m/s]": 19.488134236461242,
-            "flow[/s]": 19.488134236461242,
-            "area_occ[%]": 19.488134236461242
+            "flow[/s]": 0.5339344113261529,
+            "area_occ[%]": 0.02747375585617794
         },
         "obstacles": {
             "is_coverageValid": {
@@ -92391,8 +92391,8 @@
             "low_velocity_ratio[%]": 0.4099502487562189,
             "average_ego_velocity[m/s]": 12.808381386323214,
             "average_velocity[m/s]": 6.179648434658529,
-            "flow[/s]": 6.179648434658529,
-            "area_occ[%]": 6.179648434658529
+            "flow[/s]": 0.1902226816829024,
+            "area_occ[%]": 0.03708994428525688
         },
         "obstacles": {
             "is_coverageValid": {
@@ -92613,8 +92613,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 17.867648999001684,
             "average_velocity[m/s]": 16.403028293645132,
-            "flow[/s]": 16.403028293645132,
-            "area_occ[%]": 16.403028293645132
+            "flow[/s]": 1.0293536755435626,
+            "area_occ[%]": 0.05729739251362539
         },
         "obstacles": {
             "is_coverageValid": {
@@ -92899,8 +92899,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 16.08316086837991,
             "average_velocity[m/s]": 15.277939685913351,
-            "flow[/s]": 15.277939685913351,
-            "area_occ[%]": 15.277939685913351
+            "flow[/s]": 1.203641732861125,
+            "area_occ[%]": 0.08048636586082325
         },
         "obstacles": {
             "is_coverageValid": {
@@ -93121,8 +93121,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 18.502538739586445,
             "average_velocity[m/s]": 16.08974937939788,
-            "flow[/s]": 16.08974937939788,
-            "area_occ[%]": 16.08974937939788
+            "flow[/s]": 0.795803624114952,
+            "area_occ[%]": 0.028066783507085056
         },
         "obstacles": {
             "is_coverageValid": {
@@ -93279,8 +93279,8 @@
             "low_velocity_ratio[%]": 0.7892644135188867,
             "average_ego_velocity[m/s]": 6.490087001578613,
             "average_velocity[m/s]": 2.2616564318879138,
-            "flow[/s]": 2.2616564318879138,
-            "area_occ[%]": 2.2616564318879138
+            "flow[/s]": 0.2584455866100683,
+            "area_occ[%]": 0.09987875387136966
         },
         "obstacles": {
             "is_coverageValid": {
@@ -93565,8 +93565,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.9195309999569234,
-            "flow[/s]": 0.9195309999569234,
-            "area_occ[%]": 0.9195309999569234
+            "flow[/s]": 0.2534284877980319,
+            "area_occ[%]": 0.0666649682114012
         },
         "obstacles": {
             "is_coverageValid": {
@@ -93851,8 +93851,8 @@
             "low_velocity_ratio[%]": 0.5382830626450116,
             "average_ego_velocity[m/s]": 11.483542095562235,
             "average_velocity[m/s]": 2.2026345420757885,
-            "flow[/s]": 2.2026345420757885,
-            "area_occ[%]": 2.2026345420757885
+            "flow[/s]": 0.09482463941767941,
+            "area_occ[%]": 0.13589982781460075
         },
         "obstacles": {
             "is_coverageValid": {
@@ -94137,8 +94137,8 @@
             "low_velocity_ratio[%]": 0.5544882411394502,
             "average_ego_velocity[m/s]": 12.748907889752584,
             "average_velocity[m/s]": 5.748030270707122,
-            "flow[/s]": 5.748030270707122,
-            "area_occ[%]": 5.748030270707122
+            "flow[/s]": 0.30932839622532965,
+            "area_occ[%]": 0.10543838062595984
         },
         "obstacles": {
             "is_coverageValid": {
@@ -94423,8 +94423,8 @@
             "low_velocity_ratio[%]": 0.1730322152108934,
             "average_ego_velocity[m/s]": 11.882565838649091,
             "average_velocity[m/s]": 7.970417550600289,
-            "flow[/s]": 7.970417550600289,
-            "area_occ[%]": 7.970417550600289
+            "flow[/s]": 0.2875587040645014,
+            "area_occ[%]": 0.027204204470452503
         },
         "obstacles": {
             "is_coverageValid": {
@@ -94709,8 +94709,8 @@
             "low_velocity_ratio[%]": 0.03296703296703297,
             "average_ego_velocity[m/s]": 16.12213735908947,
             "average_velocity[m/s]": 8.696567632800367,
-            "flow[/s]": 8.696567632800367,
-            "area_occ[%]": 8.696567632800367
+            "flow[/s]": 0.25351579638853894,
+            "area_occ[%]": 0.007374793325594553
         },
         "obstacles": {
             "is_coverageValid": {
@@ -94931,8 +94931,8 @@
             "low_velocity_ratio[%]": 0.3667785234899329,
             "average_ego_velocity[m/s]": 13.717233035194223,
             "average_velocity[m/s]": 1.686991477367794,
-            "flow[/s]": 1.686991477367794,
-            "area_occ[%]": 1.686991477367794
+            "flow[/s]": 0.039888639509739955,
+            "area_occ[%]": 0.013887965855308285
         },
         "obstacles": {
             "is_coverageValid": {
@@ -95217,8 +95217,8 @@
             "low_velocity_ratio[%]": 0.03419654714475431,
             "average_ego_velocity[m/s]": 13.382871704193356,
             "average_velocity[m/s]": 10.563176122621282,
-            "flow[/s]": 10.563176122621282,
-            "area_occ[%]": 10.563176122621282
+            "flow[/s]": 0.40786486758032253,
+            "area_occ[%]": 0.0429377871505749
         },
         "obstacles": {
             "is_coverageValid": {
@@ -95503,8 +95503,8 @@
             "low_velocity_ratio[%]": 0.6703150912106136,
             "average_ego_velocity[m/s]": 12.229015404549642,
             "average_velocity[m/s]": 3.8383660921073686,
-            "flow[/s]": 3.8383660921073686,
-            "area_occ[%]": 3.8383660921073686
+            "flow[/s]": 0.2854408856789375,
+            "area_occ[%]": 0.15184293971493765
         },
         "obstacles": {
             "is_coverageValid": {
@@ -95789,8 +95789,8 @@
             "low_velocity_ratio[%]": 0.0,
             "average_ego_velocity[m/s]": 10.631633233960807,
             "average_velocity[m/s]": 9.02930366673904,
-            "flow[/s]": 9.02930366673904,
-            "area_occ[%]": 9.02930366673904
+            "flow[/s]": 0.7074899270356548,
+            "area_occ[%]": 0.1218676272649528
         },
         "obstacles": {
             "is_coverageValid": {
@@ -95947,8 +95947,8 @@
             "low_velocity_ratio[%]": 0.3861748089066135,
             "average_ego_velocity[m/s]": 9.760446601902787,
             "average_velocity[m/s]": 5.937788001658706,
-            "flow[/s]": 5.937788001658706,
-            "area_occ[%]": 5.937788001658706
+            "flow[/s]": 0.27575056521862906,
+            "area_occ[%]": 0.04637279194777512
         },
         "obstacles": {
             "is_coverageValid": {
@@ -96233,8 +96233,8 @@
             "low_velocity_ratio[%]": 1.0,
             "average_ego_velocity[m/s]": NaN,
             "average_velocity[m/s]": 0.05771522909021038,
-            "flow[/s]": 0.05771522909021038,
-            "area_occ[%]": 0.05771522909021038
+            "flow[/s]": 0.0039058901114987447,
+            "area_occ[%]": 0.03597708223466672
         },
         "obstacles": {
             "is_coverageValid": {
@@ -96455,8 +96455,8 @@
             "low_velocity_ratio[%]": 0.563889810819781,
             "average_ego_velocity[m/s]": 10.423793481002297,
             "average_velocity[m/s]": 4.257314834674385,
-            "flow[/s]": 4.257314834674385,
-            "area_occ[%]": 4.257314834674385
+            "flow[/s]": 0.27867638982478565,
+            "area_occ[%]": 0.11172229744153822
         },
         "obstacles": {
             "is_coverageValid": {
@@ -96729,6 +96729,164 @@
                     "[0, 50]": 0,
                     "[50, 100]": 0,
                     "[100, 150]": 0
+                }
+            }
+        }
+    },
+    "20241111_155436_n000002-autolabel": {
+        "scenario_id": "20241111_155436_n000002",
+        "truth_source": "autolabel",
+        "label": {
+            "time": "afternoon",
+            "low_velocity_ratio[%]": 1.0,
+            "average_ego_velocity[m/s]": 0.0,
+            "average_velocity[m/s]": 0.0,
+            "flow[/s]": 0.0,
+            "area_occ[%]": 0.017561470062233825
+        },
+        "obstacles": {
+            "is_coverageValid": {
+                "car": {
+                    "all_region": 10800,
+                    "[-100, -50]": 155,
+                    "[-50, 0]": 1359,
+                    "[0, 50]": 4555,
+                    "[50, 100]": 3631,
+                    "[100, 150]": 1100
+                },
+                "truck_bus": {
+                    "all_region": 18,
+                    "[-100, -50]": 5,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 0,
+                    "[50, 100]": 13,
+                    "[100, 150]": 0
+                }
+            },
+            "is_cipv": {
+                "car": {
+                    "all_region": 2887,
+                    "[-100, -50]": 0,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 1421,
+                    "[50, 100]": 1295,
+                    "[100, 150]": 171
+                },
+                "truck_bus": {
+                    "all_region": 0,
+                    "[-100, -50]": 0,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 0,
+                    "[50, 100]": 0,
+                    "[100, 150]": 0
+                }
+            },
+            "is_keyObj": {
+                "car": {
+                    "all_region": 8127,
+                    "[-100, -50]": 13,
+                    "[-50, 0]": 1041,
+                    "[0, 50]": 3966,
+                    "[50, 100]": 2672,
+                    "[100, 150]": 435
+                },
+                "truck_bus": {
+                    "all_region": 0,
+                    "[-100, -50]": 0,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 0,
+                    "[50, 100]": 0,
+                    "[100, 150]": 0
+                }
+            },
+            "is_sameDir": {
+                "car": {
+                    "all_region": 16527,
+                    "[-100, -50]": 153,
+                    "[-50, 0]": 1401,
+                    "[0, 50]": 5144,
+                    "[50, 100]": 6472,
+                    "[100, 150]": 3357
+                },
+                "truck_bus": {
+                    "all_region": 591,
+                    "[-100, -50]": 5,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 1,
+                    "[50, 100]": 344,
+                    "[100, 150]": 241
+                }
+            },
+            "is_oppositeDir": {
+                "car": {
+                    "all_region": 4,
+                    "[-100, -50]": 2,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 0,
+                    "[50, 100]": 2,
+                    "[100, 150]": 0
+                },
+                "truck_bus": {
+                    "all_region": 0,
+                    "[-100, -50]": 0,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 0,
+                    "[50, 100]": 0,
+                    "[100, 150]": 0
+                }
+            },
+            "is_crossingDir": {
+                "car": {
+                    "all_region": 0,
+                    "[-100, -50]": 0,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 0,
+                    "[50, 100]": 0,
+                    "[100, 150]": 0
+                },
+                "truck_bus": {
+                    "all_region": 0,
+                    "[-100, -50]": 0,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 0,
+                    "[50, 100]": 0,
+                    "[100, 150]": 0
+                }
+            },
+            "is_moving": {
+                "car": {
+                    "all_region": 0,
+                    "[-100, -50]": 0,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 0,
+                    "[50, 100]": 0,
+                    "[100, 150]": 0
+                },
+                "truck_bus": {
+                    "all_region": 0,
+                    "[-100, -50]": 0,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 0,
+                    "[50, 100]": 0,
+                    "[100, 150]": 0
+                }
+            },
+            "is_static": {
+                "car": {
+                    "all_region": 16531,
+                    "[-100, -50]": 155,
+                    "[-50, 0]": 1401,
+                    "[0, 50]": 5144,
+                    "[50, 100]": 6474,
+                    "[100, 150]": 3357
+                },
+                "truck_bus": {
+                    "all_region": 591,
+                    "[-100, -50]": 5,
+                    "[-50, 0]": 0,
+                    "[0, 50]": 1,
+                    "[50, 100]": 344,
+                    "[100, 150]": 241
                 }
             }
         }

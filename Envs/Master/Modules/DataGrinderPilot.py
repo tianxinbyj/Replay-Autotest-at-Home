@@ -2406,29 +2406,29 @@ class DataGrinderPilotOneTask:
         create_folder(statistics_folder)
 
         # 统计目标个数
-        total_scenario_summary_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_summary.json')
-        with open(total_scenario_summary_path, 'r', encoding='utf-8') as f:
-            total_scenario_summary = json.load(f)
+        total_scenario_analysis_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_analysis.json')
+        with open(total_scenario_analysis_path, 'r', encoding='utf-8') as f:
+            total_scenario_analysis = json.load(f)
 
-        scenario_summary = {}
+        scenario_analysis = {}
         for tag_key in self.test_result['TagCombination'].keys():
             scenario_list = self.test_result['TagCombination'][tag_key]['scenario_id']
-            scenario_summary[tag_key] = {}
+            scenario_analysis[tag_key] = {}
 
             for scenario_id in scenario_list:
-                if f'{scenario_id}-{self.truth_source}' not in total_scenario_summary.keys():
+                if f'{scenario_id}-{self.truth_source}' not in total_scenario_analysis.keys():
                     continue
 
-                scenario_summary[tag_key][scenario_id] = {}
+                scenario_analysis[tag_key][scenario_id] = {}
                 for characteristic in self.test_config['test_action']['output_characteristic']:
-                    scenario_summary[tag_key][scenario_id][characteristic] = (
-                        total_scenario_summary)[f'{scenario_id}-{self.truth_source}']['obstacles'][characteristic]
+                    scenario_analysis[tag_key][scenario_id][characteristic] = (
+                        total_scenario_analysis)[f'{scenario_id}-{self.truth_source}']['obstacles'][characteristic]
 
-        scenario_summary_path = os.path.join(statistics_folder, 'scenario_summary.json')
-        with open(scenario_summary_path, 'w', encoding='utf-8') as f:
-            json.dump(scenario_summary, f, ensure_ascii=False, indent=4)
+        scenario_analysis_path = os.path.join(statistics_folder, 'scenario_analysis.json')
+        with open(scenario_analysis_path, 'w', encoding='utf-8') as f:
+            json.dump(scenario_analysis, f, ensure_ascii=False, indent=4)
 
-        self.test_result['OutputResult']['scenario_summary'] = self.get_relpath(scenario_summary_path)
+        self.test_result['OutputResult']['scenario_analysis'] = self.get_relpath(scenario_analysis_path)
         # ====================
 
         # 生成用于上传数据库的json文件，以及汇总结果OutputResult
@@ -2915,13 +2915,13 @@ class DataGrinderPilotOneTask:
                                   test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['description']
                               for c in self.test_config['test_action']['output_characteristic']}
 
-        with open(self.get_abspath(self.test_result['OutputResult']['scenario_summary']), 'r', encoding='utf-8') as file:
-            scenario_summary = json.load(file)
+        with open(self.get_abspath(self.test_result['OutputResult']['scenario_analysis']), 'r', encoding='utf-8') as file:
+            scenario_analysis = json.load(file)
 
         target_num, ru_num = {}, {}
-        for scenario_tag in scenario_summary:
-            for scenario_id in scenario_summary[scenario_tag]:
-                for target_type in scenario_summary[scenario_tag][scenario_id]['is_coverageValid']:
+        for scenario_tag in scenario_analysis:
+            for scenario_id in scenario_analysis[scenario_tag]:
+                for target_type in scenario_analysis[scenario_tag][scenario_id]['is_coverageValid']:
                     if target_type in self.test_information['type']:
                         if target_type in ['cyclist', 'pedestrian']:
                             ru = 'VRU'
@@ -2929,12 +2929,12 @@ class DataGrinderPilotOneTask:
                             ru = 'DRU'
                         if ru not in ru_num:
                             ru_num[ru] = 0
-                        ru_num[ru] += scenario_summary[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
+                        ru_num[ru] += scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
 
                         target_type_text = self.test_information['type'][target_type]['name']
                         if target_type_text not in target_num:
                             target_num[target_type_text] = 0
-                        target_num[target_type_text] += scenario_summary[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
+                        target_num[target_type_text] += scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
 
 
         scenario_list = {}
