@@ -245,7 +245,7 @@ class ReplayController:
                 try:
                     draw_map(sainspva_data, map_path)
                 except Exception as e:
-                    print(e, f'绘制{scenario_id}地图失败')
+                    send_log(self, f'{e}, 绘制{scenario_id}地图失败')
 
     def get_annotation(self):
         if not os.path.isdir(self.gt_raw_folder):
@@ -279,13 +279,12 @@ class ReplayController:
 
         checksum_path = os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info', f'calib-{calib_checksum}')
         with open(checksum_path, 'w') as file:
-            file.write(checksum_path)
+            file.write(calib_checksum)
 
         # 有的时候部分topic的计数会小于目标数量，尝试3次
         try_count = 0
         while True:
             try_count += 1
-            print(f'{scenario_id} 第{try_count}次场景录制开始')
             send_log(self, f'{scenario_id} 第{try_count}次场景录制开始')
             self.start_replay_and_record(scenario_id)
 
@@ -304,12 +303,11 @@ class ReplayController:
             scenario_is_valid = self.analyze_raw_data(calib_checksum)
 
             if scenario_id in scenario_is_valid and scenario_is_valid[scenario_id] == 1:
-                print(f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
                 send_log(self, f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
+                print('=============================================================')
                 break
 
             if try_count == self.replay_action['retest']:
-                print(f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
                 send_log(self, f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
                 break
 
@@ -451,22 +449,21 @@ class ReplayController:
             output_statistics.sort_values(by='record_time', inplace=True)
             output_statistics.to_csv(statistics_path)
             calib_output_statistics = output_statistics[output_statistics['calib_checksum'] == calib_checksum]
-            self.invalid_scenario_list = calib_output_statistics[calib_output_statistics['isValid'] == 0].index.tolist()
-
             # 计算失效积分
             # 每一个invalid场景增加1分，每次出现0/0/0/0-0增加1分
             # 超过5分，触发重启并重新测试invalid的场景
+            self.invalid_scenario_list = calib_output_statistics[calib_output_statistics['isValid'] == 0].index.tolist()
             self.abnormal_score = len(self.invalid_scenario_list) + np.sum(calib_output_statistics.values == '0/0/0/0-0')
         else:
             self.invalid_scenario_list = []
             self.abnormal_score = 0
 
-        send_log(self, f'当前积分为{self.abnormal_score}')
+        send_log(self, f'重启积分为{self.abnormal_score}')
+        send_log(self, f'失效场景为{self.invalid_scenario_list}')
         return scenario_is_valid
 
     def wait_for_threading(self):
         send_log(self, '等待所有线程都结束')
-        print('等待所有线程都结束')
         for t in self.thread_list:
             t.join()
         self.thread_list.clear()
