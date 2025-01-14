@@ -120,6 +120,7 @@ class DataGrinderPilotOneCase:
 
     def __init__(self, scenario_unit_folder):
         # 变量初始化
+        self.gt_ego_flag = None
         self.ego_velocity_generator = None
         self.cut_frame_offset = - 1.05
 
@@ -445,18 +446,25 @@ class DataGrinderPilotOneCase:
         ego_data_path = os.path.join(self.gt_raw_folder, 'od_ego.csv')
         if not os.path.exists(ego_data_path):
             send_log(self, 'GroundTruth未找到自车速度数据')
+            self.gt_ego_flag = False
+            ego_data = pd.DataFrame(columns=['time_stamp', 'ego_vx'])
+            ego_data['time_stamp'] = gt_timestamp['time_stamp']
+            ego_data['ego_vx'] = 0
         else:
             send_log(self, f'GroundTruth 正在读取{os.path.basename(ego_data_path)}, 用于时间同步')
+            self.gt_ego_flag = True
             ego_data = pd.read_csv(os.path.join(self.gt_raw_folder, 'od_ego.csv'))[
                 ['ego_timestamp', 'INS_Speed']].rename(
                 columns={'ego_timestamp': 'time_stamp', 'INS_Speed': 'ego_vx'})
             create_folder(os.path.join(self.DataFolder, 'General'), update=False)
             path = os.path.join(self.DataFolder, 'General', 'gt_ego.csv')
-            ego_data.to_csv(path, index=False, encoding='utf_8_sig')
-            self.test_result['General']['gt_ego'] = self.get_relpath(path)
+
+        ego_data.to_csv(path, index=False, encoding='utf_8_sig')
+        self.test_result['General']['gt_ego'] = self.get_relpath(path)
 
     @sync_test_result
     def sync_timestamp(self):
+
         # 调用计算时间差的接口
         baseline_data_path = self.get_abspath(self.test_result['General']['gt_ego'])
         baseline_data = pd.read_csv(baseline_data_path, index_col=False)
@@ -1780,6 +1788,7 @@ class DataGrinderPilotOneCase:
 
             return data[data['is_bugArea'] == 1]
 
+        bug_count = self.test_action['bug_count']
         bug_index_dict = {}
         for metric, data_path in metric_data_group.items():
             metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
@@ -1803,7 +1812,7 @@ class DataGrinderPilotOneCase:
                 FP_data = FP_data[~((FP_data['pred.type_classification'].isin(['pedestrian', 'cyclist']))
                                     & (FP_data['pred.x'] > 50))]
                 for key, group in FP_data.groupby('pred.type_classification'):
-                    top_values = group['pred.id'].value_counts().head(3).index
+                    top_values = group['pred.id'].value_counts().head(bug_count).index
                     top_group = group[group['pred.id'].isin(top_values)]
                     bug_index_dict['false_positive'].extend(top_group['corresponding_index'].to_list())
 
@@ -1818,13 +1827,13 @@ class DataGrinderPilotOneCase:
                 FN_data_near = FN_data[(metric_data['gt.x'] <= 100)
                                       & (metric_data['gt.x'] >= -50)]
                 for key, group in FN_data_near.groupby('gt.type_classification'):
-                    top_values = group['gt.id'].value_counts().head(3).index
+                    top_values = group['gt.id'].value_counts().head(bug_count).index
                     top_group = group[group['gt.id'].isin(top_values)]
                     bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
                 FN_data_far = FN_data[(metric_data['gt.x'] <= 150)
                                       & (metric_data['gt.x'] >= 100)]
                 for key, group in FN_data_far.groupby('gt.type_classification'):
-                    top_values = group['gt.id'].value_counts().head(1).index
+                    top_values = group['gt.id'].value_counts().head(bug_count).index
                     top_group = group[group['gt.id'].isin(top_values)]
                     bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
 
@@ -1839,7 +1848,7 @@ class DataGrinderPilotOneCase:
                 NCTP_data = NCTP_data[~((NCTP_data['gt.type_classification'].isin(['pedestrian', 'cyclist']))
                                         & (NCTP_data['gt.x'] > 50))]
                 for key, group in NCTP_data.groupby('gt.type_classification'):
-                    top_values = group['gt.id'].value_counts().head(2).index
+                    top_values = group['gt.id'].value_counts().head(bug_count).index
                     top_group = group[group['gt.id'].isin(top_values)]
                     bug_index_dict['false_type'].extend(top_group['corresponding_index'].to_list())
 
@@ -1870,7 +1879,7 @@ class DataGrinderPilotOneCase:
                     frequent_ids = id_counts[id_counts > 10].index
                     filtered_df = near_group[near_group['gt.id'].isin(frequent_ids)]
                     mean_values = filtered_df.groupby('gt.id')[f'{metric.replace("_", ".")}_abs'].mean().reset_index()
-                    top_5_ids = mean_values.sort_values(by=f'{metric.replace("_", ".")}_abs', ascending=False).head(4)['gt.id']
+                    top_5_ids = mean_values.sort_values(by=f'{metric.replace("_", ".")}_abs', ascending=False).head(bug_count)['gt.id']
                     near_top_5 = filtered_df[filtered_df['gt.id'].isin(top_5_ids)]
 
                     far_group = group[(group['gt.x'] > distance_n_f) | (group['gt.x'] < -distance_n_f)]
@@ -1882,7 +1891,7 @@ class DataGrinderPilotOneCase:
                     frequent_ids = id_counts[id_counts > 10].index
                     filtered_df = far_group[far_group['gt.id'].isin(frequent_ids)]
                     mean_values = filtered_df.groupby('gt.id')[col].mean().reset_index()
-                    top_5_ids = mean_values.sort_values(by=col, ascending=False).head(2)['gt.id']
+                    top_5_ids = mean_values.sort_values(by=col, ascending=False).head(bug_count)['gt.id']
                     far_top_5 = filtered_df[filtered_df['gt.id'].isin(top_5_ids)]
 
                     top_group = pd.concat([near_top_5, far_top_5])
@@ -2244,14 +2253,13 @@ class DataGrinderPilotOneTask:
                 }
 
                 scenario_run_list[scenario_id] = {
-                    'scenario_id': scenario_id,
                     'scenario_unit_folder': os.path.join(self.scenario_unit_folder, scenario_id),
                     'scenario_test_config': scenario_test_config,
                     'scenario_config_yaml': os.path.join(self.scenario_unit_folder, scenario_id, 'TestConfig.yaml')
                 }
 
-        for scenario_run_info in scenario_run_list.values():
-            self.test_result['ScenarioUnit'][scenario_run_info['scenario_id']] = (
+        for scenario_id, scenario_run_info in scenario_run_list.items():
+            self.test_result['ScenarioUnit'][scenario_id] = (
                 self.get_relpath(scenario_run_info['scenario_unit_folder']))
             create_folder(scenario_run_info['scenario_unit_folder'], False)
             with open(scenario_run_info['scenario_config_yaml'], 'w', encoding='utf-8') as f:
