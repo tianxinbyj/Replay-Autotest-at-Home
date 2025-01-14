@@ -357,21 +357,65 @@ class ScenarioInfoSummary:
         self.scenario_list_with_video = scenario_list_with_video
 
     def get_scenario_combination(self):
-        columns = ['scenario_id', 'truth_source', 'road_level', 'weather'] + self.analysis_label
+
+        # 先读取原文件中的测试记录
+        if os.path.exists(scenario_summary_path):
+            original_scenario_summary = pd.read_csv(scenario_summary_path, index_col=False)
+        else:
+            original_scenario_summary = pd.DataFrame()
+
+        columns = ['scenario_id', 'truth_source', 'road_level', 'weather'] + self.analysis_label + ['test_count', 'test_history']
         rows = []
+        used_content = []
         for truth_source in self.scenario_list_with_analysis:
             temp = sorted(list(set(self.scenario_list_with_analysis[truth_source])
                                            & (set(self.scenario_list_with_road_weather)
                                               & set(self.scenario_list_with_video))))
 
             for scenario_id in temp:
+                if f'{scenario_id}-{truth_source}' in used_content:
+                    continue
+
+                used_content.append(f'{scenario_id}-{truth_source}')
                 road_level = self.scenario_road_weather[self.scenario_road_weather['batch_id'] == scenario_id]['road_level'].iloc[0]
                 weather = self.scenario_road_weather[self.scenario_road_weather['batch_id'] == scenario_id]['weather'].iloc[0]
                 analysis_label = self.scenario_analysis[f'{scenario_id}-{truth_source}']['label'].values()
-                row = [scenario_id, truth_source, road_level, weather, *analysis_label]
+
+                # 从原始文件中将测试历史写过来
+                if (len(original_scenario_summary[original_scenario_summary['scenario_id'] == scenario_id])
+                        and 'test_history' in original_scenario_summary.columns):
+                    test_history = original_scenario_summary[original_scenario_summary['scenario_id'] == scenario_id]['test_history'].iloc[0]
+                else:
+                    test_history = '[]'
+
+                test_count = len(json.loads(test_history))
+                row = [scenario_id, truth_source, road_level, weather, *analysis_label, test_count, test_history]
                 rows.append(row)
 
-        pd.DataFrame(rows, columns=columns).to_csv(scenario_summary_path, index=False)
+        pd.DataFrame(rows, columns=columns).sort_values(by='scenario_id').to_csv(scenario_summary_path, index=False)
+
+
+class registerTesthistory:
+
+    def __init__(self, scenario_id, truth_source, test_date, version):
+        if not os.path.exists(scenario_summary_path):
+            return
+
+        scenario_summary = pd.read_csv(scenario_summary_path, index_col=False)
+        scenario_summary.index = scenario_summary['scenario_id']
+        temp = scenario_summary[(scenario_summary['scenario_id'] == scenario_id)
+                         & (scenario_summary['truth_source'] == truth_source)]
+        if len(temp) != 1:
+            return
+
+        test_history = json.loads(scenario_summary.at[scenario_id, 'test_history'])
+        test_history.append({
+            'test_date': test_date,
+            'version': version,
+        })
+        scenario_summary.at[scenario_id, 'test_history'] = json.dumps(test_history)
+        scenario_summary.at[scenario_id, 'test_count'] = len(test_history)
+        scenario_summary.to_csv(scenario_summary_path, index=False)
 
 
 if __name__ == "__main__":
@@ -380,3 +424,5 @@ if __name__ == "__main__":
 
     SS = ScenarioInfoSummary()
     SS.get_scenario_combination()
+
+    registerTesthistory('20241111_125838_n000012', 'robosense', 'dasdasdad', 'dadadsaasdadds')
