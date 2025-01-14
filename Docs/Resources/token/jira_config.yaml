@@ -49,9 +49,9 @@ bug_template:
     labels: []
     project:
       id: 10948
-    summary: zpd_es39_20250107_010621-动态障碍物-白天&晴天&高速,快速路-/VA/BackViewObstacles2dDet-纵向速度误差
+    summary: zpd_es39_20250107_010621-动态障碍物-夜晚&晴天&高速,快速路-/VA/BackViewObstacles2dDet-负样本漏检测
     description: '测试版本: ES39, zpd_es39_20250107_010621<br/>测试时间: 2025-01-07 11:27:11<br/>异常类型:
-      类型错误<br/>异常发生时刻的场景和截图见附件<br/>-------------'
+      负样本漏检测<br/>异常发生时刻的场景和截图见附件<br/>-------------'
     assignee:
       name: lisen04
   2j5:
@@ -92,9 +92,9 @@ task_template:
     customfield_10655: '2025-03-15'
     project:
       id: 10948
-    summary: zpd_es39_20250107_010621-动态障碍物-白天&晴天&高速,快速路-/VA/BackViewObstacles2dDet
+    summary: zpd_es39_20250107_010621-动态障碍物-夜晚&晴天&高速,快速路-/VA/BackViewObstacles2dDet
     description: 
-      数据回灌感知测试-zpd_es39_20250107_010621-动态障碍物-白天&amp;晴天&amp;高速,快速路-/VA/BackViewObstacles2dDet-异常记录及状态跟踪请见相关Confluence
+      数据回灌感知测试-zpd_es39_20250107_010621-动态障碍物-夜晚&amp;晴天&amp;高速,快速路-/VA/BackViewObstacles2dDet-异常记录及状态跟踪请见相关Confluence
       pages.
     assignee:
       name: lisen04
