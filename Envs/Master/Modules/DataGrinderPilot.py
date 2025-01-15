@@ -116,28 +116,27 @@ def get_obstacles_kpi_ratio(col_1, col_2, target_type, kpi_date_label):
         return ratio
 
 
-class DataGrinderPilotObstaclesOneCase:
+class DataGrinderOneTask:
 
     def __init__(self, scenario_unit_folder):
+        send_log(self, '=' * 25 + self.__class__.__name__ + '=' * 25)
         # 变量初始化
-        self.gt_ego_flag = None
+        self.gt_ego_flag = False
+        self.pred_ego_flag = False
         self.ego_velocity_generator = None
         self.cut_frame_offset = - 1.05
 
-        print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
             self.test_config = yaml.safe_load(file)
-        self.scenario_unit_folder = scenario_unit_folder
+        self.scenario_id = self.test_config['scenario_id']
+        send_log(self, '=' * 25 + f'{self.scenario_id}开始数据处理' + '=' * 25)
 
         # 加载测试相关的参数
-        self.scenario_id = self.test_config['scenario_id']
-        send_log(self, f'{self.scenario_id}开始数据处理')
-        print('=' * 25 + self.scenario_id + '=' * 25)
+        self.scenario_unit_folder = scenario_unit_folder
         self.product = self.test_config['product']
         self.version = self.test_config['version']
         self.test_date = str(self.test_config['test_date'])
-
         self.scenario_tag = self.test_config['scenario_tag']
         self.test_action = self.test_config['test_action']
         self.test_encyclopaedia = test_encyclopaedia[self.product]
@@ -163,7 +162,7 @@ class DataGrinderPilotObstaclesOneCase:
                 'CAM_FISHEYE_FRONT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
             ]
 
-        # 建立文件夹
+        # 初始化文件夹
         self.pred_raw_folder = self.test_config['pred_folder']
         self.gt_raw_folder = self.test_config['gt_folder']
         self.DataFolder = os.path.join(self.scenario_unit_folder, '01_Data')
@@ -197,10 +196,10 @@ class DataGrinderPilotObstaclesOneCase:
             return
 
         with open(test_topic_info_path) as f:
-            parsed_topic = yaml.load(f, Loader=yaml.FullLoader)['topics_for_parser']
+            topics_for_parser = yaml.load(f, Loader=yaml.FullLoader)['topics_for_parser']
 
         # 初始化感知数据
-        for topic in parsed_topic:
+        for topic in topics_for_parser:
             topic_tag = topic.replace('/', '')
 
             if topic in self.topics_for_evaluation:
@@ -248,6 +247,7 @@ class DataGrinderPilotObstaclesOneCase:
                 pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
                 create_folder(os.path.join(self.DataFolder, 'General'), update=False)
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
+                self.pred_ego_flag = True
                 pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result['General']['pred_ego'] = self.get_relpath(path)
 
@@ -373,6 +373,28 @@ class DataGrinderPilotObstaclesOneCase:
         if os.path.exists(new_scenario_info_folder):
             shutil.rmtree(new_scenario_info_folder)
         os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
+
+    def get_relpath(self, path: str) -> str:
+        return os.path.relpath(path, self.scenario_unit_folder)
+
+    def get_abspath(self, path: str) -> str:
+        return os.path.join(self.scenario_unit_folder, path)
+
+    def save_test_result(self):
+        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
+            yaml.dump(self.test_result,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+
+    def load_test_result(self):
+        with open(self.test_result_yaml) as f:
+            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+
+class DataGrinderPilotObstaclesOneCase(DataGrinderOneTask):
+
+    def __init__(self, scenario_unit_folder):
+        super().__init__(scenario_unit_folder)
+        send_log(self, '=' * 25 + self.__class__.__name__ + '=' * 25)
 
     @sync_test_result
     def load_gt_data(self):
@@ -1141,20 +1163,11 @@ class DataGrinderPilotObstaclesOneCase:
     def bug_report(self):
 
         # 建立bug report，并汇总
-        if 'Obstacles' == self.test_topic:
-            bug_jira_column = [
-                'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type', 'gt_target_id',
-                'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
-                'project_id', 'uuid', 'is_valid'
-            ]
-        elif 'Lines' == self.test_topic:
-            bug_jira_column = [
-                'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type', 'gt_target_id',
-                'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
-                'project_id', 'uuid', 'is_valid'
-            ]
-        else:
-            bug_jira_column = []
+        bug_jira_column = [
+            'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type', 'gt_target_id',
+            'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
+            'project_id', 'uuid_content', 'uuid', 'is_valid'
+        ]
 
         for topic in self.test_result[self.test_topic].keys():
             if topic == 'GroundTruth':
@@ -1182,12 +1195,16 @@ class DataGrinderPilotObstaclesOneCase:
                         with open(bug_info_json, 'r', encoding='utf-8') as f:
                             bug_info = json.load(f)
 
-                        # 获取rosbag中的时间
+                        # 获取时间
+                        gt_timestamp = bug_info['gt.time_stamp']
                         rosbag_time = bug_info['rosbag_time']
 
                         # 获得目标类型
                         target_type = bug_info['gt.type_classification'] if bug_info['gt.flag'] \
                             else bug_info['pred.type_classification']
+
+                        # 获得目标类型
+                        target_x = bug_info['gt.x'] if bug_info['gt.flag'] else bug_info['pred.x']
 
                         # 获得目标id
                         target_id = bug_info['gt.id'] if bug_info['gt.flag'] else bug_info['pred.id']
@@ -1219,7 +1236,8 @@ class DataGrinderPilotObstaclesOneCase:
                         target_characteristic = '&'.join(target_characteristic)
 
                         # 开始生成报告
-                        uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{rosbag_time}-{bug_type}-{target_id}')
+                        uuid_content = f'{self.scenario_id}-{bug_type}-{int(target_id)}|{gt_timestamp}_{target_x}'
+                        uuid = generate_unique_id(f'{self.version}-{uuid_content}')
                         report_title = f'{self.product}测试异常报告({uuid})'
                         send_log(self, f'开始生成 {report_title}')
                         print(f'{one_bug_folder} 开始生成 {report_title}')
@@ -1304,7 +1322,8 @@ class DataGrinderPilotObstaclesOneCase:
                             self.version, info['name'], '&'.join(self.scenario_tag.values()),
                             topic, info['bug_items'][bug_type]['name'], target_type, bug_gt_id,
                             self.scenario_id, jira_summary, jira_description,
-                            '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}', 0
+                            '', bug_report_path, f'{project_key}-0', project_id,
+                            uuid_content, f'uuid-{uuid}', 0
                         ]
 
                         bug_jira_rows.append(jira_row)
@@ -1739,15 +1758,15 @@ class DataGrinderPilotObstaclesOneCase:
                 FN_data = FN_data[~((FN_data['gt.type_classification'].isin(['pedestrian', 'cyclist']))
                                     & ((FN_data['gt.x'] > 50) | (FN_data['gt.x'] < -50)))]
                 FN_data_near = FN_data[(metric_data['gt.x'] <= 100)
-                                      & (metric_data['gt.x'] >= -50)]
+                                      & (metric_data['gt.x'] >= -100)]
                 for key, group in FN_data_near.groupby('gt.type_classification'):
-                    top_values = group['gt.id'].value_counts().head(bug_count).index
+                    top_values = group['gt.id'].value_counts().head(bug_count * 2).index
                     top_group = group[group['gt.id'].isin(top_values)]
                     bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
                 FN_data_far = FN_data[(metric_data['gt.x'] <= 150)
-                                      & (metric_data['gt.x'] >= 100)]
+                                      & (metric_data['gt.x'] > 100)]
                 for key, group in FN_data_far.groupby('gt.type_classification'):
-                    top_values = group['gt.id'].value_counts().head(bug_count).index
+                    top_values = group['gt.id'].value_counts().head(bug_count * 2).index
                     top_group = group[group['gt.id'].isin(top_values)]
                     bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
 
@@ -1984,9 +2003,12 @@ class DataGrinderPilotObstaclesOneCase:
         }
 
         if self.ego_velocity_generator is None:
-            ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
-            self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
-                                                   kind='linear')
+            if self.gt_ego_flag:
+                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+            else:
+                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
+            self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
+                                                   ego_data['ego_vx'].values, kind='linear')
 
         # 开始画图
         fig = plt.figure(figsize=(25, 12))
@@ -2076,21 +2098,6 @@ class DataGrinderPilotObstaclesOneCase:
                     valid_camera.append(camera)
 
         return valid_camera
-
-    def get_relpath(self, path: str) -> str:
-        return os.path.relpath(path, self.scenario_unit_folder)
-
-    def get_abspath(self, path: str) -> str:
-        return os.path.join(self.scenario_unit_folder, path)
-
-    def save_test_result(self):
-        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
-            yaml.dump(self.test_result,
-                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
-
-    def load_test_result(self):
-        with open(self.test_result_yaml) as f:
-            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
 
 
 class DataGrinderPilotObstaclesOneTask:
@@ -2652,7 +2659,7 @@ class DataGrinderPilotObstaclesOneTask:
                     if '%' in columns[j]:
                         value = '{:.2%}'.format(value)
 
-                    elif isinstance(value, float):
+                    elif isinstance(value, float) and (not np.isnan(value)):
                         if int(value) == value:
                             value = int(value)
                         else:
@@ -2856,7 +2863,6 @@ class DataGrinderPilotObstaclesOneTask:
                         if target_type_text not in target_num:
                             target_num[target_type_text] = 0
                         target_num[target_type_text] += scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
-
 
         scenario_list = {}
         total_frame = 0
@@ -3452,10 +3458,9 @@ class DataGrinderPilotObstaclesOneTask:
                 self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag] = {}
                 color_for_sheets[characteristic][scenario_tag] = []
 
-                if old_excel_path is not None:
+                old_data = None
+                if old_excel_path is not None and scenario_tag in pd.ExcelWriter(old_excel_path).sheet_names:
                     old_data = pd.read_excel(old_excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
-                else:
-                    old_data = None
 
                 sub_data_col = {}
                 for col in data.columns:
@@ -3746,7 +3751,7 @@ class DataGrinderPilotObstaclesOneTask:
                                     img_list=img)
 
         report_generator.page_count += 0
-        self.report_path = os.path.join(self.task_folder, f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]})')
+        self.report_path = os.path.join(self.task_folder, f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]}).pdf')
         report_generator.genReport(report_path=self.report_path, compress=1)
 
     def start(self):
@@ -3780,3 +3785,14 @@ class DataGrinderPilotObstaclesOneTask:
     def load_test_result(self):
         with open(self.test_result_yaml) as f:
             self.test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+
+class DataGrinderPilotLinesOneCase(DataGrinderOneTask):
+
+    def __init__(self, scenario_unit_folder):
+        super().__init__(scenario_unit_folder)
+        send_log(self, '=' * 25 + self.__class__.__name__ + '=' * 25)
+
+
+if __name__ == '__main__':
+    pass
