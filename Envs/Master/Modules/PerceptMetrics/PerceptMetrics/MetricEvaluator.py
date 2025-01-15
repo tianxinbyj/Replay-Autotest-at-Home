@@ -170,17 +170,20 @@ class XError:
     def __call__(self, input_data, kpi_date_label):
 
         if isinstance(input_data, dict):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_type, pred_x = (
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_type, pred_x, gt_closest_x, pred_closest_x = (
                 input_data['gt.id'], input_data['pred.id'],
                 input_data['gt.x'], input_data['gt.y'],
                 input_data['gt.type_classification'],
                 input_data['gt.road_user'],
                 input_data['pred.type_classification'],
-                input_data['pred.x'])
+                input_data['pred.x'],
+                input_data['gt.closest_pt_x'],
+                input_data['pred.closest_pt_x'],
+            )
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 8):
-            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_type, pred_x = input_data
+              and len(input_data) == 10):
+            gt_id, pred_id, gt_x, gt_y, gt_type, gt_road_user, pred_type, pred_x, gt_closest_x, pred_closest_x = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -201,10 +204,24 @@ class XError:
             kpi_ratio = get_obstacles_kpi_ratio('纵向距离误差', 'x%_abs_95', type_classification, kpi_date_label)
             x_limit_p = kpi_threshold * kpi_ratio
 
-        x_error = pred_x - gt_x
+        if abs(gt_x) < 50:
+            x_error = pred_x - gt_x
+            x_error_p = x_error / max(20, abs(gt_x))
+        else:
+            x_error = pred_closest_x - gt_closest_x
+            x_error_p = x_error / abs(gt_closest_x)
         x_error_abs = abs(x_error)
-        x_error_p = x_error / max(20, abs(gt_x))
         x_error_p_abs = abs(x_error_p)
+
+        # 双重阈值下，近处看绝对值，远处看相对值
+        if x_limit is not None and x_limit_p is not None and x_limit_p != 0:
+            distance_point = x_limit / x_limit_p
+            if abs(gt_x) > abs(distance_point):
+                x_error = np.nan
+                x_error_abs = np.nan
+            else:
+                x_error_p = np.nan
+                x_error_p_abs = np.nan
 
         is_abnormal = []
         if x_limit is not None:

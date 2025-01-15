@@ -184,6 +184,7 @@ class RectPoints:
             'pt_1_x', 'pt_1_y',
             'pt_2_x', 'pt_2_y',
             'pt_3_x', 'pt_3_y',
+            'closest_pt_x', 'closest_pt_y',
         ]
         self.type = 'by_row'
 
@@ -234,7 +235,14 @@ class RectPoints:
             [[-length / 2], [width / 2]])).reshape(1, 2) + np.array([[x, y]])
 
         # 返回矩形的四个顶点的坐标
-        return distance, *a[0], *b[0], *c[0], *d[0]
+        pt_0_x, pt_0_y = a[0]
+        pt_1_x, pt_1_y = b[0]
+        pt_2_x, pt_2_y = c[0]
+        pt_3_x, pt_3_y = d[0]
+        pts = [[pt_0_x, pt_0_y], [pt_1_x, pt_1_y], [pt_2_x, pt_2_y], [pt_3_x, pt_3_y]]
+        sorted_pts = sorted(pts, key=lambda p: abs(p[0]))
+        closest_pt_x, closest_pt_y = sorted_pts[0]
+        return distance, *a[0], *b[0], *c[0], *d[0], closest_pt_x, closest_pt_y
 
 
 class VisionAngleRange:
