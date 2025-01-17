@@ -9,7 +9,7 @@ import threading
 import yaml
 
 from Envs.Master.Modules.ReplayController import ReplayController
-from Envs.Master.Modules.DataGrinderPilot import DataGrinderPilotOneTask
+from Envs.Master.Modules.DataGrinderPilot import DataGrinderPilotObstaclesOneTask
 from Utils.Logger import UDPLogServer
 
 
@@ -96,7 +96,7 @@ class DataReplayTestPilot:
                     print(task_folder, '不存在topic_output_statistics')
                 else:
                     if feature_group == 'pilot':
-                        DataGrinderPilotOneTask(task_folder).start()
+                        DataGrinderPilotObstaclesOneTask(task_folder).start()
 
     def start(self):
         self.start_log_server()

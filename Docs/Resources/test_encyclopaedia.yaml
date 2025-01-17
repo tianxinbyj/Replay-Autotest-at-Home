@@ -366,51 +366,37 @@ ES39:
     Lines:
       color:
         0: unknown
-        2: white
-        4: yellow
-        8: orange
-        16: blue
-        32: green
-        64: grey
-        128: grey&yellow
-        256: yellow&white
+        1: white
+        2: yellow
       marker:
         0: unknown
+        1: dashed
         2: solid
-        4: dashed
-        8: short dashed
-        16: double solid
-        32: double dashed
-        64: left solid right dashed
-        128: right solid left dashed
-        256: shaded area
-        512: unknown
-        1024: unknown
-        16384: deceleration solid
-        32768: deceleration dash
-        65536: unknown
-        131072: unknown
+        3: double dashed
+        4: double solid
+        5: left dashed right solid
+        6: left solid right dashed
+        7: left diversion
+        8: right diversion
       position:
-        0: left
-        1: unknown
-        2: right
-        4: LL
-        8: RR
-        16: left_outside
-        32: right_outside
-        64: LLL
-        128: RRR
+        0: Unknown
+        1: L1
+        2: L2
+        3: L3
+        4: L4
+        5: L5
+        6: L6
+        7: L7
+        8: R1
+        9: R2
+        10: R3
+        11: R4
+        12: R5
+        13: R6
+        14: R7
       type:
-        2: lane
-        4: curb
-        8: center
-        16: guardrail
-        32: concretebarrier
-        64: fence
-        128: wall
-        256: canopy
-        512: virtual
-        1024: cone
+        1: lane
+        2: fence
     Obstacles:
       sub_type:
         1: car
@@ -1129,9 +1115,9 @@ Information:
       /VA/PedResult: 地平线Ped感知
       /VA/VehicleResult: 地平线Veh感知
     description:
-    - 基于动态要素感知与真值的位置坐标,
+    - 将动态要素感知与真值进行时间和空间匹配,
     - 获取感知与真实动态要素的关联关系,
-    - 在此基础上获得以下检测指标,
+    - 在此基础上获得以下检测指标
     - a. 召回率(recall):真实动态要素被感知系统检测及追踪到的比例.
     - b. 精确率(precision):感知系统检测到的动态要素中, 真实存在的比例.
     - c. 位置横向/纵向偏差(distance deviation):感知动态要素的位置坐标与真值在横向/纵向的偏差.
@@ -1169,6 +1155,8 @@ Information:
     - pt_2_y
     - pt_3_x
     - pt_3_y
+    - closest_pt_x
+    - closest_pt_y
     - age
     - coverage
     - is_coverageValid
@@ -1268,11 +1256,109 @@ Information:
         name: 宽度误差
       height_error:
         name: 高度误差
+    type:
+      car:
+        name: 小车
+      pedestrian:
+        name: 行人
+      truck_bus:
+        name: 大车
+      cyclist:
+        name: 两轮车
   Lines:
     name: 车道线
     topics:
       /VA/Lines: 感知前向
-      /PI/FS/LaneMarkingsHorizon: 感知融合
+      /VA/BevLines: 感知后处理
+      /PI/FS/LaneMarkingsHorizon: 融合
+    description:
+    - 将动态要素感知与真值进行时间和空间匹配,
+    - 获取感知与真实动态要素的关联关系,
+    - 在此基础上获得以下检测指标
+    - a. 召回率(recall)：真实车道线存在感知车道线的比例.
+    - b. 精确率(precision)：感知车道线存在真实车道线的比例.
+    - c. 横向偏差(deviation)：感知车道线与其对应的真实车道线的图像取样点的横向偏差的均方根.
+    - d. 纵向检测距离(length)：感知车道线的极限检测长度，即长度的准确度.
+    - e. 特征准确度(accuracy)：感知车道线的曲率，类型，线型与其对应的真实车道线的符合程度.
+    image: LinesTestSetup.png
+    raw_column:
+      - time_stamp
+      - frame_id
+      - id
+      - confidence
+      - type
+      - position
+      - color
+      - point_num
+      - x_points
+      - y_points
+    additional_column:
+      - type_classification
+      - road_user
+      - distance
+      - pt_0_x
+      - pt_0_y
+      - pt_1_x
+      - pt_1_y
+      - pt_2_x
+      - pt_2_y
+      - pt_3_x
+      - pt_3_y
+      - age
+      - coverage
+      - is_coverageValid
+      - is_detectedValid
+      - is_cipv
+      - is_keyObj
+      - is_sameDir
+      - is_oppositeDir
+      - is_crossingDir
+      - is_moving
+      - is_static
+    result_column:
+      - 召回率
+      - 准确率
+      - 线型准确率
+      - 横向位置(近)误差
+      - 横向位置(中)误差
+      - 横向位置(远)误差
+      - 偏航角(近)误差
+      - 偏航角(中)误差
+      - 偏航角(远)误差
+      - 纵向检测距离
+    metrics:
+      recall_precision:
+        name: 准召信息
+        description: 包括准确率，召回率，线型准确率，TP/FP/FN目标个数
+      x_error:
+        name: 横向位置误差
+        description: 评价对车道线的横向距离的感知能力
+      length_error:
+        name: 偏航角误差
+        description: 评价对车道线的偏航方向的感知能力
+      yaw_error:
+        name: 纵向检测距离
+        description: 评价对车道线的长度的感知能力
+    bug_items:
+      recall_precision:
+        name: 准召信息
+        description: 包括准确率，召回率，线型准确率，TP/FP/FN目标个数
+      x_error:
+        name: 横向位置误差
+        description: 评价对车道线的横向距离的感知能力
+      length_error:
+        name: 偏航角误差
+        description: 评价对车道线的偏航方向的感知能力
+      yaw_error:
+        name: 纵向检测距离
+        description: 评价对车道线的长度的感知能力
+    type:
+      fence:
+        name: 路沿
+      main_lane:
+        name: 主车道线
+      secondary_lane:
+        name: 次车道线
   Objects:
     name: 静态障碍物
     topics:

@@ -3,6 +3,7 @@ Created on 2024/6/28.
 @author: Bu Yujun  
 """
 
+import copy
 import glob
 import os
 import shutil
@@ -10,6 +11,7 @@ import sys
 import threading
 import time
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -32,7 +34,14 @@ class ReplayController:
         # 变量初始化
         self.thread_list = []
         self.calib_file = {}
+        self.scenario_calib_groups = {}
         self.scenario_replay_count = {}
+        self.scenario_replay_datetime = {}
+
+        # 定义异常累计分数，高了将重启板子
+        self.abnormal_score = 0
+        self.reboot_count = 0
+        self.invalid_scenario_list = []
 
         # 读取参数
         self.scenario_ids = replay_config['scenario_id']
@@ -183,7 +192,7 @@ class ReplayController:
         for key, value in scenario_groups.items():
             send_log(self, f'标定文件为{key}的场景为{value}')
 
-        return list(scenario_groups.values())
+        self.scenario_calib_groups = scenario_groups
 
     def get_calib(self, scenario_id):
         send_log(self, f'获取标定文件{scenario_id}')
@@ -236,7 +245,7 @@ class ReplayController:
                 try:
                     draw_map(sainspva_data, map_path)
                 except Exception as e:
-                    print(e, f'绘制{scenario_id}地图失败')
+                    send_log(self, f'{e}, 绘制{scenario_id}地图失败')
 
     def get_annotation(self):
         if not os.path.isdir(self.gt_raw_folder):
@@ -263,6 +272,50 @@ class ReplayController:
         # 调用接口复制参数进ECU
         self.replay_client.flash_camera_config(ecu_type=self.product)
 
+    def replay_one_scenario(self, calib_checksum, scenario_id):
+        # 将checksum写入
+        for f in glob.glob(os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info', 'calib-*')):
+            os.remove(f)
+
+        checksum_path = os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info', f'calib-{calib_checksum}')
+        with open(checksum_path, 'w') as file:
+            file.write(calib_checksum)
+
+        # 有的时候部分topic的计数会小于目标数量，尝试3次
+        try_count = 0
+        while True:
+            try_count += 1
+            send_log(self, f'{scenario_id} 第{try_count}次场景录制开始')
+            self.start_replay_and_record(scenario_id)
+
+            while True:
+                replay_process = self.replay_client.get_replay_process()
+                send_log(self, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
+                if float(replay_process) > self.replay_end / 100:
+                    self.stop_replay_and_record(scenario_id)
+                    break
+                time.sleep(8)
+
+            self.parse_bag(scenario_id)
+
+            self.scenario_replay_count[scenario_id] = try_count
+            self.scenario_replay_datetime[scenario_id] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            scenario_is_valid = self.analyze_raw_data(calib_checksum)
+
+            if scenario_id in scenario_is_valid and scenario_is_valid[scenario_id] == 1:
+                send_log(self, f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
+                print('=============================================================')
+                break
+
+            if try_count == self.replay_action['retest']:
+                send_log(self, f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
+                break
+
+        t = threading.Thread(target=self.compress_bag, args=(scenario_id,))
+        t.daemon = True
+        t.start()
+        self.thread_list.append(t)
+
     def start(self):
 
         # 1.获取真值，线程中执行
@@ -279,61 +332,51 @@ class ReplayController:
                 self.get_calib(scenario_id)
 
             # 3. 录制和解析
-            for scenario_group in self.group_scenarios_by_calib():
+            self.group_scenarios_by_calib()
+            for calib_checksum, scenario_group in self.scenario_calib_groups.items():
                 if self.replay_action['calib']:
                     self.copy_calib_file(scenario_group[0])
 
                 for scenario_id in scenario_group:
-                    # 有的时候部分topic的计数会小于目标数量，尝试3次
-                    try_count = 0
+                    self.replay_one_scenario(calib_checksum, scenario_id)
 
-                    while True:
-                        try_count += 1
-                        print(f'{scenario_id} 第{try_count}次场景录制开始')
-                        send_log(self, f'{scenario_id} 第{try_count}次场景录制开始')
-                        self.start_replay_and_record(scenario_id)
-
-                        while True:
-                            replay_process = self.replay_client.get_replay_process()
-                            send_log(self, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
-                            if float(replay_process) > self.replay_end / 100:
-                                self.stop_replay_and_record(scenario_id)
-                                break
-                            time.sleep(8)
-
-                        self.parse_bag(scenario_id)
-                        self.scenario_replay_count[scenario_id] = try_count
-                        scenario_is_valid = self.analyze_raw_data()
-
-                        if scenario_id in scenario_is_valid and scenario_is_valid[scenario_id] == 1:
-                            print(f'{scenario_id} 场景录制成功')
-                            send_log(self, f'{scenario_id} 场景录制成功')
+                    # 积分触发重启控制器，并将invalid场景的数据删除重新测试
+                    if self.abnormal_score > 5 and self.reboot_count <= 10:
+                        send_log(self, f'积分={self.abnormal_score},触发重启机制')
+                        if not self.reboot_power():
+                            send_log(self, '重启失败,后续场景不再录制')
                             break
+                        else:
+                            self.wait_for_threading()
+                            for invalid_scenario_id in self.invalid_scenario_list:
+                                raw_folder = os.path.join(self.pred_raw_folder, invalid_scenario_id, 'RawData')
+                                if os.path.exists(raw_folder):
+                                    shutil.rmtree(raw_folder)
 
-                        if try_count == 3:
-                            print(f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
-                            send_log(self, f'{scenario_id} {try_count}次场景录制全部失败，加入黑名单')
-                            break
+                            invalid_scenario_list = copy.deepcopy(self.invalid_scenario_list)
+                            for invalid_scenario_id in invalid_scenario_list:
+                                self.replay_one_scenario(calib_checksum, invalid_scenario_id)
 
-                    t = threading.Thread(target=self.compress_bag, args=(scenario_id,))
-                    t.daemon = True
-                    t.start()
-                    self.thread_list.append(t)
+                # 最后再将invalid的场景再测一次
+                self.wait_for_threading()
+                for invalid_scenario_id in self.invalid_scenario_list:
+                    raw_folder = os.path.join(self.pred_raw_folder, invalid_scenario_id, 'RawData')
+                    if os.path.exists(raw_folder):
+                        shutil.rmtree(raw_folder)
+
+                invalid_scenario_list = copy.deepcopy(self.invalid_scenario_list)
+                for invalid_scenario_id in invalid_scenario_list:
+                    self.replay_one_scenario(calib_checksum, invalid_scenario_id)
 
         if self.replay_action['video_info']:
             for scenario_id in self.scenario_ids:
                 self.get_video_info(scenario_id)
 
-        send_log(self, '等待所有线程都结束')
-        print('等待所有线程都结束')
-        for t in self.thread_list:
-            t.join()
-        self.thread_list.clear()
-
+        self.wait_for_threading()
         send_log(self, '清理临时文件夹')
         self.replay_client.clear_temp_folder()
 
-    def analyze_raw_data(self):
+    def analyze_raw_data(self, calib_checksum):
         statistics_path = os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv')
         rows = []
         index = []
@@ -341,6 +384,13 @@ class ReplayController:
         scenario_is_valid = {}
 
         for scenario_id in os.listdir(self.pred_raw_folder):
+            # 获取calib_checksum
+            checksum_paths = glob.glob(os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info', 'calib-*'))
+            if not len(checksum_paths):
+                continue
+            scenario_calib_checksum = os.path.basename(checksum_paths[0]).split('-')[-1]
+
+            # 获得topic输出
             raw_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
             if not os.path.exists(os.path.join(raw_folder, 'TestTopicInfo.yaml')):
                 continue
@@ -349,12 +399,20 @@ class ReplayController:
                 test_topic = yaml.load(f, Loader=yaml.FullLoader)
 
             row = []
-            columns = list(test_topic['topics_for_parser'])
+            columns = []
             topic_duration = {}
             for topic in test_topic['topics_for_parser']:
+                if topic in []:
+                    continue
+
+                columns.append(topic)
                 topic_tag = topic.replace('/', '')
-                hz_data = pd.read_csv(glob.glob(os.path.join(raw_folder, f'{topic_tag}*hz.csv'))[0],
-                                      index_col=False)
+                hz_path_list = glob.glob(os.path.join(raw_folder, f'{topic_tag}*hz.csv'))
+                if len(hz_path_list):
+                    hz_data = pd.read_csv(hz_path_list[0], index_col=False)
+                else:
+                    hz_data = pd.DataFrame()
+
                 if not len(hz_data):
                     row.append('0/0/0/0-0')
                     topic_duration[topic] = 0
@@ -373,18 +431,51 @@ class ReplayController:
 
             scenario_is_valid[scenario_id] = valid_flag
             replay_count = 1
+            date_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             if scenario_id in self.scenario_replay_count:
                 replay_count = self.scenario_replay_count[scenario_id]
+                date_time = self.scenario_replay_datetime[scenario_id]
             elif os.path.exists(statistics_path):
                 topic_output_statistics = pd.read_csv(statistics_path, index_col=0)
                 if scenario_id in topic_output_statistics.index:
                     replay_count = topic_output_statistics.at[scenario_id, 'replay_count']
-            row.extend([replay_count, valid_flag])
+                    date_time = topic_output_statistics.at[scenario_id, 'record_time']
+            row.extend([scenario_calib_checksum, date_time, replay_count, valid_flag])
             index.append(scenario_id)
             rows.append(row)
 
         if len(columns):
-            res = pd.DataFrame(rows, columns=columns + ['replay_count', 'isValid'], index=index)
-            res.to_csv(statistics_path)
+            output_statistics = pd.DataFrame(rows, columns=columns + ['calib_checksum', 'record_time', 'replay_count', 'isValid'], index=index)
+            output_statistics.sort_values(by='record_time', inplace=True)
+            output_statistics.to_csv(statistics_path)
+            calib_output_statistics = output_statistics[output_statistics['calib_checksum'] == calib_checksum]
+            # 计算失效积分
+            # 每一个invalid场景增加1分，每次出现0/0/0/0-0增加1分
+            # 超过5分，触发重启并重新测试invalid的场景
+            self.invalid_scenario_list = calib_output_statistics[calib_output_statistics['isValid'] == 0].index.tolist()
+            self.abnormal_score = len(self.invalid_scenario_list) + np.sum(calib_output_statistics.values == '0/0/0/0-0')
+        else:
+            self.invalid_scenario_list = []
+            self.abnormal_score = 0
 
+        send_log(self, f'重启积分为{self.abnormal_score}')
+        send_log(self, f'失效场景为{self.invalid_scenario_list}')
         return scenario_is_valid
+
+    def wait_for_threading(self):
+        send_log(self, '等待所有线程都结束')
+        for t in self.thread_list:
+            t.join()
+        self.thread_list.clear()
+
+    def reboot_power(self):
+        self.reboot_count += 1
+        for _ in range(3):
+            self.replay_client.control_power('off')
+            time.sleep(15)
+            res = self.replay_client.control_power('on_with_waiting')
+            if res:
+                return True
+            time.sleep(5)
+
+        return False

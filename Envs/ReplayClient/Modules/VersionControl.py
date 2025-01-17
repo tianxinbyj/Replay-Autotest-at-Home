@@ -4,7 +4,7 @@ Author: Tian Loong
 Class: VersionControl
 """
 import glob
-import os.path
+import os
 import re
 import subprocess
 import sys
@@ -20,18 +20,20 @@ from scp import SCPException
 from wcwidth import wcswidth
 
 from Envs.ReplayClient.Modules.EcuFlasher import flash_mcu, flash_mpu, flash_j5, main as auto_flash
-from Envs.ReplayClient.Modules.EcuFlasher import parse_arguments, check_version, check_existing_files, upload_files, find_target_dir, boxed_text
+from Envs.ReplayClient.Modules.EcuFlasher import parse_arguments, check_version, check_existing_files, upload_files, \
+    find_target_dir, boxed_text
 from Envs.ReplayClient.Interfaces.Api_Ecu30fpsConfig import ssh_pass, j5a_ssh_client
 from Utils.Libs import kill_tmux_session_if_exists, project_path
 from Envs.Master.Modules.PowerController.power_controller import *
 from Envs.ReplayClient.Interfaces.Libs import get_project_path
-from Envs.ReplayClient.Interfaces.Api_Ecu30fpsConfig import change_sensor_30fps,back_sensor_20fps
+from Envs.ReplayClient.Interfaces.Api_Ecu30fpsConfig import change_sensor_30fps, back_sensor_20fps
 
 J5A = ''
 J5B = ''
 S32G = ''
 
-def print_colored(text,color='bright_magenta'):
+
+def print_colored(text, color='bright_magenta'):
     # 定义颜色代码
     colors = {
         "red": "\033[31m",
@@ -57,6 +59,7 @@ def print_colored(text,color='bright_magenta'):
     # 打印带颜色的文本
     print(f"{color_code}{text}{colors['reset']}")
 
+
 def boxed_text_colored(text):
     # Split the text into lines if it's multi-line
     lines = text.split('\n')
@@ -79,6 +82,7 @@ def boxed_text_colored(text):
 
     # Print the bottom border of the box
     print_colored("#" * box_width)
+
 
 def flash_firmware_():
     args = parse_arguments()
@@ -117,6 +121,7 @@ def get_version(core='j5a'):
 
 
 class VersionControl:
+
     def __init__(self, ecu_type='ES37'):
 
         self.ecu_type = ecu_type
@@ -144,7 +149,8 @@ class VersionControl:
             # raise power_ctrl_err
         # 如果板子是下电状态，需要给板子上电
         try:
-            power_status = get_status(power_inter=self.power_ctrl_inter, serial_number=self.power_ctrl_inter.serial_numbers[0])
+            power_status = get_status(power_inter=self.power_ctrl_inter,
+                                      serial_number=self.power_ctrl_inter.serial_numbers[0])
         except Exception as check_status_err:
             print(check_status_err)
         else:
@@ -183,11 +189,6 @@ class VersionControl:
 
         # self.open_ssh_connections()
 
-
-        
-
-        
-
     def power_ctrl_power_on(self):
 
         power_on_flag = power_on(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
@@ -200,7 +201,7 @@ class VersionControl:
         return power_off_flag
 
     def power_ctrl_get_status(self):
-        power_ctrl_status = get_status(self.power_ctrl_inter,self.power_ctrl_inter.serial_numbers[0])
+        power_ctrl_status = get_status(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
         if power_ctrl_status:
             return power_ctrl_status
         else:
@@ -223,6 +224,7 @@ class VersionControl:
         for client in self.record_ssh.values():
             if client:
                 client.close()
+
     def open_ssh_connections(self):
         """
         重置现有的 两个ssh 连接 ,如果已存在，则先关闭对应连接，再重新建立连接
@@ -238,7 +240,7 @@ class VersionControl:
         self.close_ssh_connection()
         try:
             self.j5a_ssh_client.connect(j5a_ssh_host, ssh_port, username=ssh_user, password=ssh_pass,
-                                    timeout=10)
+                                        timeout=10)
             self.j5b_ssh_client.connect(j5b_ssh_host, ssh_port, username=ssh_user, password=ssh_pass,
                                         timeout=10)
         except ConnectionError as EEEE:
@@ -263,8 +265,6 @@ class VersionControl:
                 client.close()
                 print(f"{ssh_host} 连接已关闭")
                 self.record_ssh[ssh_host] = None
-
-
 
     def flash_ecu(self, artificial_folder='/media/data/artif/', mcu=True, mpu=True, j5a=True, j5b=True):
         """
@@ -292,7 +292,7 @@ class VersionControl:
             target_str = ' '.join(flash_target_args)
 
             # 获取到 Api_EcuFlasher.py 的文件夹所在路径
-            Api_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),'Interfaces')
+            Api_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Interfaces')
             print(Api_file_path)
 
             cmd = f'cd {Api_file_path} && python3 Api_EcuFlasher.py -a {artificial_folder} -t {target_str}'
@@ -412,9 +412,9 @@ class VersionControl:
                     print(f'j5b 版本日期与路径中的不同 {artif_path} ， {version}：{artif_date}')
                     return False, 'j5b'
                     # raise EnvironmentError()
-        return True , None
+        return True, None
 
-    def read_artif_folder_version(self,artif_path='/media/data/artif/'):
+    def read_artif_folder_version(self, artif_path='/media/data/artif/'):
         """
         读取当前 刷写folder artif_path 路径下的刷写文件的版本，确认j5a 和 j5b日期相同，并返回一个日期，
         否则raise 相应的 error
@@ -423,11 +423,11 @@ class VersionControl:
             j5a_folder = glob.glob(os.path.join(artif_path, '*1_journey5*'))
             j5b_folder = glob.glob(os.path.join(artif_path, '*2_journey5*'))
             install_exist = os.path.exists(os.path.join(artif_path, 'install'))
-            s32g_folder = glob.glob(os.path.join(artif_path,'*s32*'))
+            s32g_folder = glob.glob(os.path.join(artif_path, '*s32*'))
             print(os.path.join(artif_path, '*s32g*'))
 
             #  检查 install 文件 和s32g 的刷写文件夹
-            if not install_exist :
+            if not install_exist:
                 print('不存在 install 文件夹')
 
             # 检查 s32g文件
@@ -438,13 +438,13 @@ class VersionControl:
                         print(os.path.join(artif_path, s32g_name))
                         print(f'抓取到s32g 刷写文件夹，请检查 {artif_path}')
                         break
-                    elif index == len(s32g_folder) - 1 :
+                    elif index == len(s32g_folder) - 1:
                         raise FileNotFoundError(f'未找到对应的 s32g 刷写文件夹，请检查 {artif_path}')
             else:
                 raise FileNotFoundError(f'未找到对应的 s32g 刷写文件夹，请检查 {artif_path}')
 
             # 检查j5a 和 j5b 的刷写文件夹
-            if not (j5a_folder and j5b_folder) :
+            if not (j5a_folder and j5b_folder):
                 # glob 对 j5a 和j5b都没抓取到时
                 raise FileNotFoundError(f'不存在对应的 j5的 刷写文件夹，请检查 {artif_path}')
             else:
@@ -453,63 +453,64 @@ class VersionControl:
                     raise FileExistsError(f'存在多个版本的j5 刷写文件夹，请检查 {artif_path}')
 
                 # 只抓取到了j5a 或 j5b的 tar.gz的压缩包时
-                elif (len(j5a_folder) == 1 and j5a_folder[0].endswith('.tar.gz')) or (len(j5b_folder) == 1 and j5b_folder[0].endswith('.tar.gz')):
+                elif (len(j5a_folder) == 1 and j5a_folder[0].endswith('.tar.gz')) or (
+                        len(j5b_folder) == 1 and j5b_folder[0].endswith('.tar.gz')):
                     raise EnvironmentError('该文件夹仅有 tar.gz 压缩包，请解压后重新重试刷写')
                 else:
                     # 提取j5a 和 j5b 的folder 文件夹的名字
-                        # 抓取到文件夹
-                        if os.path.isdir(os.path.join(artif_path,j5a_folder[0])):
-                            # 抓取 j5a文件夹的 date
-                            j5a_match_res = self.extract_timestamp_with_re(j5a_folder[0])
-                            if j5a_match_res:
-                                j5a_date_time = j5a_match_res
-
-                            else:
-                                raise EnvironmentError(f'未查找到正确的刷写版本日趋，{j5a_folder[0]} ')
-                        elif os.path.isdir(os.path.join(artif_path,j5a_folder[1])):
-                            # 抓取 j5文件夹的 date
-                            j5a_match_res = self.extract_timestamp_with_re(j5a_folder[1])
-                            if j5a_match_res:
-                                j5a_date_time = j5a_match_res
-
-                            else:
-                                raise EnvironmentError(f'未查找到正确的刷写版本日趋，{j5a_folder[1]} ')
+                    # 抓取到文件夹
+                    if os.path.isdir(os.path.join(artif_path, j5a_folder[0])):
+                        # 抓取 j5a文件夹的 date
+                        j5a_match_res = self.extract_timestamp_with_re(j5a_folder[0])
+                        if j5a_match_res:
+                            j5a_date_time = j5a_match_res
 
                         else:
-                            raise FileExistsError(f'不存在对应的 j5的 刷写文件夹，请检查 {artif_path} {j5a_folder}')
-
-                        if os.path.isdir(os.path.join(artif_path, j5b_folder[0])):
-                            # 抓取 j5b文件夹的 date
-                            j5b_match_res = self.extract_timestamp_with_re(j5b_folder[0])
-                            if j5b_match_res:
-                                j5b_date_time = j5b_match_res
-
-                            else:
-                                raise EnvironmentError(f'未查找到正确的刷写版本日期，{j5b_folder[0]} ')
-                        elif os.path.isdir(os.path.join(artif_path, j5b_folder[1])):
-                            # 抓取 j5b文件夹的 date
-                            j5b_match_res = self.extract_timestamp_with_re(j5b_folder[1])
-                            if j5b_match_res:
-                                j5b_date_time = j5b_match_res
-                            else:
-                                raise EnvironmentError(f'未查找到正确的刷写版本日趋，{j5b_folder[1]} ')
+                            raise EnvironmentError(f'未查找到正确的刷写版本日趋，{j5a_folder[0]} ')
+                    elif os.path.isdir(os.path.join(artif_path, j5a_folder[1])):
+                        # 抓取 j5文件夹的 date
+                        j5a_match_res = self.extract_timestamp_with_re(j5a_folder[1])
+                        if j5a_match_res:
+                            j5a_date_time = j5a_match_res
 
                         else:
-                            raise FileExistsError(f'不存在对应的 j5的 刷写文件夹，请检查 {artif_path} {j5b_folder}')
+                            raise EnvironmentError(f'未查找到正确的刷写版本日趋，{j5a_folder[1]} ')
 
-                        # 比较j5a 和 j5b 的日期
-                        if j5a_date_time == j5b_date_time:
-                            return j5a_date_time
+                    else:
+                        raise FileExistsError(f'不存在对应的 j5的 刷写文件夹，请检查 {artif_path} {j5a_folder}')
+
+                    if os.path.isdir(os.path.join(artif_path, j5b_folder[0])):
+                        # 抓取 j5b文件夹的 date
+                        j5b_match_res = self.extract_timestamp_with_re(j5b_folder[0])
+                        if j5b_match_res:
+                            j5b_date_time = j5b_match_res
+
                         else:
-                            raise EnvironmentError(f'j5a 与 j5b 的版本号不同，请检查刷写文件夹下的刷写文件： {artif_path} ')
+                            raise EnvironmentError(f'未查找到正确的刷写版本日期，{j5b_folder[0]} ')
+                    elif os.path.isdir(os.path.join(artif_path, j5b_folder[1])):
+                        # 抓取 j5b文件夹的 date
+                        j5b_match_res = self.extract_timestamp_with_re(j5b_folder[1])
+                        if j5b_match_res:
+                            j5b_date_time = j5b_match_res
+                        else:
+                            raise EnvironmentError(f'未查找到正确的刷写版本日趋，{j5b_folder[1]} ')
 
-    def check_ecu_ver_and_artif_ver(self,artif_path):
+                    else:
+                        raise FileExistsError(f'不存在对应的 j5的 刷写文件夹，请检查 {artif_path} {j5b_folder}')
+
+                    # 比较j5a 和 j5b 的日期
+                    if j5a_date_time == j5b_date_time:
+                        return j5a_date_time
+                    else:
+                        raise EnvironmentError(f'j5a 与 j5b 的版本号不同，请检查刷写文件夹下的刷写文件： {artif_path} ')
+
+    def check_ecu_ver_and_artif_ver(self, artif_path):
         """
         检查板子内的当前的版本 是否与 artif_path 文件夹中的版本是否一致
         相同则返回True ，不同则返回False
         """
 
-    def extract_timestamp_with_re(self,ver_str):
+    def extract_timestamp_with_re(self, ver_str):
         """
         使用正则表达式从给定的字符串中提取时间戳部分（YYYYMMDD_HHMMSS）。
 
@@ -533,7 +534,7 @@ class VersionControl:
         获取当前电源的信息，
         return :
         """
-        power_status = get_status(self.power_ctrl_inter,self.power_ctrl_inter.serial_numbers[0])
+        power_status = get_status(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
 
         return power_status
 
@@ -543,18 +544,17 @@ class VersionControl:
         """
         # TODO 这些参数都需要调试
         beyond_times = 0  # 电流超过  Ampere_limit 的 次数 ，不同ecu 的Ampere_limit不同
-
         loop_times = 80  # 循环检查的最大次数 ，每次循环检查电流后停顿0.5s
-
         flag_times = 35
+
         if self.ecu_type == "ES37":
             Ampere_limit = 3.1
 
             while loop_times > 0:
-                time.sleep(0.5)
-                loop_times -= 1 # 循环减少一次
+                time.sleep(0.75)
+                loop_times -= 1  # 循环减少一次
                 #  将 status 中的电流数值提取出来
-                temp_status =  get_status(self.power_ctrl_inter,self.power_ctrl_inter.serial_numbers[0])
+                temp_status = get_status(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
                 # print(temp_status)
                 temp_ampere = temp_status['current_value']
 
@@ -563,17 +563,13 @@ class VersionControl:
                     print(loop_times, '----', beyond_times, ':::', temp_ampere)
                     # 大于 电流限定次数时 返回True
                     if beyond_times >= flag_times:
-
                         # reset config
                         return True
                 else:
-                    beyond_times = max(beyond_times - 3, 0) # 如果低于 3.0,则 超过次数 -3,
+                    beyond_times = max(beyond_times - 3, 0)  # 如果低于 3.0,则 超过次数 -3,
                     print(loop_times, '----', beyond_times, ':::', temp_ampere)
 
             return False
-
-
-
 
         elif self.ecu_type == "ES18":
             raise NotImplemented
@@ -582,7 +578,7 @@ class VersionControl:
         elif self.ecu_type == "J6E":
             raise NotImplemented
 
-    def flash_check_all_in_one(self, artificial_folder= '/media/data/artif/'):
+    def flash_check_all_in_one(self, artificial_folder='/media/data/artif/'):
         """
         将刷件的所有流程都放在同一个函数中，刷写、电源上下电、版本检查、版本对比等，检验刷件是否成功
         成功则返回True，不成功
@@ -590,7 +586,7 @@ class VersionControl:
         """
         self.open_ssh_connections()
 
-        max_flash_time = 3 # 单次刷件最多次数
+        max_flash_time = 3  # 单次刷件最多次数
 
         if self.ecu_type == 'ES37':
             # 记录刷件前的版本
@@ -600,7 +596,7 @@ class VersionControl:
                 old_version_corr_flag = True
                 # 如过刷写文件夹下读取到的日期与当前板子版本一致，则不需要刷写，提示不需要刷写， return True
                 try:
-                    artif_ver_date  = self.read_artif_folder_version()
+                    artif_ver_date = self.read_artif_folder_version()
                 except Exception as EEE:
                     boxed_text_colored('当前板子中刷写版本号与刷写路径下版本一致，无需刷写')
                     return False
@@ -659,7 +655,7 @@ class VersionControl:
                                 if power_on_time == max_power_on_time:
                                     power_on_time = 0
                                     raise EnvironmentError('电源开启成功，三次检查ecu的电流大小均失败，请检查')
-                                continue # 电源开关失败， 再次重启
+                                continue  # 电源开关失败， 再次重启
                         else:
                             power_on_time += 1
                             if power_on_time == max_power_on_time:
@@ -715,7 +711,6 @@ class VersionControl:
 
             scp_times = 3
 
-
             while scp_times > 0:
                 scp_times -= 1
 
@@ -732,9 +727,6 @@ class VersionControl:
                 else:
                     std_del_in, std_del_out, std_del_err = self.j5a_ssh_client.exec_command('ls /app_data/horizon/')
                     print(std_del_out.read().decode())
-
-
-
 
                 # run scp 的 cmd
                 # scp_res_a = subprocess.run(["sshpass", "-p", "", "scp", "-r", f"{os.path.join(es37_calib_folder, 'camera')}", f"root@172.31.131.35:{calib_path_in_core}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,shell=True)
@@ -766,7 +758,8 @@ class VersionControl:
                     calib_compare_dic = {}
                     camera_list = os.listdir(os.path.join(es37_calib_folder, 'camera'))
                     for camera_i in camera_list:
-                        with open(os.path.join(es37_calib_folder, 'camera', camera_i,'camera_0.json'), 'r') as temp_json:
+                        with open(os.path.join(es37_calib_folder, 'camera', camera_i, 'camera_0.json'),
+                                  'r') as temp_json:
                             calib_data = json.load(temp_json)
 
                             # 确定读取 参数数值来作为验证值。选用 camera_x
@@ -801,7 +794,7 @@ class VersionControl:
                         if power_on_flag:
                             time.sleep(10)
                             check_status = self.check_power_on_success()
-                            print('check_status______________:',check_status)
+                            print('check_status______________:', check_status)
                             if check_status:
                                 power_on_time = 0
                                 # 上电成功，退出上电循环
@@ -820,7 +813,7 @@ class VersionControl:
                             else:
                                 # 重新下电 最多循环三次
                                 power_off_flag = self.power_ctrl_power_off()
-                                if power_off_flag :
+                                if power_off_flag:
                                     time.sleep(2)
                                     continue
                                 else:
@@ -834,20 +827,22 @@ class VersionControl:
                                             raise EnvironmentError('电源连续下电三次失败')
                     print('电源上电成功')
 
-                    self.open_ssh_connections() # 重建ssh 连接
+                    self.open_ssh_connections()  # 重建ssh 连接
 
                     # 读取板子内的参数的数值，并与记录值去做对比 camera_x
 
-                    print('camera_list:::::::',camera_list)
+                    print('camera_list:::::::', camera_list)
                     for camera_i in camera_list:
-                        a_stdin, a_stdout, a_stderr = self.j5a_ssh_client.exec_command(f'cd /app_data/horizon/camera/{camera_i} && grep "camera_x" camera_0.json')
-                        b_stdin, b_stdout, b_stderr = self.j5a_ssh_client.exec_command(f'cd /app_data/horizon/camera/{camera_i} && grep "camera_x" camera_0.json')
+                        a_stdin, a_stdout, a_stderr = self.j5a_ssh_client.exec_command(
+                            f'cd /app_data/horizon/camera/{camera_i} && grep "camera_x" camera_0.json')
+                        b_stdin, b_stdout, b_stderr = self.j5a_ssh_client.exec_command(
+                            f'cd /app_data/horizon/camera/{camera_i} && grep "camera_x" camera_0.json')
                         a_output = a_stdout.read().decode()
                         b_output = b_stdout.read().decode()
 
                         j5a_exit_status = a_stdout.channel.recv_exit_status()
                         j5b_exit_status = b_stdout.channel.recv_exit_status()
-                        print(f'J5AB exit status, {camera_i}___',j5a_exit_status,j5a_exit_status)
+                        print(f'J5AB exit status, {camera_i}___', j5a_exit_status, j5a_exit_status)
                         # 对比参数的命令，执行成功
                         if j5a_exit_status == 0 and j5b_exit_status == 0:
                             j5a_match = re.search(r'[-+]?\d*\.\d+', a_output)
@@ -863,17 +858,20 @@ class VersionControl:
                                         scp_fail_camera.append(camera_i)
                                     continue
                                 else:
-                                    if j5a_decimal_number == j5b_decimal_number and (abs(j5a_decimal_number - calib_compare_dic[camera_i]) <= 10e-12):
-                                        print(f'camera_x,{camera_i}:','参数一致')
+                                    if j5a_decimal_number == j5b_decimal_number and (
+                                            abs(j5a_decimal_number - calib_compare_dic[camera_i]) <= 10e-12):
+                                        print(f'camera_x,{camera_i}:', '参数一致')
                                         continue
                                     else:
                                         # 当由参数读取到的数值不一致时，说明拷贝参数出了问题
-                                        print(f'camera_x,{camera_i}:','a:',j5a_decimal_number , 'b:',j5b_decimal_number , 'calib:',calib_compare_dic[camera_i])
+                                        print(f'camera_x,{camera_i}:', 'a:', j5a_decimal_number, 'b:',
+                                              j5b_decimal_number, 'calib:', calib_compare_dic[camera_i])
                                         if camera_i not in scp_fail_camera:
                                             scp_fail_camera.append(camera_i)
                         else:
                             # 对比命令执行失败，说明scp命令执行失败了
-                            print(f"scp {camera_i} 参数失败，\nJ5A检查命令exit code :{j5a_exit_status} \nJ5B检查命令exit code:{j5b_exit_status}\nINFO:exit code 0为正确运行，其他为不正常运行")
+                            print(
+                                f"scp {camera_i} 参数失败，\nJ5A检查命令exit code :{j5a_exit_status} \nJ5B检查命令exit code:{j5b_exit_status}\nINFO:exit code 0为正确运行，其他为不正常运行")
                     # 一次scp校验文件后
                     if not scp_fail_camera:
                         # scp失败的 camera 数量为空
@@ -893,16 +891,12 @@ class VersionControl:
                             time.sleep(2)
                             continue
 
-
-
-
                     # 校验成功 ，说明参数拷贝成功
 
         elif self.ecu_type == '1J5':
-            raise  NotImplemented
+            raise NotImplemented
         elif self.ecu_type == 'J6E':
             raise NotImplemented
-
 
     def change_sensor_30fps(self):
 
@@ -924,7 +918,6 @@ class VersionControl:
         else:
             raise EnvironmentError('板子重新上电失败')
 
-
     def back_sensor_20fps(self):
 
         back_sensor_20fps()
@@ -945,10 +938,8 @@ class VersionControl:
         else:
             raise EnvironmentError('板子重新上电失败')
 
+
 if __name__ == '__main__':
     VC = VersionControl()
     # VC.get_power_status()
     VC.power_ctrl_power_off()
-
-
-

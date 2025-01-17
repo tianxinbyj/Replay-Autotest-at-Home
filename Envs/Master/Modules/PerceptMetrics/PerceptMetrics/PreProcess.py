@@ -184,6 +184,7 @@ class RectPoints:
             'pt_1_x', 'pt_1_y',
             'pt_2_x', 'pt_2_y',
             'pt_3_x', 'pt_3_y',
+            'closest_pt_x', 'closest_pt_y',
         ]
         self.type = 'by_row'
 
@@ -208,14 +209,14 @@ class RectPoints:
         distance = np.sqrt(x ** 2 + y ** 2)
 
         if type_ == 'car':
-            width_limit = length * 0.255 + 0.65
+            width_limit = length * 0.255 + 0.7
             width = np.minimum(width_limit, width)
         elif type_ == 'truck_bus':
-            width = np.minimum(2.6, width)
+            width = np.minimum(width, 2.6)
         elif type_ == 'pedestrian':
-            width = np.minimum(0.8, width)
+            width = np.minimum(width, 0.8)
         elif type_ == 'cyclist':
-            width = np.minimum(1, width)
+            width = np.minimum(width, 1)
 
         # 使用旋转矩阵计算矩形左下角点a的坐标
         a = (np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
@@ -234,7 +235,14 @@ class RectPoints:
             [[-length / 2], [width / 2]])).reshape(1, 2) + np.array([[x, y]])
 
         # 返回矩形的四个顶点的坐标
-        return distance, *a[0], *b[0], *c[0], *d[0]
+        pt_0_x, pt_0_y = a[0]
+        pt_1_x, pt_1_y = b[0]
+        pt_2_x, pt_2_y = c[0]
+        pt_3_x, pt_3_y = d[0]
+        pts = [[pt_0_x, pt_0_y], [pt_1_x, pt_1_y], [pt_2_x, pt_2_y], [pt_3_x, pt_3_y]]
+        sorted_pts = sorted(pts, key=lambda p: abs(p[0]))
+        closest_pt_x, closest_pt_y = sorted_pts[0]
+        return distance, *a[0], *b[0], *c[0], *d[0], closest_pt_x, closest_pt_y
 
 
 class VisionAngleRange:

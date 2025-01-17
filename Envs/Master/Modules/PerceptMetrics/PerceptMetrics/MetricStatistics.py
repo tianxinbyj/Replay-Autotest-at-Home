@@ -93,14 +93,14 @@ class XError:
         data = input_data
 
         x_abs_mean = data['x.error_abs'].mean()
-        x_abs_90 = data['x.error_abs'].quantile(0.9)
+        x_abs_68 = data['x.error_abs'].quantile(0.68)
         x_abs_95 = data['x.error_abs'].quantile(0.95)
 
         x_origin_mean = data['x.error'].mean()
         x_origin_std = data['x.error'].std()
 
         x_p_abs_mean = data['x.error%_abs'].mean()
-        x_p_abs_90 = data['x.error%_abs'].quantile(0.9)
+        x_p_abs_68 = data['x.error%_abs'].quantile(0.68)
         x_p_abs_95 = data['x.error%_abs'].quantile(0.95)
 
         x_p_origin_mean = data['x.error%'].mean()
@@ -109,9 +109,9 @@ class XError:
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
-            'x_abs_mean[m]': x_abs_mean, 'x_abs_90[m]': x_abs_90, 'x_abs_95[m]': x_abs_95,
+            'x_abs_mean[m]': x_abs_mean, 'x_abs_68[m]': x_abs_68, 'x_abs_95[m]': x_abs_95,
             'x_origin_mean[m]': x_origin_mean, 'x_origin_std[m]': x_origin_std,
-            'x%_abs_mean': x_p_abs_mean, 'x%_abs_90': x_p_abs_90, 'x%_abs_95': x_p_abs_95,
+            'x%_abs_mean': x_p_abs_mean, 'x%_abs_68': x_p_abs_68, 'x%_abs_95': x_p_abs_95,
             'x%_origin_mean': x_p_origin_mean, 'x%_origin_std': x_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
@@ -132,14 +132,14 @@ class YError:
         data = input_data
 
         y_abs_mean = data['y.error_abs'].mean()
-        y_abs_90 = data['y.error_abs'].quantile(0.9)
+        y_abs_68 = data['y.error_abs'].quantile(0.68)
         y_abs_95 = data['y.error_abs'].quantile(0.95)
 
         y_origin_mean = data['y.error'].mean()
         y_origin_std = data['y.error'].std()
 
         y_p_abs_mean = data['y.error%_abs'].mean()
-        y_p_abs_90 = data['y.error%_abs'].quantile(0.9)
+        y_p_abs_68 = data['y.error%_abs'].quantile(0.68)
         y_p_abs_95 = data['y.error%_abs'].quantile(0.95)
 
         y_p_origin_mean = data['y.error%'].mean()
@@ -148,9 +148,9 @@ class YError:
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
-            'y_abs_mean[m]': y_abs_mean, 'y_abs_90[m]': y_abs_90, 'y_abs_95[m]': y_abs_95,
+            'y_abs_mean[m]': y_abs_mean, 'y_abs_68[m]': y_abs_68, 'y_abs_95[m]': y_abs_95,
             'y_origin_mean[m]': y_origin_mean, 'y_origin_std[m]': y_origin_std,
-            'y%_abs_mean': y_p_abs_mean, 'y%_abs_90': y_p_abs_90, 'y%_abs_95': y_p_abs_95,
+            'y%_abs_mean': y_p_abs_mean, 'y%_abs_68': y_p_abs_68, 'y%_abs_95': y_p_abs_95,
             'y%_origin_mean': y_p_origin_mean, 'y%_origin_std': y_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
@@ -171,14 +171,14 @@ class VxError:
         data = input_data
 
         vx_abs_mean = data['vx.error_abs'].mean()
-        vx_abs_90 = data['vx.error_abs'].quantile(0.9)
+        vx_abs_68 = data['vx.error_abs'].quantile(0.68)
         vx_abs_95 = data['vx.error_abs'].quantile(0.95)
 
         vx_origin_mean = data['vx.error'].mean()
         vx_origin_std = data['vx.error'].std()
 
         vx_p_abs_mean = data['vx.error%_abs'].mean()
-        vx_p_abs_90 = data['vx.error%_abs'].quantile(0.9)
+        vx_p_abs_68 = data['vx.error%_abs'].quantile(0.68)
         vx_p_abs_95 = data['vx.error%_abs'].quantile(0.95)
 
         vx_p_origin_mean = data['vx.error%'].mean()
@@ -187,9 +187,9 @@ class VxError:
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
-            'vx_abs_mean[m/s]': vx_abs_mean, 'vx_abs_90[m/s]': vx_abs_90, 'vx_abs_95[m/s]': vx_abs_95,
+            'vx_abs_mean[m/s]': vx_abs_mean, 'vx_abs_68[m/s]': vx_abs_68, 'vx_abs_95[m/s]': vx_abs_95,
             'vx_origin_mean[m/s]': vx_origin_mean, 'vx_origin_std[m/s]': vx_origin_std,
-            'vx%_abs_mean': vx_p_abs_mean, 'vx%_abs_90': vx_p_abs_90, 'vx%_abs_95': vx_p_abs_95,
+            'vx%_abs_mean': vx_p_abs_mean, 'vx%_abs_68': vx_p_abs_68, 'vx%_abs_95': vx_p_abs_95,
             'vx%_origin_mean': vx_p_origin_mean, 'vx%_origin_std': vx_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
@@ -210,14 +210,14 @@ class VyError:
         data = input_data
 
         vy_abs_mean = data['vy.error_abs'].mean()
-        vy_abs_90 = data['vy.error_abs'].quantile(0.9)
+        vy_abs_68 = data['vy.error_abs'].quantile(0.68)
         vy_abs_95 = data['vy.error_abs'].quantile(0.95)
 
         vy_origin_mean = data['vy.error'].mean()
         vy_origin_std = data['vy.error'].std()
 
         vy_p_abs_mean = data['vy.error%_abs'].mean()
-        vy_p_abs_90 = data['vy.error%_abs'].quantile(0.9)
+        vy_p_abs_68 = data['vy.error%_abs'].quantile(0.68)
         vy_p_abs_95 = data['vy.error%_abs'].quantile(0.95)
 
         vy_p_origin_mean = data['vy.error%'].mean()
@@ -226,9 +226,9 @@ class VyError:
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
-            'vy_abs_mean[m/s]': vy_abs_mean, 'vy_abs_90[m/s]': vy_abs_90, 'vy_abs_95[m/s]': vy_abs_95,
+            'vy_abs_mean[m/s]': vy_abs_mean, 'vy_abs_68[m/s]': vy_abs_68, 'vy_abs_95[m/s]': vy_abs_95,
             'vy_origin_mean[m/s]': vy_origin_mean, 'vy_origin_std[m/s]': vy_origin_std,
-            'vy%_abs_mean': vy_p_abs_mean, 'vy%_abs_90': vy_p_abs_90, 'vy%_abs_95': vy_p_abs_95,
+            'vy%_abs_mean': vy_p_abs_mean, 'vy%_abs_68': vy_p_abs_68, 'vy%_abs_95': vy_p_abs_95,
             'vy%_origin_mean': vy_p_origin_mean, 'vy%_origin_std': vy_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
@@ -249,7 +249,7 @@ class YawError:
         data = input_data
 
         yaw_abs_mean = data['yaw.error_abs'].mean()
-        yaw_abs_90 = data['yaw.error_abs'].quantile(0.9)
+        yaw_abs_68 = data['yaw.error_abs'].quantile(0.68)
         yaw_abs_95 = data['yaw.error_abs'].quantile(0.95)
 
         yaw_origin_mean = data['yaw.error'].mean()
@@ -259,7 +259,7 @@ class YawError:
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
-            'yaw_abs_mean[deg]': yaw_abs_mean, 'yaw_abs_90[deg]': yaw_abs_90, 'yaw_abs_95[deg]': yaw_abs_95,
+            'yaw_abs_mean[deg]': yaw_abs_mean, 'yaw_abs_68[deg]': yaw_abs_68, 'yaw_abs_95[deg]': yaw_abs_95,
             'yaw_origin_mean[deg]': yaw_origin_mean, 'yaw_origin_std[deg]': yaw_origin_std,
             'reverse%': reverse_ratio,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
@@ -278,17 +278,17 @@ class LengthError:
         if not isinstance(input_data, pd.DataFrame):
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        data = input_data
+        data = input_data[input_data['gt.type'] == input_data['pred.type']]
 
         length_abs_mean = data['length.error_abs'].mean()
-        length_abs_90 = data['length.error_abs'].quantile(0.9)
+        length_abs_68 = data['length.error_abs'].quantile(0.68)
         length_abs_95 = data['length.error_abs'].quantile(0.95)
 
         length_origin_mean = data['length.error'].mean()
         length_origin_std = data['length.error'].std()
 
         length_p_abs_mean = data['length.error%_abs'].mean()
-        length_p_abs_90 = data['length.error%_abs'].quantile(0.9)
+        length_p_abs_68 = data['length.error%_abs'].quantile(0.68)
         length_p_abs_95 = data['length.error%_abs'].quantile(0.95)
 
         length_p_origin_mean = data['length.error%'].mean()
@@ -297,9 +297,9 @@ class LengthError:
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
-            'length_abs_mean[m]': length_abs_mean, 'length_abs_90[m]': length_abs_90, 'length_abs_95[m]': length_abs_95,
+            'length_abs_mean[m]': length_abs_mean, 'length_abs_68[m]': length_abs_68, 'length_abs_95[m]': length_abs_95,
             'length_origin_mean[m]': length_origin_mean, 'length_origin_std[m]': length_origin_std,
-            'length%_abs_mean': length_p_abs_mean, 'length%_abs_90': length_p_abs_90, 'length%_abs_95': length_p_abs_95,
+            'length%_abs_mean': length_p_abs_mean, 'length%_abs_68': length_p_abs_68, 'length%_abs_95': length_p_abs_95,
             'length%_origin_mean': length_p_origin_mean, 'length%_origin_std': length_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
@@ -317,17 +317,17 @@ class WidthError:
         if not isinstance(input_data, pd.DataFrame):
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        data = input_data
+        data = input_data[input_data['gt.type'] == input_data['pred.type']]
 
         width_abs_mean = data['width.error_abs'].mean()
-        width_abs_90 = data['width.error_abs'].quantile(0.9)
+        width_abs_68 = data['width.error_abs'].quantile(0.68)
         width_abs_95 = data['width.error_abs'].quantile(0.95)
 
         width_origin_mean = data['width.error'].mean()
         width_origin_std = data['width.error'].std()
 
         width_p_abs_mean = data['width.error%_abs'].mean()
-        width_p_abs_90 = data['width.error%_abs'].quantile(0.9)
+        width_p_abs_68 = data['width.error%_abs'].quantile(0.68)
         width_p_abs_95 = data['width.error%_abs'].quantile(0.95)
 
         width_p_origin_mean = data['width.error%'].mean()
@@ -336,9 +336,9 @@ class WidthError:
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
-            'width_abs_mean[m]': width_abs_mean, 'width_abs_90[m]': width_abs_90, 'width_abs_95[m]': width_abs_95,
+            'width_abs_mean[m]': width_abs_mean, 'width_abs_68[m]': width_abs_68, 'width_abs_95[m]': width_abs_95,
             'width_origin_mean[m]': width_origin_mean, 'width_origin_std[m]': width_origin_std,
-            'width%_abs_mean': width_p_abs_mean, 'width%_abs_90': width_p_abs_90, 'width%_abs_95': width_p_abs_95,
+            'width%_abs_mean': width_p_abs_mean, 'width%_abs_68': width_p_abs_68, 'width%_abs_95': width_p_abs_95,
             'width%_origin_mean': width_p_origin_mean, 'width%_origin_std': width_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
@@ -356,17 +356,17 @@ class HeightError:
         if not isinstance(input_data, pd.DataFrame):
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        data = input_data
+        data = input_data[input_data['gt.type'] == input_data['pred.type']]
 
         height_abs_mean = data['height.error_abs'].mean()
-        height_abs_90 = data['height.error_abs'].quantile(0.9)
+        height_abs_68 = data['height.error_abs'].quantile(0.68)
         height_abs_95 = data['height.error_abs'].quantile(0.95)
 
         height_origin_mean = data['height.error'].mean()
         height_origin_std = data['height.error'].std()
 
         height_p_abs_mean = data['height.error%_abs'].mean()
-        height_p_abs_90 = data['height.error%_abs'].quantile(0.9)
+        height_p_abs_68 = data['height.error%_abs'].quantile(0.68)
         height_p_abs_95 = data['height.error%_abs'].quantile(0.95)
 
         height_p_origin_mean = data['height.error%'].mean()
@@ -375,9 +375,9 @@ class HeightError:
         pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
 
         res = {
-            'height_abs_mean[m]': height_abs_mean, 'height_abs_90[m]': height_abs_90, 'height_abs_95[m]': height_abs_95,
+            'height_abs_mean[m]': height_abs_mean, 'height_abs_68[m]': height_abs_68, 'height_abs_95[m]': height_abs_95,
             'height_origin_mean[m]': height_origin_mean, 'height_origin_std[m]': height_origin_std,
-            'height%_abs_mean': height_p_abs_mean, 'height%_abs_90': height_p_abs_90, 'height%_abs_95': height_p_abs_95,
+            'height%_abs_mean': height_p_abs_mean, 'height%_abs_68': height_p_abs_68, 'height%_abs_95': height_p_abs_95,
             'height%_origin_mean': height_p_origin_mean, 'height%_origin_std': height_p_origin_std,
             'sample_count': len(data), 'pass_ratio%': pass_ratio,
         }
