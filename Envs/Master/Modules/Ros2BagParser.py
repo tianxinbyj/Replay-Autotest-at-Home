@@ -8,7 +8,6 @@ import csv
 import glob
 import multiprocessing as mp
 import os
-import shutil
 import time
 import warnings
 from pathlib import Path
@@ -1633,11 +1632,11 @@ class Ros2BagParser:
                         c_x_2 = line3d_data.x_coeffs[2]
                         c_x_3 = line3d_data.x_coeffs[3]
 
-                        # c_y_0 = line3d_data.y_coeffs[0]
-                        # c_y_1 = line3d_data.y_coeffs[1]
-                        # c_y_2 = line3d_data.y_coeffs[2]
-                        # c_y_3 = line3d_data.y_coeffs[3]
-                        c_y_3, c_y_2, c_y_1, c_y_0 = np.polyfit(x_points, y_points, 3)
+                        c_y_0 = line3d_data.y_coeffs[0]
+                        c_y_1 = line3d_data.y_coeffs[1]
+                        c_y_2 = line3d_data.y_coeffs[2]
+                        c_y_3 = line3d_data.y_coeffs[3]
+                        # c_y_3, c_y_2, c_y_1, c_y_0 = np.polyfit(x_points, y_points, 3)
 
                         end_x = x_points[points_num - 1]
 
