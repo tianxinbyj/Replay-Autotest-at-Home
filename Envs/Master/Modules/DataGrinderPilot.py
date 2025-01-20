@@ -2160,6 +2160,7 @@ class DataGrinderPilotObstaclesOneTask:
                     'version': self.test_config['version'],
                     'test_topic': self.test_config['test_topic'],
                     'test_date': str(self.test_config['test_date']),
+                    'kpi_date_label': self.test_config['kpi_date_label'],
                     'pred_folder': os.path.join(self.test_config['pred_folder'], scenario_id),
                     'gt_folder': os.path.join(self.test_config['gt_folder'], scenario_id),
                     'test_action': self.test_action['scenario_unit'],
