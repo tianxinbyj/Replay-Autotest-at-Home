@@ -348,6 +348,7 @@ class ReplayController:
                                 shutil.rmtree(raw_folder)
 
                         invalid_scenario_list = copy.deepcopy(self.invalid_scenario_list)
+                        send_log(self, f'reboot_count={self.reboot_count}, 重启后录制的场景为{invalid_scenario_list}')
                         for invalid_scenario_id in invalid_scenario_list:
                             self.replay_one_scenario(calib_checksum, invalid_scenario_id)
 
@@ -363,6 +364,7 @@ class ReplayController:
                         shutil.rmtree(raw_folder)
 
                 invalid_scenario_list = copy.deepcopy(self.invalid_scenario_list)
+                send_log(self, f'reboot_count={self.reboot_count}, 重启后录制的场景为{invalid_scenario_list}')
                 for invalid_scenario_id in invalid_scenario_list:
                     self.replay_one_scenario(calib_checksum, invalid_scenario_id)
 
@@ -433,11 +435,17 @@ class ReplayController:
             if scenario_id in self.scenario_replay_count:
                 replay_count = self.scenario_replay_count[scenario_id]
                 date_time = self.scenario_replay_datetime[scenario_id]
+                if os.path.exists(statistics_path):
+                    topic_output_statistics = pd.read_csv(statistics_path, index_col=0)
+                    if scenario_id in topic_output_statistics.index:
+                        replay_count += topic_output_statistics.at[scenario_id, 'replay_count']
+
             elif os.path.exists(statistics_path):
                 topic_output_statistics = pd.read_csv(statistics_path, index_col=0)
                 if scenario_id in topic_output_statistics.index:
                     replay_count = topic_output_statistics.at[scenario_id, 'replay_count']
                     date_time = topic_output_statistics.at[scenario_id, 'record_time']
+
             row.extend([scenario_calib_checksum, date_time, replay_count, valid_flag])
             index.append(scenario_id)
             rows.append(row)
