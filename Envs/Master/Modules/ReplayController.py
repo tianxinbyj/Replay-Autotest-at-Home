@@ -299,7 +299,6 @@ class ReplayController:
 
             if scenario_id in scenario_is_valid and scenario_is_valid[scenario_id] == 1:
                 send_log(self, f'{scenario_id} 场景录制成功，尝试次数-{try_count}')
-                print('=============================================================')
                 break
 
             if try_count == self.replay_action['retest']:
