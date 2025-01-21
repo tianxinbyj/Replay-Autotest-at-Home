@@ -279,6 +279,7 @@ class ReplayController:
         try_count = 0
         while True:
             try_count += 1
+            send_log(self, '===============================================')
             send_log(self, f'{scenario_id} 第{try_count}次场景录制开始')
             self.start_replay_and_record(scenario_id)
 
