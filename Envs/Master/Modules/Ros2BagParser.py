@@ -1417,7 +1417,7 @@ class Ros2BagParser:
                     cone_num = obstacles2d.cone_num
                     cone_info_list = obstacles2d.cone
 
-                    for veh_id in range(veh_num):
+                    for veh_id in range(min(veh_num, 32)):
                         obj_data = veh_info_list[veh_id]
                         ob_id += 1
                         world_info = obj_data.world_info
@@ -1441,7 +1441,7 @@ class Ros2BagParser:
                                 0, 0, 0, 0, 0,
                             ])
 
-                    for ped_cyc_id in range(ped_cyc_num):
+                    for ped_cyc_id in range(min(ped_cyc_num, 32)):
                         obj_data = ped_cyc_info_list[ped_cyc_id]
                         ob_id += 1
                         world_info = obj_data.world_info
@@ -2834,21 +2834,21 @@ if __name__ == "__main__":
     # dd = Ros2BagClip(workspace)
     # dd.cutRosbag(src_path, dst_path, topic_list, [1732693156, 1732695736])
 
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/03_Workspace'
-    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/01_Prediction/20241111_093841_n000013/20241111_093841_n000013_2025-01-07-11-39-42'
-    folder = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/123'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/03_Workspace'
+    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/01_Prediction/20241111_155436_n000008/20241111_155436_n000008_2025-01-20-18-09-47'
+    folder = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/01_Prediction/20241111_155436_n000008/RawData'
     ES39_topic_list = [
-            '/PI/EG/EgoMotionInfo',
+            # '/PI/EG/EgoMotionInfo',
             # '/VA/VehicleMotionIpd',
             # '/VA/BevObstaclesDet',
-            # '/VA/FrontWideObstacles2dDet',
-            # '/VA/BackViewObstacles2dDet',
-            '/VA/BevLines',
-            '/VA/Obstacles',
+            '/VA/FrontWideObstacles2dDet',
+            '/VA/BackViewObstacles2dDet',
+            # '/VA/BevLines',
+            # '/VA/Obstacles',
             # '/PI/FS/ObjTracksHorizon',
             # '/PK/DR/Result',
             # '/SA/INSPVA',
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, 'xxxxxxxxx')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20241111_155436_n000008')

@@ -2122,6 +2122,7 @@ class DataGrinderPilotObstaclesOneTask:
         self.test_date = str(self.test_config['test_date'])
         self.kpi_date_label = self.test_config['kpi_date_label']
         self.test_information = test_encyclopaedia['Information'][self.test_topic]
+        self.scenario_update = self.test_config['test_action']['scenario_unit']['scenario_update']
 
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_action = self.test_config['test_action']
@@ -2183,6 +2184,10 @@ class DataGrinderPilotObstaclesOneTask:
                 }
 
         for scenario_id, scenario_run_info in scenario_run_list.items():
+
+            if os.path.exists(scenario_run_info['scenario_config_yaml']) and (not self.scenario_update):
+                continue
+
             self.test_result['ScenarioUnit'][scenario_id] = (
                 self.get_relpath(scenario_run_info['scenario_unit_folder']))
             create_folder(scenario_run_info['scenario_unit_folder'], False)
