@@ -838,7 +838,7 @@ class LinesCoefficient:
         length = self.cubic_curve_length(c3, c2, c1, min(f_x_points), max(f_x_points))
         pts_num = len(f_x_points)
 
-        if length < 2:
+        if length < 2 or pts_num < 2:
             radius, length_valid, radius_valid = 0, 0, 0
         else:
             length_valid = 1
@@ -928,7 +928,7 @@ class LinesPreprocess:
             elif func.type == 'by_frame':
                 data = func(data)
 
-        return data
+        return data.sort_values(by=['time_stamp', 'c0'])
 
 
 if __name__ == '__main__':

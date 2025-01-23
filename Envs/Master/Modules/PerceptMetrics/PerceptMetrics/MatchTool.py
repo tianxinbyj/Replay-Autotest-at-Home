@@ -7,6 +7,8 @@ from typing import List
 import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment
+from shapely.geometry import LineString
+from shapely.geometry import CAP_STYLE, JOIN_STYLE
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -177,3 +179,169 @@ class ObstaclesMatchTool:
             return True
 
         return False
+
+
+class LinesMatchTool:
+
+    def __init__(self):
+        self.lane_matching_width = 1
+
+    def run(self, input_data, input_parameter_container=None):
+        if input_parameter_container is not None:
+            self.lane_matching_width = input_parameter_container['lane_matching_width']
+
+        match_timestamp = input_data['match_timestamp']
+        gt_data = input_data['gt_data']
+        pred_data = input_data['pred_data']
+        gt_column = gt_data.columns
+        pred_column = pred_data.columns
+        total_column = (['gt.flag', 'pred.flag']
+                        + [f'gt.{col}' for col in gt_column]
+                        + [f'pred.{col}' for col in pred_column] + ['IOU'])
+        match_data_rows = []
+
+        for row_idx, row in match_timestamp.iterrows():
+            frame_gt_data = gt_data[gt_data['time_stamp'] == row['gt_timestamp']]
+
+            if not len(frame_gt_data):
+                print(f'{row["gt_timestamp"]} sec GroundTruth 无目标')
+
+            frame_pred_data = pred_data[pred_data['time_stamp'] == row['pred_timestamp']]
+            if not len(frame_pred_data):
+                print(f'{row["pred_timestamp"]} sec Prediction 无目标')
+
+            # 将匹配的行的id填入，用于筛选TP,TF和FP
+            match_pred_idx_list, match_gt_idx_list = [], []
+
+            # TP样本
+            if len(frame_gt_data) and len(frame_pred_data):
+
+                gt_lines_shapely = []
+                gt_lines = []
+                for gt_idx, gt_row in frame_gt_data.iterrows():
+                    x_pts = gt_row['x_pts'].split(',')
+                    y_pts = gt_row['y_pts'].split(',')
+                    if gt_row['length_valid']:
+                        gt_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
+                        gt_lines.append(gt_line)
+                        gt_lines_shapely.append(LineString(gt_line).buffer(self.lane_matching_width,
+                                                                           cap_style=CAP_STYLE.flat,
+                                                                           join_style=JOIN_STYLE.mitre))
+
+                        if round(row['gt_timestamp'], 2) == 1731292790.98:
+                            print(gt_idx)
+                            print(gt_line)
+
+                pred_lines_shapely = []
+                pred_lines = []
+                for pred_idx, pred_row in frame_pred_data.iterrows():
+                    x_pts = pred_row['x_pts'].split(',')
+                    y_pts = pred_row['y_pts'].split(',')
+                    if pred_row['length_valid']:
+                        pred_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
+                        pred_lines.append(pred_line)
+                        pred_lines_shapely.append(LineString(pred_line).buffer(self.lane_matching_width,
+                                                                               cap_style=CAP_STYLE.flat,
+                                                                               join_style=JOIN_STYLE.mitre))
+
+
+                loss_data = []
+                for gt_i, gt_line in enumerate(gt_lines_shapely):
+
+                    loss_data_row = []
+                    for pred_i, pred_line in enumerate(pred_lines_shapely):
+                        union = pred_line.union(gt_line)
+                        intersection = pred_line.intersection(gt_line)
+                        loss_data_row.append(-intersection.area/union.area)
+
+                    loss_data.append(loss_data_row)
+
+                # 使用匈牙利算法找到最小总距离的匹配
+                loss_data = np.array(loss_data)
+
+                if np.sum(loss_data):
+                    row_ind, col_ind = linear_sum_assignment(loss_data)
+                    for i, j in zip(row_ind, col_ind):
+                        if loss_data[i, j] >= -0.1:
+                            continue
+
+                        gt_idx = frame_gt_data.index[i]
+                        pred_idx = frame_pred_data.index[j]
+                        match_gt_idx_list.append(gt_idx)
+                        match_pred_idx_list.append(pred_idx)
+
+                        gt_flag, pred_flag = 1, 1
+                        this_row = [gt_flag, pred_flag]
+                        for col in gt_column:
+                            this_row.append(gt_data.at[gt_idx, col])
+                        for col in pred_column:
+                            this_row.append(pred_data.at[pred_idx, col])
+                        this_row.append(-loss_data[i, j])
+                        match_data_rows.append(this_row)
+
+            no_match_gt_idx_list = [idx for idx in frame_gt_data.index if idx not in match_gt_idx_list]
+            no_match_pred_idx_list = [idx for idx in frame_pred_data.index if idx not in match_pred_idx_list]
+            print(f'{row_idx}，{row["gt_timestamp"]:.3f}, 结算完毕, '
+                  f'TP-{len(match_pred_idx_list)}, '
+                  f'FN-{len(no_match_gt_idx_list)}, '
+                  f'FP-{len(no_match_pred_idx_list)}')
+
+            for gt_idx in no_match_gt_idx_list:
+                gt_flag, pred_flag = 1, 0
+                if gt_data.at[gt_idx, 'length_valid']:
+                    this_row = [gt_flag, pred_flag]
+                    for col in gt_column:
+                        this_row.append(gt_data.at[gt_idx, col])
+                    for col in pred_column:
+                        if col == 'time_stamp':
+                            this_row.append(row['pred_timestamp'])
+                        else:
+                            this_row.append(None)
+                    this_row.append(0)
+                    match_data_rows.append(this_row)
+
+            for pred_idx in no_match_pred_idx_list:
+                gt_flag, pred_flag = 0, 1
+                if pred_data.at[pred_idx, 'length_valid']:
+                    this_row = [gt_flag, pred_flag]
+                    for col in gt_column:
+                        if col == 'time_stamp':
+                            this_row.append(row['gt_timestamp'])
+                        else:
+                            this_row.append(None)
+                    for col in pred_column:
+                        this_row.append(pred_data.at[pred_idx, col])
+                    this_row.append(0)
+                    match_data_rows.append(this_row)
+
+        data = pd.DataFrame(match_data_rows, columns=total_column)
+        # 进一步过滤极端异常数据
+        # 过滤内容为长度有效性
+        data.drop(data[data['gt.length_valid'] == 0].index, axis=0, inplace=True)
+        data.insert(0, 'corresponding_index', range(len(data)))
+        return data
+
+
+if __name__ == '__main__':
+    pred_data_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/VABevLines/additional/pred_data.csv'
+    gt_data_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/GroundTruth/additional/VABevLines_gt_data.csv'
+    match_timestamp_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/VABevLines/match/match_timestamp.csv'
+
+    pred_data = pd.read_csv(pred_data_path, index_col=False)
+    gt_data = pd.read_csv(gt_data_path, index_col=False)
+    match_timestamp = pd.read_csv(match_timestamp_path, index_col=False)
+
+    parameter_json = {
+        'lane_matching_width': 1
+    }
+
+    match_tool = LinesMatchTool()
+
+    input_data = {
+        'match_timestamp': match_timestamp,
+        'gt_data': gt_data,
+        'pred_data': pred_data,
+    }
+
+    data = match_tool.run(input_data, parameter_json)
+    data.to_csv('123.csv', index=False, encoding='utf_8_sig')

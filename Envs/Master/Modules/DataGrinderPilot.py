@@ -375,28 +375,6 @@ class DataGrinderOneCase:
             shutil.rmtree(new_scenario_info_folder)
         os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
 
-    def get_relpath(self, path: str) -> str:
-        return os.path.relpath(path, self.scenario_unit_folder)
-
-    def get_abspath(self, path: str) -> str:
-        return os.path.join(self.scenario_unit_folder, path)
-
-    def save_test_result(self):
-        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
-            yaml.dump(self.test_result,
-                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
-
-    def load_test_result(self):
-        with open(self.test_result_yaml) as f:
-            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
-
-
-class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
-
-    def __init__(self, scenario_unit_folder):
-        super().__init__(scenario_unit_folder)
-        send_log(self, '=' * 25 + self.__class__.__name__ + '=' * 25)
-
     @sync_test_result
     def load_gt_data(self):
         gt_config_path = os.path.join(self.gt_raw_folder, 'yaml_management.yaml')
@@ -407,14 +385,15 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
         with open(gt_config_path) as f:
             gt_config = yaml.load(f, Loader=yaml.FullLoader)
 
-        gt_topic_mappings = {
-            'Obstacles': 'od_csv',
-            'Objects': 'object_csv',
-            'Lines': 'lanebev_csv',
-        }
+        if self.test_topic == 'Obstacles':
+            gt_topic = 'od'
+        elif self.test_topic == 'Lines':
+            gt_topic = 'line'
+        else:
+            send_log(self, '未知的测试主题')
+            return
 
-        gt_topic = gt_topic_mappings[self.test_topic]
-        flag = '{:s}_flag'.format(gt_topic)
+        flag = '{:s}_csv_flag'.format(gt_topic)
         timestamp_csv_tag = '{:s}_timestamp'.format(gt_topic.split('_')[0])
 
         if not (flag in gt_config.keys() and gt_config[flag]):
@@ -425,21 +404,21 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
 
         # 读取原始数据
         csv_data = []
-        for csv_file in gt_config['{:s}_list'.format(gt_topic)]:
-            csv_path = os.path.join(self.gt_raw_folder, gt_topic, csv_file)
+        for f in os.listdir(os.path.join(self.gt_raw_folder, f'{gt_topic}_csv')):
+            csv_path = os.path.join(self.gt_raw_folder, f'{gt_topic}_csv', f)
             csv_data.append(pd.read_csv(csv_path, index_col=False))
-        gt_data = pd.concat(csv_data).rename(columns={
-            'timestamp': 'time_stamp',
-            'od_json_sequence': 'frame_id',
-            'subtype': 'sub_type',
-            'type_conf_3d': 'confidence',
-        }).sort_values(by=['time_stamp'])
+        gt_data = pd.concat(csv_data)
 
-        if gt_topic == 'od_csv':
+        if self.test_topic == 'Obstacles':
+            gt_data = gt_data.rename(columns={
+                'timestamp': 'time_stamp',
+                'od_json_sequence': 'frame_id',
+                'subtype': 'sub_type',
+                'type_conf_3d': 'confidence',
+            }).sort_values(by=['time_stamp'])
             gt_data['vx_rel'] = gt_data['vx'] - gt_data['ego_v']
             gt_data['vy_rel'] = gt_data['vy']
             gt_data = gt_data[gt_data['type'].isin([1, 2, 18])]
-            gt_data = gt_data[gt_data['sub_type'] != 10]
 
         # 读取时间辍, 用于时间辍匹配
         gt_timestamp_csv = \
@@ -605,15 +584,26 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
                 continue
 
             topic_tag = topic.replace('/', '')
-            input_parameter_container = {
-                'camera': self.test_result['General']['camera_position'],
-                'coverage_reference_point': self.test_config['coverage_reference_point'],
-                'coverage_threshold': self.test_config['coverage_threshold'],
-                'ROI': self.test_config['detected_ROI'][topic],
-                'lane_width': 3.6,
-                'moving_threshold': 2,
-                'key_coverage_threshold': 0.1,
-            }
+
+            if self.test_topic == 'Obstacles':
+                input_parameter_container = {
+                    'camera': self.test_result['General']['camera_position'],
+                    'coverage_reference_point': self.test_config['coverage_reference_point'],
+                    'coverage_threshold': self.test_config['coverage_threshold'],
+                    'ROI': self.test_config['detected_ROI'][topic],
+                    'lane_width': 3.6,
+                    'moving_threshold': 2,
+                    'key_coverage_threshold': 0.1,
+                    'test_topic': self.test_topic,
+                }
+            elif self.test_topic == 'Lines':
+                input_parameter_container = {
+                    'lane_width': 3.6,
+                    'test_topic': self.test_topic,
+                }
+            else:
+                return
+
             parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
             with open(parameter_json_path, 'w', encoding='utf-8') as f:
                 json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
@@ -671,15 +661,26 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
                 data['time_stamp'] += time_gap
                 data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
                 data.to_csv(path, index=False, encoding='utf_8_sig')
-                input_parameter_container = {
-                    'camera': self.test_result['General']['camera_position'],
-                    'coverage_reference_point': self.test_config['coverage_reference_point'],
-                    'coverage_threshold': self.test_config['coverage_threshold'],
-                    'ROI': self.test_config['detected_ROI'][topic],
-                    'lane_width': 3.6,
-                    'moving_threshold': 2,
-                    'key_coverage_threshold': 0.1,
-                }
+
+                if self.test_topic == 'Obstacles':
+                    input_parameter_container = {
+                        'camera': self.test_result['General']['camera_position'],
+                        'coverage_reference_point': self.test_config['coverage_reference_point'],
+                        'coverage_threshold': self.test_config['coverage_threshold'],
+                        'ROI': self.test_config['detected_ROI'][topic],
+                        'lane_width': 3.6,
+                        'moving_threshold': 2,
+                        'key_coverage_threshold': 0.1,
+                        'test_topic': self.test_topic,
+                    }
+                elif self.test_topic == 'Lines':
+                    input_parameter_container = {
+                        'lane_width': 3.6,
+                        'test_topic': self.test_topic,
+                    }
+                else:
+                    return
+
                 parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
@@ -786,9 +787,18 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             gt_data_path = self.get_abspath(
                 self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'][topic])
 
-            input_parameter_container = {
-                'object_matching_tolerance': self.test_config['object_matching_tolerance'],
-            }
+            if self.test_topic == 'Obstacles':
+                input_parameter_container = {
+                    'object_matching_tolerance': self.test_config['object_matching_tolerance'],
+                    'test_topic': self.test_topic,
+                }
+            elif self.test_topic == 'Lines':
+                input_parameter_container = {
+                    'lane_matching_width': self.test_config['lane_matching_width'],
+                    'test_topic': self.test_topic,
+                }
+            else:
+                return
 
             parameter_json_path = os.path.join(get_project_path(), 'Temp', 'match_api_parameter.json')
             with open(parameter_json_path, 'w', encoding='utf-8') as f:
@@ -797,7 +807,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
 
             cmd = [
                 f"{bench_config['master']['sys_interpreter']}",
-                "Api_MatchObstacles.py",
+                "Api_MatchData.py",
                 "-p", pred_data_path,
                 "-g", gt_data_path,
                 "-t", match_timestamp_path,
@@ -817,59 +827,78 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             self.test_result[self.test_topic][topic]['match']['match_data'] = self.get_relpath(path)
             data.to_csv(path, index=False, encoding='utf_8_sig')
 
+    def get_relpath(self, path: str) -> str:
+        return os.path.relpath(path, self.scenario_unit_folder)
+
+    def get_abspath(self, path: str) -> str:
+        return os.path.join(self.scenario_unit_folder, path)
+
+    def save_test_result(self):
+        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
+            yaml.dump(self.test_result,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+
+    def load_test_result(self):
+        with open(self.test_result_yaml) as f:
+            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+
+class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
+
     @sync_test_result
     def evaluate_metrics(self):
         send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
 
         for topic in self.test_result[self.test_topic].keys():
-                if topic == 'GroundTruth':
-                    continue
 
-                topic_tag = topic.replace('/', '')
-                metric_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'metric')
-                create_folder(metric_folder)
-                if 'metric' not in self.test_result[self.test_topic][topic]:
-                    self.test_result[self.test_topic][topic]['metric'] = {}
+            if topic == 'GroundTruth':
+                continue
 
-                # 确认是否需要继续计算
-                raw = self.test_result[self.test_topic][topic]['raw']
-                data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
-                if not len(data):
-                    send_log(self, f'{self.scenario_id} {topic} 不计算metric数据')
-                    continue
+            topic_tag = topic.replace('/', '')
+            metric_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'metric')
+            create_folder(metric_folder)
+            if 'metric' not in self.test_result[self.test_topic][topic]:
+                self.test_result[self.test_topic][topic]['metric'] = {}
 
-                match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
+            # 确认是否需要继续计算
+            raw = self.test_result[self.test_topic][topic]['raw']
+            data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
+            if not len(data):
+                send_log(self, f'{self.scenario_id} {topic} 不计算metric数据')
+                continue
 
-                input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
-                    'characteristic_type': self.test_config['target_characteristic'],
-                    'kpi_date_label': self.kpi_date_label,
-                }
-                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
-                with open(parameter_json_path, 'w', encoding='utf-8') as f:
-                    json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+            match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
 
-                cmd = [
-                    f"{bench_config['master']['sys_interpreter']}",
-                    "Api_EvaluateMetrics.py",
-                    "-m", self.get_abspath(match_data_path),
-                    "-j", parameter_json_path,
-                    "-f", metric_folder,
-                ]
+            input_parameter_container = {
+                'metric_type': self.test_config['test_item'][topic],
+                'characteristic_type': self.test_config['target_characteristic'],
+                'kpi_date_label': self.kpi_date_label,
+            }
+            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
+            with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
-                send_log(self, cmd)
-                send_log(self, f'{self.test_topic} {topic} 指标评估')
-                cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-                # os.remove(parameter_json_path)
-                if result.stderr and 'import numpy' not in result.stderr:
-                    send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
+            cmd = [
+                f"{bench_config['master']['sys_interpreter']}",
+                "Api_EvaluateMetrics.py",
+                "-m", self.get_abspath(match_data_path),
+                "-j", parameter_json_path,
+                "-f", metric_folder,
+            ]
 
-                for characteristic in os.listdir(metric_folder):
-                    self.test_result[self.test_topic][topic]['metric'][characteristic] = {}
-                    for metric in os.listdir(os.path.join(metric_folder, characteristic)):
-                        self.test_result[self.test_topic][topic]['metric'][characteristic][metric.split('.')[0]] \
-                            = self.get_relpath(os.path.join(metric_folder, characteristic, metric))
+            send_log(self, cmd)
+            send_log(self, f'{self.test_topic} {topic} 指标评估')
+            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+            # os.remove(parameter_json_path)
+            if result.stderr and 'import numpy' not in result.stderr:
+                send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
+
+            for characteristic in os.listdir(metric_folder):
+                self.test_result[self.test_topic][topic]['metric'][characteristic] = {}
+                for metric in os.listdir(os.path.join(metric_folder, characteristic)):
+                    self.test_result[self.test_topic][topic]['metric'][characteristic][metric.split('.')[0]] \
+                        = self.get_relpath(os.path.join(metric_folder, characteristic, metric))
 
     @sync_test_result
     def load_scenario_info(self):
@@ -3789,12 +3818,20 @@ class DataGrinderPilotObstaclesOneTask:
 
 class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
 
-    def __init__(self, scenario_unit_folder):
-        super().__init__(scenario_unit_folder)
-        send_log(self, '=' * 25 + self.__class__.__name__ + '=' * 25)
+    def start(self):
+
+        if self.test_action['preprocess']:
+            self.load_pred_data()
+            self.load_gt_data()
+            self.sync_timestamp()
+            self.promote_additional()
+
+        if self.test_action['match']:
+            self.match_timestamp()
+            self.match_object()
 
 
 if __name__ == '__main__':
-    scenario_unit_folder = '/home/zhangliwei01/ZONE/TestProject/ES39/Lines/20241111_093841_n000013'
+    scenario_unit_folder = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013'
     dgploc = DataGrinderPilotLinesOneCase(scenario_unit_folder)
-    dgploc.load_pred_data()
+    dgploc.start()
