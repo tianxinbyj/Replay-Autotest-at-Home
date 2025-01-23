@@ -862,9 +862,7 @@ data_columns = {
         [
             'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'confidence', 'position', 'marker', 'color',
-            'start_x', 'start_y', 'c_x_0', 'c_x_1', 'c_x_2', 'c_x_3',
-            'c_y_0', 'c_y_1', 'c_y_2', 'c_y_3', 'length', 'width', 'curve_type',
-            'point_num', 'x_points', 'y_points',
+            'extra_type', 'x_points', 'y_points',
         ],
     'proto_horizon_msgs/msg/Lines':
         [
@@ -1624,24 +1622,23 @@ class Ros2BagParser:
                             pt = line3d_data.points[i]
                             x_points.append(pt.x)
                             y_points.append(pt.y)
-                        start_x = x_points[0]
-                        start_y = y_points[0]
 
-                        c_x_0 = line3d_data.x_coeffs[0]
-                        c_x_1 = line3d_data.x_coeffs[1]
-                        c_x_2 = line3d_data.x_coeffs[2]
-                        c_x_3 = line3d_data.x_coeffs[3]
+                        # start_x = x_points[0]
+                        # start_y = y_points[0]
+                        #
+                        # c_x_0 = line3d_data.x_coeffs[0]
+                        # c_x_1 = line3d_data.x_coeffs[1]
+                        # c_x_2 = line3d_data.x_coeffs[2]
+                        # c_x_3 = line3d_data.x_coeffs[3]
+                        #
+                        # c_y_0 = line3d_data.y_coeffs[0]
+                        # c_y_1 = line3d_data.y_coeffs[1]
+                        # c_y_2 = line3d_data.y_coeffs[2]
+                        # c_y_3 = line3d_data.y_coeffs[3]
+                        #
+                        # end_x = x_points[points_num - 1]
+                        # width = 0.2
 
-                        c_y_0 = line3d_data.y_coeffs[0]
-                        c_y_1 = line3d_data.y_coeffs[1]
-                        c_y_2 = line3d_data.y_coeffs[2]
-                        c_y_3 = line3d_data.y_coeffs[3]
-                        # c_y_3, c_y_2, c_y_1, c_y_0 = np.polyfit(x_points, y_points, 3)
-
-                        end_x = x_points[points_num - 1]
-
-                        length = abs(end_x - start_x)
-                        width = 0.2
                         line_color = line3d_data.line_color
                         if line_type == 2:
                             line_marking = 2
@@ -1655,10 +1652,9 @@ class Ros2BagParser:
 
                         queue.put([
                             local_time, time_stamp, header_seq, header_stamp, frame_id,
-                            line_id, line_type, conf, line_position, line_marking, line_color,
-                            start_x, start_y, c_x_0, c_x_1, c_x_2, c_x_3,
-                            c_y_0, c_y_1, c_y_2, c_y_3, length, width, extra_type,
-                            points_num, x_point_str, y_point_str,
+                            line_id, line_type, conf,
+                            line_position, line_marking, line_color,
+                            extra_type, x_point_str, y_point_str,
                         ])
 
                 self.last_timestamp[topic] = time_stamp
@@ -2834,21 +2830,21 @@ if __name__ == "__main__":
     # dd = Ros2BagClip(workspace)
     # dd.cutRosbag(src_path, dst_path, topic_list, [1732693156, 1732695736])
 
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/03_Workspace'
-    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/01_Prediction/20241111_155436_n000008/20241111_155436_n000008_2025-01-20-18-09-47'
-    folder = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/01_Prediction/20241111_155436_n000008/RawData'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/03_Workspace'
+    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/01_Prediction/20241111_093841_n000013/20241111_093841_n000013_2025-01-07-11-39-42'
+    folder = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/123'
     ES39_topic_list = [
-            # '/PI/EG/EgoMotionInfo',
+            '/PI/EG/EgoMotionInfo',
             # '/VA/VehicleMotionIpd',
             # '/VA/BevObstaclesDet',
-            '/VA/FrontWideObstacles2dDet',
-            '/VA/BackViewObstacles2dDet',
-            # '/VA/BevLines',
-            # '/VA/Obstacles',
+            # '/VA/FrontWideObstacles2dDet',
+            # '/VA/BackViewObstacles2dDet',
+            '/VA/BevLines',
+            '/VA/Obstacles',
             # '/PI/FS/ObjTracksHorizon',
             # '/PK/DR/Result',
             # '/SA/INSPVA',
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20241111_155436_n000008')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, 'xxxxxxxxx')
