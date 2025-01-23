@@ -1289,32 +1289,24 @@ Information:
       - type
       - position
       - color
-      - point_num
       - x_points
       - y_points
     additional_column:
       - type_classification
-      - road_user
-      - distance
-      - pt_0_x
-      - pt_0_y
-      - pt_1_x
-      - pt_1_y
-      - pt_2_x
-      - pt_2_y
-      - pt_3_x
-      - pt_3_y
-      - age
-      - coverage
-      - is_coverageValid
-      - is_detectedValid
-      - is_cipv
-      - is_keyObj
-      - is_sameDir
-      - is_oppositeDir
-      - is_crossingDir
-      - is_moving
-      - is_static
+      - points_num
+      - x_pts
+      - y_pts
+      - c0
+      - c1
+      - c2
+      - c3
+      - heading_0
+      - min_x
+      - max_x
+      - length
+      - length_valid
+      - radius
+      - radius_valid
     result_column:
       - 召回率
       - 准确率
@@ -1354,7 +1346,7 @@ Information:
         description: 评价对车道线的长度的感知能力
     type:
       fence:
-        name: 路沿
+        name: 道路边沿
       main_lane:
         name: 主车道线
       secondary_lane:

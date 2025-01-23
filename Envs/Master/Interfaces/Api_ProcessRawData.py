@@ -11,7 +11,7 @@ from Libs import get_project_path
 
 sys.path.append(get_project_path())
 
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.PreProcess import ObstaclesPreprocess
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.PreProcess import ObstaclesPreprocess, LinesPreprocess
 
 
 def main():
@@ -25,7 +25,13 @@ def main():
     with open(args.parameter_json_path, 'r', encoding='utf-8') as f:
         parameter_json = json.load(f)
 
-    preprocess_instance = ObstaclesPreprocess()
+    if parameter_json['test_topic'] == 'Obstacles':
+        preprocess_instance = ObstaclesPreprocess()
+    elif parameter_json['test_topic'] == 'Lines':
+        preprocess_instance = LinesPreprocess()
+    else:
+        return
+
     data = preprocess_instance.run(raw_data, parameter_json)
     data.to_csv(args.process_data_path, index=False, encoding='utf_8_sig')
 
