@@ -506,8 +506,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
         send_log(self, cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr:
-            print(result.stderr)
+        if result.stderr and 'import numpy' not in result.stderr and 'import numpy' not in result.stderr:
             send_log(self, f'Api_GetTimeGap 发生错误 {result.stderr}')
         t_delta, v_error = result.stdout.strip().split('\n')[-1].split(' ')
         t_delta = float(t_delta)
@@ -634,8 +633,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr:
-                print(result.stderr)
+            if result.stderr and 'import numpy' not in result.stderr:
                 send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
             data = pd.read_csv(topic_gt_data_path, index_col=False)[additional_column]
@@ -698,8 +696,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
-                if result.stderr:
-                    print(result.stderr)
+                if result.stderr and 'import numpy' not in result.stderr:
                     send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
                 data = pd.read_csv(path, index_col=False)[additional_column]
@@ -748,8 +745,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             send_log(self, cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-            if result.stderr:
-                print(result.stderr)
+            if result.stderr and 'import numpy' not in result.stderr:
                 send_log(self, f'MatchTimestamp 发生错误 {result.stderr}')
 
             match_timestamp_data = pd.read_csv(path, index_col=False)
@@ -813,8 +809,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr:
-                print(result.stderr)
+            if result.stderr and 'import numpy' not in result.stderr:
                 send_log(self, f'MatchObstacles 发生错误 {result.stderr}')
 
             send_log(self, f'{self.test_topic} {topic} 目标匹配')
@@ -867,8 +862,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
-                if result.stderr:
-                    print(result.stderr)
+                if result.stderr and 'import numpy' not in result.stderr:
                     send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
                 for characteristic in os.listdir(metric_folder):
@@ -1156,8 +1150,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
         send_log(self, cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr:
-            print(result.stderr)
+        if result.stderr and 'import numpy' not in result.stderr:
             send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
@@ -1570,8 +1563,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
         send_log(self, cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr:
-            print(result.stderr)
+        if result.stderr and 'import numpy' not in result.stderr:
             send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
@@ -2284,7 +2276,7 @@ class DataGrinderPilotObstaclesOneTask:
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
                 os.remove(total_match_data_path)
-                if result.stderr:
+                if result.stderr and 'import numpy' not in result.stderr:
                     print(result.stderr)
                     send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
