@@ -47,7 +47,6 @@ from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchT
 kpi_target_file_path = os.path.join(project_path, 'Docs', 'Resources', 'ObstaclesKpi.xlsx')
 kpi_target_threshold = pd.read_excel(kpi_target_file_path, sheet_name=0, header=[0, 1, 2], index_col=[0, 1])
 kpi_target_ratio = pd.read_excel(kpi_target_file_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
-kpi_date_label = '20241230'
 
 
 def sync_test_result(method):
@@ -57,7 +56,7 @@ def sync_test_result(method):
         result = method(self, *args, **kwargs)
         self.save_test_result()
         method_end_time = time.time()
-        print(f'{self.__class__.__name__}.{method.__name__} '
+        send_log(self, f'{self.__class__.__name__}.{method.__name__} '
               f'-> {method_end_time - method_start_time:.2f} sec')
         return result
 
@@ -116,27 +115,28 @@ def get_obstacles_kpi_ratio(col_1, col_2, target_type, kpi_date_label):
         return ratio
 
 
-class DataGrinderPilotObstaclesOneCase:
+class DataGrinderOneCase:
 
     def __init__(self, scenario_unit_folder):
+        send_log(self, '=' * 25 + self.__class__.__name__ + '=' * 25)
         # 变量初始化
-        self.gt_ego_flag = None
+        self.gt_ego_flag = False
+        self.pred_ego_flag = False
         self.ego_velocity_generator = None
         self.cut_frame_offset = - 1.05
 
-        print('=' * 25 + self.__class__.__name__ + '=' * 25)
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
             self.test_config = yaml.safe_load(file)
-        self.scenario_unit_folder = scenario_unit_folder
+        self.scenario_id = self.test_config['scenario_id']
+        send_log(self, '=' * 25 + f'{self.scenario_id}开始数据处理' + '=' * 25)
 
         # 加载测试相关的参数
-        self.scenario_id = self.test_config['scenario_id']
-        send_log(self, f'{self.scenario_id}开始数据处理')
-        print('=' * 25 + self.scenario_id + '=' * 25)
+        self.scenario_unit_folder = scenario_unit_folder
         self.product = self.test_config['product']
         self.version = self.test_config['version']
         self.test_date = str(self.test_config['test_date'])
+        self.kpi_date_label = self.test_config['kpi_date_label']
 
         self.scenario_tag = self.test_config['scenario_tag']
         self.test_action = self.test_config['test_action']
@@ -163,7 +163,7 @@ class DataGrinderPilotObstaclesOneCase:
                 'CAM_FISHEYE_FRONT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
             ]
 
-        # 建立文件夹
+        # 初始化文件夹
         self.pred_raw_folder = self.test_config['pred_folder']
         self.gt_raw_folder = self.test_config['gt_folder']
         self.DataFolder = os.path.join(self.scenario_unit_folder, '01_Data')
@@ -197,10 +197,10 @@ class DataGrinderPilotObstaclesOneCase:
             return
 
         with open(test_topic_info_path) as f:
-            parsed_topic = yaml.load(f, Loader=yaml.FullLoader)['topics_for_parser']
+            topics_for_parser = yaml.load(f, Loader=yaml.FullLoader)['topics_for_parser']
 
         # 初始化感知数据
-        for topic in parsed_topic:
+        for topic in topics_for_parser:
             topic_tag = topic.replace('/', '')
 
             if topic in self.topics_for_evaluation:
@@ -248,6 +248,7 @@ class DataGrinderPilotObstaclesOneCase:
                 pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
                 create_folder(os.path.join(self.DataFolder, 'General'), update=False)
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
+                self.pred_ego_flag = True
                 pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result['General']['pred_ego'] = self.get_relpath(path)
 
@@ -378,20 +379,21 @@ class DataGrinderPilotObstaclesOneCase:
     def load_gt_data(self):
         gt_config_path = os.path.join(self.gt_raw_folder, 'yaml_management.yaml')
         if not os.path.exists(gt_config_path):
-            print('No yaml_management.yaml is found. Please check')
+            send_log(self, 'No yaml_management.yaml is found. Please check')
             return
 
         with open(gt_config_path) as f:
             gt_config = yaml.load(f, Loader=yaml.FullLoader)
 
-        gt_topic_mappings = {
-            'Obstacles': 'od_csv',
-            'Objects': 'object_csv',
-            'Lines': 'lanebev_csv',
-        }
+        if self.test_topic == 'Obstacles':
+            gt_topic = 'od'
+        elif self.test_topic == 'Lines':
+            gt_topic = 'line'
+        else:
+            send_log(self, '未知的测试主题')
+            return
 
-        gt_topic = gt_topic_mappings[self.test_topic]
-        flag = '{:s}_flag'.format(gt_topic)
+        flag = '{:s}_csv_flag'.format(gt_topic)
         timestamp_csv_tag = '{:s}_timestamp'.format(gt_topic.split('_')[0])
 
         if not (flag in gt_config.keys() and gt_config[flag]):
@@ -402,21 +404,21 @@ class DataGrinderPilotObstaclesOneCase:
 
         # 读取原始数据
         csv_data = []
-        for csv_file in gt_config['{:s}_list'.format(gt_topic)]:
-            csv_path = os.path.join(self.gt_raw_folder, gt_topic, csv_file)
+        for f in os.listdir(os.path.join(self.gt_raw_folder, f'{gt_topic}_csv')):
+            csv_path = os.path.join(self.gt_raw_folder, f'{gt_topic}_csv', f)
             csv_data.append(pd.read_csv(csv_path, index_col=False))
-        gt_data = pd.concat(csv_data).rename(columns={
-            'timestamp': 'time_stamp',
-            'od_json_sequence': 'frame_id',
-            'subtype': 'sub_type',
-            'type_conf_3d': 'confidence',
-        }).sort_values(by=['time_stamp'])
+        gt_data = pd.concat(csv_data)
 
-        if gt_topic == 'od_csv':
+        if self.test_topic == 'Obstacles':
+            gt_data = gt_data.rename(columns={
+                'timestamp': 'time_stamp',
+                'od_json_sequence': 'frame_id',
+                'subtype': 'sub_type',
+                'type_conf_3d': 'confidence',
+            }).sort_values(by=['time_stamp'])
             gt_data['vx_rel'] = gt_data['vx'] - gt_data['ego_v']
             gt_data['vy_rel'] = gt_data['vy']
             gt_data = gt_data[gt_data['type'].isin([1, 2, 18])]
-            gt_data = gt_data[gt_data['sub_type'] != 10]
 
         # 读取时间辍, 用于时间辍匹配
         gt_timestamp_csv = \
@@ -480,11 +482,10 @@ class DataGrinderPilotObstaclesOneCase:
             "-c", calibrated_data_path
         ]
 
-        print(cmd)
+        send_log(self, cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr:
-            print("stderr:", result.stderr)
+        if result.stderr and 'import numpy' not in result.stderr and 'import numpy' not in result.stderr:
             send_log(self, f'Api_GetTimeGap 发生错误 {result.stderr}')
         t_delta, v_error = result.stdout.strip().split('\n')[-1].split(' ')
         t_delta = float(t_delta)
@@ -583,15 +584,26 @@ class DataGrinderPilotObstaclesOneCase:
                 continue
 
             topic_tag = topic.replace('/', '')
-            input_parameter_container = {
-                'camera': self.test_result['General']['camera_position'],
-                'coverage_reference_point': self.test_config['coverage_reference_point'],
-                'coverage_threshold': self.test_config['coverage_threshold'],
-                'ROI': self.test_config['detected_ROI'][topic],
-                'lane_width': 3.6,
-                'moving_threshold': 2,
-                'key_coverage_threshold': 0.1,
-            }
+
+            if self.test_topic == 'Obstacles':
+                input_parameter_container = {
+                    'camera': self.test_result['General']['camera_position'],
+                    'coverage_reference_point': self.test_config['coverage_reference_point'],
+                    'coverage_threshold': self.test_config['coverage_threshold'],
+                    'ROI': self.test_config['detected_ROI'][topic],
+                    'lane_width': 3.6,
+                    'moving_threshold': 2,
+                    'key_coverage_threshold': 0.1,
+                    'test_topic': self.test_topic,
+                }
+            elif self.test_topic == 'Lines':
+                input_parameter_container = {
+                    'lane_width': 3.6,
+                    'test_topic': self.test_topic,
+                }
+            else:
+                return
+
             parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
             with open(parameter_json_path, 'w', encoding='utf-8') as f:
                 json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
@@ -607,12 +619,11 @@ class DataGrinderPilotObstaclesOneCase:
                 "-p", topic_gt_data_path,
             ]
 
-            print(cmd)
+            send_log(self, cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr:
-                print("stderr:", result.stderr)
+            if result.stderr and 'import numpy' not in result.stderr:
                 send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
             data = pd.read_csv(topic_gt_data_path, index_col=False)[additional_column]
@@ -650,15 +661,26 @@ class DataGrinderPilotObstaclesOneCase:
                 data['time_stamp'] += time_gap
                 data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
                 data.to_csv(path, index=False, encoding='utf_8_sig')
-                input_parameter_container = {
-                    'camera': self.test_result['General']['camera_position'],
-                    'coverage_reference_point': self.test_config['coverage_reference_point'],
-                    'coverage_threshold': self.test_config['coverage_threshold'],
-                    'ROI': self.test_config['detected_ROI'][topic],
-                    'lane_width': 3.6,
-                    'moving_threshold': 2,
-                    'key_coverage_threshold': 0.1,
-                }
+
+                if self.test_topic == 'Obstacles':
+                    input_parameter_container = {
+                        'camera': self.test_result['General']['camera_position'],
+                        'coverage_reference_point': self.test_config['coverage_reference_point'],
+                        'coverage_threshold': self.test_config['coverage_threshold'],
+                        'ROI': self.test_config['detected_ROI'][topic],
+                        'lane_width': 3.6,
+                        'moving_threshold': 2,
+                        'key_coverage_threshold': 0.1,
+                        'test_topic': self.test_topic,
+                    }
+                elif self.test_topic == 'Lines':
+                    input_parameter_container = {
+                        'lane_width': 3.6,
+                        'test_topic': self.test_topic,
+                    }
+                else:
+                    return
+
                 parameter_json_path = os.path.join(get_project_path(), 'Temp', 'process_api_parameter.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
@@ -671,12 +693,11 @@ class DataGrinderPilotObstaclesOneCase:
                     "-p", path,
                 ]
 
-                print(cmd)
+                send_log(self, cmd)
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
-                if result.stderr:
-                    print("stderr:", result.stderr)
+                if result.stderr and 'import numpy' not in result.stderr:
                     send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
                 data = pd.read_csv(path, index_col=False)[additional_column]
@@ -722,11 +743,10 @@ class DataGrinderPilotObstaclesOneCase:
                 "-f", path
             ]
 
-            print(cmd)
+            send_log(self, cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-            if result.stderr:
-                print("stderr:", result.stderr)
+            if result.stderr and 'import numpy' not in result.stderr:
                 send_log(self, f'MatchTimestamp 发生错误 {result.stderr}')
 
             match_timestamp_data = pd.read_csv(path, index_col=False)
@@ -767,9 +787,18 @@ class DataGrinderPilotObstaclesOneCase:
             gt_data_path = self.get_abspath(
                 self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'][topic])
 
-            input_parameter_container = {
-                'object_matching_tolerance': self.test_config['object_matching_tolerance'],
-            }
+            if self.test_topic == 'Obstacles':
+                input_parameter_container = {
+                    'object_matching_tolerance': self.test_config['object_matching_tolerance'],
+                    'test_topic': self.test_topic,
+                }
+            elif self.test_topic == 'Lines':
+                input_parameter_container = {
+                    'lane_matching_width': self.test_config['lane_matching_width'],
+                    'test_topic': self.test_topic,
+                }
+            else:
+                return
 
             parameter_json_path = os.path.join(get_project_path(), 'Temp', 'match_api_parameter.json')
             with open(parameter_json_path, 'w', encoding='utf-8') as f:
@@ -778,7 +807,7 @@ class DataGrinderPilotObstaclesOneCase:
 
             cmd = [
                 f"{bench_config['master']['sys_interpreter']}",
-                "Api_MatchObstacles.py",
+                "Api_MatchData.py",
                 "-p", pred_data_path,
                 "-g", gt_data_path,
                 "-t", match_timestamp_path,
@@ -786,12 +815,11 @@ class DataGrinderPilotObstaclesOneCase:
                 "-m", path,
             ]
 
-            print(cmd)
+            send_log(self, cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr:
-                print("stderr:", result.stderr)
+            if result.stderr and 'import numpy' not in result.stderr:
                 send_log(self, f'MatchObstacles 发生错误 {result.stderr}')
 
             send_log(self, f'{self.test_topic} {topic} 目标匹配')
@@ -799,60 +827,78 @@ class DataGrinderPilotObstaclesOneCase:
             self.test_result[self.test_topic][topic]['match']['match_data'] = self.get_relpath(path)
             data.to_csv(path, index=False, encoding='utf_8_sig')
 
+    def get_relpath(self, path: str) -> str:
+        return os.path.relpath(path, self.scenario_unit_folder)
+
+    def get_abspath(self, path: str) -> str:
+        return os.path.join(self.scenario_unit_folder, path)
+
+    def save_test_result(self):
+        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
+            yaml.dump(self.test_result,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+
+    def load_test_result(self):
+        with open(self.test_result_yaml) as f:
+            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+
+class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
+
     @sync_test_result
     def evaluate_metrics(self):
         send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
 
         for topic in self.test_result[self.test_topic].keys():
-                if topic == 'GroundTruth':
-                    continue
 
-                topic_tag = topic.replace('/', '')
-                metric_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'metric')
-                create_folder(metric_folder)
-                if 'metric' not in self.test_result[self.test_topic][topic]:
-                    self.test_result[self.test_topic][topic]['metric'] = {}
+            if topic == 'GroundTruth':
+                continue
 
-                # 确认是否需要继续计算
-                raw = self.test_result[self.test_topic][topic]['raw']
-                data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
-                if not len(data):
-                    print(f'{self.scenario_id} {topic} 不计算metric数据')
-                    continue
+            topic_tag = topic.replace('/', '')
+            metric_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'metric')
+            create_folder(metric_folder)
+            if 'metric' not in self.test_result[self.test_topic][topic]:
+                self.test_result[self.test_topic][topic]['metric'] = {}
 
-                match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
+            # 确认是否需要继续计算
+            raw = self.test_result[self.test_topic][topic]['raw']
+            data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
+            if not len(data):
+                send_log(self, f'{self.scenario_id} {topic} 不计算metric数据')
+                continue
 
-                input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
-                    'characteristic_type': self.test_config['target_characteristic'],
-                    'kpi_date_label': kpi_date_label,
-                }
-                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
-                with open(parameter_json_path, 'w', encoding='utf-8') as f:
-                    json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+            match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
 
-                cmd = [
-                    f"{bench_config['master']['sys_interpreter']}",
-                    "Api_EvaluateMetrics.py",
-                    "-m", self.get_abspath(match_data_path),
-                    "-j", parameter_json_path,
-                    "-f", metric_folder,
-                ]
+            input_parameter_container = {
+                'metric_type': self.test_config['test_item'][topic],
+                'characteristic_type': self.test_config['target_characteristic'],
+                'kpi_date_label': self.kpi_date_label,
+            }
+            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
+            with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
-                print(cmd)
-                send_log(self, f'{self.test_topic} {topic} 指标评估')
-                cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-                # os.remove(parameter_json_path)
-                if result.stderr:
-                    print("stderr:", result.stderr)
-                    send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
+            cmd = [
+                f"{bench_config['master']['sys_interpreter']}",
+                "Api_EvaluateMetrics.py",
+                "-m", self.get_abspath(match_data_path),
+                "-j", parameter_json_path,
+                "-f", metric_folder,
+            ]
 
-                for characteristic in os.listdir(metric_folder):
-                    self.test_result[self.test_topic][topic]['metric'][characteristic] = {}
-                    for metric in os.listdir(os.path.join(metric_folder, characteristic)):
-                        self.test_result[self.test_topic][topic]['metric'][characteristic][metric.split('.')[0]] \
-                            = self.get_relpath(os.path.join(metric_folder, characteristic, metric))
+            send_log(self, cmd)
+            send_log(self, f'{self.test_topic} {topic} 指标评估')
+            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+            # os.remove(parameter_json_path)
+            if result.stderr and 'import numpy' not in result.stderr:
+                send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
+
+            for characteristic in os.listdir(metric_folder):
+                self.test_result[self.test_topic][topic]['metric'][characteristic] = {}
+                for metric in os.listdir(os.path.join(metric_folder, characteristic)):
+                    self.test_result[self.test_topic][topic]['metric'][characteristic][metric.split('.')[0]] \
+                        = self.get_relpath(os.path.join(metric_folder, characteristic, metric))
 
     @sync_test_result
     def load_scenario_info(self):
@@ -929,11 +975,11 @@ class DataGrinderPilotObstaclesOneCase:
 
             # 异常至少存在frame_threshold帧，才会被识别为bug用作分析
             frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
-            print(f'出现次数低于{frame_threshold}的bug会被忽视')
+            send_log(self, f'出现次数低于{frame_threshold}的bug会被忽视')
 
             # 使用total中的recall_precision数据可视化，但只抓取部分特镇的bug
             if 'total' not in self.test_result[self.test_topic][topic]['metric']:
-                print(f'{self.scenario_id} {topic} 不存在metric数据')
+                send_log(self, f'{self.scenario_id} {topic} 不存在metric数据')
                 continue
 
             total_data_path = self.test_result[self.test_topic][topic]['metric']['total']['recall_precision']
@@ -978,7 +1024,7 @@ class DataGrinderPilotObstaclesOneCase:
                             'gt': {bug_type: [row['gt.id']]}, 'pred': {bug_type: [row['pred.id']]},
                         }
 
-                        print(f'保存 {topic} {bug_type} {time_stamp}的图片')
+                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的图片')
                         self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info_bev)
 
                         # 选择截图的相机
@@ -995,7 +1041,7 @@ class DataGrinderPilotObstaclesOneCase:
                             if frame_index not in video_snap_dict[camera]:
                                 video_snap_dict[camera].append(frame_index)
 
-                        print(f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
                         bug_info = row.to_dict()
                         bug_info['rosbag_time'] = bug_info['pred.time_stamp'] - self.test_result['General']['time_gap']
                         bug_info['frame_index'] = frame_index
@@ -1030,7 +1076,7 @@ class DataGrinderPilotObstaclesOneCase:
 
                     for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
 
-                        print(f'汇总 {topic} {characteristic} {bug_type} {time_stamp} camera截图数据')
+                        send_log(self, f'汇总 {topic} {characteristic} {bug_type} {time_stamp} camera截图数据')
                         one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
                         bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
                         with open(bug_info_json, 'r', encoding='utf-8') as f:
@@ -1130,31 +1176,21 @@ class DataGrinderPilotObstaclesOneCase:
             bug_label_info_json
         ]
 
-        print(cmd)
+        send_log(self, cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr:
-            print("stderr:", result.stderr)
+        if result.stderr and 'import numpy' not in result.stderr:
             send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
     def bug_report(self):
 
         # 建立bug report，并汇总
-        if 'Obstacles' == self.test_topic:
-            bug_jira_column = [
-                'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type', 'gt_target_id',
-                'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
-                'project_id', 'uuid', 'is_valid'
-            ]
-        elif 'Lines' == self.test_topic:
-            bug_jira_column = [
-                'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type', 'gt_target_id',
-                'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
-                'project_id', 'uuid', 'is_valid'
-            ]
-        else:
-            bug_jira_column = []
+        bug_jira_column = [
+            'sw_version', 'test_object', 'scenario_type', 'topic', 'bug_type', 'target_type', 'gt_target_id',
+            'scenario_id', 'summary', 'description', 'assignee', 'attachment_path', 'contained_by',
+            'project_id', 'uuid_content', 'uuid', 'is_valid'
+        ]
 
         for topic in self.test_result[self.test_topic].keys():
             if topic == 'GroundTruth':
@@ -1182,12 +1218,16 @@ class DataGrinderPilotObstaclesOneCase:
                         with open(bug_info_json, 'r', encoding='utf-8') as f:
                             bug_info = json.load(f)
 
-                        # 获取rosbag中的时间
+                        # 获取时间
+                        gt_timestamp = bug_info['gt.time_stamp']
                         rosbag_time = bug_info['rosbag_time']
 
                         # 获得目标类型
                         target_type = bug_info['gt.type_classification'] if bug_info['gt.flag'] \
                             else bug_info['pred.type_classification']
+
+                        # 获得目标类型
+                        target_x = bug_info['gt.x'] if bug_info['gt.flag'] else bug_info['pred.x']
 
                         # 获得目标id
                         target_id = bug_info['gt.id'] if bug_info['gt.flag'] else bug_info['pred.id']
@@ -1219,10 +1259,11 @@ class DataGrinderPilotObstaclesOneCase:
                         target_characteristic = '&'.join(target_characteristic)
 
                         # 开始生成报告
-                        uuid = generate_unique_id(f'{self.version}-{self.scenario_id}-{rosbag_time}-{bug_type}-{target_id}')
+                        uuid_content = f'{self.scenario_id}-{bug_type}-{int(target_id)}|{gt_timestamp}_{target_x}'
+                        uuid = generate_unique_id(f'{self.version}-{uuid_content}')
                         report_title = f'{self.product}测试异常报告({uuid})'
                         send_log(self, f'开始生成 {report_title}')
-                        print(f'{one_bug_folder} 开始生成 {report_title}')
+                        send_log(self, f'{one_bug_folder} 开始生成 {report_title}')
 
                         title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure',
                                                         'TitlePage.png')
@@ -1304,7 +1345,8 @@ class DataGrinderPilotObstaclesOneCase:
                             self.version, info['name'], '&'.join(self.scenario_tag.values()),
                             topic, info['bug_items'][bug_type]['name'], target_type, bug_gt_id,
                             self.scenario_id, jira_summary, jira_description,
-                            '', bug_report_path, f'{project_key}-0', project_id, f'uuid-{uuid}', 0
+                            '', bug_report_path, f'{project_key}-0', project_id,
+                            uuid_content, f'uuid-{uuid}', 0
                         ]
 
                         bug_jira_rows.append(jira_row)
@@ -1312,7 +1354,7 @@ class DataGrinderPilotObstaclesOneCase:
                 bug_jira_summary_path = os.path.join(bug_report_folder, 'bug_jira_summary.csv')
                 bug_jira_summary = pd.DataFrame(bug_jira_rows, columns=bug_jira_column)
                 bug_jira_summary.to_csv(bug_jira_summary_path, index=False)
-                print('{:s} 保存完毕'.format(bug_jira_summary_path))
+                send_log(self, '{:s} 保存完毕'.format(bug_jira_summary_path))
                 self.test_result[self.test_topic][topic]['bug_jira_summary'] = self.get_relpath(bug_jira_summary_path)
 
         # 删除图片，减少磁盘占用
@@ -1397,11 +1439,11 @@ class DataGrinderPilotObstaclesOneCase:
                             bug_info['bug_type'] = bug_type
                             frame_bug_info_camera.append(bug_info)
 
-                    print(f'保存 {self.scenario_id} {topic} {time_stamp}的全部信息')
+                    send_log(self, f'保存 {self.scenario_id} {topic} {time_stamp}的全部信息')
                     with open(os.path.join(one_render_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
                         json.dump(frame_bug_info_camera, f, ensure_ascii=False, indent=4)
 
-                    print(f'保存 {self.scenario_id} {topic} {time_stamp} render图片')
+                    send_log(self, f'保存 {self.scenario_id} {topic} {time_stamp} render图片')
                     self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info_bev)
 
                     for camera in self.camera_list:
@@ -1528,7 +1570,7 @@ class DataGrinderPilotObstaclesOneCase:
 
                             bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
-                    print(f'汇总 {self.scenario_id} {topic} {characteristic} {time_stamp} camera 截图数据')
+                    send_log(self, f'汇总 {self.scenario_id} {topic} {characteristic} {time_stamp} camera 截图数据')
                     bug_label_info_list.append(bug_label_info)
 
         bug_label_info_json = os.path.join(self.RenderFolder, 'General', 'bug_label_info.json')
@@ -1547,11 +1589,10 @@ class DataGrinderPilotObstaclesOneCase:
             bug_label_info_json
         ]
 
-        print(cmd)
+        send_log(self, cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr:
-            print("stderr:", result.stderr)
+        if result.stderr and 'import numpy' not in result.stderr:
             send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
@@ -1636,7 +1677,7 @@ class DataGrinderPilotObstaclesOneCase:
                         else:
                             camera_path_dict[camera] = None
 
-                    print(f'保存 {self.scenario_id} {topic} {characteristic} bev和camera合并图片 {os.path.basename(combined_pic_path)}')
+                    send_log(self, f'保存 {self.scenario_id} {topic} {characteristic} bev和camera合并图片 {os.path.basename(combined_pic_path)}')
                     width, height = combine_image(
                         center_pic_path=os.path.join(one_sketch_folder, 'render_sketch.jpg'),
                         camera_path_dict=camera_path_dict,
@@ -1739,15 +1780,15 @@ class DataGrinderPilotObstaclesOneCase:
                 FN_data = FN_data[~((FN_data['gt.type_classification'].isin(['pedestrian', 'cyclist']))
                                     & ((FN_data['gt.x'] > 50) | (FN_data['gt.x'] < -50)))]
                 FN_data_near = FN_data[(metric_data['gt.x'] <= 100)
-                                      & (metric_data['gt.x'] >= -50)]
+                                      & (metric_data['gt.x'] >= -100)]
                 for key, group in FN_data_near.groupby('gt.type_classification'):
-                    top_values = group['gt.id'].value_counts().head(bug_count).index
+                    top_values = group['gt.id'].value_counts().head(bug_count * 2).index
                     top_group = group[group['gt.id'].isin(top_values)]
                     bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
                 FN_data_far = FN_data[(metric_data['gt.x'] <= 150)
-                                      & (metric_data['gt.x'] >= 100)]
+                                      & (metric_data['gt.x'] > 100)]
                 for key, group in FN_data_far.groupby('gt.type_classification'):
-                    top_values = group['gt.id'].value_counts().head(bug_count).index
+                    top_values = group['gt.id'].value_counts().head(bug_count * 2).index
                     top_group = group[group['gt.id'].isin(top_values)]
                     bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
 
@@ -1984,9 +2025,13 @@ class DataGrinderPilotObstaclesOneCase:
         }
 
         if self.ego_velocity_generator is None:
-            ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
-            self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
-                                                   kind='linear')
+            if self.gt_ego_flag:
+                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
+            else:
+                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
+                                                       ego_data['ego_vx'].values, kind='linear')
 
         # 开始画图
         fig = plt.figure(figsize=(25, 12))
@@ -2077,21 +2122,6 @@ class DataGrinderPilotObstaclesOneCase:
 
         return valid_camera
 
-    def get_relpath(self, path: str) -> str:
-        return os.path.relpath(path, self.scenario_unit_folder)
-
-    def get_abspath(self, path: str) -> str:
-        return os.path.join(self.scenario_unit_folder, path)
-
-    def save_test_result(self):
-        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
-            yaml.dump(self.test_result,
-                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
-
-    def load_test_result(self):
-        with open(self.test_result_yaml) as f:
-            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
-
 
 class DataGrinderPilotObstaclesOneTask:
 
@@ -2111,8 +2141,9 @@ class DataGrinderPilotObstaclesOneTask:
         self.test_topic = self.test_config['test_topic']
         self.truth_source = self.test_config['test_action']['ros2bag']['truth_source']
         self.test_date = str(self.test_config['test_date'])
-        self.test_db_id = generate_unique_id(''.join([self.product, self.version, self.test_date]))
+        self.kpi_date_label = self.test_config['kpi_date_label']
         self.test_information = test_encyclopaedia['Information'][self.test_topic]
+        self.scenario_update = self.test_config['test_action']['scenario_unit']['scenario_update']
 
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_action = self.test_config['test_action']
@@ -2123,7 +2154,7 @@ class DataGrinderPilotObstaclesOneTask:
         topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
         self.scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
         self.valid_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 1].index)
-        print(f'Valid Scenario为{self.valid_scenario_list}, 不参与结果分析')
+        send_log(self, f'Valid Scenario为{self.valid_scenario_list}, 不参与结果分析')
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
@@ -2151,6 +2182,7 @@ class DataGrinderPilotObstaclesOneTask:
                     'version': self.test_config['version'],
                     'test_topic': self.test_config['test_topic'],
                     'test_date': str(self.test_config['test_date']),
+                    'kpi_date_label': self.test_config['kpi_date_label'],
                     'pred_folder': os.path.join(self.test_config['pred_folder'], scenario_id),
                     'gt_folder': os.path.join(self.test_config['gt_folder'], scenario_id),
                     'test_action': self.test_action['scenario_unit'],
@@ -2173,6 +2205,10 @@ class DataGrinderPilotObstaclesOneTask:
                 }
 
         for scenario_id, scenario_run_info in scenario_run_list.items():
+
+            if os.path.exists(scenario_run_info['scenario_config_yaml']) and (not self.scenario_update):
+                continue
+
             self.test_result['ScenarioUnit'][scenario_id] = (
                 self.get_relpath(scenario_run_info['scenario_unit_folder']))
             create_folder(scenario_run_info['scenario_unit_folder'], False)
@@ -2249,7 +2285,7 @@ class DataGrinderPilotObstaclesOneTask:
                 input_parameter_container = {
                     'metric_type': self.test_config['test_item'][topic],
                     'characteristic_type': self.test_config['target_characteristic'],
-                    'kpi_date_label': kpi_date_label,
+                    'kpi_date_label': self.kpi_date_label,
                 }
                 parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
@@ -2263,14 +2299,14 @@ class DataGrinderPilotObstaclesOneTask:
                     "-f", metric_folder,
                 ]
 
-                print(cmd)
+                send_log(self, cmd)
                 send_log(self, f'{self.test_topic} {topic} 指标评估')
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
                 os.remove(total_match_data_path)
-                if result.stderr:
-                    print("stderr:", result.stderr)
+                if result.stderr and 'import numpy' not in result.stderr:
+                    print(result.stderr)
                     send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
                 for characteristic in os.listdir(metric_folder):
@@ -2432,12 +2468,12 @@ class DataGrinderPilotObstaclesOneTask:
                         frequency_threshold = self.test_result['TagCombination'][tag_key][self.test_topic][topic][
                                                   'frequency'] * 2
                         if json_data['Output']['sample_count'] < frequency_threshold:
-                            print(f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
+                            send_log(self, f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
                             continue
 
                         json_data['ScenarioGroup'] = '&'.join(json_data['ScenarioGroup'])
                         json_data['uuid'] = str(uuid.uuid4())
-                        print(f'{json_count} {json_name} 已保存')
+                        send_log(self, f'{json_count} {json_name} 已保存')
                         with open(json_path, 'w', encoding='utf-8') as f:
                             json.dump(json_data, f, ensure_ascii=False, indent=4)
 
@@ -2526,7 +2562,7 @@ class DataGrinderPilotObstaclesOneTask:
                                     if kpi_threshold is None:
                                         row.append(np.nan)
                                     else:
-                                        kpi_ratio = get_obstacles_kpi_ratio(metric, res_key, obstacle_type, kpi_date_label)
+                                        kpi_ratio = get_obstacles_kpi_ratio(metric, res_key, obstacle_type, self.kpi_date_label)
                                         row.append(kpi_threshold * kpi_ratio)
 
                                 else:
@@ -2652,7 +2688,7 @@ class DataGrinderPilotObstaclesOneTask:
                     if '%' in columns[j]:
                         value = '{:.2%}'.format(value)
 
-                    elif isinstance(value, float):
+                    elif isinstance(value, float) and (not np.isnan(value)):
                         if int(value) == value:
                             value = int(value)
                         else:
@@ -2857,7 +2893,6 @@ class DataGrinderPilotObstaclesOneTask:
                             target_num[target_type_text] = 0
                         target_num[target_type_text] += scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
 
-
         scenario_list = {}
         total_frame = 0
         total_distance = 0
@@ -2970,7 +3005,7 @@ class DataGrinderPilotObstaclesOneTask:
             pic_name = '--'.join(
                 [scenario_tag, topic, characteristic, obstacle_type, metric]).replace('/', '')
             pic_path = os.path.join(characteristic_folder, f'{pic_name}.jpg')
-            print(f'{pic_name} 已保存')
+            send_log(self, f'{pic_name} 已保存')
             canvas = FigureCanvas(fig)
             canvas.print_figure(pic_path, facecolor='white', dpi=100)
             fig.clf()
@@ -3095,7 +3130,7 @@ class DataGrinderPilotObstaclesOneTask:
                         pic_name = '--'.join(
                             [scenario_tag, topic, characteristic, obstacle_type]).replace('/', '')
                         pic_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{pic_name}.jpg')
-                        print(f'{pic_name} 已保存')
+                        send_log(self, f'{pic_name} 已保存')
                         canvas = FigureCanvas(fig)
                         canvas.print_figure(pic_path, facecolor='white', dpi=100)
                         fig.clf()
@@ -3452,10 +3487,9 @@ class DataGrinderPilotObstaclesOneTask:
                 self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag] = {}
                 color_for_sheets[characteristic][scenario_tag] = []
 
-                if old_excel_path is not None:
+                old_data = None
+                if old_excel_path is not None and scenario_tag in pd.ExcelFile(excel_path).sheet_names:
                     old_data = pd.read_excel(old_excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
-                else:
-                    old_data = None
 
                 sub_data_col = {}
                 for col in data.columns:
@@ -3746,7 +3780,7 @@ class DataGrinderPilotObstaclesOneTask:
                                     img_list=img)
 
         report_generator.page_count += 0
-        self.report_path = os.path.join(self.task_folder, f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]})')
+        self.report_path = os.path.join(self.task_folder, f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]}).pdf')
         report_generator.genReport(report_path=self.report_path, compress=1)
 
     def start(self):
@@ -3780,3 +3814,24 @@ class DataGrinderPilotObstaclesOneTask:
     def load_test_result(self):
         with open(self.test_result_yaml) as f:
             self.test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+
+class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
+
+    def start(self):
+
+        if self.test_action['preprocess']:
+            self.load_pred_data()
+            self.load_gt_data()
+            self.sync_timestamp()
+            self.promote_additional()
+
+        if self.test_action['match']:
+            self.match_timestamp()
+            self.match_object()
+
+
+if __name__ == '__main__':
+    scenario_unit_folder = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013'
+    dgploc = DataGrinderPilotLinesOneCase(scenario_unit_folder)
+    dgploc.start()

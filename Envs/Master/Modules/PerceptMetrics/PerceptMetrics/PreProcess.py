@@ -2,24 +2,31 @@
 @Author: BU YUJUN
 @Date: 2024/7/8 上午9:57  
 """
-from typing import List, Tuple
+from scipy.integrate import quad
 
 if 'numpy' not in globals():
     import numpy as np
 
+from typing import List, Tuple
 import pandas as pd
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, CubicSpline
 
 import warnings
 warnings.filterwarnings("ignore")
 
-parameter_container = {
+
+obstacles_parameter_container = {
     'coverage_reference_point': [2, 0, 1],
     'coverage_threshold': 0.6,
     'lane_width': 3.6,
     'moving_threshold': 2,
     'key_coverage_threshold': 0.1,
-    'ROI': {'x': [-80, 120], 'y': [-30, 30]},
+    'ROI': {'x': [-100, 150], 'y': [-20, 20]},
+}
+
+
+lines_parameter_container = {
+    'lane_width': 3.6,
 }
 
 
@@ -184,6 +191,7 @@ class RectPoints:
             'pt_1_x', 'pt_1_y',
             'pt_2_x', 'pt_2_y',
             'pt_3_x', 'pt_3_y',
+            'closest_pt_x', 'closest_pt_y',
         ]
         self.type = 'by_row'
 
@@ -234,7 +242,14 @@ class RectPoints:
             [[-length / 2], [width / 2]])).reshape(1, 2) + np.array([[x, y]])
 
         # 返回矩形的四个顶点的坐标
-        return distance, *a[0], *b[0], *c[0], *d[0]
+        pt_0_x, pt_0_y = a[0]
+        pt_1_x, pt_1_y = b[0]
+        pt_2_x, pt_2_y = c[0]
+        pt_3_x, pt_3_y = d[0]
+        pts = [[pt_0_x, pt_0_y], [pt_1_x, pt_1_y], [pt_2_x, pt_2_y], [pt_3_x, pt_3_y]]
+        sorted_pts = sorted(pts, key=lambda p: abs(p[0]))
+        closest_pt_x, closest_pt_y = sorted_pts[0]
+        return distance, *a[0], *b[0], *c[0], *d[0], closest_pt_x, closest_pt_y
 
 
 class VisionAngleRange:
@@ -256,7 +271,7 @@ class VisionAngleRange:
         if isinstance(input_parameter_container, dict):
             self.x0, self.y0, self.z0 = input_parameter_container['coverage_reference_point']
         else:
-            self.x0, self.y0, self.z0 = parameter_container['coverage_reference_point']
+            self.x0, self.y0, self.z0 = obstacles_parameter_container['coverage_reference_point']
 
     def __call__(self, input_data):
 
@@ -324,7 +339,7 @@ class IsCoverageValid:
         if isinstance(input_parameter_container, dict):
             self.threshold = input_parameter_container['coverage_threshold']
         else:
-            self.threshold = parameter_container['coverage_threshold']
+            self.threshold = obstacles_parameter_container['coverage_threshold']
 
     def __call__(self, input_data):
 
@@ -475,7 +490,7 @@ class DruDirection:
         if isinstance(input_parameter_container, dict):
             self.moving_threshold = input_parameter_container['moving_threshold']
         else:
-            self.moving_threshold = parameter_container['moving_threshold']
+            self.moving_threshold = obstacles_parameter_container['moving_threshold']
 
     def __call__(self, input_data):
 
@@ -533,8 +548,8 @@ class IsKeyObj:
             self.lane_width = input_parameter_container['lane_width']
             self.key_coverage_threshold = input_parameter_container['key_coverage_threshold']
         else:
-            self.lane_width = parameter_container['lane_width']
-            self.key_coverage_threshold = parameter_container['key_coverage_threshold']
+            self.lane_width = obstacles_parameter_container['lane_width']
+            self.key_coverage_threshold = obstacles_parameter_container['key_coverage_threshold']
 
     def __call__(self, input_data):
 
@@ -603,7 +618,7 @@ class IsObstaclesDetectedValid:
         if isinstance(input_parameter_container, dict):
             self.ROI = input_parameter_container['ROI']
         else:
-            self.ROI = parameter_container['ROI']
+            self.ROI = obstacles_parameter_container['ROI']
 
     def __call__(self, input_data):
 
@@ -733,16 +748,200 @@ class ObstaclesPreprocess:
         return data
 
 
+class LinesTypeClassification:
+    """
+    对车道线进行分类，分为主车道线，次车道线，道路边沿
+
+    """
+
+    def __init__(self, input_parameter_container=None):
+        self.columns = [
+            'reserved_lines_type',
+            'type_classification'
+        ]
+        self.type = 'by_row'
+
+        if isinstance(input_parameter_container, dict):
+            self.lane_width = input_parameter_container['lane_width']
+        else:
+            self.lane_width = lines_parameter_container['lane_width']
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            type_ = input_data['type']
+            position = input_data['position']
+            c0 = input_data['c0']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 3):
+            type_, position, c0 = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        # 第一个为保留位
+        if type_ == 2:
+            return 'reserved_lines_type', 'fence'
+
+        elif type_ == 1:
+            if position in [1, 8]:
+                return 'reserved_lines_type', 'main_lane'
+            elif position == 0:
+                if abs(c0) < self.lane_width / 2:
+                    return 'reserved_lines_type', 'main_lane'
+                else:
+                    return 'reserved_lines_type', 'secondary_lane'
+            else:
+                return 'reserved_lines_type', 'secondary_lane'
+
+        return 'reserved_lines_type', None
+
+
+class LinesCoefficient:
+
+    def __init__(self, input_parameter_container=None):
+
+        self.columns = [
+            'points_num', 'x_pts', 'y_pts', 'c0', 'c1', 'c2', 'c3', 'heading_0',
+            'min_x', 'max_x', 'length', 'length_valid', 'radius', 'radius_valid'
+        ]
+        self.type = 'by_row'
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            x_points = input_data['x_points']
+            y_points = input_data['y_points']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 2):
+            x_points, y_points = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        # 计算车道线系数
+        f_x_points, f_y_points = [], []
+        for x, y in zip(x_points.split(','), y_points.split(',')):
+            if float(x) not in f_x_points and float(y) not in f_y_points:
+                f_x_points.append(float(x))
+                f_y_points.append(float(y))
+
+        combined = list(zip(f_x_points, f_y_points))
+        sorted_combined = sorted(combined, key=lambda t: t[0])
+        sorted_list1, sorted_list2 = zip(*sorted_combined)
+        f_x_points = list(sorted_list1)
+        f_y_points = list(sorted_list2)
+        c3, c2, c1, c0 = np.polyfit(f_x_points, f_y_points, 3)
+        heading_0 = np.rad2deg(np.arctan(c1))
+        length = self.cubic_curve_length(c3, c2, c1, min(f_x_points), max(f_x_points))
+        pts_num = len(f_x_points)
+
+        if length < 2 or pts_num < 2:
+            radius, length_valid, radius_valid = 0, 0, 0
+        else:
+            length_valid = 1
+            if len(f_x_points) >= 5:
+                radius_valid = 1
+                cs = CubicSpline(np.array(f_x_points), np.array(f_y_points), bc_type='natural')
+                curvature_radii = []
+
+                for x in f_x_points[1:-1]:
+                    # 由于样条插值是平滑的，我们可以在每个点上直接计算曲率
+                    # 但为了更精确的结果，我们可以稍微偏移一点以避免数值问题（例如，在端点处）
+                    # 这里我们简单地使用x点本身，但在实际应用中可能需要进行更精细的处理
+                    radius = 1 / self.curvature(x, cs) if self.curvature(x, cs) != 0 else np.inf
+
+                    if not np.isinf(radius):
+                        curvature_radii.append(round(radius))
+                    else:
+                        curvature_radii.append(9999)
+
+                radius = min(9999, round(np.median(curvature_radii)))
+
+            else:
+                radius_valid = 0
+                radius = 0
+
+        return (pts_num, ','.join([str(x) for x in f_x_points]), ','.join([str(y) for y in f_y_points]),
+                c0, c1, c2, c3, heading_0, min(f_x_points), max(f_x_points),
+                length, length_valid, radius, radius_valid)
+
+    def curvature(self, x, cs):
+        y_prime = cs.derivative(1)(x)
+        y_double_prime = cs.derivative(2)(x)
+        denominator = (1 + y_prime ** 2) ** (3 / 2)
+        if denominator == 0:
+            return np.inf
+        return abs(y_double_prime) / denominator
+
+    def cubic_curve_length(self, a, b, c, x1, x2):
+        """
+        计算一元三次函数在给定区间内的曲线长度。
+        参数:
+        a, b, c, d : float
+            一元三次函数的系数，即 f(x) = ax^3 + bx^2 + cx + d
+        x1, x2 : float
+            计算曲线长度的区间端点
+        返回:
+        float
+            曲线长度
+        """
+        # 定义一元三次函数的导数
+        def df(x):
+            return 3 * a * x ** 2 + 2 * b * x + c
+
+        # 被积函数
+        integrand = lambda x: np.sqrt(1 + (df(x)) ** 2)
+        # 计算积分（曲线长度）
+        result, error = quad(integrand, x1, x2)
+
+        return result
+
+
+class LinesPreprocess:
+
+    def __init__(self, preprocess_types=None):
+        if preprocess_types is None:
+            self.preprocess_types = [
+                'DuplicateId',
+                'LinesCoefficient',
+                'LinesTypeClassification',
+            ]
+        else:
+            self.preprocess_types = preprocess_types
+
+    def run(self, data, input_parameter_container):
+        # 增加age
+        id_counts = data['id'].value_counts()
+        data['age'] = data['id'].map(id_counts)
+
+        for preprocess_type in self.preprocess_types:
+            print(f'正在预处理 {preprocess_type}')
+            func = eval(f'{preprocess_type}(input_parameter_container)')
+            if func.type == 'by_row':
+                result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
+                result_df.columns = func.columns
+                data = pd.concat([data, result_df], axis=1)
+
+            elif func.type == 'by_frame':
+                data = func(data)
+
+        return data.sort_values(by=['time_stamp', 'c0'])
+
+
 if __name__ == '__main__':
     import json
 
-    raw_data_path = '/home/zhangliwei01/ZONE/TestProject/2J5/p_feature_20240924_030000/04_TestData/1-Obstacles/01_ScenarioUnit/20241018_154712_n000002/01_Data/Obstacles/GroundTruth/raw/gt_data.csv'
+    raw_data_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/GroundTruth/raw/gt_data.csv'
     raw_data = pd.read_csv(raw_data_path, index_col=False)
 
-    parameter_json_path = '/home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home/Temp/process_api_parameter.json'
-    with open(parameter_json_path, 'r', encoding='utf-8') as f:
-        parameter_json = json.load(f)
+    # parameter_json_path = '/home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home/Temp/process_api_parameter.json'
+    # with open(parameter_json_path, 'r', encoding='utf-8') as f:
+    #     parameter_json = json.load(f)
+    parameter_json = {'lane_width': 3.6}
 
-    preprocess_instance = ObstaclesPreprocess()
+    preprocess_instance = LinesPreprocess()
     data = preprocess_instance.run(raw_data, parameter_json)
     data.to_csv('123.csv', index=False, encoding='utf_8_sig')

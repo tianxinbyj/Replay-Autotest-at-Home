@@ -8,7 +8,6 @@ import csv
 import glob
 import multiprocessing as mp
 import os
-import shutil
 import time
 import warnings
 from pathlib import Path
@@ -863,9 +862,7 @@ data_columns = {
         [
             'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'id', 'type', 'confidence', 'position', 'marker', 'color',
-            'start_x', 'start_y', 'c_x_0', 'c_x_1', 'c_x_2', 'c_x_3',
-            'c_y_0', 'c_y_1', 'c_y_2', 'c_y_3', 'length', 'width', 'curve_type',
-            'point_num', 'x_points', 'y_points',
+            'extra_type', 'x_points', 'y_points',
         ],
     'proto_horizon_msgs/msg/Lines':
         [
@@ -1418,7 +1415,7 @@ class Ros2BagParser:
                     cone_num = obstacles2d.cone_num
                     cone_info_list = obstacles2d.cone
 
-                    for veh_id in range(veh_num):
+                    for veh_id in range(min(veh_num, 32)):
                         obj_data = veh_info_list[veh_id]
                         ob_id += 1
                         world_info = obj_data.world_info
@@ -1442,7 +1439,7 @@ class Ros2BagParser:
                                 0, 0, 0, 0, 0,
                             ])
 
-                    for ped_cyc_id in range(ped_cyc_num):
+                    for ped_cyc_id in range(min(ped_cyc_num, 32)):
                         obj_data = ped_cyc_info_list[ped_cyc_id]
                         ob_id += 1
                         world_info = obj_data.world_info
@@ -1625,24 +1622,23 @@ class Ros2BagParser:
                             pt = line3d_data.points[i]
                             x_points.append(pt.x)
                             y_points.append(pt.y)
-                        start_x = x_points[0]
-                        start_y = y_points[0]
 
-                        c_x_0 = line3d_data.x_coeffs[0]
-                        c_x_1 = line3d_data.x_coeffs[1]
-                        c_x_2 = line3d_data.x_coeffs[2]
-                        c_x_3 = line3d_data.x_coeffs[3]
-
+                        # start_x = x_points[0]
+                        # start_y = y_points[0]
+                        #
+                        # c_x_0 = line3d_data.x_coeffs[0]
+                        # c_x_1 = line3d_data.x_coeffs[1]
+                        # c_x_2 = line3d_data.x_coeffs[2]
+                        # c_x_3 = line3d_data.x_coeffs[3]
+                        #
                         # c_y_0 = line3d_data.y_coeffs[0]
                         # c_y_1 = line3d_data.y_coeffs[1]
                         # c_y_2 = line3d_data.y_coeffs[2]
                         # c_y_3 = line3d_data.y_coeffs[3]
-                        c_y_3, c_y_2, c_y_1, c_y_0 = np.polyfit(x_points, y_points, 3)
+                        #
+                        # end_x = x_points[points_num - 1]
+                        # width = 0.2
 
-                        end_x = x_points[points_num - 1]
-
-                        length = abs(end_x - start_x)
-                        width = 0.2
                         line_color = line3d_data.line_color
                         if line_type == 2:
                             line_marking = 2
@@ -1656,10 +1652,9 @@ class Ros2BagParser:
 
                         queue.put([
                             local_time, time_stamp, header_seq, header_stamp, frame_id,
-                            line_id, line_type, conf, line_position, line_marking, line_color,
-                            start_x, start_y, c_x_0, c_x_1, c_x_2, c_x_3,
-                            c_y_0, c_y_1, c_y_2, c_y_3, length, width, extra_type,
-                            points_num, x_point_str, y_point_str,
+                            line_id, line_type, conf,
+                            line_position, line_marking, line_color,
+                            extra_type, x_point_str, y_point_str,
                         ])
 
                 self.last_timestamp[topic] = time_stamp

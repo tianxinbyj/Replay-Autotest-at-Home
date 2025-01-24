@@ -11,7 +11,7 @@ from Libs import get_project_path
 
 sys.path.append(get_project_path())
 
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MatchTool import ObstaclesMatchTool
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MatchTool import ObstaclesMatchTool, LinesMatchTool
 
 
 def main():
@@ -29,13 +29,19 @@ def main():
     with open(args.parameter_json_path, 'r', encoding='utf-8') as f:
         parameter_json = json.load(f)
 
+    if parameter_json['test_topic'] == 'Obstacles':
+        match_tool = ObstaclesMatchTool()
+    elif parameter_json['test_topic'] == 'Lines':
+        match_tool = LinesMatchTool()
+    else:
+        return
+
     input_data = {
         'match_timestamp': match_timestamp,
         'gt_data': gt_data,
         'pred_data': pred_data,
     }
 
-    match_tool = ObstaclesMatchTool()
     data = match_tool.run(input_data, parameter_json)
     data.to_csv(args.match_data_path, index=False, encoding='utf_8_sig')
 
