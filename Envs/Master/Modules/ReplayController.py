@@ -352,21 +352,23 @@ class ReplayController:
                         for invalid_scenario_id in invalid_scenario_list:
                             self.replay_one_scenario(calib_checksum, invalid_scenario_id)
 
-                if not self.reboot_power():
-                    send_log(self, '重启失败,后续场景不再录制')
-                    break
-
-                # 最后再将invalid的场景再测一次
-                self.wait_for_threading()
-                for invalid_scenario_id in self.invalid_scenario_list:
-                    raw_folder = os.path.join(self.pred_raw_folder, invalid_scenario_id, 'RawData')
-                    if os.path.exists(raw_folder):
-                        shutil.rmtree(raw_folder)
-
                 invalid_scenario_list = copy.deepcopy(self.invalid_scenario_list)
-                send_log(self, f'reboot_count={self.reboot_count}, 重启后录制的场景为{invalid_scenario_list}')
-                for invalid_scenario_id in invalid_scenario_list:
-                    self.replay_one_scenario(calib_checksum, invalid_scenario_id)
+                if len(invalid_scenario_list) > 0:
+                    if not self.reboot_power():
+                        send_log(self, '重启失败,后续场景不再录制')
+                        break
+
+                    # 最后再将invalid的场景再测一次
+                    self.wait_for_threading()
+                    for invalid_scenario_id in invalid_scenario_list:
+                        raw_folder = os.path.join(self.pred_raw_folder, invalid_scenario_id, 'RawData')
+                        if os.path.exists(raw_folder):
+                            shutil.rmtree(raw_folder)
+
+                    invalid_scenario_list = copy.deepcopy(self.invalid_scenario_list)
+                    send_log(self, f'reboot_count={self.reboot_count}, 重启后录制的场景为{invalid_scenario_list}')
+                    for invalid_scenario_id in invalid_scenario_list:
+                        self.replay_one_scenario(calib_checksum, invalid_scenario_id)
 
         if self.replay_action['video_info']:
             for scenario_id in self.scenario_ids:

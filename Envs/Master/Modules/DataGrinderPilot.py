@@ -420,6 +420,15 @@ class DataGrinderOneCase:
             gt_data['vy_rel'] = gt_data['vy']
             gt_data = gt_data[gt_data['type'].isin([1, 2, 18])]
 
+        elif self.test_topic == 'Lines':
+            gt_data = gt_data.rename(columns={
+                'timestamp': 'time_stamp',
+                'line_json_sequence': 'frame_id',
+                'x_list': 'x_points',
+                'y_list': 'y_points',
+            }).sort_values(by=['time_stamp'])
+            gt_data['confidence'] = 0.5
+
         # 读取时间辍, 用于时间辍匹配
         gt_timestamp_csv = \
             glob.glob(os.path.join(self.gt_raw_folder, f'{timestamp_csv_tag}*hz.csv'))[0]
@@ -832,6 +841,123 @@ class DataGrinderOneCase:
 
     def get_abspath(self, path: str) -> str:
         return os.path.join(self.scenario_unit_folder, path)
+
+    def save_test_result(self):
+        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
+            yaml.dump(self.test_result,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+
+    def load_test_result(self):
+        with open(self.test_result_yaml) as f:
+            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+
+class DataGrinderOneTask:
+
+    def __init__(self, task_folder):
+        # 参数初始化
+        self.report_path = None
+
+        print('=' * 25 + self.__class__.__name__ + '=' * 25)
+        scenario_config_yaml = os.path.join(task_folder, 'TestConfig.yaml')
+        with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
+            self.test_config = yaml.safe_load(file)
+        self.task_folder = task_folder
+
+        # 加载测试相关的参数
+        self.product = self.test_config['product']
+        self.version = self.test_config['version']
+        self.test_topic = self.test_config['test_topic']
+        self.truth_source = self.test_config['test_action']['ros2bag']['truth_source']
+        self.test_date = str(self.test_config['test_date'])
+        self.kpi_date_label = self.test_config['kpi_date_label']
+        self.test_information = test_encyclopaedia['Information'][self.test_topic]
+        self.scenario_update = self.test_config['test_action']['scenario_unit']['scenario_update']
+
+        self.test_encyclopaedia = test_encyclopaedia[self.product]
+        self.test_action = self.test_config['test_action']
+        self.scenario_unit_folder = os.path.join(task_folder, '01_ScenarioUnit')
+        self.tag_combination_folder = os.path.join(task_folder, '02_TagCombination')
+        self.output_result_folder = os.path.join(task_folder, '03_OutputResult')
+        topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
+        self.scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
+        self.valid_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 1].index)
+        send_log(self, f'Valid Scenario为{self.valid_scenario_list}, 不参与结果分析')
+
+        self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
+        if not os.path.exists(self.test_result_yaml):
+            self.test_result = {
+                'ScenarioUnit': {},
+                'TagCombination': {},
+                'OutputResult': {},
+            }
+
+            self.save_test_result()
+
+    @sync_test_result
+    def analyze_scenario_unit(self):
+        # 依次创建scenario_unit测试信息
+        scenario_run_list = {}
+        scenario_list = []
+        for scenario_tag in self.test_config['scenario_tag']:
+            for scenario_id in scenario_tag['scenario_id']:
+                if scenario_id in scenario_list or scenario_id not in self.valid_scenario_list:
+                    continue
+
+                scenario_list.append(scenario_id)
+                scenario_test_config = {
+                    'product': self.test_config['product'],
+                    'version': self.test_config['version'],
+                    'test_topic': self.test_config['test_topic'],
+                    'test_date': str(self.test_config['test_date']),
+                    'kpi_date_label': self.test_config['kpi_date_label'],
+                    'pred_folder': os.path.join(self.test_config['pred_folder'], scenario_id),
+                    'gt_folder': os.path.join(self.test_config['gt_folder'], scenario_id),
+                    'test_action': self.test_action['scenario_unit'],
+                    'test_item': self.test_config['test_item'],
+                    'scenario_tag': scenario_tag['tag'],
+                    'scenario_id': scenario_id,
+                    'timestamp_matching_tolerance': self.test_config['timestamp_matching_tolerance'],
+                }
+
+                if self.test_topic == 'Obstacles':
+                    scenario_test_config['target_characteristic'] = ['is_coverageValid', 'is_keyObj']
+                    for item in [
+                        'detected_ROI', 'region_division', 'coverage_reference_point',
+                        'coverage_threshold', 'object_matching_tolerance',
+                    ]:
+                        scenario_test_config[item] = self.test_config[item]
+                elif self.test_topic == 'Lines':
+                    for item in [
+                        'lane_matching_width',
+                    ]:
+                        scenario_test_config[item] = self.test_config[item]
+
+                scenario_run_list[scenario_id] = {
+                    'scenario_unit_folder': os.path.join(self.scenario_unit_folder, scenario_id),
+                    'scenario_test_config': scenario_test_config,
+                    'scenario_config_yaml': os.path.join(self.scenario_unit_folder, scenario_id, 'TestConfig.yaml')
+                }
+
+        for scenario_id, scenario_run_info in scenario_run_list.items():
+
+            if os.path.exists(scenario_run_info['scenario_config_yaml']) and (not self.scenario_update):
+                send_log(self, f'{scenario_id}已经完成计算,跳过')
+                continue
+
+            self.test_result['ScenarioUnit'][scenario_id] = (
+                self.get_relpath(scenario_run_info['scenario_unit_folder']))
+            create_folder(scenario_run_info['scenario_unit_folder'], False)
+            with open(scenario_run_info['scenario_config_yaml'], 'w', encoding='utf-8') as f:
+                yaml.dump(scenario_run_info['scenario_test_config'],
+                          f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+            DataGrinderPilotObstaclesOneCase(scenario_run_info['scenario_unit_folder']).start()
+
+    def get_relpath(self, path: str) -> str:
+        return os.path.relpath(path, self.task_folder)
+
+    def get_abspath(self, path: str) -> str:
+        return os.path.join(self.task_folder, path)
 
     def save_test_result(self):
         with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
@@ -2123,99 +2249,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
         return valid_camera
 
 
-class DataGrinderPilotObstaclesOneTask:
-
-    def __init__(self, task_folder):
-        # 参数初始化
-        self.report_path = None
-
-        print('=' * 25 + self.__class__.__name__ + '=' * 25)
-        scenario_config_yaml = os.path.join(task_folder, 'TestConfig.yaml')
-        with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
-            self.test_config = yaml.safe_load(file)
-        self.task_folder = task_folder
-
-        # 加载测试相关的参数
-        self.product = self.test_config['product']
-        self.version = self.test_config['version']
-        self.test_topic = self.test_config['test_topic']
-        self.truth_source = self.test_config['test_action']['ros2bag']['truth_source']
-        self.test_date = str(self.test_config['test_date'])
-        self.kpi_date_label = self.test_config['kpi_date_label']
-        self.test_information = test_encyclopaedia['Information'][self.test_topic]
-        self.scenario_update = self.test_config['test_action']['scenario_unit']['scenario_update']
-
-        self.test_encyclopaedia = test_encyclopaedia[self.product]
-        self.test_action = self.test_config['test_action']
-        self.scenario_unit_folder = os.path.join(task_folder, '01_ScenarioUnit')
-        self.tag_combination_folder = os.path.join(task_folder, '02_TagCombination')
-        self.output_result_folder = os.path.join(task_folder, '03_OutputResult')
-        self.region_division = self.test_config['region_division']
-        topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
-        self.scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
-        self.valid_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 1].index)
-        send_log(self, f'Valid Scenario为{self.valid_scenario_list}, 不参与结果分析')
-
-        self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
-        if not os.path.exists(self.test_result_yaml):
-            self.test_result = {
-                'ScenarioUnit': {},
-                'TagCombination': {},
-                'OutputResult': {},
-            }
-
-            self.save_test_result()
-
-    @sync_test_result
-    def analyze_scenario_unit(self):
-        # 依次创建scenario_unit测试信息
-        scenario_run_list = {}
-        scenario_list = []
-        for scenario_tag in self.test_config['scenario_tag']:
-            for scenario_id in scenario_tag['scenario_id']:
-                if scenario_id in scenario_list or scenario_id not in self.valid_scenario_list:
-                    continue
-
-                scenario_list.append(scenario_id)
-                scenario_test_config = {
-                    'product': self.test_config['product'],
-                    'version': self.test_config['version'],
-                    'test_topic': self.test_config['test_topic'],
-                    'test_date': str(self.test_config['test_date']),
-                    'kpi_date_label': self.test_config['kpi_date_label'],
-                    'pred_folder': os.path.join(self.test_config['pred_folder'], scenario_id),
-                    'gt_folder': os.path.join(self.test_config['gt_folder'], scenario_id),
-                    'test_action': self.test_action['scenario_unit'],
-                    'test_item': self.test_config['test_item'],
-                    'target_characteristic': ['is_coverageValid', 'is_keyObj'],
-                    'scenario_tag': scenario_tag['tag'],
-                    'scenario_id': scenario_id,
-                    'detected_ROI': self.test_config['detected_ROI'],
-                    'region_division': self.test_config['region_division'],
-                    'coverage_reference_point': self.test_config['coverage_reference_point'],
-                    'timestamp_matching_tolerance': self.test_config['timestamp_matching_tolerance'],
-                    'coverage_threshold': self.test_config['coverage_threshold'],
-                    'object_matching_tolerance': self.test_config['object_matching_tolerance'],
-                }
-
-                scenario_run_list[scenario_id] = {
-                    'scenario_unit_folder': os.path.join(self.scenario_unit_folder, scenario_id),
-                    'scenario_test_config': scenario_test_config,
-                    'scenario_config_yaml': os.path.join(self.scenario_unit_folder, scenario_id, 'TestConfig.yaml')
-                }
-
-        for scenario_id, scenario_run_info in scenario_run_list.items():
-
-            if os.path.exists(scenario_run_info['scenario_config_yaml']) and (not self.scenario_update):
-                continue
-
-            self.test_result['ScenarioUnit'][scenario_id] = (
-                self.get_relpath(scenario_run_info['scenario_unit_folder']))
-            create_folder(scenario_run_info['scenario_unit_folder'], False)
-            with open(scenario_run_info['scenario_config_yaml'], 'w', encoding='utf-8') as f:
-                yaml.dump(scenario_run_info['scenario_test_config'],
-                          f, encoding='utf-8', allow_unicode=True, sort_keys=False)
-            DataGrinderPilotObstaclesOneCase(scenario_run_info['scenario_unit_folder']).start()
+class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
 
     @sync_test_result
     def combine_scenario_tag(self):
@@ -2263,6 +2297,7 @@ class DataGrinderPilotObstaclesOneTask:
                     if topic not in match_data_dict[tag_key]:
                         match_data_dict[tag_key][topic] = []
 
+                    print(scenario_id)
                     match_data_path = scenario_test_result[self.test_topic][topic]['match']['match_data']
                     match_data = pd.read_csv(os.path.join(scenario_unit_folder, match_data_path), index_col=False)
                     match_data.insert(0, 'scenario_id', scenario_id)
@@ -2355,6 +2390,16 @@ class DataGrinderPilotObstaclesOneTask:
              .to_csv(bug_summary_path, index=False, encoding='utf_8_sig'))
             self.test_result['OutputResult']['bugItems'] = self.get_relpath(bug_summary_path)
 
+        # 获取版本对比的文件夹
+        version_comparison_folder = self.test_config['version_comparison']
+        if version_comparison_folder is not None and os.path.exists(version_comparison_folder):
+            for root, dirs, files in os.walk(version_comparison_folder):
+                for file in files:
+                    if 'bug_summary.csv' in file and self.test_topic in root:
+                        print(os.path.join(root, file))
+
+        # 1. 上个版本没有，这个版本出现
+
     @sync_test_result
     def compile_statistics(self):
         # 按照数据库数据单元的方式保存数据
@@ -2424,7 +2469,7 @@ class DataGrinderPilotObstaclesOneTask:
                     }
 
                     input_parameter_container = {
-                        'region_division': self.region_division,
+                        'region_division': self.test_config['region_division'],
                         'characteristic': characteristic,
                     }
 
@@ -3479,7 +3524,7 @@ class DataGrinderPilotObstaclesOneTask:
             if comparison_valid:
                 for root, dirs, files in os.walk(version_comparison_folder):
                     for file in files:
-                        if os.path.basename(excel_path) in file:
+                        if os.path.basename(excel_path) in file and self.test_topic in root:
                             old_excel_path = os.path.join(root, file)
 
             for _, scenario_tag in enumerate(pd.ExcelFile(excel_path).sheet_names):
@@ -3784,7 +3829,11 @@ class DataGrinderPilotObstaclesOneTask:
         report_generator.genReport(report_path=self.report_path, compress=1)
 
     def start(self):
-        if any([value for value in self.test_action['scenario_unit'].values()]):
+        if (self.test_action['scenario_unit']['preprocess']
+                or self.test_action['scenario_unit']['match']
+                or self.test_action['scenario_unit']['metric']
+                or self.test_action['scenario_unit']['bug']
+                or self.test_action['scenario_unit']['render']):
             self.analyze_scenario_unit()
 
         if self.test_action['tag_combination']:
@@ -3792,28 +3841,13 @@ class DataGrinderPilotObstaclesOneTask:
 
         if self.test_action['statistics']:
             self.summary_bug_items()
-            self.compile_statistics()
+            # self.compile_statistics()
 
         if self.test_action['visualization']:
             self.visualize_output()
 
         if self.test_action['gen_report']:
             self.gen_report()
-
-    def get_relpath(self, path: str) -> str:
-        return os.path.relpath(path, self.task_folder)
-
-    def get_abspath(self, path: str) -> str:
-        return os.path.join(self.task_folder, path)
-
-    def save_test_result(self):
-        with open(self.test_result_yaml, 'w', encoding='utf-8') as f:
-            yaml.dump(self.test_result,
-                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
-
-    def load_test_result(self):
-        with open(self.test_result_yaml) as f:
-            self.test_result = yaml.load(f, Loader=yaml.FullLoader)
 
 
 class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
@@ -3829,6 +3863,1607 @@ class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
         if self.test_action['match']:
             self.match_timestamp()
             self.match_object()
+
+
+class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
+
+    @sync_test_result
+    def combine_scenario_tag(self):
+        # 合并各个场景的match_data, 重新corresponding_index编号
+        # 获得每一种特征的分类结果
+        for scenario_tag in self.test_config['scenario_tag']:
+            # 需要去除Broken Scenario
+            valid_scenario_list = [scenario_id for scenario_id in scenario_tag['scenario_id']
+                                   if scenario_id in self.valid_scenario_list]
+            if len(valid_scenario_list):
+                tag_key = '&'.join(scenario_tag['tag'].values())
+                self.test_result['TagCombination'][tag_key] = {
+                    'tag': scenario_tag['tag'],
+                    'scenario_id': valid_scenario_list,
+                    self.test_topic: {},
+                }
+
+        match_data_dict = {}
+        for tag_key in self.test_result['TagCombination'].keys():
+
+            # 汇总数据
+            tag_combination_folder = os.path.join(self.tag_combination_folder, tag_key)
+            create_folder(tag_combination_folder)
+            match_data_dict[tag_key] = {}
+
+            for scenario_id in self.test_result['TagCombination'][tag_key]['scenario_id']:
+                scenario_unit_folder = os.path.join(self.scenario_unit_folder, scenario_id)
+                with open(os.path.join(scenario_unit_folder, 'TestResult.yaml')) as f:
+                    scenario_test_result = yaml.load(f, Loader=yaml.FullLoader)
+
+                # 遍历全部测试结果，按照topic和metrics合并
+                for topic in scenario_test_result[self.test_topic].keys():
+                    if topic == 'GroundTruth':
+                        continue
+
+                    topic_tag = topic.replace('/', '')
+                    # 用于设置评判样本量最小限度的帧数阈值
+                    if topic not in self.test_result['TagCombination'][tag_key][self.test_topic]:
+                        self.test_result['TagCombination'][tag_key][self.test_topic][topic] = {
+                            'frequency': scenario_test_result[self.test_topic][topic]['match_frequency']
+                        }
+                        topic_folder = os.path.join(tag_combination_folder, topic_tag)
+                        create_folder(topic_folder)
+
+                    if topic not in match_data_dict[tag_key]:
+                        match_data_dict[tag_key][topic] = []
+
+                    print(scenario_id)
+                    match_data_path = scenario_test_result[self.test_topic][topic]['match']['match_data']
+                    match_data = pd.read_csv(os.path.join(scenario_unit_folder, match_data_path), index_col=False)
+                    match_data.insert(0, 'scenario_id', scenario_id)
+                    match_data_dict[tag_key][topic].append(match_data)
+
+        for tag_key in match_data_dict.keys():
+
+            send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
+
+            for topic, df_list in match_data_dict[tag_key].items():
+                topic_tag = topic.replace('/', '')
+                metric_folder = os.path.join(self.tag_combination_folder, tag_key, topic_tag)
+                create_folder(metric_folder)
+
+                total_match_data = pd.concat(df_list).reset_index(drop=True)
+                total_match_data['corresponding_index'] = total_match_data.index
+                total_match_data_path = os.path.join(get_project_path(), 'Temp', 'total_match_data.csv')
+                total_match_data.to_csv(total_match_data_path, index=False, encoding='utf_8_sig')
+
+                input_parameter_container = {
+                    'metric_type': self.test_config['test_item'][topic],
+                    'characteristic_type': self.test_config['target_characteristic'],
+                    'kpi_date_label': self.kpi_date_label,
+                }
+                parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
+                with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+
+                cmd = [
+                    f"{bench_config['master']['sys_interpreter']}",
+                    "Api_EvaluateMetrics.py",
+                    "-m", total_match_data_path,
+                    "-j", parameter_json_path,
+                    "-f", metric_folder,
+                ]
+
+                send_log(self, cmd)
+                send_log(self, f'{self.test_topic} {topic} 指标评估')
+                cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+                # os.remove(parameter_json_path)
+                os.remove(total_match_data_path)
+                if result.stderr and 'import numpy' not in result.stderr:
+                    print(result.stderr)
+                    send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
+
+                for characteristic in os.listdir(metric_folder):
+                    self.test_result['TagCombination'][tag_key][self.test_topic][topic][characteristic] = {}
+                    for metric in os.listdir(os.path.join(metric_folder, characteristic)):
+                        self.test_result['TagCombination'][tag_key][self.test_topic][topic][characteristic][
+                            metric.split('.')[0]] = self.get_relpath(
+                            os.path.join(metric_folder, characteristic, metric))
+
+    @sync_test_result
+    def summary_bug_items(self):
+
+        bugItem_folder = os.path.join(self.output_result_folder, 'bugItems')
+        create_folder(bugItem_folder)
+        dataframes = []
+
+        for scenario_tag in self.test_result['TagCombination']:
+            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
+            for scenario_id in scenario_ids:
+                for root, dirs, files in os.walk(os.path.join(self.scenario_unit_folder, scenario_id)):
+                    for file in files:
+                        if 'bug_jira_summary.csv' in file:
+                            file_path = os.path.join(root, file)
+                            df = pd.read_csv(file_path, index_col=False)
+                            if len(df):
+                                dataframes.append(df)
+
+        if len(dataframes):
+            bug_summary = pd.concat(dataframes, ignore_index=True)
+            bug_report_path_list = []
+            for i, row in bug_summary.iterrows():
+                topic = row['topic'].replace('/', '')
+                bug_type = row['bug_type']
+                target_type = row['target_type']
+                folder = os.path.join(bugItem_folder, bug_type, topic, target_type)
+                if not os.path.exists(folder):
+                    os.makedirs(folder)
+
+                bug_report_path = row['attachment_path']
+                shutil.copy(bug_report_path, folder)
+                bug_report_path_list.append(os.path.join(folder, os.path.basename(bug_report_path)))
+
+            bug_summary['attachment_path'] = bug_report_path_list
+            bug_summary_path = os.path.join(bugItem_folder, 'bug_summary.csv')
+            (bug_summary.sort_values(by=['bug_type', 'scenario_id', 'gt_target_id'])
+             .to_csv(bug_summary_path, index=False, encoding='utf_8_sig'))
+            self.test_result['OutputResult']['bugItems'] = self.get_relpath(bug_summary_path)
+
+        # 获取版本对比的文件夹
+        version_comparison_folder = self.test_config['version_comparison']
+        if version_comparison_folder is not None and os.path.exists(version_comparison_folder):
+            for root, dirs, files in os.walk(version_comparison_folder):
+                for file in files:
+                    if 'bug_summary.csv' in file and self.test_topic in root:
+                        print(os.path.join(root, file))
+
+        # 1. 上个版本没有，这个版本出现
+
+    @sync_test_result
+    def compile_statistics(self):
+        # 按照数据库数据单元的方式保存数据
+        # 格式为json，在文件夹内平铺
+        statistics_folder = os.path.join(self.output_result_folder, 'statistics')
+        create_folder(statistics_folder)
+
+        # 统计目标个数
+        total_scenario_analysis_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_analysis.json')
+        with open(total_scenario_analysis_path, 'r', encoding='utf-8') as f:
+            total_scenario_analysis = json.load(f)
+
+        scenario_analysis = {}
+        for tag_key in self.test_result['TagCombination'].keys():
+            scenario_list = self.test_result['TagCombination'][tag_key]['scenario_id']
+            scenario_analysis[tag_key] = {}
+
+            for scenario_id in scenario_list:
+                if f'{scenario_id}-{self.truth_source}' not in total_scenario_analysis.keys():
+                    continue
+
+                scenario_analysis[tag_key][scenario_id] = {}
+                for characteristic in self.test_config['test_action']['output_characteristic']:
+                    scenario_analysis[tag_key][scenario_id][characteristic] = (
+                        total_scenario_analysis)[f'{scenario_id}-{self.truth_source}']['obstacles'][characteristic]
+
+        scenario_analysis_path = os.path.join(statistics_folder, 'scenario_analysis.json')
+        with open(scenario_analysis_path, 'w', encoding='utf-8') as f:
+            json.dump(scenario_analysis, f, ensure_ascii=False, indent=4)
+
+        self.test_result['OutputResult']['scenario_analysis'] = self.get_relpath(scenario_analysis_path)
+        # ====================
+
+        # 生成用于上传数据库的json文件，以及汇总结果OutputResult
+        json_count = 0
+        json_rows = []
+        for tag_key in self.test_result['TagCombination'].keys():
+            tag = self.test_result['TagCombination'][tag_key]['tag']
+            scenario_list = self.test_result['TagCombination'][tag_key]['scenario_id']
+
+            metric_statistics = eval(f'MetricStatistics.{self.test_topic}MetricStatistics()')
+
+            for topic in self.test_result['TagCombination'][tag_key][self.test_topic].keys():
+                topic_tag = topic.replace('/', '')
+
+                for characteristic in self.test_config['target_characteristic']:
+                    if characteristic not in self.test_result['TagCombination'][tag_key][self.test_topic][topic]:
+                        continue
+
+                    if characteristic not in self.test_config['test_action']['output_characteristic']:
+                        continue
+
+                    test_result = self.test_result['TagCombination'][tag_key][self.test_topic][topic][
+                        characteristic]
+
+                    info_json_data = {
+                        'Product': self.product,
+                        'Version': self.version,
+                        'StartTime': str(self.test_date),
+                        **{tag_type: tag_value for tag_type, tag_value in tag.items()},
+                        'ScenarioGroup': scenario_list,
+                        'TopicName': topic}
+
+                    data = {
+                        metric: pd.read_csv(self.get_abspath(data_path), index_col=False)
+                        for metric, data_path in test_result.items()
+                    }
+
+                    input_parameter_container = {
+                        'region_division': self.test_config['region_division'],
+                        'characteristic': characteristic,
+                    }
+
+                    json_datas = metric_statistics.run(data, input_parameter_container)
+
+                    for json_data in json_datas:
+                        json_data = {**info_json_data, **json_data}
+
+                        # 在生成测试结果表格的时候，做一下筛选:
+                        # 1.速度仅在后处理存在
+                        # 2.行人不存在航向角
+                        # 3.快速和高速场景不存在行人和两轮车
+                        # 4.行人和两轮车没有那么远的测试距离
+
+                        if '速度' in json_data['MetricTypeName'] and json_data['TopicName'] != '/VA/Obstacles':
+                            continue
+
+                        if json_data['MetricTypeName'] == '航向角误差' and json_data['ObstacleName'] == '行人':
+                            continue
+
+                        if (('快速' in json_data['RoadTypeCondition'] or '高速' in json_data['RoadTypeCondition'])
+                                and (json_data['ObstacleName'] in ['行人', '两轮车'])):
+                            continue
+
+                        if ('100~150' in json_data['RangeDetails'] and json_data['ObstacleName'] in ['行人', '两轮车']) \
+                                or ('-100~-50' in json_data['RangeDetails'] and json_data['ObstacleName'] == '行人'):
+                            continue
+
+                        if json_data['TopicName'] == '/VA/PedResult' and json_data['ObstacleName'] in ['小车', '大车']:
+                            continue
+
+                        if json_data['TopicName'] == '/VA/VehicleResult' and json_data['ObstacleName'] in ['两轮车', '行人']:
+                            continue
+
+                        # 保存单个json文件
+                        json_count += 1
+                        json_name = (f'{json_count:06d}--{self.version}--{tag_key}--{topic_tag}--{json_data["ObstacleName"]}'
+                                     f'--{json_data["RangeDetails"]}--{json_data["FeatureDetail"]}--{json_data["MetricTypeName"]}.json')
+                        json_path = os.path.join(statistics_folder, json_name)
+
+                        frequency_threshold = self.test_result['TagCombination'][tag_key][self.test_topic][topic][
+                                                  'frequency'] * 2
+                        if json_data['Output']['sample_count'] < frequency_threshold:
+                            send_log(self, f'{json_count} {json_name} 样本少于{frequency_threshold}，不保存')
+                            continue
+
+                        json_data['ScenarioGroup'] = '&'.join(json_data['ScenarioGroup'])
+                        json_data['uuid'] = str(uuid.uuid4())
+                        send_log(self, f'{json_count} {json_name} 已保存')
+                        with open(json_path, 'w', encoding='utf-8') as f:
+                            json.dump(json_data, f, ensure_ascii=False, indent=4)
+
+                        # 保存json文件的目录
+                        json_rows.append(
+                            [
+                                json_count, self.version, tag_key, topic,
+                                json_data['ObstacleName'], json_data['RangeDetails'],
+                                json_data['FeatureDetail'], json_data['MetricTypeName'],
+                                json_data['Output']['sample_count'], json.dumps(json_data['Output'])
+                            ]
+                        )
+
+        path = os.path.join(statistics_folder, 'output_result.csv')
+        output_result = pd.DataFrame(json_rows, columns=[
+            'index', 'version', 'scenario_tag', 'topic', 'obstacle_type', 'region',
+            'characteristic', 'metric', 'sample_count', 'result'])
+        output_result.to_csv(path, index=False, encoding='utf_8_sig')
+        self.test_result['OutputResult']['statistics'] = self.get_relpath(path)
+        # ====================
+
+        # 生成以场景类型作为sheet的xlsx
+        characteristic_key = [test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['name']
+                              for c in self.test_config['test_action']['output_characteristic']]
+        topic_key = output_result['topic'].unique()
+        scenario_tag_key = output_result['scenario_tag'].unique()
+        obstacle_type_key = output_result['obstacle_type'].unique()
+        region_key = output_result['region'].unique()
+        metric_key = [v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metrics'].values()
+                      if v['name'] in output_result['metric'].unique()]
+        # 首先生成columns
+        columns = [
+            ('基本信息', '基本信息', 'OD类型'),
+            ('基本信息', '基本信息', '目标物范围'),
+            ('基本信息', '基本信息', 'start_distance'),
+            ('基本信息', '基本信息', '场景类型'),
+        ]
+        for metric in metric_key:
+            temp_data = output_result[output_result['metric'] == metric]
+            for res_key in json.loads(temp_data.iloc[0]['result']).keys():
+                if (
+                        (metric == '准召信息') or
+                        (metric in ['长度误差', '宽度误差', '高度误差'] and 'abs_95' in res_key) or
+                        ('距离误差' in metric and 'abs_95' in res_key) or
+                        ('abs_95' in res_key and '%' not in res_key)
+                ):
+                    if res_key not in ['TP', 'FP', 'FN', 'CTP', 'sample_count']:
+                        columns.append(
+                            (metric, res_key, 'kpi_target')
+                        )
+                    for topic in topic_key:
+                        columns.append(
+                            (metric, res_key, topic)
+                        )
+
+        self.test_result['OutputResult']['report_table'] = {}
+        for i, characteristic in enumerate(characteristic_key):
+            path = os.path.join(statistics_folder, f'{characteristic}-指标汇总.xlsx')
+            self.test_result['OutputResult']['report_table'][characteristic] = self.get_relpath(path)
+
+            # 使用ExcelWriter将DataFrame保存到不同的sheet中
+            with (pd.ExcelWriter(path, engine='openpyxl') as writer):
+                for scenario_tag in scenario_tag_key:
+                    rows = []
+                    for obstacle_type in obstacle_type_key:
+                        if '快速' in scenario_tag and obstacle_type in ['行人', '两轮车']:
+                            continue
+
+                        for region in region_key:
+                            if ('100~150' in region and obstacle_type in ['行人', '两轮车']) \
+                                or ('-100~-50' in region and obstacle_type == '行人'):
+                                continue
+
+                            start_distance = int(region.split('~')[0].split('(')[1])
+                            row = [obstacle_type, region, start_distance, scenario_tag]
+                            filter_data = output_result[
+                                (output_result['characteristic'] == characteristic)
+                                & (output_result['scenario_tag'] == scenario_tag)
+                                & (output_result['obstacle_type'] == obstacle_type)
+                                & (output_result['region'] == region)
+                            ]
+
+                            for metric, res_key, topic in columns[4:]:
+                                if topic == 'kpi_target':
+                                    kpi_threshold = get_obstacles_kpi_threshold(metric, res_key, obstacle_type, region=region)
+                                    if kpi_threshold is None:
+                                        row.append(np.nan)
+                                    else:
+                                        kpi_ratio = get_obstacles_kpi_ratio(metric, res_key, obstacle_type, self.kpi_date_label)
+                                        row.append(kpi_threshold * kpi_ratio)
+
+                                else:
+                                    filter2_data = filter_data[
+                                        (filter_data['metric'] == metric)
+                                        & (filter_data['topic'] == topic)
+                                    ]
+
+                                    if len(filter2_data):
+                                        c = json.loads(filter2_data.iloc[0]['result'])
+                                        row.append(c[res_key])
+                                    else:
+                                        row.append(np.nan)
+
+                            rows.append(row)
+
+                    df = pd.DataFrame(rows, columns=pd.MultiIndex.from_tuples(columns))
+                    df.sort_values(by=[('基本信息', '基本信息', 'OD类型'), ('基本信息', '基本信息', 'start_distance')], inplace=True)
+                    df.drop(('基本信息', '基本信息', 'start_distance'), axis=1, inplace=True)
+                    df.to_excel(writer, sheet_name=scenario_tag, merge_cells=True)
+
+            workbook = Workbook()
+            workbook.LoadFromFile(path)
+            for sheet in workbook.Worksheets:
+                sheet.DeleteRow(4)
+                sheet.DeleteColumn(1)
+            workbook.SaveToFile(path)
+            workbook.Dispose()
+            sheet_name1 = 'Evaluation Warning'
+            workbook = openpyxl.load_workbook(path)
+            worksheet = workbook[sheet_name1]
+            workbook.remove(worksheet)
+            workbook.save(path)
+        # ====================
+
+    @sync_test_result
+    def visualize_output(self):
+
+        def plot_table(axes, columns, columns_width, values, index=None, index_width=0):
+            if index is None:
+                index = []
+            axes.patch.set_facecolor('white')
+            axes.patch.set_alpha(0.3)
+            for pos in ['right', 'top', 'left', 'bottom']:
+                axes.spines[pos].set_visible(False)
+
+            # 画index
+            if index_width and len(index):
+                axes.add_patch(pc.Rectangle(
+                    xy=(-index_width, 0),
+                    width=index_width, height=1,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=True,
+                    edgecolor='grey',
+                    facecolor='bisque',
+                    linewidth=1))
+                axes.text(-index_width / 2, 0.5, 'Test Case',
+                          va='center', ha='center',
+                          fontdict={
+                              'family': 'Ubuntu',
+                              'style': 'normal',
+                              'weight': 'bold',
+                              'color': 'black',
+                              'size': font_size * 1.5,
+                          })
+
+                for i, idx in enumerate(index):
+                    axes.add_patch(pc.Rectangle(
+                        xy=(-index_width, -1 - i),
+                        width=index_width, height=1,
+                        angle=0, alpha=1,
+                        rotation_point='xy',
+                        fill=True,
+                        edgecolor='grey',
+                        facecolor='linen',
+                        linewidth=1))
+
+                    axes.text(-index_width * 0.95, -1 - i + 0.5, idx,
+                              va='center', ha='left',
+                              fontdict={
+                                  'family': 'sans-serif',
+                                  'style': 'normal',
+                                  'weight': 'normal',
+                                  'color': 'black',
+                                  'size': font_size * 1.5,
+                              })
+
+            # 画columns
+            current_x = 0
+            for i, (col, width) in enumerate(zip(columns, columns_width)):
+                axes.add_patch(pc.Rectangle(
+                    xy=(current_x, 0),
+                    width=width, height=1,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=True,
+                    edgecolor='grey',
+                    facecolor='lightsteelblue',
+                    linewidth=1))
+
+                axes.text(current_x + width * 0.5, 0.5, col,
+                          va='center', ha='center',
+                          fontdict={
+                              'family': 'Ubuntu',
+                              'style': 'normal',
+                              'weight': 'bold',
+                              'color': 'black',
+                              'size': font_size * 1.5,
+                          })
+
+                current_x += width
+
+            # 画values
+            ii, jj = values.shape
+            for i in range(ii):
+                current_x = 0
+                for j in range(jj):
+                    width = columns_width[j]
+                    color = 'white'
+                    value = values[i, j]
+
+                    if '%' in columns[j]:
+                        value = '{:.2%}'.format(value)
+
+                    elif isinstance(value, float) and (not np.isnan(value)):
+                        if int(value) == value:
+                            value = int(value)
+                        else:
+                            value = round(value, 4)
+
+                    if contains_chinese(str(value)):
+                        fontdict = {
+                            'family': 'sans-serif',
+                            'style': 'normal',
+                            'weight': 'normal',
+                            'color': 'black',
+                            'size': font_size * 1.5,
+                        }
+                    else:
+                        fontdict = {
+                            'family': 'Ubuntu',
+                            'style': 'normal',
+                            'weight': 'normal',
+                            'color': 'black',
+                            'size': font_size * 1.5,
+                        }
+
+                    axes.add_patch(pc.Rectangle(
+                        xy=(current_x, -i - 1),
+                        width=width, height=1,
+                        angle=0, alpha=1,
+                        rotation_point='xy',
+                        fill=True,
+                        edgecolor='grey',
+                        facecolor=color,
+                        linewidth=1))
+                    axes.text(current_x + width * 0.5, -i - 1 + 0.5, value,
+                              va='center', ha='center',
+                              fontdict=fontdict)
+
+                    current_x += width
+
+            axes.set_xlim(-index_width - 0.1, np.sum(columns_width) + 0.1)
+            axes.set_ylim(-len(df) - 0.1, 2.1)
+            axes.set_xticks([])
+            axes.set_yticks([])
+
+        def wrap_text(text, max_length):
+            wrapped_lines = []
+            for i in range(0, len(text), max_length):
+                wrapped_lines.append(text[i:i + max_length])
+            return '\n'.join(wrapped_lines)
+
+        visualization_folder = os.path.join(self.output_result_folder, 'visualization')
+        create_folder(visualization_folder)
+
+        # 生成测试信息总览
+        def plot_test_info(test_info, plot_path):
+
+            def plot_rect(left_bottom_pt, width, height,
+                          facecolor, text, text_angle,
+                          font_size, fill=True):
+                ax.add_patch(pc.Rectangle(
+                    xy=left_bottom_pt,
+                    width=width, height=height,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=fill,
+                    edgecolor='grey',
+                    facecolor=facecolor,
+                    linewidth=1))
+                va, ha = 'center', 'center'
+                ax.text(left_bottom_pt[0] + width / 2, left_bottom_pt[1] + height / 2, text,
+                        va=va, ha=ha, rotation=text_angle,
+                        fontsize=font_size)
+
+            cell_w = 2
+            cell_h = 0.6
+            font_size = 13
+
+            fig_height = 0
+            for i, (key, info) in enumerate(test_info.items()):
+                if not isinstance(info, dict):
+                    fig_height += cell_h
+                else:
+                    fig_height += cell_h * len(info.keys()) * 0.9
+            fig_width = cell_w * 6
+
+            fig_size = (fig_width + 0.1, fig_height + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            ax.axis('off')
+
+            left_bottom_y = 0
+            for i, (key, info) in enumerate(test_info.items()):
+                if key == '测试版本':
+                    left_bottom_y -= cell_h
+                    plot_rect(left_bottom_pt=[0, left_bottom_y],
+                              width=fig_width, height=cell_h, facecolor='lightsteelblue',
+                              text=f'<{info}>测试报告信息总览', text_angle=0, font_size=font_size * 1.2)
+                elif not isinstance(info, dict):
+                    left_bottom_y -= cell_h
+                    plot_rect(left_bottom_pt=[cell_w, left_bottom_y],
+                              width=cell_w * 5, height=cell_h, facecolor='white',
+                              text=info, text_angle=0, font_size=font_size)
+                    plot_rect(left_bottom_pt=[0, left_bottom_y],
+                              width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                              text=key, text_angle=0, font_size=font_size)
+                else:
+                    left_bottom_y -= cell_h * len(info.keys()) * 0.9
+                    text = '\n\n'.join([f'{k}:{v}' for k, v in info.items()])
+                    plot_rect(left_bottom_pt=[cell_w, left_bottom_y],
+                              width=cell_w * 5, height=cell_h * len(info.keys()) * 0.9, facecolor='white',
+                              text=text, text_angle=0, font_size=font_size)
+                    plot_rect(left_bottom_pt=[0, left_bottom_y],
+                              width=cell_w, height=cell_h * len(info.keys()) * 0.9, facecolor='lightsteelblue',
+                              text=key, text_angle=0, font_size=font_size)
+
+            ax.set_xlim(-0.1, fig_width + 0.1)
+            ax.set_ylim(-fig_height - 0.1, 0.1)
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+
+        def plot_title_table(title_dict, plot_path):
+            fig = plt.figure(figsize=(4 * len(title_dict), 3.5))
+            fig.tight_layout()
+            plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+            grid = plt.GridSpec(1, 1, wspace=0.05, hspace=0.05)
+            ax_title_page = fig.add_subplot(grid[0, 0])
+            for pos in ['right', 'top', 'left', 'bottom']:
+                ax_title_page.spines[pos].set_visible(False)
+
+            center_x = 2
+            for k, v in title_dict.items():
+                ax_title_page.text(center_x, 0.875, k,
+                                   va='center', ha='center',
+                                   fontdict={
+                                       'style': 'normal',
+                                       'weight': 'normal',
+                                       'color': 'black',
+                                       'size': font_size * 2.5,
+                                   })
+                ax_title_page.text(center_x, -0.875, str(v),
+                                   va='center', ha='center',
+                                   fontdict={
+                                       'family': 'Ubuntu',
+                                       'style': 'normal',
+                                       'weight': 'bold',
+                                       'color': 'orange',
+                                       'size': font_size * 6,
+                                   })
+                center_x += 4
+
+            ax_title_page.set_xlim(0, len(title_dict) * 4)
+            ax_title_page.set_ylim(-1.75, 1.75)
+            ax_title_page.set_xticks([])
+            ax_title_page.set_yticks([])
+
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+            fig.clf()
+            plt.close()
+
+        current_version = self.test_config['version']
+        test_topic = self.test_config['test_topic']
+        version_comparison_folder = self.test_config['version_comparison']
+        old_version = ''
+        if version_comparison_folder is not None and os.path.exists(version_comparison_folder):
+            for root, dirs, files in os.walk(version_comparison_folder):
+                for file in files:
+                    if 'TestConfig.yaml' in file:
+                        file_path = os.path.join(root, file)
+                        with open(file_path, 'r', encoding='utf-8') as file:
+                            old_test_config = yaml.safe_load(file)
+                        if 'version_comparison' in old_test_config and old_test_config['test_topic'] == test_topic:
+                            old_version = old_test_config['version']
+
+        output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
+        region_key = ';'.join(output_result['region'].unique())
+        metric_key = ';'.join([v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metrics'].values()
+                      if v['name'] in output_result['metric'].unique()])
+        characteristic_key = {test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['name']:
+                                  test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['description']
+                              for c in self.test_config['test_action']['output_characteristic']}
+
+        with open(self.get_abspath(self.test_result['OutputResult']['scenario_analysis']), 'r', encoding='utf-8') as file:
+            scenario_analysis = json.load(file)
+
+        target_num, ru_num = {}, {}
+        for scenario_tag in scenario_analysis:
+            for scenario_id in scenario_analysis[scenario_tag]:
+                for target_type in scenario_analysis[scenario_tag][scenario_id]['is_coverageValid']:
+                    if target_type in self.test_information['type']:
+                        if target_type in ['cyclist', 'pedestrian']:
+                            ru = 'VRU'
+                        else:
+                            ru = 'DRU'
+                        if ru not in ru_num:
+                            ru_num[ru] = 0
+                        ru_num[ru] += scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
+
+                        target_type_text = self.test_information['type'][target_type]['name']
+                        if target_type_text not in target_num:
+                            target_num[target_type_text] = 0
+                        target_num[target_type_text] += scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
+
+        scenario_list = {}
+        total_frame = 0
+        total_distance = 0
+        for i, scenario_tag in enumerate(self.test_result['TagCombination']):
+            scenario_list[scenario_tag] = {}
+            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
+
+            frame, distance = 0, 0
+            for scenario_id in scenario_ids:
+                video_info_path = os.path.join(self.scenario_unit_folder, scenario_id, '00_ScenarioInfo', 'video_info.yaml')
+                with open(video_info_path, 'r', encoding='utf-8') as file:
+                    video_info = yaml.safe_load(file)
+                frame += round(video_info['duration'] * video_info['fps'] * 291 / 300)
+                ego_vx_path = os.path.join(self.scenario_unit_folder, scenario_id, '01_Data', 'General', 'pred_ego.csv')
+                ego_vx = pd.read_csv(ego_vx_path, index_col=False)
+                distance += np.ceil((ego_vx['time_stamp'].max() - ego_vx['time_stamp'].min()) * ego_vx['ego_vx'].mean() / 1000)
+
+            total_frame += frame
+            total_distance += distance
+            scenario_list[scenario_tag] = f'帧数-{frame:.0f} frame, 里程-{distance:.0f} km     ------- Page {3 + 12 * i}'
+
+        test_info = {
+            '测试版本': current_version,
+            '版本对比': f'{current_version} <--> {old_version}',
+            # 'test_date': self.test_config['test_date'],
+            '测试对象': ';'.join(self.test_config['test_item'].keys()),
+            '目标类型': ';'.join([f'{k}-{v}' for k, v in target_num.items()]),
+            '指标类型': metric_key,
+            '区域划分': region_key,
+            '特征类型': characteristic_key,
+            '测试场景类型': scenario_list,
+        }
+        plot_path = os.path.join(visualization_folder, '测试信息汇总.png')
+        send_log(self, f'{plot_path} 图片已保存')
+        self.test_result['OutputResult']['test_info'] = self.get_relpath(plot_path)
+        plot_test_info(test_info, plot_path)
+
+        title_summary = {
+            '回灌帧数\n(千帧)': f'{(total_frame / 1000):.0f}',
+            '场景里程\n(千米)': f'{total_distance:.0f}',
+            '场景类型\n(类)': len(self.test_result['TagCombination'].keys()),
+        }
+        for ru, num in ru_num.items():
+            title_summary[f'{ru}\n(千)'] = f'{(num / 1000):.0f}'
+        plot_path = os.path.join(visualization_folder, '测试报告首页.png')
+        plot_title_table(title_summary, plot_path)
+        self.test_result['OutputResult']['test_title'] = self.get_relpath(plot_path)
+        # ====================
+
+        # 将速度图和地图都移动过来
+        for scenario_tag in self.test_result['TagCombination']:
+            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
+            for scenario_id in scenario_ids:
+                for root, dirs, files in os.walk(os.path.join(self.scenario_unit_folder, scenario_id)):
+                    for file in files:
+                        if '_Info.jpg' in file:
+                            file_path = os.path.join(root, file)
+                            os.makedirs(os.path.join(visualization_folder, scenario_tag), exist_ok=True)
+                            new_file_path = os.path.join(visualization_folder, scenario_tag, f'{scenario_id}.jpg')
+                            shutil.copy(file_path, new_file_path)
+        # ====================
+
+        # 按照场景和目标特征，生成各个指标的场景
+        statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
+        group_columns = ['scenario_tag', 'topic', 'obstacle_type', 'characteristic', 'metric']
+        stat_group = statistics.groupby(group_columns)
+        self.test_result['OutputResult']['visualization'] = {}
+
+        df_tp_error = {}
+        for df_name, df in stat_group:
+            scenario_tag, topic, obstacle_type, characteristic, metric = df_name
+            if characteristic not in self.test_result['OutputResult']['report_table'].keys():
+                continue
+
+            if characteristic == '静止目标' and '速度' in metric:
+                continue
+
+            characteristic_folder = os.path.join(visualization_folder, scenario_tag, characteristic)
+            if not os.path.exists(characteristic_folder):
+                os.makedirs(characteristic_folder)
+
+            for index, row in df.iterrows():
+                result_dict = json.loads(row['result'])
+                for key, value in result_dict.items():
+                    df.at[index, key] = value
+            df['type_cate'] = pd.Categorical(df['obstacle_type'],
+                                             categories=['小车', '大车', '两轮车', '行人'], ordered=True)
+            df.sort_values(by=['type_cate', 'region'], inplace=True)
+            drop_columns = group_columns + ['index', 'type_cate', 'result']
+            df.drop(drop_columns, axis=1, inplace=True)
+            df.insert(0, 'obstacle_type', obstacle_type)
+            df.rename(columns={'region': 'Test Area[m]'}, inplace=True)
+
+            columns = list(df.columns)
+            columns_width = [max(get_string_display_length(c) / 5.2, 2) for c in columns]
+            values = df.values
+
+            fig_size = (np.sum(columns_width) + 0.1, (len(df) + 2) + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+            plt.axis('off')
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            plot_table(ax, columns, columns_width, values)
+            ax.text(np.sum(columns_width) / 2, 1.5, '-'.join(
+                [scenario_tag, topic, characteristic, obstacle_type, metric]),
+                    va='center', ha='center', fontsize=font_size * 2)
+
+            pic_name = '--'.join(
+                [scenario_tag, topic, characteristic, obstacle_type, metric]).replace('/', '')
+            pic_path = os.path.join(characteristic_folder, f'{pic_name}.jpg')
+            send_log(self, f'{pic_name} 已保存')
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(pic_path, facecolor='white', dpi=100)
+            fig.clf()
+            plt.close()
+
+            if scenario_tag not in df_tp_error.keys():
+                df_tp_error[scenario_tag] = {}
+            if topic not in df_tp_error[scenario_tag].keys():
+                df_tp_error[scenario_tag][topic] = {}
+            if characteristic not in df_tp_error[scenario_tag][topic].keys():
+                df_tp_error[scenario_tag][topic][characteristic] = {}
+            if obstacle_type not in df_tp_error[scenario_tag][topic][characteristic].keys():
+                df_tp_error[scenario_tag][topic][characteristic][obstacle_type] = []
+
+            # 汇总准召率
+            if '准召信息' in metric:
+                df.rename(columns={
+                    'recall%': '召回率',
+                    'precision%': '准确率',
+                    'type_accuracy%': '类型准确率'}, inplace=True)
+                df_tp_error[scenario_tag][topic][characteristic][obstacle_type].append(
+                    df[['Test Area[m]', '召回率', '准确率', '类型准确率']])
+
+            # 汇总tp_error
+            else:
+                df.rename(columns={'pass_ratio%': metric}, inplace=True)
+                df_tp_error[scenario_tag][topic][characteristic][obstacle_type].append(
+                    df[['Test Area[m]', metric]])
+        # ====================
+
+        # 合并tp_error的metric数据，以及可视化为饼图
+        for scenario_tag in df_tp_error.keys():
+            if scenario_tag not in self.test_result['OutputResult']['visualization'].keys():
+                self.test_result['OutputResult']['visualization'][scenario_tag] = {}
+
+            for topic in df_tp_error[scenario_tag].keys():
+                if topic not in self.test_result['OutputResult']['visualization'][scenario_tag].keys():
+                    self.test_result['OutputResult']['visualization'][scenario_tag][topic] = {}
+
+                for characteristic in df_tp_error[scenario_tag][topic].keys():
+                    if characteristic not in self.test_result['OutputResult']['visualization'][scenario_tag][
+                        topic].keys():
+                        self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic] = {}
+
+                    for obstacle_type in df_tp_error[scenario_tag][topic][characteristic].keys():
+                        if obstacle_type not in self.test_result['OutputResult']['visualization'][scenario_tag][topic][
+                            characteristic].keys():
+                            self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
+                                obstacle_type] = {}
+
+                        # 合并表格
+                        merged_df = pd.DataFrame(columns=['Test Area[m]'])
+                        for one_df in df_tp_error[scenario_tag][topic][characteristic][obstacle_type]:
+                            merged_df = merged_df.merge(one_df, on='Test Area[m]', how='outer')
+
+                        # 重新排列结果的顺序
+                        merged_df = merged_df.set_index('Test Area[m]', drop=True)
+                        result_column = test_encyclopaedia['Information'][self.test_topic]['result_column']
+
+                        merged_df = merged_df[[c for c in result_column if c in merged_df.columns]]
+
+                        csv_name = '--'.join([scenario_tag, topic, characteristic, obstacle_type]).replace('/', '')
+                        csv_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{csv_name}.csv')
+                        (merged_df.sort_values(by=['Test Area[m]'])
+                         .to_csv(csv_path, index=True, encoding='utf_8_sig'))
+                        send_log(self, f'汇总百分比 {csv_name} 数据已保存')
+
+                        self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
+                            obstacle_type]['data'] = self.get_relpath(csv_path)
+
+                        # 画结果大饼图
+                        height_ratios = [1] + [3] * len(merged_df)  # 第一行高度是1/3，其余行高度是1
+                        width_ratios = [2] + [3] * len(merged_df.columns)  # 第一列宽度是1/3，其余列宽度是1
+                        fig = plt.figure(figsize=(sum(width_ratios), sum(height_ratios)))
+                        fig.tight_layout()
+                        plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+
+                        # 创建GridSpec对象
+                        grid = plt.GridSpec(len(height_ratios), len(width_ratios),
+                                            height_ratios=height_ratios, width_ratios=width_ratios,
+                                            wspace=0, hspace=0)
+
+                        # 先画index和columns
+                        for i, col in enumerate(merged_df.columns):
+                            ax = fig.add_subplot(grid[0, i + 1])
+                            ax.xaxis.set_visible(False)
+                            ax.yaxis.set_visible(False)
+                            for spine in ax.spines.values():
+                                spine.set_edgecolor('black')
+                                spine.set_linewidth(2)
+
+                            ax.text(0.5, 0.5, col, va='center', ha='center',
+                                    fontsize=font_size * 2.5)
+
+                        for i, idx in enumerate(merged_df.index):
+                            ax = fig.add_subplot(grid[i + 1, 0])
+                            ax.xaxis.set_visible(False)
+                            ax.yaxis.set_visible(False)
+                            for spine in ax.spines.values():
+                                spine.set_edgecolor('black')
+                                spine.set_linewidth(0)
+
+                            ax.text(0.5, 0.5, idx.replace(',', '\n'), va='center', ha='center',
+                                    rotation=45, fontsize=font_size * 2.5)
+
+                        # 画单独的饼图
+                        cmap = LinearSegmentedColormap.from_list('red_to_green', ['darkred', 'darkgreen'])
+                        value_shape = merged_df.values.shape
+                        for i in range(value_shape[0]):
+                            for j in range(value_shape[1]):
+                                value = merged_df.values[i, j]
+                                if not np.isnan(value):
+                                    ax = fig.add_subplot(grid[i + 1, j + 1])
+                                    ax.axis('off')
+                                    sizes = [value, 1 - value]
+                                    colors = ['limegreen', 'lightcoral']
+                                    wedgeprops = {'width': 0.4}  # 设置扇区宽度为0.3，得到一个空心的效果
+                                    ax.pie(sizes, colors=colors, startangle=90, wedgeprops=wedgeprops)
+                                    ax.text(0, 0, f'{value:.2%}', va='center', ha='center',
+                                            fontsize=font_size * 2, color=cmap(value))
+
+                        pic_name = '--'.join(
+                            [scenario_tag, topic, characteristic, obstacle_type]).replace('/', '')
+                        pic_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{pic_name}.jpg')
+                        send_log(self, f'{pic_name} 已保存')
+                        canvas = FigureCanvas(fig)
+                        canvas.print_figure(pic_path, facecolor='white', dpi=100)
+                        fig.clf()
+                        plt.close()
+                        send_log(self, f'汇总百分比 {pic_name} 图片已保存')
+
+                        self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
+                            obstacle_type]['plot'] = self.get_relpath(pic_path)
+        # ====================
+
+        # 生成用于汇报的图
+        def plot_single_metric(sub_data, old_data, plot_path):
+
+            def plot_rect(left_bottom_pt, width, height,
+                          facecolor, text, text_angle,
+                          font_size, alpha=1, comparison=None):
+                ratio = 1
+                if (isinstance(comparison, float) or isinstance(comparison, int)) and len(text):
+                    ratio = 0.75
+                    if comparison < 0:
+                        comparison_color = ['darkred', 'darkgreen'][metric_name != '准召信息']
+                    else:
+                        comparison_color = ['darkgreen', 'darkred'][metric_name != '准召信息']
+
+                    if '%' in text:
+                        comparison_text = f'{comparison:.2%}'
+                    elif round(comparison, 0) == comparison:
+                        comparison_text = f'{comparison:.0f}'
+                    else:
+                        comparison_text = f'{comparison:.2f}'
+
+                    ax.add_patch(pc.Rectangle(
+                        xy=(left_bottom_pt[0] + ratio * width, left_bottom_pt[1]),
+                        width=width - ratio * width, height=height,
+                        angle=0, alpha=alpha,
+                        rotation_point='xy',
+                        fill=True,
+                        edgecolor='grey',
+                        facecolor='white',
+                        linewidth=1))
+                    ax.text(left_bottom_pt[0] + (1 + ratio) * width / 2, left_bottom_pt[1] + height / 2,
+                            comparison_text,
+                            va='center', ha='center', rotation=270,
+                            fontdict={
+                                'family': 'sans-serif',  # 字体家族
+                                'color': comparison_color,  # 字体颜色
+                                'weight': 'bold',  # 字体粗细
+                                'size': font_size * 0.7,  # 字体大小
+                                'style': 'normal'  # 字体样式
+                            })
+
+                ax.add_patch(pc.Rectangle(
+                    xy=left_bottom_pt,
+                    width=width * ratio, height=height,
+                    angle=0, alpha=alpha,
+                    rotation_point='xy',
+                    fill=True,
+                    edgecolor='grey',
+                    facecolor=facecolor,
+                    linewidth=1))
+                va, ha = 'center', 'center'
+                ax.text(left_bottom_pt[0] + ratio * width / 2, left_bottom_pt[1] + height / 2, text,
+                        va=va, ha=ha, rotation=text_angle,
+                        fontsize=font_size)
+
+            color_for_sheet = []
+            cell_w = 1
+            cell_h = 0.5
+            font_size = 11
+            fig_size = ((len(sub_data.columns) + 2) * cell_w + 0.1, (len(sub_data) + 3) * cell_h + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            ax.axis('off')
+
+            metric_name = sub_data.columns[0][0]
+            tag_name = sub_data.index[0][2]
+            ax.text((len(sub_data.columns) - 2) / 2, cell_h * 2.5, f'<{tag_name}> {metric_name}',
+                    va='center', ha='center', rotation=0,
+                    fontsize=font_size * 2, color='peru')
+
+            # 原点放置在数据的左上角
+            # 画index
+            plot_rect(left_bottom_pt=(-2 * cell_w, 0),
+                      width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                      text='目标类型', text_angle=0, font_size=font_size)
+            plot_rect(left_bottom_pt=(-1 * cell_w, 0),
+                      width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                      text='测试范围[m]', text_angle=0, font_size=font_size)
+
+            last_index_0 = sub_data.index[0][0]
+            index_0_x, index_0_y = -2 * cell_w, 0
+            index_width, index_height = cell_w, 0
+            for i, index in enumerate(sub_data.index):
+                if last_index_0 != index[0]:
+                    plot_rect(left_bottom_pt=(index_0_x, index_0_y),
+                              width=index_width, height=index_height, facecolor='bisque',
+                              text=last_index_0, text_angle=0, font_size=font_size * 1.2)
+                    index_height = 0
+                index_height += cell_h
+                index_0_y -= cell_h
+                last_index_0 = index[0]
+                if i == len(sub_data.index) - 1:
+                    plot_rect(left_bottom_pt=(index_0_x, index_0_y),
+                              width=index_width, height=index_height, facecolor='bisque',
+                              text=last_index_0, text_angle=0, font_size=font_size * 1.2)
+
+                plot_rect(left_bottom_pt=(-1 * cell_w, - (i + 1) * cell_h),
+                          width=cell_w, height=cell_h, facecolor='bisque',
+                          text=index[1].replace(',', '\n'), text_angle=0, font_size=font_size)
+
+            # 画columns和data
+            last_col_0 = sub_data.columns[0][1]
+            col_0_x, col_0_y = 0, cell_h
+            col_width, col_height = 0, cell_h
+            for i, col in enumerate(sub_data.columns):
+                if last_col_0 != col[1]:
+                    plot_rect(left_bottom_pt=(col_0_x, col_0_y),
+                              width=col_width, height=col_height, facecolor='lightsteelblue',
+                              text=last_col_0, text_angle=0, font_size=font_size * 1.2)
+                    col_0_x += col_width
+                    col_width = 0
+                col_width += cell_w
+                last_col_0 = col[1]
+                if i == len(sub_data.columns) - 1:
+                    plot_rect(left_bottom_pt=(col_0_x, col_0_y),
+                              width=col_width, height=col_height, facecolor='lightsteelblue',
+                              text=last_col_0, text_angle=0, font_size=font_size * 1.2)
+
+                if col[2] != 'kpi_target':
+                    plot_rect(left_bottom_pt=(i * cell_w, 0),
+                              width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                              text=wrap_text(col[2], 10), text_angle=0, font_size=font_size)
+                    for j in range(len(sub_data.index)):
+                        value = sub_data[col].tolist()[j]
+                        if (col[0], col[1], 'kpi_target') in sub_data.columns:
+                            kpi_target = sub_data[(col[0], col[1], 'kpi_target')].tolist()[j]
+                            if np.isnan(value):
+                                text = ''
+                                color = 'lightgrey'
+                            else:
+                                if '%' in col[1]:
+                                    text = f'{value:.2%}'
+                                elif round(value, 0) == value:
+                                    text = f'{value:.0f}'
+                                else:
+                                    text = f'{value:.2f}'
+                                if np.isnan(kpi_target):
+                                    color = 'white'
+                                else:
+                                    if value < kpi_target:
+                                        color = ['lightcoral', 'limegreen'][metric_name != '准召信息']
+                                    else:
+                                        color = ['limegreen', 'lightcoral'][metric_name != '准召信息']
+                        else:
+                            if np.isnan(value):
+                                text = ''
+                                color = 'lightgrey'
+                            else:
+                                color = 'white'
+                                if '%' in col[1]:
+                                    text = f'{value:.2%}'
+                                elif round(value, 0) == value:
+                                    text = f'{value:.0f}'
+                                else:
+                                    text = f'{value:.2f}'
+
+                        # 用于为excel表格涂色
+                        color_for_sheet.append([list(col), j, color])
+
+                        #取出old_data中相应格子的值
+                        if old_data is None:
+                            comparison = None
+                        else:
+                            if col not in old_data.columns:
+                                comparison = None
+                            else:
+                                old_value = old_data[col].tolist()[j]
+                                if np.isnan(old_value) or np.isnan(value):
+                                    comparison = None
+                                else:
+                                    comparison = value - old_value
+
+                        plot_rect(left_bottom_pt=(i * cell_w, - j * cell_h - cell_h),
+                                  width=cell_w, height=cell_h, facecolor=color,
+                                  text=text, text_angle=0, font_size=font_size * 1.2, comparison=comparison)
+
+                else:
+                    plot_rect(left_bottom_pt=(i * cell_w, 0),
+                              width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                              text='指标期望', text_angle=0, font_size=font_size * 1.3)
+                    for j in range(len(sub_data.index)):
+                        value = sub_data.values[j, i]
+                        color = 'lightcyan'
+                        if np.isnan(value):
+                            text = ''
+                        elif '%' in col[1]:
+                            text = f'{value:.2%}'
+                        elif round(value, 0) == value:
+                            text = f'{value:.0f}'
+                        else:
+                            text = f'{value:.2f}'
+                        plot_rect(left_bottom_pt=(i * cell_w, - j * cell_h - cell_h),
+                                  width=cell_w, height=cell_h, facecolor=color,
+                                  text=text, text_angle=0, font_size=font_size * 1.2)
+
+                        # 用于为excel表格涂色
+                        color_for_sheet.append([list(col), j, color])
+
+            ax.set_xlim(-2 * cell_w - 0.1, len(sub_data.columns) * cell_w + 0.1)
+            ax.set_ylim(- len(sub_data) * cell_h - 0.1, 3 * cell_h + 0.1)
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+
+            return color_for_sheet
+
+        def plot_summary_metric(summary_data, plot_path):
+
+            def plot_rect(left_bottom_pt, width, height,
+                          facecolor, text, text_angle,
+                          font_size, fill=True):
+
+                ax.add_patch(pc.Rectangle(
+                    xy=left_bottom_pt,
+                    width=width, height=height,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=fill,
+                    edgecolor='grey',
+                    facecolor=facecolor,
+                    linewidth=1))
+                va, ha = 'center', 'center'
+                ax.text(left_bottom_pt[0] + width / 2, left_bottom_pt[1] + height / 2, text,
+                        va=va, ha=ha, rotation=text_angle,
+                        fontsize=font_size)
+
+            cell_w = 1
+            cell_h = 0.5
+            font_size = 11
+            fig_size = ((len(summary_data.columns) + 2) * cell_w + 0.1, (len(summary_data) + 3) * cell_h + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            ax.axis('off')
+
+            tag_name = summary_data.index[0][2]
+            ax.text((len(summary_data.columns) - 2) / 2, cell_h * 2.5, tag_name,
+                    va='center', ha='center', rotation=0,
+                    fontsize=font_size * 2, color='peru')
+
+            # 原点放置在数据的左上角
+            # 画index
+            plot_rect(left_bottom_pt=(-2 * cell_w, 0),
+                      width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                      text='目标类型', text_angle=0, font_size=font_size)
+            plot_rect(left_bottom_pt=(-1 * cell_w, 0),
+                      width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                      text='测试范围[m]', text_angle=0, font_size=font_size)
+
+            last_index_0 = summary_data.index[0][0]
+            index_0_x, index_0_y = -2 * cell_w, 0
+            index_width, index_height = cell_w, 0
+            for i, index in enumerate(summary_data.index):
+                if last_index_0 != index[0]:
+                    plot_rect(left_bottom_pt=(index_0_x, index_0_y),
+                              width=index_width, height=index_height, facecolor='bisque',
+                              text=last_index_0, text_angle=0, font_size=font_size * 1.2)
+                    index_height = 0
+                index_height += cell_h
+                index_0_y -= cell_h
+                last_index_0 = index[0]
+                if i == len(summary_data.index) - 1:
+                    plot_rect(left_bottom_pt=(index_0_x, index_0_y),
+                              width=index_width, height=index_height, facecolor='bisque',
+                              text=last_index_0, text_angle=0, font_size=font_size * 1.2)
+
+                plot_rect(left_bottom_pt=(-1 * cell_w, - (i + 1) * cell_h),
+                          width=cell_w, height=cell_h, facecolor='bisque',
+                          text=index[1].replace(',', '\n'), text_angle=0, font_size=font_size)
+
+            # 画columns和data
+            last_col_0 = summary_data.columns[0][1]
+            col_0_x, col_0_y = 0, cell_h
+            col_width, col_height = 0, cell_h
+            for i, col in enumerate(summary_data.columns):
+                if last_col_0 != col[1]:
+                    plot_rect(left_bottom_pt=(col_0_x, col_0_y),
+                              width=col_width, height=col_height, facecolor='lightsteelblue',
+                              text=last_col_0, text_angle=0, font_size=font_size * 1.2)
+                    col_0_x += col_width
+                    col_width = 0
+                col_width += cell_w
+                last_col_0 = col[1]
+                if i == len(summary_data.columns) - 1:
+                    plot_rect(left_bottom_pt=(col_0_x, col_0_y),
+                              width=col_width, height=col_height, facecolor='lightsteelblue',
+                              text=last_col_0, text_angle=0, font_size=font_size * 1.2)
+
+                plot_rect(left_bottom_pt=(i * cell_w, 0),
+                          width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                          text=wrap_text(col[2], 10), text_angle=0, font_size=font_size)
+
+                good_face_image = Image.open(os.path.join(project_path, 'Docs', 'Resources', 'Icon', 'good_face.png'))
+                bad_face_image = Image.open(os.path.join(project_path, 'Docs', 'Resources', 'Icon', 'bad_face.png'))
+
+                for j in range(len(summary_data.index)):
+                    plot_rect(left_bottom_pt=(i * cell_w, -j * cell_h - cell_h),
+                              width=col_width, height=col_height, facecolor='white',
+                              text='', text_angle=0, fill=False, font_size=font_size * 1.2)
+
+                    value = summary_data.values[j, i]
+                    extend = (i * cell_w + (cell_w - cell_h) / 2, i * cell_w + cell_w - (cell_w - cell_h) / 2,
+                              -j * cell_h - cell_h, -j * cell_h)
+                    if value == 1:
+                        ax.imshow(good_face_image, extent=extend)
+                    elif value == 0:
+                        ax.imshow(bad_face_image, extent=extend)
+
+            ax.set_xlim(-2 * cell_w - 0.1, len(summary_data.columns) * cell_w + 0.1)
+            ax.set_ylim(- len(summary_data) * cell_h - 0.1, 3 * cell_h + 0.1)
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+
+        # 获取版本对比的文件夹
+        version_comparison_folder = self.test_config['version_comparison']
+        if version_comparison_folder is not None and os.path.exists(version_comparison_folder):
+            comparison_valid = 1
+        else:
+            comparison_valid = 0
+
+        metric_pass_ratio_by_characteristic_scenario = {} # 用于统计各特征和场景下的指标合格率
+        color_for_sheets = {} # excel的涂色字典
+        self.test_result['OutputResult']['report_plot'] = {}
+        for characteristic, excel_path in self.test_result['OutputResult']['report_table'].items():
+            excel_path = self.get_abspath(excel_path)
+            self.test_result['OutputResult']['report_plot'][characteristic] = {}
+            color_for_sheets[characteristic] = {}
+            metric_pass_ratio_by_characteristic_scenario[characteristic] = {}
+
+            # 寻找其他版本相同的文件
+            old_excel_path = None
+            if comparison_valid:
+                for root, dirs, files in os.walk(version_comparison_folder):
+                    for file in files:
+                        if os.path.basename(excel_path) in file and self.test_topic in root:
+                            old_excel_path = os.path.join(root, file)
+
+            for _, scenario_tag in enumerate(pd.ExcelFile(excel_path).sheet_names):
+                data = pd.read_excel(excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
+                self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag] = {}
+                color_for_sheets[characteristic][scenario_tag] = []
+
+                old_data = None
+                if old_excel_path is not None and scenario_tag in pd.ExcelFile(excel_path).sheet_names:
+                    old_data = pd.read_excel(old_excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
+
+                sub_data_col = {}
+                for col in data.columns:
+                    if col[0] not in sub_data_col:
+                        sub_data_col[col[0]] = []
+                    sub_data_col[col[0]].append(col)
+
+                # 获取汇总笑脸图，以及分指标kpi图
+                pass_or_fail_summary = []
+                for metric, cols in sub_data_col.items():
+
+                    if metric == '准召信息':
+                        new_cols = []
+                        for col in cols:
+                            if col[1] not in ['TP', 'CTP', 'FP', 'FN', 'sample_count']:
+                                new_cols.append(col)
+                        sub_data = data[new_cols]
+
+                        # 将sample数量也单独绘制
+                        new_cols = []
+                        for col in cols:
+                            if col[1] in ['TP', 'FP', 'FN', 'CTP']:
+                                new_cols.append(col)
+                        sample_data = data[new_cols]
+                        sample_plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
+                                                 f'{scenario_tag}--{characteristic}--样本数量.png')
+                        plot_single_metric(sample_data, old_data, sample_plot_path)
+                        self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag][
+                            '样本数量'] = self.get_relpath(sample_plot_path)
+                        send_log(self, f'{sample_plot_path} 图片已保存')
+
+                        __metrics = list(dict.fromkeys(sub_data.columns.get_level_values(1)))
+                        for __metric in __metrics:
+                            temp_data = sub_data.loc[:,
+                                        [(col_0, col_1, col_2) for col_0, col_1, col_2 in sub_data.columns if col_1 == __metric]]
+                            pass_or_fails = []
+                            for idx, row in temp_data.iterrows():
+                                pass_or_fail = []
+                                for t0, t1, topic in row.index:
+                                    if topic == 'kpi_target':
+                                        continue
+                                    if np.isnan(row[(t0, t1, topic)]) or np.isnan(row[(t0, t1, 'kpi_target')]):
+                                        pass_or_fail.append(-1)
+                                    elif row[(t0, t1, topic)] > row[(t0, t1, 'kpi_target')]:
+                                        pass_or_fail.append(1)
+                                    else:
+                                        pass_or_fail.append(0)
+                                pass_or_fails.append(pass_or_fail)
+
+                            new_data = sub_data.loc[:, [(col_0, col_1, col_2) for col_0, col_1, col_2 in temp_data.columns if
+                                                        col_2 != 'kpi_target']]
+                            pass_or_fail_data = pd.DataFrame(pass_or_fails, columns=new_data.columns, index=new_data.index)
+                            pass_or_fail_summary.append(pass_or_fail_data)
+
+                    else:
+                        sub_data = data[cols]
+                        __metrics = list(dict.fromkeys(sub_data.columns.get_level_values(1)))
+                        pass_or_fails_compare = []
+                        for __metric in __metrics:
+                            temp_data = sub_data.loc[:,
+                                        [(col_0, col_1, col_2) for col_0, col_1, col_2 in sub_data.columns if col_1 == __metric]]
+                            pass_or_fails = []
+                            for idx, row in temp_data.iterrows():
+                                pass_or_fail = []
+                                for t0, t1, topic in row.index:
+                                    if topic == 'kpi_target':
+                                        continue
+                                    if np.isnan(row[(t0, t1, topic)]) or np.isnan(row[(t0, t1, 'kpi_target')]):
+                                        pass_or_fail.append(-1)
+                                    elif row[(t0, t1, topic)] > row[(t0, t1, 'kpi_target')]:
+                                        pass_or_fail.append(0)
+                                    else:
+                                        pass_or_fail.append(1)
+                                pass_or_fails.append(pass_or_fail)
+                            pass_or_fails_compare.append(np.array(pass_or_fails))
+
+                        # 与或合并测试结果
+                        compare_res = np.zeros_like(pass_or_fails_compare[0])
+                        for ii in range(compare_res.shape[0]):
+                            for jj in range(compare_res.shape[1]):
+                                res = [pass_or_fails[ii, jj] for pass_or_fails in pass_or_fails_compare]
+                                if 1 in res:
+                                    compare_res[ii, jj] = 1
+                                elif 0 in res:
+                                    compare_res[ii, jj] = 0
+                                else:
+                                    compare_res[ii, jj] = -1
+
+                        pass_or_fail_columns = []
+                        for col_0, col_1, col_2 in sub_data.columns:
+                            if col_2 == 'kpi_target':
+                                continue
+                            if (col_0, col_0, col_2) not in pass_or_fail_columns:
+                                pass_or_fail_columns.append((col_0, col_0, col_2))
+                        pass_or_fail_data = pd.DataFrame(compare_res, columns=pass_or_fail_columns, index=sub_data.index)
+                        pass_or_fail_summary.append(pass_or_fail_data)
+
+                    plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
+                                             f'{scenario_tag}--{characteristic}--{metric}.png')
+                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag][
+                        metric] = self.get_relpath(plot_path)
+                    color_for_sheets[characteristic][scenario_tag].extend(plot_single_metric(sub_data, old_data, plot_path))
+                    send_log(self, f'{plot_path} 图片已保存')
+
+                self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'] = []
+                plot_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{scenario_tag}--{characteristic}_summary_1.png')
+                metric_summary = pd.concat(pass_or_fail_summary[:5], axis=1)
+                plot_summary_metric(metric_summary, plot_path)
+                send_log(self, f'{plot_path} 图片已保存')
+                self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+
+                plot_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{scenario_tag}--{characteristic}_summary_2.png')
+                metric_summary = pd.concat(pass_or_fail_summary[5:], axis=1)
+                plot_summary_metric(metric_summary, plot_path)
+                send_log(self, f'{plot_path} 图片已保存')
+                self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+
+                metric_pass_count = np.sum(pd.concat(pass_or_fail_summary, axis=1).values == 1)
+                metric_fail_count = np.sum(pd.concat(pass_or_fail_summary, axis=1).values == 0)
+                metric_pass_ratio_by_characteristic_scenario[characteristic][scenario_tag] = {
+                    'pass_count': int(metric_pass_count), 'fail_count': int(metric_fail_count),
+                    'ratio': float(metric_pass_count / (metric_pass_count + metric_fail_count))}
+
+        self.test_result['OutputResult']['metric_pass_ratio'] = metric_pass_ratio_by_characteristic_scenario
+        # ====================
+
+        # 根据比对结果，对excel源文件涂色
+        with open(os.path.join(visualization_folder, 'color_for_sheets.yaml'), 'w', encoding='utf-8') as f:
+            yaml.dump(color_for_sheets,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+        fill_type = {
+            'lightcoral': PatternFill(fill_type="solid", start_color="FFB6C1"),
+            'limegreen': PatternFill(fill_type="solid", start_color="32CD32"),
+            'lightcyan': PatternFill(fill_type="solid", start_color="E0FFFF"),
+            'lightgrey': PatternFill(fill_type="solid", start_color="D3D3D3"),
+            'white': PatternFill(fill_type="solid", start_color="FFFFFF")
+        }
+        color_list = [
+                         'CC4422', '33FF57', '2244CC', 'CC2288', '8822CC',
+                         'CCAA00', '8B4513', 'D45A4A', '6600A3', 'A68C67',
+                     ] * 20
+
+        for characteristic, file in self.test_result['OutputResult']['report_table'].items():
+            workbook = openpyxl.load_workbook(self.get_abspath(file))
+            for scenario_tag in workbook.sheetnames:
+                sheet = workbook[scenario_tag]
+                sheet_colors = color_for_sheets[characteristic][scenario_tag]
+                max_column = sheet.max_column
+
+                column, i = 1, 0
+                while column <= max_column:
+                    if sheet.cell(row=1, column=column).value is not None:
+                        i += 1
+                    sheet.cell(row=1, column=column).fill = PatternFill(fill_type="solid", start_color=color_list[i])
+                    column += 1
+
+                for color_item in sheet_colors:
+                    column = 1
+                    while sheet.cell(row=1, column=column).value != color_item[0][0] and column <= max_column:
+                        column += 1
+                    while sheet.cell(row=2, column=column).value != color_item[0][1] and column <= max_column:
+                        column += 1
+                    while sheet.cell(row=3, column=column).value != color_item[0][2] and column <= max_column:
+                        column += 1
+                    if column <= max_column:
+                        cell = sheet.cell(row=color_item[1] + 4, column=column)
+                        cell.fill = fill_type[color_item[2]]
+                        cell.border = Border(
+                            left=Side(style='thin', color="000000"),
+                            right=Side(style='thin', color="000000"),
+                            top=Side(style='thin', color="000000"),
+                            bottom=Side(style='thin', color="000000")
+                        )
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+            workbook.save(os.path.join(visualization_folder, f'{characteristic}.xlsx'))
+
+    @sync_test_result
+    def gen_report(self):
+
+        report_title = f'{self.product}_{self.test_topic}_数据回灌感知测试报告'
+        send_log(self, f'开始生成报告 {report_title}')
+
+        title_background = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'TitlePage.png')
+        logo = os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'ZoneLogo.png')
+        report_generator = PDFReportTemplate(report_title=report_title,
+                                             test_time=self.test_date.split(' ')[0],
+                                             tester='Hil_DataReplay_TestStand',
+                                             version=self.version,
+                                             title_page=title_background,
+                                             title_summary_img=self.get_abspath(self.test_result['OutputResult']['test_title']),
+                                             logo=logo)
+
+        heading = '报告信息总览'
+        send_log(self, f'生成页面 {heading}')
+        report_generator.addOnePage(
+            heading=heading,
+            text_list=None,
+            img_list=[[self.get_abspath(self.test_result['OutputResult']['test_info'])]],
+        )
+
+        for characteristic in self.test_result['OutputResult']['report_plot'].keys():
+
+            if characteristic != '关键目标':
+                continue
+
+            for scenario_tag in self.test_result['OutputResult']['report_plot'][characteristic]:
+
+                send_log(self, f'生成页面 {characteristic} {scenario_tag}')
+                report_generator.addTitlePage(
+                    title=f'{scenario_tag}<{characteristic}>',
+                    page_type='sequence',
+                    stamp=None,
+                    sub_title_list=None,
+                )
+
+                for img in self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary']:
+
+                    send_log(self, f'生成页面 {characteristic} {scenario_tag} Overview')
+                    report_generator.addOnePage(
+                        heading=f'{scenario_tag}<{characteristic}> Overview',
+                        text_list=['绿色笑脸 = Pass, 红色哭脸 = Fail'],
+                        img_list=[[self.get_abspath(img)]],
+                    )
+
+                for metric, img in self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag].items():
+                    if metric == 'summary':
+                        continue
+
+                    send_log(self, f'生成页面 {characteristic} {scenario_tag} {metric}')
+                    report_generator.addOnePage(
+                        heading=f'{scenario_tag}<{characteristic}> {metric}',
+                        text_list=['绿色代表“Pass”和“好于”，红色代表“Fail”和“差于”', '侧边竖写数字为与对比版本的差值'],
+                        img_list=[[self.get_abspath(img)]],
+                    )
+
+        report_generator.addTitlePage(title='附 录',
+                                      page_type='sequence',
+                                      stamp=None,
+                                      sub_title_list=None)
+
+        for scenario_tag in self.test_result['OutputResult']['visualization'].keys():
+
+            # 测试场景展示页面
+            img_count = 0
+            img_list = []
+            for i, scenario_id in enumerate(self.test_result['TagCombination'][scenario_tag]['scenario_id']):
+                scenario_info_img = os.path.join(self.output_result_folder, 'visualization', scenario_tag, f'{scenario_id}.jpg')
+                img_list.append([scenario_info_img])
+                img_count += 1
+                if img_count == 3 or i == len(self.test_result['TagCombination'][scenario_tag]['scenario_id'])-1:
+                    report_generator.addOnePage(heading=f'{scenario_tag} 测试场景',
+                                                text_list=None,
+                                                img_list=img_list)
+                    img_list = []
+                    img_count = 0
+
+        # 测试环境
+        heading = '测试环境——硬件在环 | 数采回灌'
+        text = ['将真实控制器部署在仿真测试台架中，将实车路采的传感器数据, '
+                '通过回灌测试设备回放及注入智驾控制器, 模拟运行场景和控制对象:',
+                'A. 实车路采数据: 实车运行时采集的视频图片, 总线Can, Lidar点云等实时数据.',
+                'B. 数据回灌设备: 数采数据后处理, 信号同步, 编码解码等, 模拟传感器输出, 将数据注入控制器.',
+                'C. 智驾控制器: 接收模拟传感器信号, 模拟实车运行场景, 输出算法感知结果.',
+                'D. ECU-Test，实现测试环境自动化运行及数据自动化分析，用于测试用例的执行和测试结果的生成.', ]
+        img = [
+            [os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'DataReplayTestEnv.png')]
+        ]
+        report_generator.addOnePage(heading=heading,
+                                    text_list=text,
+                                    img_list=img)
+
+        # 测试原理
+        heading = '测试原理——硬件在环 | 数采回灌'
+        text = ['对比感知算法结果与参考真值, 计算性能指标, 输出评价结果:',
+                'A. 以标注平台或具备更高感知能力的工具基于数采数据提供标注真值结果作为GroundTruth(GT).',
+                'B. 控制器感知节点订阅信息提供场景各要素特征测量值，MeasuredValue(MV).',
+                'C. 对比并评价感知信息是否符合预期，包括准召率，定位精度, 几何精度, 类型准确度等.',
+                '--------------------',
+                '测试结果局限性:',
+                'A. 测试结果的置信度受限于真值结果对于真实世界的准确程度.',
+                'B. 测试结果的全面性依赖于数采数据的样本规模, 需要时间的积累.']
+        img = [
+            [os.path.join(get_project_path(), 'Docs', 'Resources', 'report_figure', 'DataReplayTestPrinciple.png')]
+        ]
+        report_generator.addOnePage(heading=heading,
+                                    text_list=text,
+                                    img_list=img)
+
+        report_generator.page_count += 0
+        self.report_path = os.path.join(self.task_folder, f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]}).pdf')
+        report_generator.genReport(report_path=self.report_path, compress=1)
+
+    def start(self):
+        if (self.test_action['scenario_unit']['preprocess']
+                or self.test_action['scenario_unit']['match']
+                or self.test_action['scenario_unit']['metric']
+                or self.test_action['scenario_unit']['bug']
+                or self.test_action['scenario_unit']['render']):
+            self.analyze_scenario_unit()
+
+        if self.test_action['tag_combination']:
+            self.combine_scenario_tag()
+
+        if self.test_action['statistics']:
+            self.summary_bug_items()
+            # self.compile_statistics()
+
+        if self.test_action['visualization']:
+            self.visualize_output()
+
+        if self.test_action['gen_report']:
+            self.gen_report()
 
 
 if __name__ == '__main__':
