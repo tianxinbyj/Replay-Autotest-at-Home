@@ -107,6 +107,7 @@ class ObstaclesMatchTool:
                 for i, j in zip(row_ind, col_ind):
                     if loss_data[i, j] >= loss_threshold:
                         continue
+
                     gt_idx = frame_gt_data.index[i]
                     pred_idx = frame_pred_data.index[j]
                     match_gt_idx_list.append(gt_idx)
@@ -219,31 +220,24 @@ class LinesMatchTool:
                 gt_lines_shapely = []
                 gt_lines = []
                 for gt_idx, gt_row in frame_gt_data.iterrows():
-                    x_pts = gt_row['x_pts'].split(',')
-                    y_pts = gt_row['y_pts'].split(',')
-                    if gt_row['length_valid']:
-                        gt_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
-                        gt_lines.append(gt_line)
-                        gt_lines_shapely.append(LineString(gt_line).buffer(self.lane_matching_width,
-                                                                           cap_style=CAP_STYLE.flat,
-                                                                           join_style=JOIN_STYLE.mitre))
-
-                        if round(row['gt_timestamp'], 2) == 1731292790.98:
-                            print(gt_idx)
-                            print(gt_line)
+                    x_pts = gt_row['x_points'].split(',')
+                    y_pts = gt_row['y_points'].split(',')
+                    gt_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
+                    gt_lines.append(gt_line)
+                    gt_lines_shapely.append(LineString(gt_line).buffer(self.lane_matching_width,
+                                                                       cap_style=CAP_STYLE.flat,
+                                                                       join_style=JOIN_STYLE.mitre))
 
                 pred_lines_shapely = []
                 pred_lines = []
                 for pred_idx, pred_row in frame_pred_data.iterrows():
-                    x_pts = pred_row['x_pts'].split(',')
-                    y_pts = pred_row['y_pts'].split(',')
-                    if pred_row['length_valid']:
-                        pred_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
-                        pred_lines.append(pred_line)
-                        pred_lines_shapely.append(LineString(pred_line).buffer(self.lane_matching_width,
-                                                                               cap_style=CAP_STYLE.flat,
-                                                                               join_style=JOIN_STYLE.mitre))
-
+                    x_pts = pred_row['x_points'].split(',')
+                    y_pts = pred_row['y_points'].split(',')
+                    pred_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
+                    pred_lines.append(pred_line)
+                    pred_lines_shapely.append(LineString(pred_line).buffer(self.lane_matching_width,
+                                                                           cap_style=CAP_STYLE.flat,
+                                                                           join_style=JOIN_STYLE.mitre))
 
                 loss_data = []
                 for gt_i, gt_line in enumerate(gt_lines_shapely):
@@ -288,44 +282,41 @@ class LinesMatchTool:
 
             for gt_idx in no_match_gt_idx_list:
                 gt_flag, pred_flag = 1, 0
-                if gt_data.at[gt_idx, 'length_valid']:
-                    this_row = [gt_flag, pred_flag]
-                    for col in gt_column:
-                        this_row.append(gt_data.at[gt_idx, col])
-                    for col in pred_column:
-                        if col == 'time_stamp':
-                            this_row.append(row['pred_timestamp'])
-                        else:
-                            this_row.append(None)
-                    this_row.append(0)
-                    match_data_rows.append(this_row)
+                this_row = [gt_flag, pred_flag]
+                for col in gt_column:
+                    this_row.append(gt_data.at[gt_idx, col])
+                for col in pred_column:
+                    if col == 'time_stamp':
+                        this_row.append(row['pred_timestamp'])
+                    else:
+                        this_row.append(None)
+                this_row.append(0)
+                match_data_rows.append(this_row)
 
             for pred_idx in no_match_pred_idx_list:
                 gt_flag, pred_flag = 0, 1
-                if pred_data.at[pred_idx, 'length_valid']:
-                    this_row = [gt_flag, pred_flag]
-                    for col in gt_column:
-                        if col == 'time_stamp':
-                            this_row.append(row['gt_timestamp'])
-                        else:
-                            this_row.append(None)
-                    for col in pred_column:
-                        this_row.append(pred_data.at[pred_idx, col])
-                    this_row.append(0)
-                    match_data_rows.append(this_row)
+                this_row = [gt_flag, pred_flag]
+                for col in gt_column:
+                    if col == 'time_stamp':
+                        this_row.append(row['gt_timestamp'])
+                    else:
+                        this_row.append(None)
+                for col in pred_column:
+                    this_row.append(pred_data.at[pred_idx, col])
+                this_row.append(0)
+                match_data_rows.append(this_row)
 
         data = pd.DataFrame(match_data_rows, columns=total_column)
         # 进一步过滤极端异常数据
         # 过滤内容为长度有效性
-        data.drop(data[data['gt.length_valid'] == 0].index, axis=0, inplace=True)
         data.insert(0, 'corresponding_index', range(len(data)))
         return data
 
 
 if __name__ == '__main__':
-    pred_data_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/VABevLines/additional/pred_data.csv'
-    gt_data_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/GroundTruth/additional/VABevLines_gt_data.csv'
-    match_timestamp_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/VABevLines/match/match_timestamp.csv'
+    pred_data_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/additional/pred_data.csv'
+    gt_data_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/GroundTruth/additional/VABevLines_gt_data.csv'
+    match_timestamp_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/match/match_timestamp.csv'
 
     pred_data = pd.read_csv(pred_data_path, index_col=False)
     gt_data = pd.read_csv(gt_data_path, index_col=False)

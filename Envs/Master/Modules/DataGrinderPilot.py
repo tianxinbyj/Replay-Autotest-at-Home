@@ -491,7 +491,7 @@ class DataGrinderOneCase:
             "-c", calibrated_data_path
         ]
 
-        send_log(self, cmd)
+        print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
         if result.stderr and 'import numpy' not in result.stderr and 'import numpy' not in result.stderr:
@@ -628,7 +628,7 @@ class DataGrinderOneCase:
                 "-p", topic_gt_data_path,
             ]
 
-            send_log(self, cmd)
+            print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
@@ -702,7 +702,7 @@ class DataGrinderOneCase:
                     "-p", path,
                 ]
 
-                send_log(self, cmd)
+                print(cmd)
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
@@ -752,7 +752,7 @@ class DataGrinderOneCase:
                 "-f", path
             ]
 
-            send_log(self, cmd)
+            print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             if result.stderr and 'import numpy' not in result.stderr:
@@ -779,6 +779,9 @@ class DataGrinderOneCase:
         for col in additional_column:
             for kind in ['gt', 'pred']:
                 match_column.append(f'{kind}.{col}')
+
+        if self.test_topic == 'Lines':
+            match_column.append('IOU')
 
         for topic in self.test_result[self.test_topic].keys():
             if topic == 'GroundTruth':
@@ -824,7 +827,7 @@ class DataGrinderOneCase:
                 "-m", path,
             ]
 
-            send_log(self, cmd)
+            print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
@@ -882,7 +885,7 @@ class DataGrinderOneTask:
         topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
         self.scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
         self.valid_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 1].index)
-        send_log(self, f'Valid Scenario为{self.valid_scenario_list}, 不参与结果分析')
+        send_log(self, f'Valid Scenario为{self.valid_scenario_list}, 参与结果分析')
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
@@ -1012,7 +1015,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
                 "-f", metric_folder,
             ]
 
-            send_log(self, cmd)
+            print(cmd)
             send_log(self, f'{self.test_topic} {topic} 指标评估')
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
@@ -1302,7 +1305,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             bug_label_info_json
         ]
 
-        send_log(self, cmd)
+        print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
         if result.stderr and 'import numpy' not in result.stderr:
@@ -1715,7 +1718,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             bug_label_info_json
         ]
 
-        send_log(self, cmd)
+        print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
         if result.stderr and 'import numpy' not in result.stderr:
@@ -2334,7 +2337,7 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
                     "-f", metric_folder,
                 ]
 
-                send_log(self, cmd)
+                print(cmd)
                 send_log(self, f'{self.test_topic} {topic} 指标评估')
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
@@ -3950,7 +3953,7 @@ class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
                     "-f", metric_folder,
                 ]
 
-                send_log(self, cmd)
+                print(cmd)
                 send_log(self, f'{self.test_topic} {topic} 指标评估')
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
@@ -5464,9 +5467,3 @@ class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
 
         if self.test_action['gen_report']:
             self.gen_report()
-
-
-if __name__ == '__main__':
-    scenario_unit_folder = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013'
-    dgploc = DataGrinderPilotLinesOneCase(scenario_unit_folder)
-    dgploc.start()

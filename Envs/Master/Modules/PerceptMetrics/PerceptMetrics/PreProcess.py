@@ -803,8 +803,7 @@ class LinesCoefficient:
     def __init__(self, input_parameter_container=None):
 
         self.columns = [
-            'points_num', 'x_pts', 'y_pts', 'c0', 'c1', 'c2', 'c3', 'heading_0',
-            'min_x', 'max_x', 'length', 'length_valid', 'radius', 'radius_valid'
+            'c0', 'c1', 'c2', 'c3', 'heading_0', 'length', 'radius',
         ]
         self.type = 'by_row'
 
@@ -822,51 +821,38 @@ class LinesCoefficient:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
         # 计算车道线系数
-        f_x_points, f_y_points = [], []
-        for x, y in zip(x_points.split(','), y_points.split(',')):
-            if float(x) not in f_x_points and float(y) not in f_y_points:
-                f_x_points.append(float(x))
-                f_y_points.append(float(y))
-
-        combined = list(zip(f_x_points, f_y_points))
+        x_points = [float(x) for x in x_points.split(',')]
+        y_points = [float(y) for y in y_points.split(',')]
+        combined = list(zip(x_points, y_points))
         sorted_combined = sorted(combined, key=lambda t: t[0])
         sorted_list1, sorted_list2 = zip(*sorted_combined)
         f_x_points = list(sorted_list1)
         f_y_points = list(sorted_list2)
+        min_x, max_x = min(f_x_points), max(f_x_points)
         c3, c2, c1, c0 = np.polyfit(f_x_points, f_y_points, 3)
         heading_0 = np.rad2deg(np.arctan(c1))
-        length = self.cubic_curve_length(c3, c2, c1, min(f_x_points), max(f_x_points))
-        pts_num = len(f_x_points)
+        length = self.cubic_curve_length(c3, c2, c1, min_x, max_x)
 
-        if length < 2 or pts_num < 2:
-            radius, length_valid, radius_valid = 0, 0, 0
+        if length < 2 or len(f_x_points) < 5:
+            radius = 0
         else:
-            length_valid = 1
-            if len(f_x_points) >= 5:
-                radius_valid = 1
-                cs = CubicSpline(np.array(f_x_points), np.array(f_y_points), bc_type='natural')
-                curvature_radii = []
+            cs = CubicSpline(np.array(f_x_points), np.array(f_y_points), bc_type='natural')
+            curvature_radii = []
 
-                for x in f_x_points[1:-1]:
-                    # 由于样条插值是平滑的，我们可以在每个点上直接计算曲率
-                    # 但为了更精确的结果，我们可以稍微偏移一点以避免数值问题（例如，在端点处）
-                    # 这里我们简单地使用x点本身，但在实际应用中可能需要进行更精细的处理
-                    radius = 1 / self.curvature(x, cs) if self.curvature(x, cs) != 0 else np.inf
+            for x in f_x_points[1:-1]:
+                # 由于样条插值是平滑的，我们可以在每个点上直接计算曲率
+                # 但为了更精确的结果，我们可以稍微偏移一点以避免数值问题（例如，在端点处）
+                # 这里我们简单地使用x点本身，但在实际应用中可能需要进行更精细的处理
+                radius = 1 / self.curvature(x, cs) if self.curvature(x, cs) != 0 else np.inf
 
-                    if not np.isinf(radius):
-                        curvature_radii.append(round(radius))
-                    else:
-                        curvature_radii.append(9999)
+                if not np.isinf(radius):
+                    curvature_radii.append(round(radius))
+                else:
+                    curvature_radii.append(9999)
 
-                radius = min(9999, round(np.median(curvature_radii)))
+            radius = min(9999, round(np.median(curvature_radii)))
 
-            else:
-                radius_valid = 0
-                radius = 0
-
-        return (pts_num, ','.join([str(x) for x in f_x_points]), ','.join([str(y) for y in f_y_points]),
-                c0, c1, c2, c3, heading_0, min(f_x_points), max(f_x_points),
-                length, length_valid, radius, radius_valid)
+        return c0, c1, c2, c3, heading_0, length, radius
 
     def curvature(self, x, cs):
         y_prime = cs.derivative(1)(x)
@@ -900,12 +886,141 @@ class LinesCoefficient:
         return result
 
 
+class ConnectLines:
+    """
+    首尾相连连接车道线
+
+    """
+
+    def __init__(self, input_parameter_container=None):
+        self.type = 'by_frame'
+
+    def __call__(self, input_data):
+        rows = []
+        cols = ['time_stamp', 'frame_id', 'id', 'confidence', 'type', 'position', 'color', 'points_num', 'x_points', 'y_points']
+        for time_stamp, frame_data in input_data.groupby('time_stamp'):
+
+            frame_id = frame_data['frame_id'].iloc[0]
+            lines = []
+            for idx, row in frame_data.iterrows():
+
+                # 筛选出前方的点
+                x_points = row['x_points'].split(',')
+                y_points = row['y_points'].split(',')
+                f_x_points, f_y_points = [], []
+                for x, y in zip(x_points, y_points):
+                    if (float(x) not in f_x_points and float(y) not in f_y_points
+                            and 150 >= float(x) >= -0.1 and 20 >= float(y) >= -20):
+                        f_x_points.append(float(x))
+                        f_y_points.append(float(y))
+
+                points_num = len(f_x_points)
+                if not points_num:
+                    continue
+
+                points = sorted(list(zip(f_x_points, f_y_points)), key=lambda t: t[0])
+                lines.append({
+                    'points': points,
+                    'start': points[0],  # 线段起点
+                    'end': points[-1],  # 线段终点
+                    'type': row['type'],
+                    'position': row['position'],
+                    'id': row['id'],
+                    'color': row['color'],
+                    'confidence': row['confidence'],
+                })
+
+            merged = True
+            while merged:
+                merged = False
+                new_lines = []
+                used = set()
+
+                for i in range(len(lines)):
+                    if i in used:
+                        continue
+                    current_line = lines[i]
+
+                    # 尝试与其他线段合并
+                    for j in range(i + 1, len(lines)):
+                        if j in used:
+                            continue
+                        target_line = lines[j]
+
+                        res = self.can_merge(current_line, target_line)
+                        if res[0]:
+                            if res[1] == 1:
+                                merged_points = current_line['points'] + target_line['points']
+                                new_lines.append({
+                                    'points': merged_points,
+                                    'start': merged_points[0],
+                                    'end': merged_points[-1],
+                                    'type': current_line['type'],
+                                    'position': current_line['position'],
+                                    'id': current_line['id'],
+                                    'color': current_line['color'],
+                                    'confidence': current_line['confidence'],
+                                })
+                            else:
+                                merged_points = target_line['points'] + current_line['points']
+                                new_lines.append({
+                                    'points': merged_points,
+                                    'start': merged_points[0],
+                                    'end': merged_points[-1],
+                                    'type': target_line['type'],
+                                    'position': target_line['position'],
+                                    'id': target_line['id'],
+                                    'color': target_line['color'],
+                                    'confidence': target_line['confidence'],
+                                })
+
+                            used.add(i)
+                            used.add(j)
+                            merged = True
+                            break
+
+                    # 如果未合并，保留当前线段
+                    if i not in used:
+                        new_lines.append(current_line)
+                        used.add(i)
+
+                lines = new_lines
+
+            for i, line in enumerate(lines):
+                points = line['points']
+                x_points, y_points = [], []
+                for pt in points:
+                    if str(pt[0]) not in x_points and str(pt[1]) not in y_points:
+                        x_points.append(str(pt[0]))
+                        y_points.append(str(pt[1]))
+
+                rows.append([
+                    time_stamp, frame_id, line['id'], line['confidence'], line['type'],
+                    line['position'], line['color'], len(x_points),
+                    ','.join(x_points), ','.join(y_points)])
+
+        return pd.DataFrame(rows, columns=cols)
+
+    # 检查两条线段是否可以合并
+    def can_merge(self, line1, line2):
+        def distance(p1, p2):
+            return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
+
+        epsilon = 0.1
+        if distance(line1['end'], line2['start']) < epsilon:
+            return True, 1
+        elif distance(line1['start'], line2['end']) < epsilon:
+            return True, 2
+        return False, 0
+
+
 class LinesPreprocess:
 
     def __init__(self, preprocess_types=None):
         if preprocess_types is None:
             self.preprocess_types = [
                 'DuplicateId',
+                'ConnectLines',
                 'LinesCoefficient',
                 'LinesTypeClassification',
             ]
@@ -928,19 +1043,17 @@ class LinesPreprocess:
             elif func.type == 'by_frame':
                 data = func(data)
 
-        return data.sort_values(by=['time_stamp', 'c0'])
+        return data[data['length'] >= 2].sort_values(by=['time_stamp', 'c0'])
 
 
 if __name__ == '__main__':
     import json
 
-    raw_data_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/GroundTruth/raw/gt_data.csv'
+    raw_data_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/GroundTruth/raw/gt_data.csv'
     raw_data = pd.read_csv(raw_data_path, index_col=False)
 
-    # parameter_json_path = '/home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home/Temp/process_api_parameter.json'
-    # with open(parameter_json_path, 'r', encoding='utf-8') as f:
-    #     parameter_json = json.load(f)
-    parameter_json = {'lane_width': 3.6}
+    parameter_json = {'lane_width': 3.6,
+                      'test_topic': 'Lines'}
 
     preprocess_instance = LinesPreprocess()
     data = preprocess_instance.run(raw_data, parameter_json)
