@@ -9,6 +9,8 @@ import pandas as pd
 from scipy.optimize import linear_sum_assignment
 from shapely.geometry import LineString
 from shapely.geometry import CAP_STYLE, JOIN_STYLE
+from shapely.geometry import Polygon
+from scipy.spatial import ConvexHull
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -86,15 +88,38 @@ class ObstaclesMatchTool:
                     gt_x = gt_row['x']
                     gt_y = gt_row['y']
                     gt_type = gt_row['type']
-                    loss_data_row = []
+                    gt_pt_0_x = gt_row['pt_0_x']
+                    gt_pt_0_y = gt_row['pt_0_y']
+                    gt_pt_1_x = gt_row['pt_1_x']
+                    gt_pt_1_y = gt_row['pt_1_y']
+                    gt_pt_2_x = gt_row['pt_2_x']
+                    gt_pt_2_y = gt_row['pt_2_y']
+                    gt_pt_3_x = gt_row['pt_3_x']
+                    gt_pt_3_y = gt_row['pt_3_y']
 
+                    loss_data_row = []
                     for _, pred_row in frame_pred_data.iterrows():
                         pred_x = pred_row['x']
                         pred_y = pred_row['y']
                         pred_type = pred_row['type']
+                        pred_pt_0_x = pred_row['pt_0_x']
+                        pred_pt_0_y = pred_row['pt_0_y']
+                        pred_pt_1_x = pred_row['pt_1_x']
+                        pred_pt_1_y = pred_row['pt_1_y']
+                        pred_pt_2_x = pred_row['pt_2_x']
+                        pred_pt_2_y = pred_row['pt_2_y']
+                        pred_pt_3_x = pred_row['pt_3_x']
+                        pred_pt_3_y = pred_row['pt_3_y']
 
-                        if self.get_match_flag(gt_type, gt_x, gt_y, pred_type, pred_x, pred_y):
-                            distance = np.sqrt((pred_x - gt_x) ** 2 + (pred_y - gt_y) ** 2)
+                        if self.get_match_flag(gt_type, gt_x, gt_y,
+                                               gt_pt_0_x, gt_pt_0_y, gt_pt_1_x, gt_pt_1_y,
+                                               gt_pt_2_x, gt_pt_2_y, gt_pt_3_x, gt_pt_3_y,
+                                               pred_type, pred_x, pred_y,
+                                               pred_pt_0_x, pred_pt_0_y, pred_pt_1_x, pred_pt_1_y,
+                                               pred_pt_2_x, pred_pt_2_y, pred_pt_3_x, pred_pt_3_y):
+
+                            ratio = 1 if gt_type == pred_type else 1.5
+                            distance = np.sqrt((pred_x - gt_x) ** 2 + (pred_y - gt_y) ** 2) * ratio
                         else:
                             distance = 500
                         loss_data_row.append(distance)
@@ -163,7 +188,12 @@ class ObstaclesMatchTool:
         data.insert(0, 'corresponding_index', range(len(data)))
         return data
 
-    def get_match_flag(self, gt_type, gt_x, gt_y, pred_type, pred_x, pred_y):
+    def get_match_flag(self, gt_type, gt_x, gt_y,
+                       gt_pt_0_x, gt_pt_0_y, gt_pt_1_x, gt_pt_1_y,
+                       gt_pt_2_x, gt_pt_2_y, gt_pt_3_x, gt_pt_3_y,
+                       pred_type, pred_x, pred_y,
+                       pred_pt_0_x, pred_pt_0_y, pred_pt_1_x, pred_pt_1_y,
+                       pred_pt_2_x, pred_pt_2_y, pred_pt_3_x, pred_pt_3_y):
         # 如果目标识别结果为人，但真值为车，或者相反，则直接显示为不匹配
         if (gt_type == 1 and pred_type == 2) or (gt_type == 2 and pred_type == 1):
             return False
@@ -177,6 +207,34 @@ class ObstaclesMatchTool:
              or abs(x_error_rel) <= self.object_matching_tolerance['x'][1])
                 and (abs(y_error) <= self.object_matching_tolerance['y'][0]
                      or abs(y_error_rel) <= self.object_matching_tolerance['y'][1])):
+            return True
+
+        def create_polygon(points):
+            """将四个无序点转换为有序矩形多边形"""
+            points_array = np.array(points)
+            hull = ConvexHull(points_array)  # 计算凸包以排序顶点
+            ordered_points = points_array[hull.vertices]
+            return Polygon(ordered_points)  # 创建Shapely多边形
+
+        def calculate_iou(rect1_points, rect2_points):
+            """计算两个矩形的交并比（IoU）"""
+            # 创建多边形对象
+            poly1 = create_polygon(rect1_points)
+            poly2 = create_polygon(rect2_points)
+            # 计算交/并集面积
+            intersection = poly1.intersection(poly2).area
+            union = poly1.area + poly2.area - intersection
+            return intersection / union if union != 0 else 0.0
+
+        gt_rect = [
+            (gt_pt_0_x, gt_pt_0_y), (gt_pt_1_x, gt_pt_1_y),
+            (gt_pt_2_x, gt_pt_2_y), (gt_pt_3_x, gt_pt_3_y)
+        ]
+        pred_rect = [
+            (pred_pt_0_x, pred_pt_0_y), (pred_pt_1_x, pred_pt_1_y),
+            (pred_pt_2_x, pred_pt_2_y), (pred_pt_3_x, pred_pt_3_y)
+        ]
+        if calculate_iou(gt_rect, pred_rect) >= 0.05:
             return True
 
         return False

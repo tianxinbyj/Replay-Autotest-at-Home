@@ -167,19 +167,19 @@ class ProcessVideoSnap:
                         for i in range(4):
                             try:
                                 cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
-                                         (0, 0, 200), 2)
+                                         (0, 0, 200), 1)
                             except OverflowError as e:
                                 pass
 
                             try:
                                 cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
-                                         (0, 0, 200), 2)
+                                         (0, 0, 200), 1)
                             except OverflowError as e:
                                 pass
 
                         for i in range(4):
                             try:
-                                cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (0, 0, 200), 2)
+                                cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (0, 0, 200), 1)
                             except OverflowError as e:
                                 pass
 
@@ -194,19 +194,19 @@ class ProcessVideoSnap:
                         for i in range(4):
                             try:
                                 cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['bottom'][(i + 1) % 4]),
-                                         (200, 0, 0), 2)
+                                         (200, 0, 0), 1)
                             except OverflowError as e:
                                 pass
 
                             try:
                                 cv2.line(origin_shot, tuple(corner_uv['top'][i]), tuple(corner_uv['top'][(i + 1) % 4]),
-                                         (200, 0, 0), 2)
+                                         (200, 0, 0), 1)
                             except OverflowError as e:
                                 pass
 
                         for i in range(4):
                             try:
-                                cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (200, 0, 0), 2)
+                                cv2.line(origin_shot, tuple(corner_uv['bottom'][i]), tuple(corner_uv['top'][i]), (200, 0, 0), 1)
                             except OverflowError as e:
                                 pass
 
