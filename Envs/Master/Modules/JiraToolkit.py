@@ -70,11 +70,11 @@ data = {
 
     # Assignee Template
     'assignee_template': {
-        "/PI/FS/LaneMarkingsHorizonDebug": "jinxi",
-        "/VA/Lines": "jinxi",
-        "/VA/FrontViewObstacles": "renweiping",
+        "/VA/Obstacles": "liujianwei02",
         "/VA/BevObstaclesDet": "wangtong02",
-        "/VA/Obstacles": "hanchao05",
+        "/VA/BackViewObstacles2dDet": "lisen04",
+        "/VA/FrontWideObstacles2dDet": "lisen04",
+        "/VA/BevLines": "lixiyue01",
         "2j5": "wuxubin01",
     },
 
