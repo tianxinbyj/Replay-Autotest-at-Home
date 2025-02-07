@@ -19,7 +19,7 @@ class DataSelector:
     def __init__(self):
         self.BenchDBMS = BenchDBMS()
         self.data = self.BenchDBMS.id_11CAN11V2Lidar_path_DF.sort_index()
-        self.data.drop(self.data[self.data['Complete'] == False].index, inplace=True)
+        # self.data.drop(self.data[self.data['Complete'] == False].index, inplace=True)
 
     def gen_video_config(self, index):
         if index not in self.data.index:
