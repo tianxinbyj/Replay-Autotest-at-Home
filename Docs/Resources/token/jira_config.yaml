@@ -1,7 +1,7 @@
 jira_type: 1j5
 use_confluence: 'True'
 source_template:
-- /home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621/04_TestData/1-Obstacles/03_OutputResult/bugItems/bug_summary.csv
+- /home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/04_TestData/1-Obstacles/03_OutputResult/bugItems/bug_summary.csv
 goal: 1
 config_list_1j5:
 - sw_version
@@ -15,11 +15,11 @@ config_list_2j5:
 - scenario_id
 - bug_type
 assignee_template:
-  /PI/FS/LaneMarkingsHorizonDebug: lisen04
-  /VA/Lines: lisen04
-  /VA/FrontViewObstacles: lisen04
-  /VA/BevObstaclesDet: wangtong02
   /VA/Obstacles: liujianwei02
+  /VA/BevObstaclesDet: wangtong02
+  /VA/BackViewObstacles2dDet: lisen04
+  /VA/FrontWideObstacles2dDet: lisen04
+  /VA/BevLines: lixiyue01
   2j5: buyujun
   default: lisen04
 bug_template:

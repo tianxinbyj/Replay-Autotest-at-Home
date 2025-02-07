@@ -9,6 +9,8 @@ import pandas as pd
 from scipy.optimize import linear_sum_assignment
 from shapely.geometry import LineString
 from shapely.geometry import CAP_STYLE, JOIN_STYLE
+from shapely.geometry import Polygon
+from scipy.spatial import ConvexHull
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -86,15 +88,38 @@ class ObstaclesMatchTool:
                     gt_x = gt_row['x']
                     gt_y = gt_row['y']
                     gt_type = gt_row['type']
-                    loss_data_row = []
+                    gt_pt_0_x = gt_row['pt_0_x']
+                    gt_pt_0_y = gt_row['pt_0_y']
+                    gt_pt_1_x = gt_row['pt_1_x']
+                    gt_pt_1_y = gt_row['pt_1_y']
+                    gt_pt_2_x = gt_row['pt_2_x']
+                    gt_pt_2_y = gt_row['pt_2_y']
+                    gt_pt_3_x = gt_row['pt_3_x']
+                    gt_pt_3_y = gt_row['pt_3_y']
 
+                    loss_data_row = []
                     for _, pred_row in frame_pred_data.iterrows():
                         pred_x = pred_row['x']
                         pred_y = pred_row['y']
                         pred_type = pred_row['type']
+                        pred_pt_0_x = pred_row['pt_0_x']
+                        pred_pt_0_y = pred_row['pt_0_y']
+                        pred_pt_1_x = pred_row['pt_1_x']
+                        pred_pt_1_y = pred_row['pt_1_y']
+                        pred_pt_2_x = pred_row['pt_2_x']
+                        pred_pt_2_y = pred_row['pt_2_y']
+                        pred_pt_3_x = pred_row['pt_3_x']
+                        pred_pt_3_y = pred_row['pt_3_y']
 
-                        if self.get_match_flag(gt_type, gt_x, gt_y, pred_type, pred_x, pred_y):
-                            distance = np.sqrt((pred_x - gt_x) ** 2 + (pred_y - gt_y) ** 2)
+                        if self.get_match_flag(gt_type, gt_x, gt_y,
+                                               gt_pt_0_x, gt_pt_0_y, gt_pt_1_x, gt_pt_1_y,
+                                               gt_pt_2_x, gt_pt_2_y, gt_pt_3_x, gt_pt_3_y,
+                                               pred_type, pred_x, pred_y,
+                                               pred_pt_0_x, pred_pt_0_y, pred_pt_1_x, pred_pt_1_y,
+                                               pred_pt_2_x, pred_pt_2_y, pred_pt_3_x, pred_pt_3_y):
+
+                            ratio = 1 if gt_type == pred_type else 1.5
+                            distance = np.sqrt((pred_x - gt_x) ** 2 + (pred_y - gt_y) ** 2) * ratio
                         else:
                             distance = 500
                         loss_data_row.append(distance)
@@ -107,6 +132,7 @@ class ObstaclesMatchTool:
                 for i, j in zip(row_ind, col_ind):
                     if loss_data[i, j] >= loss_threshold:
                         continue
+
                     gt_idx = frame_gt_data.index[i]
                     pred_idx = frame_pred_data.index[j]
                     match_gt_idx_list.append(gt_idx)
@@ -162,7 +188,12 @@ class ObstaclesMatchTool:
         data.insert(0, 'corresponding_index', range(len(data)))
         return data
 
-    def get_match_flag(self, gt_type, gt_x, gt_y, pred_type, pred_x, pred_y):
+    def get_match_flag(self, gt_type, gt_x, gt_y,
+                       gt_pt_0_x, gt_pt_0_y, gt_pt_1_x, gt_pt_1_y,
+                       gt_pt_2_x, gt_pt_2_y, gt_pt_3_x, gt_pt_3_y,
+                       pred_type, pred_x, pred_y,
+                       pred_pt_0_x, pred_pt_0_y, pred_pt_1_x, pred_pt_1_y,
+                       pred_pt_2_x, pred_pt_2_y, pred_pt_3_x, pred_pt_3_y):
         # 如果目标识别结果为人，但真值为车，或者相反，则直接显示为不匹配
         if (gt_type == 1 and pred_type == 2) or (gt_type == 2 and pred_type == 1):
             return False
@@ -176,6 +207,34 @@ class ObstaclesMatchTool:
              or abs(x_error_rel) <= self.object_matching_tolerance['x'][1])
                 and (abs(y_error) <= self.object_matching_tolerance['y'][0]
                      or abs(y_error_rel) <= self.object_matching_tolerance['y'][1])):
+            return True
+
+        def create_polygon(points):
+            """将四个无序点转换为有序矩形多边形"""
+            points_array = np.array(points)
+            hull = ConvexHull(points_array)  # 计算凸包以排序顶点
+            ordered_points = points_array[hull.vertices]
+            return Polygon(ordered_points)  # 创建Shapely多边形
+
+        def calculate_iou(rect1_points, rect2_points):
+            """计算两个矩形的交并比（IoU）"""
+            # 创建多边形对象
+            poly1 = create_polygon(rect1_points)
+            poly2 = create_polygon(rect2_points)
+            # 计算交/并集面积
+            intersection = poly1.intersection(poly2).area
+            union = poly1.area + poly2.area - intersection
+            return intersection / union if union != 0 else 0.0
+
+        gt_rect = [
+            (gt_pt_0_x, gt_pt_0_y), (gt_pt_1_x, gt_pt_1_y),
+            (gt_pt_2_x, gt_pt_2_y), (gt_pt_3_x, gt_pt_3_y)
+        ]
+        pred_rect = [
+            (pred_pt_0_x, pred_pt_0_y), (pred_pt_1_x, pred_pt_1_y),
+            (pred_pt_2_x, pred_pt_2_y), (pred_pt_3_x, pred_pt_3_y)
+        ]
+        if calculate_iou(gt_rect, pred_rect) >= 0.05:
             return True
 
         return False
@@ -219,31 +278,24 @@ class LinesMatchTool:
                 gt_lines_shapely = []
                 gt_lines = []
                 for gt_idx, gt_row in frame_gt_data.iterrows():
-                    x_pts = gt_row['x_pts'].split(',')
-                    y_pts = gt_row['y_pts'].split(',')
-                    if gt_row['length_valid']:
-                        gt_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
-                        gt_lines.append(gt_line)
-                        gt_lines_shapely.append(LineString(gt_line).buffer(self.lane_matching_width,
-                                                                           cap_style=CAP_STYLE.flat,
-                                                                           join_style=JOIN_STYLE.mitre))
-
-                        if round(row['gt_timestamp'], 2) == 1731292790.98:
-                            print(gt_idx)
-                            print(gt_line)
+                    x_pts = gt_row['x_points'].split(',')
+                    y_pts = gt_row['y_points'].split(',')
+                    gt_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
+                    gt_lines.append(gt_line)
+                    gt_lines_shapely.append(LineString(gt_line).buffer(self.lane_matching_width,
+                                                                       cap_style=CAP_STYLE.flat,
+                                                                       join_style=JOIN_STYLE.mitre))
 
                 pred_lines_shapely = []
                 pred_lines = []
                 for pred_idx, pred_row in frame_pred_data.iterrows():
-                    x_pts = pred_row['x_pts'].split(',')
-                    y_pts = pred_row['y_pts'].split(',')
-                    if pred_row['length_valid']:
-                        pred_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
-                        pred_lines.append(pred_line)
-                        pred_lines_shapely.append(LineString(pred_line).buffer(self.lane_matching_width,
-                                                                               cap_style=CAP_STYLE.flat,
-                                                                               join_style=JOIN_STYLE.mitre))
-
+                    x_pts = pred_row['x_points'].split(',')
+                    y_pts = pred_row['y_points'].split(',')
+                    pred_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
+                    pred_lines.append(pred_line)
+                    pred_lines_shapely.append(LineString(pred_line).buffer(self.lane_matching_width,
+                                                                           cap_style=CAP_STYLE.flat,
+                                                                           join_style=JOIN_STYLE.mitre))
 
                 loss_data = []
                 for gt_i, gt_line in enumerate(gt_lines_shapely):
@@ -288,44 +340,41 @@ class LinesMatchTool:
 
             for gt_idx in no_match_gt_idx_list:
                 gt_flag, pred_flag = 1, 0
-                if gt_data.at[gt_idx, 'length_valid']:
-                    this_row = [gt_flag, pred_flag]
-                    for col in gt_column:
-                        this_row.append(gt_data.at[gt_idx, col])
-                    for col in pred_column:
-                        if col == 'time_stamp':
-                            this_row.append(row['pred_timestamp'])
-                        else:
-                            this_row.append(None)
-                    this_row.append(0)
-                    match_data_rows.append(this_row)
+                this_row = [gt_flag, pred_flag]
+                for col in gt_column:
+                    this_row.append(gt_data.at[gt_idx, col])
+                for col in pred_column:
+                    if col == 'time_stamp':
+                        this_row.append(row['pred_timestamp'])
+                    else:
+                        this_row.append(None)
+                this_row.append(0)
+                match_data_rows.append(this_row)
 
             for pred_idx in no_match_pred_idx_list:
                 gt_flag, pred_flag = 0, 1
-                if pred_data.at[pred_idx, 'length_valid']:
-                    this_row = [gt_flag, pred_flag]
-                    for col in gt_column:
-                        if col == 'time_stamp':
-                            this_row.append(row['gt_timestamp'])
-                        else:
-                            this_row.append(None)
-                    for col in pred_column:
-                        this_row.append(pred_data.at[pred_idx, col])
-                    this_row.append(0)
-                    match_data_rows.append(this_row)
+                this_row = [gt_flag, pred_flag]
+                for col in gt_column:
+                    if col == 'time_stamp':
+                        this_row.append(row['gt_timestamp'])
+                    else:
+                        this_row.append(None)
+                for col in pred_column:
+                    this_row.append(pred_data.at[pred_idx, col])
+                this_row.append(0)
+                match_data_rows.append(this_row)
 
         data = pd.DataFrame(match_data_rows, columns=total_column)
         # 进一步过滤极端异常数据
         # 过滤内容为长度有效性
-        data.drop(data[data['gt.length_valid'] == 0].index, axis=0, inplace=True)
         data.insert(0, 'corresponding_index', range(len(data)))
         return data
 
 
 if __name__ == '__main__':
-    pred_data_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/VABevLines/additional/pred_data.csv'
-    gt_data_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/GroundTruth/additional/VABevLines_gt_data.csv'
-    match_timestamp_path = '/home/hp/下载/ddddddd/Lines/20241111_093841_n000013/01_Data/Lines/VABevLines/match/match_timestamp.csv'
+    pred_data_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/additional/pred_data.csv'
+    gt_data_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/GroundTruth/additional/VABevLines_gt_data.csv'
+    match_timestamp_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/match/match_timestamp.csv'
 
     pred_data = pd.read_csv(pred_data_path, index_col=False)
     gt_data = pd.read_csv(gt_data_path, index_col=False)

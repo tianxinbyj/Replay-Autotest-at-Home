@@ -22,8 +22,6 @@ def main():
     parser.add_argument("-f", "--match_timestamp_path", type=str, required=True, help="match timestamp path")
     args = parser.parse_args()
 
-    print(args.match_tolerance)
-
     pred_timestamp = pd.read_csv(args.pred_timestamp_path, index_col=False)['time_stamp'].to_list()
     gt_timestamp = pd.read_csv(args.gt_timestamp_path, index_col=False)['time_stamp'].to_list()
 

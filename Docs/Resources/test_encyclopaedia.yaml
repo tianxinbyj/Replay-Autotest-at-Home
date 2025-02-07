@@ -423,6 +423,7 @@ ES39:
     - /VA/VehicleMotionIpd
     - /VA/BevObstaclesDet
     - /VA/Obstacles
+    - /VA/BevLines
     - /VA/FrontWideObstacles2dDet
     - /VA/BackViewObstacles2dDet
     - /SA/INSPVA
@@ -1294,19 +1295,13 @@ Information:
     additional_column:
       - type_classification
       - points_num
-      - x_pts
-      - y_pts
       - c0
       - c1
       - c2
       - c3
       - heading_0
-      - min_x
-      - max_x
       - length
-      - length_valid
       - radius
-      - radius_valid
     result_column:
       - 召回率
       - 准确率
