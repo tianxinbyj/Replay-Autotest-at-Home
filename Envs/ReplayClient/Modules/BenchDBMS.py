@@ -29,7 +29,6 @@ def check_is_batch_folder(folder_name):
     match = re.match(pattern, folder_name)
 
     if match:
-        print("检测到batch id , 匹配成功!")
         return True
         # print("匹配成功!")
         # print("year:", match.group("year"))
@@ -49,7 +48,6 @@ Bench_with_folder = {
     2: '/media/data',
     3: '/media/data/choose/abc'
 }
-
 
 
 class BenchDBMS:
@@ -129,18 +127,11 @@ class BenchDBMS:
                 dirs[:] = []  # 忽略当前目录下的子目录
                 # print(root)
                 continue
-            # 检查root文件名的格式,不符合batch id 的类型的文件夹名不能放进去
-            root_base_name = os.path.basename(root)
-            if not check_is_batch_folder(root_base_name):
-                # dirs[:] = []
-                continue
-
             # if all(items in piece_id_dir_list for items in dirs) and len(dirs) == 5:
-            if set(piece_id_dir_list).issubset(set(dirs)):
-                # 检查root文件名的格式,不符合batch id 的类型的文件夹名不能放进去
-                # root_base_name = os.path.basename(root)
-                # if check_is_batch_folder(root_base_name):
+            # if not check_is_batch_folder(os.path.basename(root)):
+            #     continue
 
+            if set(piece_id_dir_list).issubset(set(dirs)):
                 a_root_series_list, a_root_id_index_list = self.peice_id2series_list(root)
                 # print('a_root_series_list, a_root_id_index_list:::', a_root_series_list, a_root_id_index_list)
                 # print('a_root_series_list:', a_root_series_list)
@@ -254,7 +245,7 @@ if __name__ == '__main__':
 
     print('///////////////////////')
     print(BenchDBMS1.id_11CAN11V2Lidar_path_DF)
-    print(BenchDBMS1.id_11CAN11V2Lidar_path_DF.index.tolist())
+    print(BenchDBMS1.id_11CAN11V2Lidar_path_DF.index.to_list())
     print('///////////////////////')
 
     # aaa = BenchDBMS1.piece_id_tag_tablespace[(BenchDBMS1.piece_id_tag_tablespace['Comments'] == 'left') & (BenchDBMS1.piece_id_tag_tablespace['at_local'] is True)]

@@ -20,13 +20,12 @@ from scp import SCPException
 from wcwidth import wcswidth
 
 from Envs.ReplayClient.Modules.EcuFlasher import flash_mcu, flash_mpu, flash_j5, main as auto_flash
-from Envs.ReplayClient.Modules.EcuFlasher import parse_arguments, check_version, check_existing_files, upload_files, \
-    find_target_dir, boxed_text
+from Envs.ReplayClient.Modules.EcuFlasher import parse_arguments, check_version, check_existing_files, upload_files, find_target_dir, boxed_text
 from Envs.ReplayClient.Interfaces.Api_Ecu30fpsConfig import ssh_pass, j5a_ssh_client
 from Utils.Libs import kill_tmux_session_if_exists, project_path
 from Envs.Master.Modules.PowerController.power_controller import *
 from Envs.ReplayClient.Interfaces.Libs import get_project_path
-from Envs.ReplayClient.Interfaces.Api_Ecu30fpsConfig import change_sensor_30fps, back_sensor_20fps
+from Envs.ReplayClient.Interfaces.Api_Ecu30fpsConfig import change_sensor_30fps,back_sensor_20fps
 
 J5A = ''
 J5B = ''
@@ -122,15 +121,13 @@ def get_version(core='j5a'):
 
 class VersionControl:
 
-    def __init__(self, ecu_type='ES37'):
+    def __init__(self, ecu_type='ES39'):
 
         self.ecu_type = ecu_type
-        if ecu_type == 'ES37':
+        if ecu_type in ['ES37','ES39']:
             self.j5b_addr = '172.31.131.36'
-
         elif ecu_type in ['1J5', '1j5']:
             pass
-
         elif ecu_type in ['j6e', 'J6E']:
             raise NotImplemented
 
@@ -139,35 +136,48 @@ class VersionControl:
 
         # 顺序依次为 s32g j5a j5b(无则为空字段)， J6E数据暂时未定
         self.curr_version_list = None
-
         self.record_old_version_list = None
 
-        try:
-            self.power_ctrl_inter = PowerSupplyObjectManager()
-        except Exception as power_ctrl_err:
-            print(power_ctrl_err)
-            # raise power_ctrl_err
-        # 如果板子是下电状态，需要给板子上电
-        try:
-            power_status = get_status(power_inter=self.power_ctrl_inter,
-                                      serial_number=self.power_ctrl_inter.serial_numbers[0])
-        except Exception as check_status_err:
-            print(check_status_err)
-        else:
-            if not power_status['power_is_on']:
-                print('the power is off ,please wait for power on')
-                self.power_ctrl_power_on()
-                time.sleep(8)
-                if not self.check_power_on_success():
-                    raise EnvironmentError('power on fail ,please check')
-                else:
-                    print('power on success')
-            elif power_status['power_is_on']:
-                print('the power is on now')
+        # 建立连接
+        self.record_ssh = {
+            'j5a': None,
+            'j5b': None
+        }
+        max_init_port_time = 3
+        # init_success_flag = False
+        while max_init_port_time > 0:
+            max_init_port_time -= 1
+            try:
+                self.power_ctrl_inter = PowerSupplyObjectManager()
+            except Exception as power_ctrl_err:
+                print(power_ctrl_err)
+                if max_init_port_time == 0:
+                    raise power_ctrl_err
+            else:
+                break
+        self.switch_to_remote_mode()
+        # # 如果板子是下电状态，需要给板子上电
+        # try:
+        #     power_status = get_status(power_inter=self.power_ctrl_inter,
+        #                               serial_number=self.power_ctrl_inter.serial_numbers[0])
+        # except Exception as check_status_err:
+        #     print(check_status_err)
+        # else:
+        #     pass
+            # if not power_status['power_is_on']:
+            #     print('the power is off ,please wait for power on')
+            #     self.power_ctrl_power_on()
+            #     time.sleep(8)
+            #     if not self.check_power_on_success():
+            #         raise EnvironmentError('power on fail ,please check')
+            #     else:
+            #         print('power on success')
+            # elif power_status['power_is_on']:
+            #     print('the power is on now')
 
             # 将上电后的电源设置为remote模式,保证上下电操作执行
-            self.switch_to_remote_mode()
-
+            # self.switch_to_remote_mode()
+            # self.switch_to_panel_mode()
         # 建立与板子的 ssh 链接
         j5a_ssh_host = '172.31.131.35'
         j5b_ssh_host = '172.31.131.36'
@@ -181,22 +191,50 @@ class VersionControl:
         self.j5a_ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.j5b_ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        # 建立连接
-        self.record_ssh = {
-            'j5a': None,
-            'j5b': None
-        }
+
 
         # self.open_ssh_connections()
 
     def power_ctrl_power_on(self):
-
+        max_get_status_time = 5
+        while max_get_status_time > 0  :
+            max_get_status_time -= 1
+            power_status = self.power_ctrl_get_status()
+            print('get status:')
+            if not power_status:
+                if max_get_status_time == 0:
+                    raise EnvironmentError('get power status failed 5 times')
+                else:
+                    continue
+            elif power_status:
+                power_on_flag = power_status['power_is_on']
+                if power_on_flag:
+                    return True
+                else:
+                    break
         power_on_flag = power_on(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
 
         return power_on_flag
 
     def power_ctrl_power_off(self):
         print('try to power off')
+        max_get_status_time = 5
+        while max_get_status_time > 0  :
+            max_get_status_time -= 1
+            power_status = self.power_ctrl_get_status()
+            print('get status:')
+            if not power_status:
+                if max_get_status_time == 0:
+                    raise EnvironmentError('get power status failed 5 times')
+                else:
+                    continue
+            elif power_status:
+                power_on_flag = power_status['power_is_on']
+                if not power_on_flag:
+                    return True
+                else:
+                    break
+
         power_off_flag = power_off(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
         return power_off_flag
 
@@ -529,14 +567,15 @@ class VersionControl:
         # 如果找到了匹配项，则返回匹配到的字符串，否则返回None
         return match.group(0) if match else None
 
-    def get_power_status(self):
-        """
-        获取当前电源的信息，
-        return :
-        """
-        power_status = get_status(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
-
-        return power_status
+    # def get_power_status(self):
+    #     """
+    #     获取当前电源的信息，
+    #     return :
+    #     """
+    #
+    #     power_status = get_status(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
+    #
+    #     return power_status
 
     def check_power_on_success(self):
         """
@@ -547,17 +586,19 @@ class VersionControl:
         loop_times = 80  # 循环检查的最大次数 ，每次循环检查电流后停顿0.5s
         flag_times = 35
 
-        if self.ecu_type == "ES37":
+        if self.ecu_type == "ES39":
             Ampere_limit = 3.1
-
+            time.sleep(5)
             while loop_times > 0:
                 time.sleep(0.75)
                 loop_times -= 1  # 循环减少一次
                 #  将 status 中的电流数值提取出来
-                temp_status = get_status(self.power_ctrl_inter, self.power_ctrl_inter.serial_numbers[0])
+                temp_status = self.power_ctrl_get_status()
+                if temp_status:
                 # print(temp_status)
-                temp_ampere = temp_status['current_value']
-
+                    temp_ampere = temp_status['current_value']
+                else:
+                    temp_ampere = 0
                 if temp_ampere >= Ampere_limit:
                     beyond_times += 1
                     print(loop_times, '----', beyond_times, ':::', temp_ampere)
@@ -568,10 +609,12 @@ class VersionControl:
                 else:
                     beyond_times = max(beyond_times - 3, 0)  # 如果低于 3.0,则 超过次数 -3,
                     print(loop_times, '----', beyond_times, ':::', temp_ampere)
-
+                    if loop_times + beyond_times <= flag_times:
+                        print(loop_times, '----', beyond_times, ':::', temp_ampere,'left time is not enough')
+                        break
             return False
 
-        elif self.ecu_type == "ES18":
+        elif self.ecu_type == "ES37":
             raise NotImplemented
         elif self.ecu_type == "1J5":
             raise NotImplemented
@@ -938,8 +981,188 @@ class VersionControl:
         else:
             raise EnvironmentError('板子重新上电失败')
 
+    def get_max_log_file(self,log_path_in_ecu='log/app/sensor_center'):
+        """
+        获取log文件中数字最大的文件
+        """
+        if log_path_in_ecu == 'log/app/sensor_center':
+            pass
+        elif log_path_in_ecu.endswith('/'):
+            log_path_in_ecu = log_path_in_ecu[:-1]
+        find_cmd = f'ls -v {log_path_in_ecu}/log_[0-9][0-9][0-9][0-9].log | tail -n 1'
+        print(find_cmd)
+        bj5_stdin, j5b_stdout, j5b_stderr = self.j5b_ssh_client.exec_command(find_cmd)
+        j5a_stdin, j5a_stdout, j5a_stderr = self.j5a_ssh_client.exec_command(find_cmd)
+
+        output_j5b = j5b_stdout.read().decode()
+        print('output_j5b',output_j5b)
+        output_j5a = j5a_stdout.read().decode()
+
+        # 返回 对应sensor center，文件的输出格式
+
+        return output_j5a, output_j5b
+
+    def match_sensor_log_output(self,output_line, match_camera_fps):
+        """
+        检查对应sensor center log的某行 output_line 的输出中的fps是否满足 match_camera_fps : dict 的要求
+                    match_camera_fps = {'camera_9':20,
+                            'camera_6':20,
+                            'camera_4':20,
+                            'camera_7':20,
+                            'camera_8':20,
+                            'camera_9':20,
+                            'camera_10':20}
+
+        """
+
+        # pattern = r'\[camera_(\d+)\]:\s*(\d+\.\d+)'
+        pattern = r'\[(camera_\d+)\]:\s*(\d+\.\d+)'
+        # 使用re.findall来找到所有匹配项
+        matches = re.finditer(pattern, output_line)
+
+        matches_list = list(matches)
+        # print('matches_list::',len(matches_list),matches_list)
+
+
+        # 匹配结果内容和数量都不正确时
+        if not matches_list:
+            return False
+        elif len(matches_list) != 6:
+            return False
+        else:
+            print('匹配结果内容和数量都不正确时')
+
+        for index_, match in enumerate(matches_list):
+            # print('match.group()',match.group())
+            camera_number = match.group(1)  # 提取camera编号
+            fps_value = float(match.group(2))  # 提取FPS值并转换为浮点数
+            # camera_fps_pairs.append((camera_number, fps_value))
+            # print(match_camera_fps[camera_number]*0.98  , fps_value , match_camera_fps[camera_number]* 1.02)
+            if match_camera_fps[camera_number]*0.98  <= fps_value <= match_camera_fps[camera_number]* 1.02:
+                # print(fps_value,'sensor output fps value true')
+                if index_ == 5:
+                    # print('match success')
+                    return True
+                else:
+                    continue
+            else:
+                print( camera_number,f'sensor output {fps_value} fps is not in scope: {match_camera_fps[camera_number]}')
+                return False
+
+        return False
+
+        # print(camera_fps_pairs)
+
+    def check_ecu_sensor_camera_init_success(self):
+        """
+        检测 j5b 的sensor center 的所有相机都启动成功
+        """
+        if not self.record_ssh['j5b']:
+            self.open_ssh_connections()
+            time.sleep(0.5)
+        # 先重启 sensor center
+        commands = ['stop sensor_center_2v','sleep 1' ,'start sensor_center_2v','sleep 3']
+        for command in commands:
+            stdin, stdout, stderr = self.j5b_ssh_client.exec_command(command)
+            # output = stdout.read().decode()
+            # print(output)
+            print('{} successfully !!!'.format(command))
+            time.sleep(1)
+
+        max_find_times = 10
+        # while max_find_times > 0:
+        #     j5a_max_file, j5b_max_file = self.get_max_log_file(log_path_in_ecu='log/app/sensor_center')
+        #     if j5a_max_file and j5b_max_file:
+        #         break
+        #     else:
+        #         max_find_times -= 1
+        #         if max_find_times == 0 and not (j5a_max_file and j5b_max_file):
+        #             raise Exception('Cannot Find Log File In log/app/sensor_center')
+        #         else:
+        #             continue
+
+        j5a_max_file, j5b_max_file = self.get_max_log_file(log_path_in_ecu='log/app/sensor_center')
+        # print('get max log file')
+        if j5b_max_file : #and j5a_max_file  :
+            tail_j5b_cam_cmd = f'tail -f {j5b_max_file}\n'
+            # tail_j5a_cam_cmd = f'tail -f {j5a_max_file}\n'
+
+            tail_b_chan = self.j5b_ssh_client.invoke_shell()
+            tail_b_chan.send(tail_j5b_cam_cmd)
+            # tail_a_stdin,tail_a_stdout, tail_a_err = self.j5a_ssh_client.exec_command(tail_j5b_cam_cmd)
+            print('wait for start log')
+            time.sleep(10)
+
+            b_cam_id_fps = {'camera_9':20,
+                            'camera_6':20,
+                            'camera_4':20,
+                            'camera_7':20,
+                            'camera_8':20,
+                            'camera_10':20}
+            # 接收输出（实时）
+            start_time = time.time()
+            count = 0
+            all_cameras_found = False
+            timeout_reached = False
+            timeout_sec = 15
+
+            while not (all_cameras_found or timeout_reached):
+                if tail_b_chan.recv_ready():
+                    output = tail_b_chan.recv(65535).decode('utf-8', 'ignore')
+                    if output:
+                        # print(output, end='')
+                        lines = output.strip().split('\n')
+                        for line in lines:
+                            # 检查当前行是否包含所有指定的camera_id
+                            print('sensor log',line, end='')
+                            if self.match_sensor_log_output(line,b_cam_id_fps):
+                                # print("All cameras found in this line:", line)
+                                count += 1
+                                # print('find count' , count)
+                                if count >= 5:
+                                    # all_cameras_found = True
+                                    print('sensor center 2v restart success')
+                                    return True
+                            else:
+                                count -= 1
+                                if count < 0:
+                                    count = 0
+                        now_time = time.time()
+                        if now_time - start_time > timeout_sec:
+                            return False
+                        else:
+                            continue
+
+
+    def record_status_on(self):
+        """打开预控的路采模式"""
+        if not (self.record_ssh['j5b'] or self.record_ssh['j5a']):
+            self.open_ssh_connections()
+            time.sleep(0.5)
+
+        self.j5b_ssh_client.exec_command('source /system/app/opt/DataPool/etc/road_test.sh on')
+        self.j5a_ssh_client.exec_command('source /system/app/opt/DataPool/etc/road_test.sh on')
+
+
+    def add_camera5_in_tasks(self):
+        """
+
+        """
+        pass
+
 
 if __name__ == '__main__':
     VC = VersionControl()
-    # VC.get_power_status()
-    VC.power_ctrl_power_off()
+    pw_sta = VC.get_power_status()
+    print(pw_sta)
+    #
+
+    # VC.power_ctrl_power_off()
+    if not pw_sta['power_is_on']:
+
+
+        VC.power_ctrl_power_on()
+    #
+    # fff = VC.check_ecu_sensor_camera_init_success()
+    # print(fff)
+
