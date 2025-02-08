@@ -138,6 +138,7 @@ class SingleScenarioObstaclesAnalyzer:
             'lane_width': 3.6,
             'moving_threshold': 2,
             'key_coverage_threshold': 0.1,
+            'test_topic': 'Obstacles',
         }
         parameter_json_path = os.path.join(self.tmp_folder, 'process_api_parameter.json')
         with open(parameter_json_path, 'w', encoding='utf-8') as f:
@@ -358,6 +359,7 @@ class ScenarioInfoSummary:
 
     def get_scenario_combination(self):
         columns = ['scenario_id', 'truth_source', 'road_level', 'weather'] + self.analysis_label
+        print(columns)
         rows = []
         used_content = []
         for truth_source in self.scenario_list_with_analysis:
@@ -372,15 +374,15 @@ class ScenarioInfoSummary:
                 used_content.append(f'{scenario_id}-{truth_source}')
                 road_level = self.scenario_road_weather[self.scenario_road_weather['batch_id'] == scenario_id]['road_level'].iloc[0]
                 weather = self.scenario_road_weather[self.scenario_road_weather['batch_id'] == scenario_id]['weather'].iloc[0]
-                analysis_label = self.scenario_analysis[f'{scenario_id}-{truth_source}']['label'].values()
+                analysis_label = [v for k, v in self.scenario_analysis[f'{scenario_id}-{truth_source}']['label'].items() if k in self.analysis_label]
                 rows.append([scenario_id, truth_source, road_level, weather, *analysis_label])
 
         pd.DataFrame(rows, columns=columns).sort_values(by='scenario_id').to_csv(scenario_summary_path, index=False)
 
 
 if __name__ == "__main__":
-    SA = ScenarioAnalyzer()
-    SA.start(update=False)
+    # SA = ScenarioAnalyzer()
+    # SA.start(update=False)
 
     SS = ScenarioInfoSummary()
     SS.get_scenario_combination()
