@@ -44,6 +44,7 @@ from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 # 导入评测api
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics
 
+scenario_test_record_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_test_record.csv')
 kpi_target_file_path = os.path.join(project_path, 'Docs', 'Resources', 'ObstaclesKpi.xlsx')
 kpi_target_threshold = pd.read_excel(kpi_target_file_path, sheet_name=0, header=[0, 1, 2], index_col=[0, 1])
 kpi_target_ratio = pd.read_excel(kpi_target_file_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
@@ -137,6 +138,7 @@ class DataGrinderOneCase:
         self.version = self.test_config['version']
         self.test_date = str(self.test_config['test_date'])
         self.kpi_date_label = self.test_config['kpi_date_label']
+        self.truth_source = self.test_config['truth_source']
 
         self.scenario_tag = self.test_config['scenario_tag']
         self.test_action = self.test_config['test_action']
@@ -916,6 +918,7 @@ class DataGrinderOneTask:
                     'kpi_date_label': self.test_config['kpi_date_label'],
                     'pred_folder': os.path.join(self.test_config['pred_folder'], scenario_id),
                     'gt_folder': os.path.join(self.test_config['gt_folder'], scenario_id),
+                    'truth_source': self.truth_source,
                     'test_action': self.test_action['scenario_unit'],
                     'test_item': self.test_config['test_item'],
                     'scenario_tag': scenario_tag['tag'],
@@ -1857,20 +1860,31 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
                 for region in regions:
                     if check_region(pt, region):
                         return 1
-
                 return 0
 
             if 'gt.flag' in data.columns:
+                data = data[~((data['gt.flag'] == 1) & (data['gt.id'].isin(bug_excluding_ids)))]
                 data['is_bugArea'] = data.apply(
                     lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user'])
                     if row['gt.flag'] == 1 else check_regions(row['pred.x'], row['pred.y'], row['pred.road_user']),
                     axis=1)
             else:
+                data = data[~(data['gt.id'].isin(bug_excluding_ids))]
                 data['is_bugArea'] = data.apply(
                     lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user']),
                     axis=1)
 
             return data[data['is_bugArea'] == 1]
+
+        bug_excluding_ids = []
+        if os.path.exists(scenario_test_record_path):
+            scenario_test_record = pd.read_csv(scenario_test_record_path, index_col=False)
+            bug_excluding_row = scenario_test_record[(scenario_test_record['scenario_id'] == self.scenario_id)
+                                                 & (scenario_test_record['truth_source'] == self.truth_source)]
+            if len(bug_excluding_row):
+                index = bug_excluding_row.index[0]
+                bug_excluding_ids = json.loads(scenario_test_record.at[index, 'bug_excluding'])
+        send_log(self, f'{self.scenario_id} 排除以下gt.id的bug {bug_excluding_ids}')
 
         bug_count = self.test_action['bug_count']
         bug_index_dict = {}
