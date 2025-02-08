@@ -51,6 +51,13 @@ class ReplayController:
         self.bag_update = self.replay_action['bag_update']
         self.replay_end = self.replay_action['replay_end']
         self.truth_source = self.replay_action['truth_source']
+        self.statistics_path = os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv')
+        if os.path.exists(self.statistics_path):
+            self.origin_topic_statistics = pd.read_csv(self.statistics_path, index_col=0)
+            if not len(self.origin_topic_statistics):
+                self.origin_topic_statistics = None
+        else:
+            self.origin_topic_statistics = None
 
         self.product = replay_config['product']
         feature_group = replay_config['feature_group']
@@ -379,7 +386,6 @@ class ReplayController:
         self.replay_client.clear_temp_folder()
 
     def analyze_raw_data(self, calib_checksum):
-        statistics_path = os.path.join(self.pred_raw_folder, 'topic_output_statistics.csv')
         rows = []
         index = []
         columns = []
@@ -437,16 +443,12 @@ class ReplayController:
             if scenario_id in self.scenario_replay_count:
                 replay_count = self.scenario_replay_count[scenario_id]
                 date_time = self.scenario_replay_datetime[scenario_id]
-                if os.path.exists(statistics_path):
-                    topic_output_statistics = pd.read_csv(statistics_path, index_col=0)
-                    if scenario_id in topic_output_statistics.index:
-                        replay_count += topic_output_statistics.at[scenario_id, 'replay_count']
+                if self.origin_topic_statistics and scenario_id in self.origin_topic_statistics.index:
+                    replay_count += self.origin_topic_statistics.at[scenario_id, 'replay_count']
 
-            elif os.path.exists(statistics_path):
-                topic_output_statistics = pd.read_csv(statistics_path, index_col=0)
-                if scenario_id in topic_output_statistics.index:
-                    replay_count = topic_output_statistics.at[scenario_id, 'replay_count']
-                    date_time = topic_output_statistics.at[scenario_id, 'record_time']
+            elif self.origin_topic_statistics and scenario_id in self.origin_topic_statistics.index:
+                replay_count = self.origin_topic_statistics.at[scenario_id, 'replay_count']
+                date_time = self.origin_topic_statistics.at[scenario_id, 'record_time']
 
             row.extend([scenario_calib_checksum, date_time, replay_count, valid_flag])
             index.append(scenario_id)
@@ -455,7 +457,7 @@ class ReplayController:
         if len(columns):
             output_statistics = pd.DataFrame(rows, columns=columns + ['calib_checksum', 'record_time', 'replay_count', 'isValid'], index=index)
             output_statistics.sort_values(by='record_time', inplace=True)
-            output_statistics.to_csv(statistics_path)
+            output_statistics.to_csv(self.statistics_path)
             calib_output_statistics = output_statistics[output_statistics['calib_checksum'] == calib_checksum]
             # 计算失效积分
             # 每一个invalid场景增加1分，每次出现0/0/0/0-0增加1分

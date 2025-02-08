@@ -2124,10 +2124,10 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
 
             ax.set_xlim(-100, 150)
             ax.set_xticks(np.arange(-100, 151, 50))
-            ax.set_xticklabels([f'{x:.0f}m' for x in np.arange(-100, 151, 50)])
+            ax.set_xticklabels([f'{x:.0f} m' for x in np.arange(-100, 151, 50)])
             ax.set_ylim(-25, 25)
-            ax.set_yticks(np.arange(-15, 16, 30))
-            ax.set_yticklabels([f'{y:.0f}m' for y in np.arange(-15, 16, 30)])
+            ax.set_yticks([-16, -8, 0, 8, 16])
+            ax.set_yticklabels([f'{y:.0f} m' for y in [-16, -8, 0, 8, 16]])
             ax.tick_params(direction='out', labelsize=font_size * 1.2, length=4)
             ax.set_title(title, fontdict=title_font, y=0.9, loc='left')
             red_triangle = mlines.Line2D([], [], color='red', marker='v', linestyle='None',
@@ -2148,7 +2148,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             # 将这两个图形添加到图例中
             ax.legend(handles=[red_triangle, ego_rectangle, car_rectangle,
                                pedestrian_rectangle, bus_rectangle, truck_rectangle, cyclist_rectangle], fontsize=13)
-            ax.grid(linestyle='-', linewidth=0.5, color='lightgray', alpha=0.5)
+            ax.grid(linestyle='-', linewidth=0.5, color='lightgray', alpha=0.6)
 
         color_type = {
             'car': '#3682be',
