@@ -226,16 +226,21 @@ class ObstaclesMatchTool:
             union = poly1.area + poly2.area - intersection
             return intersection / union if union != 0 else 0.0
 
-        gt_rect = [
-            (gt_pt_0_x, gt_pt_0_y), (gt_pt_1_x, gt_pt_1_y),
-            (gt_pt_2_x, gt_pt_2_y), (gt_pt_3_x, gt_pt_3_y)
-        ]
-        pred_rect = [
-            (pred_pt_0_x, pred_pt_0_y), (pred_pt_1_x, pred_pt_1_y),
-            (pred_pt_2_x, pred_pt_2_y), (pred_pt_3_x, pred_pt_3_y)
-        ]
-        if calculate_iou(gt_rect, pred_rect) >= 0.05:
-            return True
+        if ((abs(x_error) <= self.object_matching_tolerance['x'][0] * 1.5
+             or abs(x_error_rel) <= self.object_matching_tolerance['x'][1]) * 1.5
+                and (abs(y_error) <= self.object_matching_tolerance['y'][0] * 1.5
+                     or abs(y_error_rel) <= self.object_matching_tolerance['y'][1]) * 1.5):
+
+            gt_rect = [
+                (gt_pt_0_x, gt_pt_0_y), (gt_pt_1_x, gt_pt_1_y),
+                (gt_pt_2_x, gt_pt_2_y), (gt_pt_3_x, gt_pt_3_y)
+            ]
+            pred_rect = [
+                (pred_pt_0_x, pred_pt_0_y), (pred_pt_1_x, pred_pt_1_y),
+                (pred_pt_2_x, pred_pt_2_y), (pred_pt_3_x, pred_pt_3_y)
+            ]
+            if calculate_iou(gt_rect, pred_rect) >= 0.05:
+                return True
 
         return False
 
