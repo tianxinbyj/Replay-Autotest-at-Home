@@ -3863,7 +3863,7 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
 
         if self.test_action['statistics']:
             self.summary_bug_items()
-            # self.compile_statistics()
+            self.compile_statistics()
 
         if self.test_action['visualization']:
             self.visualize_output()
