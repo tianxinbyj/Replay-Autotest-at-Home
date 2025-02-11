@@ -787,15 +787,10 @@ class LinesTypeClassification:
         elif type_ == 1:
             if position in [1, 8]:
                 return 'reserved_lines_type', 'main_lane'
-            elif position == 0:
-                if abs(c0) < self.lane_width / 2:
-                    return 'reserved_lines_type', 'main_lane'
-                else:
-                    return 'reserved_lines_type', 'secondary_lane'
-            else:
+            elif position in [2, 3, 9, 10]:
                 return 'reserved_lines_type', 'secondary_lane'
 
-        return 'reserved_lines_type', None
+        return 'reserved_lines_type', 'other_lane'
 
 
 class LinesCoefficient:
@@ -901,6 +896,11 @@ class ConnectLines:
         for time_stamp, frame_data in input_data.groupby('time_stamp'):
 
             frame_id = frame_data['frame_id'].iloc[0]
+
+            frame_data['max_y_points'] = frame_data['y_points'].apply(lambda x: max([abs(float(t)) for t in x.split(',')]))
+            sorted_df = frame_data.sort_values(by='max_y_points', ascending=False)
+            frame_data = sorted_df.drop(columns=['max_y_points'])
+
             lines = []
             for idx, row in frame_data.iterrows():
 
@@ -1014,6 +1014,84 @@ class ConnectLines:
         return False, 0
 
 
+class DefinePosition:
+    """
+    确定车道线的L1L2L3R1R2R3的位置
+
+    """
+
+    def __init__(self, input_parameter_container=None):
+        self.type = 'by_frame'
+
+        if isinstance(input_parameter_container, dict):
+            self.lane_width = input_parameter_container['lane_width']
+        else:
+            self.lane_width = lines_parameter_container['lane_width']
+
+    def __call__(self, input_data):
+
+        def calculate_lane_head(row):
+            x_points = sorted(map(float, row['x_points'].split(',')), key=lambda x: abs(x))[:3]
+            y_points = [float(y) for x, y in zip(row['x_points'].split(','), row['y_points'].split(',')) if
+                        float(x) in x_points]
+            return sum(x_points) / len(x_points), sum(y_points) / len(y_points)
+
+        df_type_1 = input_data[input_data['type'] == 1]
+        df_type_1['head'] = df_type_1.apply(calculate_lane_head, axis=1)
+        df_type_1['head_x'] = df_type_1['head'].apply(lambda x: x[0])
+        df_type_1['head_y'] = df_type_1['head'].apply(lambda x: x[1])
+
+        for index in df_type_1[(df_type_1['head_x'] > 15)
+                               | (df_type_1['head_y'] > 3.5 * self.lane_width)
+                               | (df_type_1['head_y'] < -3.5 * self.lane_width)].index:
+            input_data.at[index, 'position'] = 0
+
+        for time_stamp, frame_data in df_type_1.groupby('time_stamp'):
+            # 左侧
+            df_type_left = frame_data[(frame_data['head_y'] >= 0) & (frame_data['head_x'] <= 15)]
+            if len(df_type_left):
+                df_type_left.sort_values(by='head_y', ascending=True, inplace=True)
+                current_row = 0
+                position_list = np.arange(1, len(df_type_left) + 1, 1)
+                for idx, row in df_type_left.iterrows():
+                    current_row += 1
+                    i = 0
+                    while True:
+                        if i * self.lane_width <= row['head_y'] < (0.2 + i + current_row) * self.lane_width:
+                            break
+                        else:
+                            position_list += 1
+                            i += 1
+                            if current_row + i > 7:
+                                break
+
+                for i, p in zip(df_type_left.index, position_list):
+                    input_data.at[i, 'position'] = int(p)
+
+            # 右侧
+            df_type_right = frame_data[(frame_data['head_y'] < 0) & (frame_data['head_x'] <= 15)]
+            if len(df_type_right):
+                df_type_right.sort_values(by='head_y', ascending=False, inplace=True)
+                current_row = 0
+                position_list = np.arange(1, len(df_type_right) + 1, 1)
+                for idx, row in df_type_right.iterrows():
+                    current_row += 1
+                    i = 0
+                    while True:
+                        if i * self.lane_width <= abs(row['head_y']) < (0.2 + i + current_row) * self.lane_width:
+                            break
+                        else:
+                            position_list += 1
+                            i += 1
+                            if current_row + i > 7:
+                                break
+
+                for i, p in zip(df_type_right.index, position_list):
+                    input_data.at[i, 'position'] = int(p) + 7
+
+        return input_data
+
+
 class LinesPreprocess:
 
     def __init__(self, preprocess_types=None):
@@ -1021,6 +1099,7 @@ class LinesPreprocess:
             self.preprocess_types = [
                 'DuplicateId',
                 'ConnectLines',
+                'DefinePosition',
                 'LinesCoefficient',
                 'LinesTypeClassification',
             ]
@@ -1031,6 +1110,9 @@ class LinesPreprocess:
         # 增加age
         id_counts = data['id'].value_counts()
         data['age'] = data['id'].map(id_counts)
+
+        if not input_parameter_container['if_gt']:
+            self.preprocess_types.remove('DefinePosition')
 
         for preprocess_type in self.preprocess_types:
             print(f'正在预处理 {preprocess_type}')

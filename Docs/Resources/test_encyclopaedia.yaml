@@ -1317,7 +1317,7 @@ Information:
       recall_precision:
         name: 准召信息
         description: 包括准确率，召回率，线型准确率，TP/FP/FN目标个数
-      x_error:
+      lateral_error:
         name: 横向位置误差
         description: 评价对车道线的横向距离的感知能力
       length_error:
@@ -1330,7 +1330,7 @@ Information:
       recall_precision:
         name: 准召信息
         description: 包括准确率，召回率，线型准确率，TP/FP/FN目标个数
-      x_error:
+      lateral_error:
         name: 横向位置误差
         description: 评价对车道线的横向距离的感知能力
       length_error:

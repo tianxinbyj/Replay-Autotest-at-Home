@@ -281,23 +281,23 @@ class LinesMatchTool:
             if len(frame_gt_data) and len(frame_pred_data):
 
                 gt_lines_shapely = []
-                gt_lines = []
+                gt_lines_type = []
                 for gt_idx, gt_row in frame_gt_data.iterrows():
                     x_pts = gt_row['x_points'].split(',')
                     y_pts = gt_row['y_points'].split(',')
                     gt_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
-                    gt_lines.append(gt_line)
+                    gt_lines_type.append(gt_row['type'])
                     gt_lines_shapely.append(LineString(gt_line).buffer(self.lane_matching_width,
                                                                        cap_style=CAP_STYLE.flat,
                                                                        join_style=JOIN_STYLE.mitre))
 
                 pred_lines_shapely = []
-                pred_lines = []
+                pred_lines_type = []
                 for pred_idx, pred_row in frame_pred_data.iterrows():
                     x_pts = pred_row['x_points'].split(',')
                     y_pts = pred_row['y_points'].split(',')
                     pred_line = [[float(x), float(y)] for x, y in zip(x_pts, y_pts)]
-                    pred_lines.append(pred_line)
+                    pred_lines_type.append(pred_row['type'])
                     pred_lines_shapely.append(LineString(pred_line).buffer(self.lane_matching_width,
                                                                            cap_style=CAP_STYLE.flat,
                                                                            join_style=JOIN_STYLE.mitre))
@@ -309,7 +309,11 @@ class LinesMatchTool:
                     for pred_i, pred_line in enumerate(pred_lines_shapely):
                         union = pred_line.union(gt_line)
                         intersection = pred_line.intersection(gt_line)
-                        loss_data_row.append(-intersection.area/union.area)
+                        IOU = intersection.area/union.area
+                        if gt_lines_type[gt_i] != pred_lines_type[pred_i]:
+                            IOU /= 1.5
+
+                        loss_data_row.append(-IOU)
 
                     loss_data.append(loss_data_row)
 

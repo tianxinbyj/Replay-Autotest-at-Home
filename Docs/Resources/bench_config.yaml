@@ -1,3 +1,17 @@
+Replay03:
+  master:
+    ip: localhost
+    username: hp
+    password: admin
+    py_path: /home/hp/Replay-Autotest-at-Home
+    sys_interpreter: /usr/bin/python3
+  ReplayClient:
+    ip: 10.192.68.108
+    username: hp
+    password: admin
+    py_path: /home/hp/Replay-Autotest-at-Home
+    sys_interpreter: /usr/bin/python3
+    ECU_product_preferred: ES39
 Replay02:
   master:
     ip: 172.31.131.253

@@ -370,7 +370,9 @@ class DataGrinderOneCase:
                     self.test_result['General']['camera_position'][cam_name] = {
                         'x': x, 'y': y, 'z': z, 'fov': fov_range,
                     }
-                    send_log(self, f'{cam_name} 位于({x}, {y}, {z}, {fov_range})')
+                    send_log(self, f'{cam_name} 位于('
+                                   f'{round(x, 2)}, {round(y, 2)}, {round(z, 2)}, '
+                                   f'{fov_range})')
 
         new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
         if os.path.exists(new_scenario_info_folder):
@@ -496,7 +498,7 @@ class DataGrinderOneCase:
         print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'import numpy' not in result.stderr and 'import numpy' not in result.stderr:
+        if result.stderr and 'warning' not in result.stderr:
             send_log(self, f'Api_GetTimeGap 发生错误 {result.stderr}')
         t_delta, v_error = result.stdout.strip().split('\n')[-1].split(' ')
         t_delta = float(t_delta)
@@ -509,8 +511,8 @@ class DataGrinderOneCase:
 
         self.test_result['General']['time_gap'] = t_delta
 
-        time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
-        time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
+        time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 5
+        time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 5
         send_log(self, f'测试指标的数据时间段为{time_start}-{time_end}')
         self.test_result['General']['time_start'] = float(time_start)
         self.test_result['General']['time_end'] = float(time_end)
@@ -611,6 +613,7 @@ class DataGrinderOneCase:
                 input_parameter_container = {
                     'lane_width': 3.6,
                     'test_topic': self.test_topic,
+                    'if_gt': True,
                 }
             else:
                 return
@@ -634,7 +637,7 @@ class DataGrinderOneCase:
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr and 'import numpy' not in result.stderr:
+            if result.stderr and 'warning' not in result.stderr:
                 send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
             data = pd.read_csv(topic_gt_data_path, index_col=False)[additional_column]
@@ -688,6 +691,7 @@ class DataGrinderOneCase:
                     input_parameter_container = {
                         'lane_width': 3.6,
                         'test_topic': self.test_topic,
+                        'if_gt': False,
                     }
                 else:
                     return
@@ -708,7 +712,7 @@ class DataGrinderOneCase:
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
-                if result.stderr and 'import numpy' not in result.stderr:
+                if result.stderr and 'warning' not in result.stderr:
                     send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
                 data = pd.read_csv(path, index_col=False)[additional_column]
@@ -757,7 +761,7 @@ class DataGrinderOneCase:
             print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-            if result.stderr and 'import numpy' not in result.stderr:
+            if result.stderr and 'warning' not in result.stderr:
                 send_log(self, f'MatchTimestamp 发生错误 {result.stderr}')
 
             match_timestamp_data = pd.read_csv(path, index_col=False)
@@ -833,7 +837,7 @@ class DataGrinderOneCase:
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr and 'import numpy' not in result.stderr:
+            if result.stderr and 'warning' not in result.stderr:
                 send_log(self, f'MatchObstacles 发生错误 {result.stderr}')
 
             send_log(self, f'{self.test_topic} {topic} 目标匹配')
@@ -1023,7 +1027,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr and 'import numpy' not in result.stderr:
+            if result.stderr and 'warning' not in result.stderr:
                 send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
             for characteristic in os.listdir(metric_folder):
@@ -1311,7 +1315,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
         print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'import numpy' not in result.stderr:
+        if result.stderr and 'warning' not in result.stderr:
             send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
@@ -1724,7 +1728,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
         print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'import numpy' not in result.stderr:
+        if result.stderr and 'warning' not in result.stderr:
             send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
@@ -2362,7 +2366,7 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
                 os.remove(total_match_data_path)
-                if result.stderr and 'import numpy' not in result.stderr:
+                if result.stderr and 'warning' not in result.stderr:
                     print(result.stderr)
                     send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
@@ -2602,7 +2606,7 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
             self.test_result['OutputResult']['report_table'][characteristic] = self.get_relpath(path)
 
             # 使用ExcelWriter将DataFrame保存到不同的sheet中
-            with (pd.ExcelWriter(path, engine='openpyxl') as writer):
+            with pd.ExcelWriter(path, engine='openpyxl') as writer:
                 for scenario_tag in scenario_tag_key:
                     rows = []
                     for obstacle_type in obstacle_type_key:
@@ -3978,7 +3982,7 @@ class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
                 os.remove(total_match_data_path)
-                if result.stderr and 'import numpy' not in result.stderr:
+                if result.stderr and 'warning' not in result.stderr:
                     print(result.stderr)
                     send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
@@ -4218,7 +4222,7 @@ class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
             self.test_result['OutputResult']['report_table'][characteristic] = self.get_relpath(path)
 
             # 使用ExcelWriter将DataFrame保存到不同的sheet中
-            with (pd.ExcelWriter(path, engine='openpyxl') as writer):
+            with pd.ExcelWriter(path, engine='openpyxl') as writer:
                 for scenario_tag in scenario_tag_key:
                     rows = []
                     for obstacle_type in obstacle_type_key:
