@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 
 import warnings
+from scipy.interpolate import interp1d
+
 warnings.filterwarnings("ignore")
 
 
@@ -25,16 +27,19 @@ def get_project_path():
         folder = parent_folder
 
 
-kpi_target_file_path = os.path.join(get_project_path(), 'Docs', 'Resources', 'ObstaclesKpi.xlsx')
-kpi_target_threshold = pd.read_excel(kpi_target_file_path, sheet_name=0, header=[0, 1, 2], index_col=[0, 1])
-kpi_target_ratio = pd.read_excel(kpi_target_file_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
-
 # 对车辆进行分类，分为大车，小车，行人，两轮车
-type_classification_text = {
+obstacles_type_classification_text = {
     'car': '小车',
     'pedestrian': '行人',
     'truck_bus': '大车',
     'cyclist': '两轮车',
+}
+
+# 对车道线进行分类，分为主车道线，次车道线，道路边沿和其他车道线
+lines_type_classification_text = {
+    'main_lane': '主车道线',
+    'secondary_lane': '次车道线',
+    'fence': '道路边沿',
 }
 
 
@@ -42,56 +47,107 @@ def change_name(var):
     return ''.join([v.title() for v in var.split('_')])
 
 
-def get_obstacles_kpi_threshold(col_1, col_2, target_type, x=0, y=0, region=None):
+class Kpi:
 
-    def get_region_text(x, y):
-        x_text = None
-        if -100 < x <= -50:
-            x_text = 'x(-100~-50)'
-        elif -50 < x <= 0:
-            x_text = 'x(-50~0)'
-        elif 0 < x <= 50:
-            x_text = 'x(0~50)'
-        elif 50 < x <= 100:
-            x_text = 'x(50~100)'
-        elif 100 < x <= 150:
-            x_text = 'x(100~150)'
+    def __init__(self, kpi_path=None):
+        self.kpi_target_threshold = pd.read_excel(kpi_target_file_path, sheet_name=0, header=[0, 1, 2], index_col=[0, 1])
+        self.kpi_target_ratio = pd.read_excel(kpi_target_file_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
 
-        y_text = None
-        if -8 <= y <= 8:
-            y_text = 'y(-8~8)'
+    def get_obstacles_kpi_threshold(self, col_1, col_2, target_type, x=0, y=0, region=None):
 
-        if x_text is None or y_text is None:
+        def get_region_text(x, y):
+            x_text = None
+            if -100 < x <= -50:
+                x_text = 'x(-100~-50)'
+            elif -50 < x <= 0:
+                x_text = 'x(-50~0)'
+            elif 0 < x <= 50:
+                x_text = 'x(0~50)'
+            elif 50 < x <= 100:
+                x_text = 'x(50~100)'
+            elif 100 < x <= 150:
+                x_text = 'x(100~150)'
+
+            y_text = None
+            if -8 <= y <= 8:
+                y_text = 'y(-8~8)'
+
+            if x_text is None or y_text is None:
+                return None
+
+            return f'{x_text},{y_text}'
+
+        df = self.kpi_target_threshold
+        if region is not None:
+            region_text = region
+        else:
+            region_text = get_region_text(x, y)
+            if region_text is None:
+                return None
+
+        index = (target_type, region_text)
+        col = (col_1, col_2, '/VA/Obstacles')
+        threshold = df.at[index, col]
+        if np.isnan(threshold):
+            return None
+        else:
+            return threshold
+
+    def get_obstacles_kpi_ratio(self, col_1, col_2, target_type, kpi_date_label):
+        df = self.kpi_target_ratio
+        index = (target_type, int(kpi_date_label))
+        col = (col_1, col_2, '/VA/Obstacles')
+        ratio = df.at[index, col]
+        if np.isnan(ratio) or ratio is None:
+            return 1
+        else:
+            return ratio
+
+    def get_lines_kpi_threshold(self, col_1, col_2, target_type, radius):
+
+        def get_region_text(radius):
+            radius_text = None
+            if radius is not None:
+                if 20 < radius <= 250:
+                    radius_text = '20-250'
+                elif 250 < radius <= 1000:
+                    radius_text = '250-1000'
+                elif 1000 < radius <= 5000:
+                    radius_text = '1000-5000'
+                elif 5000 < radius <= 10000:
+                    radius_text = '5000-99999'
+
+            return radius_text
+
+        df = self.kpi_target_threshold
+        radius_text = get_region_text(radius)
+        if radius_text is None:
             return None
 
-        return f'{x_text},{y_text}'
-
-    df = kpi_target_threshold
-    if region is not None:
-        region_text = region
-    else:
-        region_text = get_region_text(x, y)
-        if region_text is None:
+        index = (target_type, radius_text)
+        col = (col_1, col_2, '/VA/BevLines')
+        threshold = df.at[index, col]
+        if np.isnan(threshold):
             return None
+        else:
+            return threshold
 
-    index = (target_type, region_text)
-    col = (col_1, col_2, '/VA/Obstacles')
-    threshold = df.at[index, col]
-    if np.isnan(threshold):
-        return None
-    else:
-        return threshold
+    def get_lines_kpi_ratio(self, col_1, col_2, target_type, kpi_date_label):
+        df = self.kpi_target_ratio
+        index = (target_type, int(kpi_date_label))
+        col = (col_1, col_2, '/VA/BevLines')
+        ratio = df.at[index, col]
+        if np.isnan(ratio) or ratio is None:
+            return 1
+        else:
+            return ratio
 
 
-def get_obstacles_kpi_ratio(col_1, col_2, target_type, kpi_date_label):
-    df = kpi_target_ratio
-    index = (target_type, int(kpi_date_label))
-    col = (col_1, col_2, '/VA/Obstacles')
-    ratio = df.at[index, col]
-    if np.isnan(ratio):
-        return 1
-    else:
-        return ratio
+kpi_target_file_path = os.path.join(get_project_path(), 'Docs', 'Resources', 'ObstaclesKpi.xlsx')
+ObstaclesKpi = Kpi(kpi_target_file_path)
+
+kpi_target_file_path = os.path.join(get_project_path(), 'Docs', 'Resources', 'LinesKpi.xlsx')
+LinesKpi = Kpi(kpi_target_file_path)
 
 
 class RecallPrecision:
@@ -111,17 +167,15 @@ class RecallPrecision:
     def __call__(self, input_data):
 
         if isinstance(input_data, dict):
-            (gt_flag, gt_x, gt_y, gt_type,
-             pred_flag, pred_x, pred_y, pred_type) = (
-                input_data['gt.flag'], input_data['gt.x'], input_data['gt.y'],
+            (gt_flag, gt_type, pred_flag, pred_type) = (
+                input_data['gt.flag'],
                 input_data['gt.type_classification'],
-                input_data['pred.flag'], input_data['pred.x'], input_data['pred.y'],
+                input_data['pred.flag'],
                 input_data['pred.type_classification'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
               and len(input_data) == 8):
-            (gt_flag, gt_x, gt_y, gt_type,
-             pred_flag, pred_x, pred_y, pred_type) = input_data
+            (gt_flag, gt_type, pred_flag, pred_type) = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -188,20 +242,20 @@ class XError:
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        type_classification = type_classification_text[gt_type]
+        type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = get_obstacles_kpi_threshold('纵向距离误差', 'x_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向距离误差', 'x_abs_95[m]', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             x_limit = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('纵向距离误差', 'x_abs_95[m]', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('纵向距离误差', 'x_abs_95[m]', type_classification, kpi_date_label)
             x_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = get_obstacles_kpi_threshold('纵向距离误差', 'x%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向距离误差', 'x%_abs_95', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             x_limit_p = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('纵向距离误差', 'x%_abs_95', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('纵向距离误差', 'x%_abs_95', type_classification, kpi_date_label)
             x_limit_p = kpi_threshold * kpi_ratio
 
         if abs(gt_x) < 50:
@@ -285,20 +339,20 @@ class YError:
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        type_classification = type_classification_text[gt_type]
+        type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = get_obstacles_kpi_threshold('横向距离误差', 'y_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('横向距离误差', 'y_abs_95[m]', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             y_limit = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('横向距离误差', 'y_abs_95[m]', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('横向距离误差', 'y_abs_95[m]', type_classification, kpi_date_label)
             y_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = get_obstacles_kpi_threshold('横向距离误差', 'y%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('横向距离误差', 'y%_abs_95', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             y_limit_p = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('横向距离误差', 'y%_abs_95', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('横向距离误差', 'y%_abs_95', type_classification, kpi_date_label)
             y_limit_p = kpi_threshold * kpi_ratio
 
         y_error = pred_y - gt_y
@@ -371,13 +425,13 @@ class VxError:
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        type_classification = type_classification_text[gt_type]
+        type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = get_obstacles_kpi_threshold('纵向速度误差', 'vx_abs_95[m/s]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向速度误差', 'vx_abs_95[m/s]', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             vx_limit = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('纵向速度误差', 'vx_abs_95[m/s]', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('纵向速度误差', 'vx_abs_95[m/s]', type_classification, kpi_date_label)
             vx_limit = kpi_threshold * kpi_ratio
 
         vx_error = pred_vx - gt_vx
@@ -446,13 +500,13 @@ class VyError:
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        type_classification = type_classification_text[gt_type]
+        type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = get_obstacles_kpi_threshold('横向速度误差', 'vy_abs_95[m/s]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('横向速度误差', 'vy_abs_95[m/s]', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             vy_limit = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('横向速度误差', 'vy_abs_95[m/s]', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('横向速度误差', 'vy_abs_95[m/s]', type_classification, kpi_date_label)
             vy_limit = kpi_threshold * kpi_ratio
 
         vy_error = pred_vy - gt_vy
@@ -523,13 +577,13 @@ class YawError:
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        type_classification = type_classification_text[gt_type]
+        type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = get_obstacles_kpi_threshold('航向角误差', 'yaw_abs_95[deg]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('航向角误差', 'yaw_abs_95[deg]', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             yaw_limit = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('航向角误差', 'yaw_abs_95[deg]', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('航向角误差', 'yaw_abs_95[deg]', type_classification, kpi_date_label)
             yaw_limit = kpi_threshold * kpi_ratio
 
         # 将角度修正到-pi到pi之间
@@ -609,20 +663,20 @@ class LengthError:
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        type_classification = type_classification_text[gt_type]
+        type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = get_obstacles_kpi_threshold('长度误差', 'length_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('长度误差', 'length_abs_95[m]', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             length_limit = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('长度误差', 'length_abs_95[m]', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('长度误差', 'length_abs_95[m]', type_classification, kpi_date_label)
             length_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = get_obstacles_kpi_threshold('长度误差', 'length%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('长度误差', 'length%_abs_95', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             length_limit_p = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('长度误差', 'length%_abs_95', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('长度误差', 'length%_abs_95', type_classification, kpi_date_label)
             length_limit_p = kpi_threshold * kpi_ratio
 
         length_error = pred_length - gt_length
@@ -689,20 +743,20 @@ class WidthError:
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        type_classification = type_classification_text[gt_type]
+        type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = get_obstacles_kpi_threshold('宽度误差', 'width_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('宽度误差', 'width_abs_95[m]', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             width_limit = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('宽度误差', 'width_abs_95[m]', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('宽度误差', 'width_abs_95[m]', type_classification, kpi_date_label)
             width_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = get_obstacles_kpi_threshold('宽度误差', 'width%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('宽度误差', 'width%_abs_95', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             width_limit_p = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('宽度误差', 'width%_abs_95', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('宽度误差', 'width%_abs_95', type_classification, kpi_date_label)
             width_limit_p = kpi_threshold * kpi_ratio
 
         width_error = pred_width - gt_width
@@ -769,20 +823,20 @@ class HeightError:
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
 
-        type_classification = type_classification_text[gt_type]
+        type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = get_obstacles_kpi_threshold('高度误差', 'height_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('高度误差', 'height_abs_95[m]', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             height_limit = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('高度误差', 'height_abs_95[m]', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('高度误差', 'height_abs_95[m]', type_classification, kpi_date_label)
             height_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = get_obstacles_kpi_threshold('高度误差', 'height%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('高度误差', 'height%_abs_95', type_classification, x=gt_x, y=gt_y)
         if kpi_threshold is None:
             height_limit_p = None
         else:
-            kpi_ratio = get_obstacles_kpi_ratio('高度误差', 'height%_abs_95', type_classification, kpi_date_label)
+            kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('高度误差', 'height%_abs_95', type_classification, kpi_date_label)
             height_limit_p = kpi_threshold * kpi_ratio
 
         height_error = pred_height - gt_height
@@ -909,24 +963,214 @@ class ObstaclesMetricFilter:
         return characteristic_data_dict
 
 
+class LateralError:
+
+    def __init__(self):
+        self.columns = [
+            'gt.id',
+            'pred.id',
+            'gt.type',
+            'pred.type',
+            'gt.radius',
+            'pred.radius',
+            '0-30.error',
+            '30-60.error',
+            '60-120.error',
+            'is_abnormal',
+        ]
+
+    def __call__(self, input_data, kpi_date_label):
+
+        if isinstance(input_data, dict):
+            (gt_id, pred_id, gt_type, pred_type, gt_radius, pred_radius,
+             gt_x_points, gt_y_points, pred_x_points, pred_y_points) = (
+                input_data['gt.id'], input_data['pred.id'],
+                input_data['gt.type_classification'], input_data['pred.type_classification'],
+                input_data['gt.radius'], input_data['pred.radius'],
+                input_data['gt.x_points'], input_data['gt.y_points'],
+                input_data['pred.x_points'], input_data['pred.y_points'])
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 8):
+            (gt_id, pred_id, gt_type, pred_type, gt_radius, pred_radius,
+             gt_x_points, gt_y_points, pred_x_points, pred_y_points) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        type_classification = lines_type_classification_text[gt_type]
+
+        kpi_threshold = LinesKpi.get_lines_kpi_threshold('横向位置误差', '0-30_abs_95[m]', type_classification, gt_radius)
+        if kpi_threshold is None:
+            limit_0_30 = None
+        else:
+            kpi_ratio = LinesKpi.get_lines_kpi_ratio('横向位置误差', '0-30_abs_95[m]', type_classification, kpi_date_label)
+            limit_0_30 = kpi_threshold * kpi_ratio
+
+        kpi_threshold = LinesKpi.get_lines_kpi_threshold('横向位置误差', '30-60_abs_95[m]', type_classification, gt_radius)
+        if kpi_threshold is None:
+            limit_30_60 = None
+        else:
+            kpi_ratio = LinesKpi.get_lines_kpi_ratio('横向位置误差', '30-60_abs_95[m]', type_classification, kpi_date_label)
+            limit_30_60 = kpi_threshold * kpi_ratio
+
+        kpi_threshold = LinesKpi.get_lines_kpi_threshold('横向位置误差', '60-120_abs_95[m]', type_classification, gt_radius)
+        if kpi_threshold is None:
+            limit_60_120 = None
+        else:
+            kpi_ratio = LinesKpi.get_lines_kpi_ratio('横向位置误差', '60-120_abs_95[m]', type_classification, kpi_date_label)
+            limit_60_120 = kpi_threshold * kpi_ratio
+
+        gt_x_points = [float(x) for x in gt_x_points.split(',')]
+        gt_y_points = [float(x) for x in gt_y_points.split(',')]
+        pred_x_points = [float(x) for x in pred_x_points.split(',')]
+        pred_y_points = [float(x) for x in pred_y_points.split(',')]
+        int_pred_x_points, int_pred_y_points = [], []
+        for x, y in zip(pred_x_points, pred_y_points):
+            if min(gt_x_points) <= x <= max(gt_x_points):
+                int_pred_x_points.append(x)
+                int_pred_y_points.append(y)
+
+        f = interp1d(gt_x_points, gt_y_points, kind='linear')
+        int_gt_y_points = f(int_pred_x_points)
+        lateral_error = {
+            '0-30.error': [],
+            '30-60.error': [],
+            '60-120.error': [],
+        }
+        error_0_30 = None
+        error_30_60 = None
+        error_60_120 = None
+        for i, x in enumerate(int_pred_x_points):
+            if 0 <= x < 30:
+                lateral_error['0-30.error'].append(abs(int_pred_y_points[i] - int_gt_y_points[i]))
+            elif 30 <= x < 60:
+                lateral_error['30-60.error'].append(abs(int_pred_y_points[i] - int_gt_y_points[i]))
+            elif 60 <= x < 120:
+                lateral_error['60-120.error'].append(abs(int_pred_y_points[i] - int_gt_y_points[i]))
+
+        if len(lateral_error['0-30.error']) >= 3:
+            error_0_30 = np.mean(lateral_error['0-30.error'])
+        if len(lateral_error['30-60.error']) >= 3:
+            error_30_60 = np.mean(lateral_error['30-60.error'])
+        if len(lateral_error['60-120.error']) >= 3:
+            error_60_120 = np.mean(lateral_error['60-120.error'])
+
+        is_abnormal = []
+        if (limit_0_30 is not None) and (error_0_30 is not None):
+            if error_0_30 > limit_0_30:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if (limit_30_60 is not None) and (error_30_60 is not None):
+            if error_30_60 > limit_30_60:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if (limit_60_120 is not None) and (error_60_120 is not None):
+            if error_60_120 > limit_60_120:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if len(is_abnormal):
+            is_abnormal = int(any(is_abnormal))
+        else:
+            is_abnormal = 0
+
+        return (gt_id, pred_id, gt_type, pred_type, gt_radius, pred_radius,
+                error_0_30, error_30_60, error_60_120,
+                is_abnormal)
+
+
+class LinesMetricEvaluator:
+
+    def __init__(self):
+        self.kpi_date_label = '20250228'
+        self.metric_type = [
+            'recall_precision',
+            'lateral_error',
+            'heading_error',
+            'length_error',
+        ]
+
+    def run(self, input_data, input_parameter_container=None):
+        if input_parameter_container is not None:
+            metric_type = input_parameter_container['metric_type']
+            kpi_date_label = input_parameter_container['kpi_date_label']
+        else:
+            metric_type = self.metric_type
+            kpi_date_label = self.kpi_date_label
+
+        data_dict = {}
+        data = input_data.dropna(subset=['gt.type_classification'], how='all')
+        tp_data = data[(data['gt.flag'] == 1) & (data['pred.flag'] == 1)]
+
+        for metric in metric_type:
+            print(f'正在评估指标 {metric}')
+            metric_class = change_name(metric)
+            func = eval(f'{metric_class}()')
+
+            if metric == 'recall_precision':
+                result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
+                result_df.columns = func.columns
+                result_df = pd.concat([data, result_df], axis=1)
+            else:
+                if metric in ['vx_error', 'vy_error']:
+                    result_df = tp_data[(data['gt.vx'] <= 60)
+                                        & (data['gt.vx'] >= -60)
+                                        & (data['gt.vy'] <= 60)
+                                        & (data['gt.vy'] >= -60)
+                                        ].apply(lambda row: func(row.to_dict(), kpi_date_label), axis=1,
+                                                result_type='expand')
+                else:
+                    result_df = tp_data.apply(lambda row: func(row.to_dict(), kpi_date_label), axis=1, result_type='expand')
+                result_df.columns = func.columns
+                result_df['corresponding_index'] = tp_data['corresponding_index']
+
+            data_dict[metric] = result_df
+
+        return data_dict
+
+
 if __name__ == '__main__':
-    kpi_date_label = 20241130
-    type_classification, gt_x, gt_y = '小车',-5.477241039276123,-0.092785932123661
+    # kpi_date_label = 20241130
+    # type_classification, gt_x, gt_y = '小车',-5.477241039276123,-0.092785932123661
+    #
+    # kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向距离误差', 'x_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+    #
+    # if kpi_threshold is None:
+    #     x_limit = None
+    # else:
+    #     kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('纵向距离误差', 'x_abs_95[m]', type_classification, kpi_date_label)
+    #     x_limit = kpi_threshold * kpi_ratio
+    # print(kpi_threshold, x_limit)
+    #
+    # kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向距离误差', 'x%_abs_95', type_classification, x=gt_x, y=gt_y)
+    #
+    # if kpi_threshold is None:
+    #     x_limit_p = None
+    # else:
+    #     kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('纵向距离误差', 'x%_abs_95', type_classification, kpi_date_label)
+    #     x_limit_p = kpi_threshold * kpi_ratio
+    # print(kpi_threshold, x_limit_p)
 
-    kpi_threshold = get_obstacles_kpi_threshold('纵向距离误差', 'x_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+    lme = LinesMetricEvaluator()
+    input_parameter_container = {
+        'metric_type': [
+            'recall_precision',
+            'lateral_error',
+            # 'heading_error',
+            # 'length_error',
+        ],
+        'kpi_date_label': 20250330,
+    }
 
-    if kpi_threshold is None:
-        x_limit = None
-    else:
-        kpi_ratio = get_obstacles_kpi_ratio('纵向距离误差', 'x_abs_95[m]', type_classification, kpi_date_label)
-        x_limit = kpi_threshold * kpi_ratio
-    print(kpi_threshold, x_limit)
+    path = '/home/hp/下载/44444/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/match/match_data.csv'
+    match_data = pd.read_csv(path, index_col=False)
 
-    kpi_threshold = get_obstacles_kpi_threshold('纵向距离误差', 'x%_abs_95', type_classification, x=gt_x, y=gt_y)
-
-    if kpi_threshold is None:
-        x_limit_p = None
-    else:
-        kpi_ratio = get_obstacles_kpi_ratio('纵向距离误差', 'x%_abs_95', type_classification, kpi_date_label)
-        x_limit_p = kpi_threshold * kpi_ratio
-    print(kpi_threshold, x_limit_p)
+    data_dict = lme.run(match_data, input_parameter_container)
+    for metric, metric_data in data_dict.items():
+        metric_data.to_csv(f'{metric}.csv', index=False)

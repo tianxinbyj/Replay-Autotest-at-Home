@@ -1005,11 +1005,20 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
 
             match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
 
-            input_parameter_container = {
-                'metric_type': self.test_config['test_item'][topic],
-                'characteristic_type': self.test_config['target_characteristic'],
-                'kpi_date_label': self.kpi_date_label,
-            }
+            if self.test_topic == 'Obstacles':
+                input_parameter_container = {
+                    'metric_type': self.test_config['test_item'][topic],
+                    'characteristic_type': self.test_config['target_characteristic'],
+                    'kpi_date_label': self.kpi_date_label,
+                }
+            elif self.test_topic == 'Lines':
+                input_parameter_container = {
+                    'metric_type': self.test_config['test_item'][topic],
+                    'kpi_date_label': self.kpi_date_label,
+                }
+            else:
+                return
+
             parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
             with open(parameter_json_path, 'w', encoding='utf-8') as f:
                 json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)

@@ -12,7 +12,7 @@ from Libs import get_project_path
 
 sys.path.append(get_project_path())
 
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MetricEvaluator import ObstaclesMetricEvaluator
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MetricEvaluator import ObstaclesMetricEvaluator, LinesMetricEvaluator
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MetricEvaluator import ObstaclesMetricFilter
 
 
@@ -28,7 +28,13 @@ def main():
     with open(args.parameter_json_path, 'r', encoding='utf-8') as f:
         parameter_json = json.load(f)
 
-    metric_evaluator = ObstaclesMetricEvaluator()
+    if parameter_json['test_topic'] == 'Obstacles':
+        metric_evaluator = ObstaclesMetricEvaluator()
+    elif parameter_json['test_topic'] == 'Lines':
+        metric_evaluator = LinesMetricEvaluator()
+    else:
+        return
+
     data_dict = metric_evaluator.run(match_data, parameter_json)
     for metric, metric_data in data_dict.items():
         total_folder = os.path.join(args.metric_folder, 'total')
