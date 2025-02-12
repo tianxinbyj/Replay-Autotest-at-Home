@@ -3,6 +3,7 @@
 @Date: 2024/7/8 上午9:57  
 """
 from scipy.integrate import quad
+from scipy.signal import savgol_filter
 
 if 'numpy' not in globals():
     import numpy as np
@@ -790,7 +791,7 @@ class LinesTypeClassification:
             elif position in [2, 3, 9, 10]:
                 return 'reserved_lines_type', 'secondary_lane'
 
-        return 'reserved_lines_type', 'other_lane'
+        return 'reserved_lines_type', None
 
 
 class LinesCoefficient:
@@ -828,34 +829,31 @@ class LinesCoefficient:
         heading_0 = np.rad2deg(np.arctan(c1))
         length = self.cubic_curve_length(c3, c2, c1, min_x, max_x)
 
-        if length < 2 or len(f_x_points) < 5:
+        # 计算曲率半径只考虑0-80米的长度
+        radius_x, radius_y = [], []
+        for x_, y_ in zip(f_x_points, f_y_points):
+            if 0 <= x_ <= 80:
+                radius_x.append(x_)
+                radius_y.append(y_)
+
+        if len(radius_x) < 5 or radius_x[-1] - radius_x[0] <= 10:
             radius = 0
         else:
-            cs = CubicSpline(np.array(f_x_points), np.array(f_y_points), bc_type='natural')
-            curvature_radii = []
+            x_smooth, y_smooth, radius = self.smooth_and_calculate_curvature(radius_x, radius_y)
+            # radius = min(9999, np.mean(radius[np.isfinite(radius)]))
+            radius = min(9999, round(np.percentile(radius, 50)))
 
-            for x in f_x_points[1:-1]:
-                # 由于样条插值是平滑的，我们可以在每个点上直接计算曲率
-                # 但为了更精确的结果，我们可以稍微偏移一点以避免数值问题（例如，在端点处）
-                # 这里我们简单地使用x点本身，但在实际应用中可能需要进行更精细的处理
-                radius = 1 / self.curvature(x, cs) if self.curvature(x, cs) != 0 else np.inf
-
-                if not np.isinf(radius):
-                    curvature_radii.append(round(radius))
-                else:
-                    curvature_radii.append(9999)
-
-            radius = min(9999, round(np.median(curvature_radii)))
+            # radius_list = []
+            # rc3, rc2, rc1, _ = np.polyfit(radius_x, radius_y, 3)
+            # for sample_x in np.arange(radius_x[0], radius_x[-2], 3):
+            #     y_prime = rc1 + 2 * rc2 * sample_x + 3 * rc3 * sample_x ** 2
+            #     y_double_prime = 2 * rc2 + 6 * rc3 * sample_x
+            #     r = (1 + y_prime ** 2) ** (3 / 2) / np.abs(y_double_prime)
+            #     radius_list.append(r)
+            #
+            # radius = min(9999, round(np.percentile(radius_list, 5)))
 
         return c0, c1, c2, c3, heading_0, length, radius
-
-    def curvature(self, x, cs):
-        y_prime = cs.derivative(1)(x)
-        y_double_prime = cs.derivative(2)(x)
-        denominator = (1 + y_prime ** 2) ** (3 / 2)
-        if denominator == 0:
-            return np.inf
-        return abs(y_double_prime) / denominator
 
     def cubic_curve_length(self, a, b, c, x1, x2):
         """
@@ -879,6 +877,46 @@ class LinesCoefficient:
         result, error = quad(integrand, x1, x2)
 
         return result
+
+    def smooth_and_calculate_curvature(self, x, y, window_length=15, polyorder=3, resample_factor=2):
+        """平滑曲线并计算曲率半径"""
+        # 参数化处理（累积弧长）
+        dx = np.diff(x)
+        dy = np.diff(y)
+        ds = np.sqrt(dx ** 2 + dy ** 2)
+        s = np.concatenate(([0], np.cumsum(ds)))
+
+        # 生成等间距采样点
+        num_new = max(len(x) * resample_factor, 50)  # 确保足够采样点
+        s_new = np.linspace(s[0], s[-1], num_new)
+        f_x = interp1d(s, x, kind='cubic', fill_value="extrapolate")
+        f_y = interp1d(s, y, kind='cubic', fill_value="extrapolate")
+        x_resampled = f_x(s_new)
+        y_resampled = f_y(s_new)
+
+        # Savitzky-Golay平滑
+        window_length = min(window_length, len(x_resampled) // 2 * 2 - 1)  # 确保为奇数且合理
+        if window_length < polyorder + 1:
+            window_length = polyorder + 1 + (polyorder + 1) % 2
+        x_smooth = savgol_filter(x_resampled, window_length, polyorder)
+        y_smooth = savgol_filter(y_resampled, window_length, polyorder)
+
+        # 计算导数
+        delta_s = s_new[1] - s_new[0]
+        dx_ds = np.gradient(x_smooth, delta_s)
+        dy_ds = np.gradient(y_smooth, delta_s)
+        d2x_ds2 = np.gradient(dx_ds, delta_s)
+        d2y_ds2 = np.gradient(dy_ds, delta_s)
+
+        # 计算曲率半径
+        numerator = dx_ds * d2y_ds2 - dy_ds * d2x_ds2
+        denominator = (dx_ds ** 2 + dy_ds ** 2) ** 1.5
+        epsilon = 1e-6
+        denominator = np.where(np.abs(denominator) < epsilon, epsilon, denominator)
+        kappa = numerator / denominator
+        radius = np.divide(1, np.abs(kappa), out=np.full_like(kappa, np.inf), where=np.abs(kappa) != 0)
+
+        return x_smooth, y_smooth, radius
 
 
 class ConnectLines:
@@ -1131,12 +1169,15 @@ class LinesPreprocess:
 if __name__ == '__main__':
     import json
 
-    raw_data_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/GroundTruth/raw/gt_data.csv'
+    raw_data_path = '/home/hp/下载/44444/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/raw/pred_data.csv'
     raw_data = pd.read_csv(raw_data_path, index_col=False)
 
-    parameter_json = {'lane_width': 3.6,
-                      'test_topic': 'Lines'}
+    parameter_json = {
+        'lane_width': 3.6,
+        'test_topic': 'Lines',
+        'if_gt': True
+    }
 
     preprocess_instance = LinesPreprocess()
     data = preprocess_instance.run(raw_data, parameter_json)
-    data.to_csv('123.csv', index=False, encoding='utf_8_sig')
+    data.to_csv('456.csv', index=False, encoding='utf_8_sig')

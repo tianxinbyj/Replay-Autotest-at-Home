@@ -377,7 +377,7 @@ class LinesMatchTool:
         # 进一步过滤极端异常数据
         # 过滤内容为长度有效性
         data.insert(0, 'corresponding_index', range(len(data)))
-        return data
+        return data.dropna(subset=['gt.type_classification', 'pred.type_classification'], how='all')
 
 
 if __name__ == '__main__':
