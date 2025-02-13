@@ -845,6 +845,72 @@ class DataGrinderOneCase:
             self.test_result[self.test_topic][topic]['match']['match_data'] = self.get_relpath(path)
             data.to_csv(path, index=False, encoding='utf_8_sig')
 
+    @sync_test_result
+    def evaluate_metrics(self):
+        send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
+
+        for topic in self.test_result[self.test_topic].keys():
+
+            if topic == 'GroundTruth':
+                continue
+
+            topic_tag = topic.replace('/', '')
+            metric_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'metric')
+            create_folder(metric_folder)
+            if 'metric' not in self.test_result[self.test_topic][topic]:
+                self.test_result[self.test_topic][topic]['metric'] = {}
+
+            # 确认是否需要继续计算
+            raw = self.test_result[self.test_topic][topic]['raw']
+            data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
+            if not len(data):
+                send_log(self, f'{self.scenario_id} {topic} 不计算metric数据')
+                continue
+
+            match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
+
+            if self.test_topic == 'Obstacles':
+                input_parameter_container = {
+                    'metric_type': self.test_config['test_item'][topic],
+                    'characteristic_type': self.test_config['target_characteristic'],
+                    'kpi_date_label': self.kpi_date_label,
+                    'test_topic': self.test_topic,
+                }
+            elif self.test_topic == 'Lines':
+                input_parameter_container = {
+                    'metric_type': self.test_config['test_item'][topic],
+                    'kpi_date_label': self.kpi_date_label,
+                    'test_topic': self.test_topic,
+                }
+            else:
+                return
+
+            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
+            with open(parameter_json_path, 'w', encoding='utf-8') as f:
+                json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
+
+            cmd = [
+                f"{bench_config['master']['sys_interpreter']}",
+                "Api_EvaluateMetrics.py",
+                "-m", self.get_abspath(match_data_path),
+                "-j", parameter_json_path,
+                "-f", metric_folder,
+            ]
+
+            print(cmd)
+            send_log(self, f'{self.test_topic} {topic} 指标评估')
+            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+            # os.remove(parameter_json_path)
+            if result.stderr and 'warning' not in result.stderr:
+                send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
+
+            for characteristic in os.listdir(metric_folder):
+                self.test_result[self.test_topic][topic]['metric'][characteristic] = {}
+                for metric in os.listdir(os.path.join(metric_folder, characteristic)):
+                    self.test_result[self.test_topic][topic]['metric'][characteristic][metric.split('.')[0]] \
+                        = self.get_relpath(os.path.join(metric_folder, characteristic, metric))
+
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.scenario_unit_folder)
 
@@ -980,70 +1046,6 @@ class DataGrinderOneTask:
 
 
 class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
-
-    @sync_test_result
-    def evaluate_metrics(self):
-        send_log(self, f'{self.test_topic}, 使用{self.test_topic}MetricEvaluator')
-
-        for topic in self.test_result[self.test_topic].keys():
-
-            if topic == 'GroundTruth':
-                continue
-
-            topic_tag = topic.replace('/', '')
-            metric_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'metric')
-            create_folder(metric_folder)
-            if 'metric' not in self.test_result[self.test_topic][topic]:
-                self.test_result[self.test_topic][topic]['metric'] = {}
-
-            # 确认是否需要继续计算
-            raw = self.test_result[self.test_topic][topic]['raw']
-            data = pd.read_csv(self.get_abspath(raw['pred_data']), index_col=False)
-            if not len(data):
-                send_log(self, f'{self.scenario_id} {topic} 不计算metric数据')
-                continue
-
-            match_data_path = self.test_result[self.test_topic][topic]['match']['match_data']
-
-            if self.test_topic == 'Obstacles':
-                input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
-                    'characteristic_type': self.test_config['target_characteristic'],
-                    'kpi_date_label': self.kpi_date_label,
-                }
-            elif self.test_topic == 'Lines':
-                input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
-                    'kpi_date_label': self.kpi_date_label,
-                }
-            else:
-                return
-
-            parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
-            with open(parameter_json_path, 'w', encoding='utf-8') as f:
-                json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
-
-            cmd = [
-                f"{bench_config['master']['sys_interpreter']}",
-                "Api_EvaluateMetrics.py",
-                "-m", self.get_abspath(match_data_path),
-                "-j", parameter_json_path,
-                "-f", metric_folder,
-            ]
-
-            print(cmd)
-            send_log(self, f'{self.test_topic} {topic} 指标评估')
-            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-            # os.remove(parameter_json_path)
-            if result.stderr and 'warning' not in result.stderr:
-                send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
-
-            for characteristic in os.listdir(metric_folder):
-                self.test_result[self.test_topic][topic]['metric'][characteristic] = {}
-                for metric in os.listdir(os.path.join(metric_folder, characteristic)):
-                    self.test_result[self.test_topic][topic]['metric'][characteristic][metric.split('.')[0]] \
-                        = self.get_relpath(os.path.join(metric_folder, characteristic, metric))
 
     @sync_test_result
     def load_scenario_info(self):
@@ -3898,6 +3900,9 @@ class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
         if self.test_action['match']:
             self.match_timestamp()
             self.match_object()
+
+        if self.test_action['metric']:
+            self.evaluate_metrics()
 
 
 class DataGrinderPilotLinesOneTask(DataGrinderOneTask):

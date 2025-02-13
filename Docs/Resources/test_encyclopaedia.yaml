@@ -1300,6 +1300,7 @@ Information:
       - c2
       - c3
       - heading_0
+      - heading_50
       - length
       - radius
     result_column:
@@ -1311,8 +1312,6 @@ Information:
       - 横向位置(远)误差
       - 偏航角(近)误差
       - 偏航角(中)误差
-      - 偏航角(远)误差
-      - 纵向检测距离
     metrics:
       recall_precision:
         name: 准召信息
@@ -1320,12 +1319,9 @@ Information:
       lateral_error:
         name: 横向位置误差
         description: 评价对车道线的横向距离的感知能力
-      length_error:
+      heading_error:
         name: 偏航角误差
         description: 评价对车道线的偏航方向的感知能力
-      yaw_error:
-        name: 纵向检测距离
-        description: 评价对车道线的长度的感知能力
     bug_items:
       recall_precision:
         name: 准召信息
@@ -1333,12 +1329,9 @@ Information:
       lateral_error:
         name: 横向位置误差
         description: 评价对车道线的横向距离的感知能力
-      length_error:
+      heading_error:
         name: 偏航角误差
         description: 评价对车道线的偏航方向的感知能力
-      yaw_error:
-        name: 纵向检测距离
-        description: 评价对车道线的长度的感知能力
     type:
       fence:
         name: 道路边沿

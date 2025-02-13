@@ -44,20 +44,21 @@ def main():
         path = os.path.join(total_folder, f'{metric}.csv')
         metric_data.to_csv(path, index=False, encoding='utf_8_sig')
 
-        input_data = {
-            'total_data': match_data,
-            'data_to_filter': metric_data,
-        }
+        if parameter_json['test_topic'] == 'Obstacles':
+            input_data = {
+                'total_data': match_data,
+                'data_to_filter': metric_data,
+            }
 
-        metric_filter = ObstaclesMetricFilter()
-        characteristic_data_dict = metric_filter.run(input_data, parameter_json)
-        for characteristic, characteristic_data in characteristic_data_dict.items():
-            characteristic_folder = os.path.join(args.metric_folder, characteristic)
-            if not os.path.exists(characteristic_folder):
-                os.makedirs(characteristic_folder)
+            metric_filter = ObstaclesMetricFilter()
+            characteristic_data_dict = metric_filter.run(input_data, parameter_json)
+            for characteristic, characteristic_data in characteristic_data_dict.items():
+                characteristic_folder = os.path.join(args.metric_folder, characteristic)
+                if not os.path.exists(characteristic_folder):
+                    os.makedirs(characteristic_folder)
 
-            path = os.path.join(characteristic_folder, f'{metric}.csv')
-            characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
+                path = os.path.join(characteristic_folder, f'{metric}.csv')
+                characteristic_data.to_csv(path, index=False, encoding='utf_8_sig')
 
 
 if __name__ == '__main__':

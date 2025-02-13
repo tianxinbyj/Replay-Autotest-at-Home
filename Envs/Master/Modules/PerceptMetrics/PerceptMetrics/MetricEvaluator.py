@@ -973,9 +973,9 @@ class LateralError:
             'pred.type',
             'gt.radius',
             'pred.radius',
-            '0-30.error',
-            '30-60.error',
-            '60-120.error',
+            '0-30.lateral.error',
+            '30-60.lateral.error',
+            '60-120.lateral.error',
             'is_abnormal',
         ]
 
@@ -991,7 +991,7 @@ class LateralError:
                 input_data['pred.x_points'], input_data['pred.y_points'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 8):
+              and len(input_data) == 10):
             (gt_id, pred_id, gt_type, pred_type, gt_radius, pred_radius,
              gt_x_points, gt_y_points, pred_x_points, pred_y_points) = input_data
 
@@ -1085,6 +1085,94 @@ class LateralError:
                 is_abnormal)
 
 
+class HeadingError:
+
+    def __init__(self):
+        self.columns = [
+            'gt.id',
+            'pred.id',
+            'gt.type',
+            'pred.type',
+            'gt.radius',
+            'pred.radius',
+            'gt.heading_0',
+            'pred.heading_0',
+            'gt.heading_50',
+            'pred.heading_50',
+            '0.heading.error',
+            '50.heading.error',
+            'is_abnormal',
+        ]
+
+    def __call__(self, input_data, kpi_date_label):
+
+        if isinstance(input_data, dict):
+            (gt_id, pred_id, gt_type, pred_type, gt_radius, pred_radius,
+             gt_heading_0, pred_heading_0, gt_heading_50, pred_heading_50) = (
+                input_data['gt.id'], input_data['pred.id'],
+                input_data['gt.type_classification'], input_data['pred.type_classification'],
+                input_data['gt.radius'], input_data['pred.radius'],
+                input_data['gt.heading_0'], input_data['pred.heading_0'],
+                input_data['gt.heading_50'], input_data['pred.heading_50'])
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 10):
+            (gt_id, pred_id, gt_type, pred_type, gt_radius, pred_radius,
+             gt_heading_0, pred_heading_0, gt_heading_50, pred_heading_50) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        type_classification = lines_type_classification_text[gt_type]
+
+        kpi_threshold = LinesKpi.get_lines_kpi_threshold('偏航角误差', '0_heading_abs_95[deg]', type_classification, gt_radius)
+        if kpi_threshold is None:
+            limit_0 = None
+        else:
+            kpi_ratio = LinesKpi.get_lines_kpi_ratio('偏航角误差', '0_heading_abs_95[deg]', type_classification, kpi_date_label)
+            limit_0 = kpi_threshold * kpi_ratio
+
+        kpi_threshold = LinesKpi.get_lines_kpi_threshold('偏航角误差', '50_heading_abs_95[deg]', type_classification, gt_radius)
+        if kpi_threshold is None:
+            limit_50 = None
+        else:
+            kpi_ratio = LinesKpi.get_lines_kpi_ratio('偏航角误差', '50_heading_abs_95[deg]', type_classification, kpi_date_label)
+            limit_50 = kpi_threshold * kpi_ratio
+
+        if (pred_heading_0 is not None) and (gt_heading_0 is not None):
+            heading_0_error = abs(pred_heading_0 - gt_heading_0)
+        else:
+            heading_0_error = None
+
+        if (pred_heading_50 is not None) and (gt_heading_50 is not None):
+            heading_50_error = abs(pred_heading_50 - gt_heading_50)
+        else:
+            heading_50_error = None
+
+        is_abnormal = []
+        if (limit_0 is not None) and (heading_0_error is not None):
+            if heading_0_error > limit_0:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if (limit_50 is not None) and (heading_50_error is not None):
+            if heading_50_error > limit_50:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if len(is_abnormal):
+            is_abnormal = int(any(is_abnormal))
+        else:
+            is_abnormal = 0
+
+        return (gt_id, pred_id, gt_type, pred_type, gt_radius, pred_radius,
+                gt_heading_0, pred_heading_0, gt_heading_50, pred_heading_50,
+                heading_0_error, heading_50_error,
+                is_abnormal)
+
+
 class LinesMetricEvaluator:
 
     def __init__(self):
@@ -1162,7 +1250,7 @@ if __name__ == '__main__':
         'metric_type': [
             'recall_precision',
             'lateral_error',
-            # 'heading_error',
+            'heading_error',
             # 'length_error',
         ],
         'kpi_date_label': 20250330,

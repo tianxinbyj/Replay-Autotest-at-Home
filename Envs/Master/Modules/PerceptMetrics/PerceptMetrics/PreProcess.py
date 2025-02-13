@@ -799,7 +799,7 @@ class LinesCoefficient:
     def __init__(self, input_parameter_container=None):
 
         self.columns = [
-            'c0', 'c1', 'c2', 'c3', 'heading_0', 'length', 'radius',
+            'c0', 'c1', 'c2', 'c3', 'heading_0', 'heading_50', 'length', 'radius',
         ]
         self.type = 'by_row'
 
@@ -824,10 +824,8 @@ class LinesCoefficient:
         sorted_list1, sorted_list2 = zip(*sorted_combined)
         f_x_points = list(sorted_list1)
         f_y_points = list(sorted_list2)
-        min_x, max_x = min(f_x_points), max(f_x_points)
-        c3, c2, c1, c0 = np.polyfit(f_x_points, f_y_points, 3)
-        heading_0 = np.rad2deg(np.arctan(c1))
-        length = self.cubic_curve_length(c3, c2, c1, min_x, max_x)
+        ac3, ac2, ac1, _ = np.polyfit(f_x_points, f_y_points, 3)
+        length = self.cubic_curve_length(ac3, ac2, ac1, min(f_x_points), max(f_x_points))
 
         # 计算曲率半径只考虑0-80米的长度
         radius_x, radius_y = [], []
@@ -836,24 +834,30 @@ class LinesCoefficient:
                 radius_x.append(x_)
                 radius_y.append(y_)
 
-        if len(radius_x) < 5 or radius_x[-1] - radius_x[0] <= 10:
-            radius = 0
+        if len(radius_x) > 2:
+            c3, c2, c1, c0 = np.polyfit(radius_x, radius_y, 3)
+
+            if min(radius_x) > 10:
+                heading_0 = None
+            else:
+                heading_0 = np.rad2deg(np.arctan(c1))
+
+            if max(radius_x) < 51 or min(radius_x) > 49:
+                heading_50 = None
+            else:
+                heading_50 = np.rad2deg(np.arctan(7500 * c3 + 100 * c2 + c1))
+
+            if len(radius_x) < 5 or self.cubic_curve_length(c3, c2, c1, min(radius_x), max(radius_x)) <= 10:
+                radius = None
+            else:
+                x_smooth, y_smooth, radius = self.smooth_and_calculate_curvature(radius_x, radius_y)
+                # radius = min(9999, np.mean(radius[np.isfinite(radius)]))
+                radius = min(9999, round(np.percentile(radius, 50)))
+
         else:
-            x_smooth, y_smooth, radius = self.smooth_and_calculate_curvature(radius_x, radius_y)
-            # radius = min(9999, np.mean(radius[np.isfinite(radius)]))
-            radius = min(9999, round(np.percentile(radius, 50)))
+            c0, c1, c2, c3, heading_0, heading_50, radius = None, None, None, None, None, None, None
 
-            # radius_list = []
-            # rc3, rc2, rc1, _ = np.polyfit(radius_x, radius_y, 3)
-            # for sample_x in np.arange(radius_x[0], radius_x[-2], 3):
-            #     y_prime = rc1 + 2 * rc2 * sample_x + 3 * rc3 * sample_x ** 2
-            #     y_double_prime = 2 * rc2 + 6 * rc3 * sample_x
-            #     r = (1 + y_prime ** 2) ** (3 / 2) / np.abs(y_double_prime)
-            #     radius_list.append(r)
-            #
-            # radius = min(9999, round(np.percentile(radius_list, 5)))
-
-        return c0, c1, c2, c3, heading_0, length, radius
+        return c0, c1, c2, c3, heading_0, heading_50, length, radius
 
     def cubic_curve_length(self, a, b, c, x1, x2):
         """
@@ -1169,7 +1173,7 @@ class LinesPreprocess:
 if __name__ == '__main__':
     import json
 
-    raw_data_path = '/home/hp/下载/44444/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/raw/pred_data.csv'
+    raw_data_path = '/home/hp/下载/44444/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/GroundTruth/additional/gt_data.csv'
     raw_data = pd.read_csv(raw_data_path, index_col=False)
 
     parameter_json = {
