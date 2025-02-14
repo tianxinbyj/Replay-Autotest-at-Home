@@ -498,7 +498,7 @@ class DataGrinderOneCase:
         print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'warning' not in result.stderr:
+        if result.stderr and 'UserWarning' not in result.stderr:
             send_log(self, f'Api_GetTimeGap 发生错误 {result.stderr}')
         t_delta, v_error = result.stdout.strip().split('\n')[-1].split(' ')
         t_delta = float(t_delta)
@@ -677,7 +677,7 @@ class DataGrinderOneCase:
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr and 'warning' not in result.stderr:
+            if result.stderr and 'UserWarning' not in result.stderr:
                 send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
             data = pd.read_csv(topic_gt_data_path, index_col=False)[additional_column]
@@ -752,7 +752,7 @@ class DataGrinderOneCase:
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
-                if result.stderr and 'warning' not in result.stderr:
+                if result.stderr and 'UserWarning' not in result.stderr:
                     send_log(self, f'ProcessRawData 发生错误 {result.stderr}')
 
                 data = pd.read_csv(path, index_col=False)[additional_column]
@@ -801,7 +801,7 @@ class DataGrinderOneCase:
             print(cmd)
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-            if result.stderr and 'warning' not in result.stderr:
+            if result.stderr and 'UserWarning' not in result.stderr:
                 send_log(self, f'MatchTimestamp 发生错误 {result.stderr}')
 
             match_timestamp_data = pd.read_csv(path, index_col=False)
@@ -877,7 +877,7 @@ class DataGrinderOneCase:
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr and 'warning' not in result.stderr:
+            if result.stderr and 'UserWarning' not in result.stderr:
                 send_log(self, f'MatchObstacles 发生错误 {result.stderr}')
 
             send_log(self, f'{self.test_topic} {topic} 目标匹配')
@@ -942,7 +942,7 @@ class DataGrinderOneCase:
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
-            if result.stderr and 'warning' not in result.stderr:
+            if result.stderr and 'UserWarning' not in result.stderr:
                 send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
             for characteristic in os.listdir(metric_folder):
@@ -1335,7 +1335,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
         print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'warning' not in result.stderr:
+        if result.stderr and 'UserWarning' not in result.stderr:
             send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
@@ -1748,7 +1748,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
         print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'warning' not in result.stderr:
+        if result.stderr and 'UserWarning' not in result.stderr:
             send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
@@ -2343,7 +2343,6 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
                     if topic not in match_data_dict[tag_key]:
                         match_data_dict[tag_key][topic] = []
 
-                    print(scenario_id)
                     match_data_path = scenario_test_result[self.test_topic][topic]['match']['match_data']
                     match_data = pd.read_csv(os.path.join(scenario_unit_folder, match_data_path), index_col=False)
                     match_data.insert(0, 'scenario_id', scenario_id)
@@ -2397,7 +2396,7 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
                 os.remove(total_match_data_path)
-                if result.stderr and 'warning' not in result.stderr:
+                if result.stderr and 'UserWarning' not in result.stderr:
                     print(result.stderr)
                     send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
@@ -4153,7 +4152,7 @@ class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
         print(cmd)
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'warning' not in result.stderr:
+        if result.stderr and 'UserWarning' not in result.stderr:
             send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     def get_bug_index_dict(self, metric_data_group):
@@ -4479,8 +4478,7 @@ class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
                 os.remove(total_match_data_path)
-                if result.stderr and 'warning' not in result.stderr:
-                    print(result.stderr)
+                if result.stderr and 'UserWarning' not in result.stderr:
                     send_log(self, f'EvaluateMetrics 发生错误 {result.stderr}')
 
                 for characteristic in os.listdir(metric_folder):
