@@ -976,6 +976,7 @@ class LateralError:
             '0-30.lateral.error',
             '30-60.lateral.error',
             '60-120.lateral.error',
+            'lateral.error',
             'is_abnormal',
         ]
 
@@ -1056,32 +1057,38 @@ class LateralError:
         if len(lateral_error['60-120.error']) >= 3:
             error_60_120 = np.mean(lateral_error['60-120.error'])
 
+        over_limit_error = []
         is_abnormal = []
         if (limit_0_30 is not None) and (error_0_30 is not None):
             if error_0_30 > limit_0_30:
                 is_abnormal.append(True)
             else:
                 is_abnormal.append(False)
+            over_limit_error.append(error_0_30 - limit_0_30)
 
         if (limit_30_60 is not None) and (error_30_60 is not None):
             if error_30_60 > limit_30_60:
                 is_abnormal.append(True)
             else:
                 is_abnormal.append(False)
+            over_limit_error.append(error_30_60 - limit_30_60)
 
         if (limit_60_120 is not None) and (error_60_120 is not None):
             if error_60_120 > limit_60_120:
                 is_abnormal.append(True)
             else:
                 is_abnormal.append(False)
+            over_limit_error.append(error_60_120 - limit_60_120)
 
         if len(is_abnormal):
             is_abnormal = int(any(is_abnormal))
+            over_limit_error = np.mean(over_limit_error)
         else:
             is_abnormal = 0
+            over_limit_error = 0
 
         return (gt_id, pred_id, gt_type, pred_type, gt_radius, pred_radius,
-                error_0_30, error_30_60, error_60_120,
+                error_0_30, error_30_60, error_60_120, over_limit_error,
                 is_abnormal)
 
 
@@ -1101,6 +1108,7 @@ class HeadingError:
             'pred.heading_50',
             '0.heading.error',
             '50.heading.error',
+            'heading.error'
             'is_abnormal',
         ]
 
@@ -1149,27 +1157,32 @@ class HeadingError:
         else:
             heading_50_error = None
 
+        over_limit_error = []
         is_abnormal = []
         if (limit_0 is not None) and (heading_0_error is not None):
             if heading_0_error > limit_0:
                 is_abnormal.append(True)
             else:
                 is_abnormal.append(False)
+            over_limit_error.append(heading_0_error - limit_0)
 
         if (limit_50 is not None) and (heading_50_error is not None):
             if heading_50_error > limit_50:
                 is_abnormal.append(True)
             else:
                 is_abnormal.append(False)
+            over_limit_error.append(heading_50_error - limit_50)
 
         if len(is_abnormal):
             is_abnormal = int(any(is_abnormal))
+            over_limit_error = np.mean(over_limit_error)
         else:
             is_abnormal = 0
+            over_limit_error = 0
 
         return (gt_id, pred_id, gt_type, pred_type, gt_radius, pred_radius,
                 gt_heading_0, pred_heading_0, gt_heading_50, pred_heading_50,
-                heading_0_error, heading_50_error,
+                heading_0_error, heading_50_error, over_limit_error,
                 is_abnormal)
 
 
@@ -1193,7 +1206,12 @@ class LinesMetricEvaluator:
             kpi_date_label = self.kpi_date_label
 
         data_dict = {}
-        data = input_data.dropna(subset=['gt.type_classification'], how='all')
+        data = input_data[~((input_data['gt.flag'] == 1)
+                                   & ((input_data['gt.type_classification'].isna())
+                                      | (input_data['gt.radius'].isna())))]
+        data = data[~((data['gt.flag'] == 0)
+                      & ((data['pred.type_classification'].isna())
+                         | (data['pred.radius'].isna())))]
         tp_data = data[(data['gt.flag'] == 1) & (data['pred.flag'] == 1)]
 
         for metric in metric_type:
@@ -1206,15 +1224,7 @@ class LinesMetricEvaluator:
                 result_df.columns = func.columns
                 result_df = pd.concat([data, result_df], axis=1)
             else:
-                if metric in ['vx_error', 'vy_error']:
-                    result_df = tp_data[(data['gt.vx'] <= 60)
-                                        & (data['gt.vx'] >= -60)
-                                        & (data['gt.vy'] <= 60)
-                                        & (data['gt.vy'] >= -60)
-                                        ].apply(lambda row: func(row.to_dict(), kpi_date_label), axis=1,
-                                                result_type='expand')
-                else:
-                    result_df = tp_data.apply(lambda row: func(row.to_dict(), kpi_date_label), axis=1, result_type='expand')
+                result_df = tp_data.apply(lambda row: func(row.to_dict(), kpi_date_label), axis=1, result_type='expand')
                 result_df.columns = func.columns
                 result_df['corresponding_index'] = tp_data['corresponding_index']
 

@@ -558,6 +558,46 @@ class DataGrinderOneCase:
         plt.close()
 
     @sync_test_result
+    def load_scenario_info(self):
+
+        def resize_image_by_height(image_path, height):
+            img = Image.open(image_path)
+            width = int(img.width * height / img.height)
+            img = img.resize((width, height))
+
+            return img
+
+        # 图片拼接: 预览图+地图+自车车速
+        overview_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_3000.png')
+        overview_img = resize_image_by_height(overview_pic_path, 900)
+        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.png')
+        map_pic = resize_image_by_height(map_pic_path, 900)
+        ego_vx_pic = self.get_abspath(self.test_result['General']['sync_ego_figure'])
+        ego_vx = resize_image_by_height(ego_vx_pic, 900)
+
+        # 创建一个新的空白图片用于拼接
+        total_width = overview_img.width + map_pic.width + ego_vx.width
+        concat_img = Image.new('RGB', (total_width, 900))
+
+        # 拼接图片
+        x_offset = 0
+        for resized_img in [overview_img, map_pic, ego_vx]:
+            concat_img.paste(resized_img, (x_offset, 0))
+            x_offset += resized_img.width
+
+        # 保存拼接后的图片
+        path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_Info.jpg')
+        print(path)
+        concat_img.save(path)
+        img = mpimg.imread(path)
+        fig, ax = plt.subplots()
+        ax.axis('off')
+        ax.imshow(img)
+        ax.set_title(self.scenario_id, fontsize=6, color='black', pad=2)  # pad参数调整标题与图片之间的距离
+        plt.savefig(path, bbox_inches='tight', pad_inches=0, dpi=400)
+        self.test_result['General']['scenario_info'] = self.get_relpath(path)
+
+    @sync_test_result
     def promote_additional(self):
         time_gap = self.test_result['General']['time_gap']
         time_start = self.test_result['General']['time_start']
@@ -1027,7 +1067,11 @@ class DataGrinderOneTask:
             with open(scenario_run_info['scenario_config_yaml'], 'w', encoding='utf-8') as f:
                 yaml.dump(scenario_run_info['scenario_test_config'],
                           f, encoding='utf-8', allow_unicode=True, sort_keys=False)
-            DataGrinderPilotObstaclesOneCase(scenario_run_info['scenario_unit_folder']).start()
+
+            if self.test_topic == 'Obstacles':
+                DataGrinderPilotObstaclesOneCase(scenario_run_info['scenario_unit_folder']).start()
+            elif self.test_topic == 'Lines':
+                DataGrinderPilotLinesOneCase(scenario_run_info['scenario_unit_folder']).start()
 
     def get_relpath(self, path: str) -> str:
         return os.path.relpath(path, self.task_folder)
@@ -1046,45 +1090,6 @@ class DataGrinderOneTask:
 
 
 class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
-
-    @sync_test_result
-    def load_scenario_info(self):
-
-        def resize_image_by_height(image_path, height):
-            img = Image.open(image_path)
-            width = int(img.width * height / img.height)
-            img = img.resize((width, height))
-
-            return img
-
-        # 图片拼接: 预览图+地图+自车车速
-        overview_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_3000.png')
-        overview_img = resize_image_by_height(overview_pic_path, 900)
-        map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.png')
-        map_pic = resize_image_by_height(map_pic_path, 900)
-        ego_vx_pic = self.get_abspath(self.test_result['General']['sync_ego_figure'])
-        ego_vx = resize_image_by_height(ego_vx_pic, 900)
-
-        # 创建一个新的空白图片用于拼接
-        total_width = overview_img.width + map_pic.width + ego_vx.width
-        concat_img = Image.new('RGB', (total_width, 900))
-
-        # 拼接图片
-        x_offset = 0
-        for resized_img in [overview_img, map_pic, ego_vx]:
-            concat_img.paste(resized_img, (x_offset, 0))
-            x_offset += resized_img.width
-
-        # 保存拼接后的图片
-        path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_Info.jpg')
-        concat_img.save(path)
-        img = mpimg.imread(path)
-        fig, ax = plt.subplots()
-        ax.axis('off')
-        ax.imshow(img)
-        ax.set_title(self.scenario_id, fontsize=6, color='black', pad=2)  # pad参数调整标题与图片之间的距离
-        plt.savefig(path, bbox_inches='tight', pad_inches=0, dpi=400)
-        self.test_result['General']['scenario_info'] = self.get_relpath(path)
 
     @sync_test_result
     def sketch_bug(self):
@@ -1131,6 +1136,10 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
 
             total_data_path = self.test_result[self.test_topic][topic]['metric']['total']['recall_precision']
             total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
+
+            # 对于车道线，没有characteristic的概念，但为了代码的统一性，强行放一个total
+            if self.test_topic == 'Lines':
+                self.test_action['bug_characteristic'] = ['total']
 
             for characteristic in self.test_result[self.test_topic][topic]['metric']:
                 if characteristic not in self.test_action['bug_characteristic']:
@@ -2248,6 +2257,7 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             self.load_pred_data()
             self.load_gt_data()
             self.sync_timestamp()
+            self.load_scenario_info()
             self.promote_additional()
 
         if self.test_action['match']:
@@ -2258,7 +2268,6 @@ class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
             self.evaluate_metrics()
 
         if self.test_action['bug']:
-            self.load_scenario_info()
             self.sketch_bug()
             self.bug_report()
 
@@ -2354,11 +2363,22 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
                 total_match_data_path = os.path.join(get_project_path(), 'Temp', 'total_match_data.csv')
                 total_match_data.to_csv(total_match_data_path, index=False, encoding='utf_8_sig')
 
-                input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
-                    'characteristic_type': self.test_config['target_characteristic'],
-                    'kpi_date_label': self.kpi_date_label,
-                }
+                if self.test_topic == 'Obstacles':
+                    input_parameter_container = {
+                        'metric_type': self.test_config['test_item'][topic],
+                        'characteristic_type': self.test_config['target_characteristic'],
+                        'kpi_date_label': self.kpi_date_label,
+                        'test_topic': self.test_topic,
+                    }
+                elif self.test_topic == 'Lines':
+                    input_parameter_container = {
+                        'metric_type': self.test_config['test_item'][topic],
+                        'kpi_date_label': self.kpi_date_label,
+                        'test_topic': self.test_topic,
+                    }
+                else:
+                    return
+
                 parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
@@ -3889,12 +3909,460 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
 
 class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
 
+    @sync_test_result
+    def sketch_bug(self):
+
+        # 对于每个频繁的ID，找到时间戳位于中间的行的索引
+        def get_middle_index_for_bug(bug_data, sort_value, count_threshold):
+            id_counts = bug_data[sort_value].value_counts()
+            frequent_ids = id_counts[id_counts >= count_threshold].index
+
+            corresponding_indices = []
+            for id_ in frequent_ids:
+                id_df = bug_data[bug_data[sort_value] == id_]
+                id_df_sorted = id_df.sort_values(by='gt.time_stamp')
+                middle_index = len(id_df_sorted) // 2
+                corresponding_indices.append(id_df.at[id_df_sorted.index[middle_index], 'corresponding_index'])
+
+            return sorted(corresponding_indices)
+
+        # 时间戳换算为帧数，进行视频截图
+        video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
+        with open(video_info_path, 'r', encoding='utf-8') as file:
+            video_info = yaml.safe_load(file)
+        video_start_time, fps = video_info['start_time'] + self.cut_frame_offset, video_info['fps']
+        # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
+        video_snap_dict = {}
+
+        for topic in self.test_result[self.test_topic].keys():
+            if topic == 'GroundTruth':
+                continue
+
+            topic_tag = topic.replace('/', '')
+            sketch_folder = os.path.join(self.BugFolder, self.test_topic, topic_tag, 'sketch')
+            self.test_result[self.test_topic][topic]['bug'] = {}
+            create_folder(sketch_folder)
+
+            # 异常至少存在frame_threshold帧，才会被识别为bug用作分析
+            frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
+            send_log(self, f'出现次数低于{frame_threshold}的bug会被忽视')
+
+            # 使用total中的recall_precision数据可视化，但只抓取部分特镇的bug
+            if 'total' not in self.test_result[self.test_topic][topic]['metric']:
+                send_log(self, f'{self.scenario_id} {topic} 不存在metric数据')
+                continue
+
+            total_data_path = self.test_result[self.test_topic][topic]['metric']['total']['recall_precision']
+            total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
+
+            # 对于车道线，没有characteristic的概念，但为了代码的统一性，强行放一个total
+            if self.test_topic == 'Lines':
+                self.test_action['bug_characteristic'] = ['total']
+
+            for characteristic in self.test_result[self.test_topic][topic]['metric']:
+                if characteristic not in self.test_action['bug_characteristic']:
+                    continue
+
+                characteristic_folder = os.path.join(sketch_folder, characteristic)
+                create_folder(characteristic_folder)
+                self.test_result[self.test_topic][topic]['bug'][characteristic] = {}
+                data_for_bug = self.test_result[self.test_topic][topic]['metric'][characteristic]
+                bug_index_dict = self.get_bug_index_dict(data_for_bug)
+
+                for bug_type, corresponding_index in bug_index_dict.items():
+                    bug_type_folder = os.path.join(characteristic_folder, bug_type)
+                    bug_data = total_data[total_data['corresponding_index'].isin(corresponding_index)]
+                    # 根据id的出现次数排序
+                    if bug_type == 'false_positive':
+                        sorted_id = 'pred.id'
+                    else:
+                        sorted_id = 'gt.id'
+
+                    bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
+                    for bug_corresponding_index in bug_corresponding_indices:
+                        row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
+                        time_stamp = row['gt.time_stamp']
+                        frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
+                        # 如果这一帧内没有gt或者没有pred，暂时先不提bug
+                        if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
+                            continue
+
+                        one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
+                        create_folder(one_bug_folder)
+                        if bug_type not in self.test_config['test_item']:
+                            self.test_result[self.test_topic][topic]['bug'][characteristic][bug_type] = (
+                                self.get_relpath(bug_type_folder))
+
+                        plot_path = os.path.join(one_bug_folder, 'bug_sketch.jpg')
+                        frame_bug_info_bev = {
+                            'gt': {bug_type: [row['gt.id']]}, 'pred': {bug_type: [row['pred.id']]},
+                        }
+
+                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的图片')
+                        self.plot_one_frame_for_obstacles(topic, frame_data, plot_path, frame_bug_info_bev)
+
+                        # 选择截图的相机
+                        if row['gt.flag'] == 1:
+                            cameras = self.which_camera_saw_you(row['gt.x'], row['gt.y'])
+                        else:
+                            cameras = self.which_camera_saw_you(row['pred.x'], row['pred.y'])
+
+                        frame_index = round((time_stamp - video_start_time) * fps)
+
+                        for camera in cameras:
+                            if camera not in video_snap_dict:
+                                video_snap_dict[camera] = []
+                            if frame_index not in video_snap_dict[camera]:
+                                video_snap_dict[camera].append(frame_index)
+
+                        send_log(self, f'保存 {topic} {bug_type} {time_stamp}的异常信息')
+                        bug_info = row.to_dict()
+                        bug_info['rosbag_time'] = bug_info['pred.time_stamp'] - self.test_result['General']['time_gap']
+                        bug_info['frame_index'] = frame_index
+                        bug_info['camera'] = cameras
+                        bug_info['bug_type'] = bug_type
+                        with open(os.path.join(one_bug_folder, 'bug_info.json'), 'w', encoding='utf-8') as f:
+                            json.dump(bug_info, f, ensure_ascii=False, indent=4)
+
+        # 启用ssh_client, 按照相机批量截图并复制到本机
+        replay_client = SSHClient()
+        video_snap_folder = os.path.join(self.BugFolder, 'General')
+        create_folder(video_snap_folder)
+
+        for camera, frame_index_list in video_snap_dict.items():
+            camera_folder = os.path.join(video_snap_folder, camera)
+            create_folder(camera_folder)
+
+            replay_client.cut_frames(scenario_id=self.scenario_id,
+                                     frame_index_list=sorted(frame_index_list),
+                                     camera=camera,
+                                     local_folder=camera_folder)
+
+        # 将bug需要ps的内容保存为一个json，批量处理
+        bug_label_info_list = []
+        for topic in self.test_result[self.test_topic].keys():
+            if topic == 'GroundTruth':
+                continue
+
+            for characteristic in self.test_result[self.test_topic][topic]['bug']:
+                for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][
+                    characteristic].items():
+
+                    for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+
+                        send_log(self, f'汇总 {topic} {characteristic} {bug_type} {time_stamp} camera截图数据')
+                        one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
+                        bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
+                        with open(bug_info_json, 'r', encoding='utf-8') as f:
+                            bug_info = json.load(f)
+
+                        frame_index = round((float(time_stamp) - video_start_time) * fps)
+                        bug_label_info = {
+                            'scenario_id': self.scenario_id,
+                            'frame_index': frame_index,
+                            'time_stamp': float(time_stamp),
+                            'camera_label_info': {}
+                        }
+
+                        for camera in bug_info['camera']:
+                            bug_label_info['camera_label_info'][camera] = {
+                                'origin_shot': os.path.join(self.BugFolder, 'General', camera,
+                                                            f'{frame_index}.jpg'),
+                                'process_shot': os.path.join(one_bug_folder,
+                                                             f'{camera}-{self.scenario_id}-{frame_index}.jpg'),
+                                'label_info': []
+                            }
+                            one_label_info = {
+                                'bug_type': bug_type,
+                            }
+
+                            # 箭头
+                            if bug_info['gt.flag'] == 1:
+                                one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
+                                                              bug_info['gt.height']]
+
+                                # 8个角点也放进去
+                                one_label_info['gt_corner'] = {
+                                    'bottom': [
+                                        [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                        [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                        [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                        [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                    ],
+                                    'top': [
+                                        [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
+                                        [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
+                                        [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
+                                        [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
+                                    ]
+                                }
+
+                            if bug_info['pred.flag'] == 1:
+                                one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
+                                                                bug_info['pred.height']]
+
+                                # 8个角点也放进去
+                                one_label_info['pred_corner'] = {
+                                    'bottom': [
+                                        [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
+                                        [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
+                                        [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
+                                        [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
+                                    ],
+                                    'top': [
+                                        [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'],
+                                         bug_info['pred.height']],
+                                        [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'],
+                                         bug_info['pred.height']],
+                                        [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'],
+                                         bug_info['pred.height']],
+                                        [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'],
+                                         bug_info['pred.height']],
+                                    ]
+                                }
+
+                            if bug_info['gt.flag'] == 1:
+                                one_label_info['center'] = [
+                                    bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
+                                ]
+                            else:
+                                one_label_info['center'] = [
+                                    bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
+                                ]
+
+                            bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
+
+                        bug_label_info_list.append(bug_label_info)
+
+        bug_label_info_json = os.path.join(self.BugFolder, 'General', 'bug_label_info.json')
+        with open(bug_label_info_json, 'w') as json_file:
+            json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
+
+        calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
+
+        # 调用给视频截图增加箭头的端口
+        cmd = [
+            f"{bench_config['master']['sys_interpreter']}",
+            "Api_ProcessVideoShot.py",
+            "-c",
+            calibration,
+            "-a",
+            bug_label_info_json
+        ]
+
+        print(cmd)
+        cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+        if result.stderr and 'warning' not in result.stderr:
+            send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
+
+    def get_bug_index_dict(self, metric_data_group):
+
+        def filter_valid_bug_data(data):
+
+            def check_regions(x, y, ru):
+                def check_region(pt, region):
+                    is_valid_list = []
+                    for range_type in ['x', 'y']:
+                        if isinstance(region[range_type][0], float) or isinstance(region[range_type][0], int):
+                            is_valid = region[range_type][0] <= pt[range_type] < region[range_type][1]
+                            is_valid_list.append(is_valid)
+
+                        elif isinstance(region[range_type][0], list) or isinstance(region[range_type][0], tuple):
+                            is_valid = any(
+                                [sub_range_value[0] <= pt[range_type] < sub_range_value[1] for sub_range_value in
+                                 region[range_type]])
+                            is_valid_list.append(is_valid)
+
+                    return all(is_valid_list)
+
+                pt = {'x': x, 'y': y}
+                if ru == 'DRU':
+                    regions = self.test_config['region_division']['DRU'] + self.test_config['region_division']['VRU']
+                else:
+                    regions = self.test_config['region_division']['VRU']
+
+                for region in regions:
+                    if check_region(pt, region):
+                        return 1
+                return 0
+
+            if 'gt.flag' in data.columns:
+                data = data[~((data['gt.flag'] == 1) & (data['gt.id'].isin(bug_excluding_ids)))]
+                data['is_bugArea'] = data.apply(
+                    lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user'])
+                    if row['gt.flag'] == 1 else check_regions(row['pred.x'], row['pred.y'], row['pred.road_user']),
+                    axis=1)
+            else:
+                data = data[~(data['gt.id'].isin(bug_excluding_ids))]
+                data['is_bugArea'] = data.apply(
+                    lambda row: check_regions(row['gt.x'], row['gt.y'], row['gt.road_user']),
+                    axis=1)
+
+            return data[data['is_bugArea'] == 1]
+
+        bug_excluding_ids = []
+        if os.path.exists(scenario_test_record_path):
+            scenario_test_record = pd.read_csv(scenario_test_record_path, index_col=False)
+            bug_excluding_row = scenario_test_record[(scenario_test_record['scenario_id'] == self.scenario_id)
+                                                 & (scenario_test_record['truth_source'] == self.truth_source)]
+            if len(bug_excluding_row):
+                index = bug_excluding_row.index[0]
+                bug_excluding_ids = json.loads(scenario_test_record.at[index, 'bug_excluding'])
+        send_log(self, f'{self.scenario_id} 排除以下gt.id的bug {bug_excluding_ids}')
+
+        bug_count = self.test_action['bug_count']
+        bug_index_dict = {}
+        for metric, data_path in metric_data_group.items():
+            metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
+
+            # 对于车道线，不需要做bug_data的区域筛选
+            if self.test_topic == 'Obstacles':
+                metric_data = filter_valid_bug_data(metric_data)
+
+                # 提bug的内容:
+                # 这里不能知道场景，所以无法筛选场景相关的内容
+                # 1.所有bug仅关注-50米到100米的范围，行人和两轮车只关注-50米到50米
+                # 2.行人不测长，宽，高，航向角，车速
+                # 3.两轮车不测长，宽，高；低速时不测航向角，车速
+                # 4.长宽高误差必须针对类型判断正确的样本
+                if metric == 'recall_precision':
+                    # 进一步筛选出现每种类型帧数最大的N个目标
+                    bug_index_dict['false_positive'] = []
+                    FP_data = metric_data[(metric_data['gt.flag'] == 0)
+                                          & (metric_data['pred.flag'] == 1)
+                                          & (metric_data['pred.x'] <= 100)
+                                          & (metric_data['pred.x'] >= -50)
+                                          & (metric_data['pred.y'] <= 8)
+                                          & (metric_data['pred.y'] >= -8)]
+                    FP_data = FP_data[~((FP_data['pred.type_classification'].isin(['pedestrian', 'cyclist']))
+                                        & (FP_data['pred.x'] > 50))]
+                    for key, group in FP_data.groupby('pred.type_classification'):
+                        top_values = group['pred.id'].value_counts().head(bug_count).index
+                        top_group = group[group['pred.id'].isin(top_values)]
+                        bug_index_dict['false_positive'].extend(top_group['corresponding_index'].to_list())
+
+                    # 对漏检需要观察100-150米之内的bug
+                    bug_index_dict['false_negative'] = []
+                    FN_data = metric_data[(metric_data['gt.flag'] == 1)
+                                          & (metric_data['pred.flag'] == 0)
+                                          & (metric_data['gt.y'] <= 8)
+                                          & (metric_data['gt.y'] >= -8)]
+                    FN_data = FN_data[~((FN_data['gt.type_classification'].isin(['pedestrian', 'cyclist']))
+                                        & ((FN_data['gt.x'] > 50) | (FN_data['gt.x'] < -50)))]
+                    FN_data_near = FN_data[(metric_data['gt.x'] <= 100)
+                                          & (metric_data['gt.x'] >= -100)]
+                    for key, group in FN_data_near.groupby('gt.type_classification'):
+                        top_values = group['gt.id'].value_counts().head(bug_count * 2).index
+                        top_group = group[group['gt.id'].isin(top_values)]
+                        bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
+                    FN_data_far = FN_data[(metric_data['gt.x'] <= 150)
+                                          & (metric_data['gt.x'] > 100)]
+                    for key, group in FN_data_far.groupby('gt.type_classification'):
+                        top_values = group['gt.id'].value_counts().head(bug_count * 2).index
+                        top_group = group[group['gt.id'].isin(top_values)]
+                        bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
+
+                    bug_index_dict['false_type'] = []
+                    NCTP_data = metric_data[(metric_data['CTP'] == 0)
+                                            & (metric_data['gt.flag'] == 1)
+                                            & (metric_data['pred.flag'] == 1)
+                                            & (metric_data['gt.x'] <= 100)
+                                            & (metric_data['gt.x'] >= -50)
+                                            & (metric_data['gt.y'] <= 8)
+                                            & (metric_data['gt.y'] >= -8)]
+                    NCTP_data = NCTP_data[~((NCTP_data['gt.type_classification'].isin(['pedestrian', 'cyclist']))
+                                            & (NCTP_data['gt.x'] > 50))]
+                    for key, group in NCTP_data.groupby('gt.type_classification'):
+                        top_values = group['gt.id'].value_counts().head(bug_count).index
+                        top_group = group[group['gt.id'].isin(top_values)]
+                        bug_index_dict['false_type'].extend(top_group['corresponding_index'].to_list())
+
+                else:
+                    distance_n_f = 50
+                    error_data = metric_data[(metric_data['is_abnormal'] == 1)
+                                             & (metric_data['gt.x'] <= 100)
+                                             & (metric_data['gt.x'] >= -50)
+                                             & (metric_data['gt.y'] <= 8)
+                                             & (metric_data['gt.y'] >= -8)
+                                             & (metric_data['gt.type'] == metric_data['pred.type'])]
+                    error_data = error_data[~((error_data['gt.type'].isin(['pedestrian', 'cyclist']))
+                                              & (error_data['gt.x'] > 50))]
+                    if metric in ['width_error', 'length_error', 'height_error']:
+                        error_data = error_data[~error_data['gt.type'].isin(['pedestrian', 'cyclist'])]
+                    if metric in ['vx_error', 'vy_error', 'yaw_error']:
+                        error_data = error_data[~error_data['gt.type'].isin(['pedestrian'])]
+                        error_data = error_data[~((error_data['gt.type'].isin(['cyclist']))
+                                                  & (error_data['gt.vel'] <= 2))]
+                    if metric == 'yaw_error':
+                        error_data = error_data[error_data['yaw.error_abs'] > 20]
+
+                    bug_index_dict[metric] = []
+                    for key, group in error_data.groupby('gt.type'):
+                        # 进一步筛选出20米内误差绝对值最大，20米外误差相对值最大的前5个
+                        near_group = group[(group['gt.x'] <= distance_n_f) & (group['gt.x'] >= -distance_n_f)]
+                        id_counts = near_group['gt.id'].value_counts()
+                        frequent_ids = id_counts[id_counts > 10].index
+                        filtered_df = near_group[near_group['gt.id'].isin(frequent_ids)]
+                        mean_values = filtered_df.groupby('gt.id')[f'{metric.replace("_", ".")}_abs'].mean().reset_index()
+                        top_5_ids = mean_values.sort_values(by=f'{metric.replace("_", ".")}_abs', ascending=False).head(bug_count)['gt.id']
+                        near_top_5 = filtered_df[filtered_df['gt.id'].isin(top_5_ids)]
+
+                        far_group = group[(group['gt.x'] > distance_n_f) | (group['gt.x'] < -distance_n_f)]
+                        if metric != 'yaw_error':
+                            col = f'{metric.replace("_", ".")}%_abs'
+                        else:
+                            col = f'{metric.replace("_", ".")}_abs'
+                        id_counts = far_group['gt.id'].value_counts()
+                        frequent_ids = id_counts[id_counts > 10].index
+                        filtered_df = far_group[far_group['gt.id'].isin(frequent_ids)]
+                        mean_values = filtered_df.groupby('gt.id')[col].mean().reset_index()
+                        top_5_ids = mean_values.sort_values(by=col, ascending=False).head(bug_count)['gt.id']
+                        far_top_5 = filtered_df[filtered_df['gt.id'].isin(top_5_ids)]
+
+                        top_group = pd.concat([near_top_5, far_top_5])
+                        bug_index_dict[metric].extend(top_group['corresponding_index'].to_list())
+
+            elif self.test_topic == 'Lines':
+
+                # 提bug的内容:
+                # 这里不能知道场景，所以无法筛选场景相关的内容
+
+                if metric == 'recall_precision':
+                    # 进一步筛选出现每种类型帧数最大的3个目标
+                    bug_index_dict['false_positive'] = []
+                    FP_data = metric_data[(metric_data['gt.flag'] == 0)
+                                          & (metric_data['pred.flag'] == 1)]
+                    for key, group in FP_data.groupby('pred.type_classification'):
+                        top_values = group['pred.id'].value_counts().head(bug_count).index
+                        top_group = group[group['pred.id'].isin(top_values)]
+                        bug_index_dict['false_positive'].extend(top_group['corresponding_index'].to_list())
+
+                    # 对漏检需要观察100-150米之内的bug
+                    bug_index_dict['false_negative'] = []
+                    FN_data = metric_data[(metric_data['gt.flag'] == 1)
+                                          & (metric_data['pred.flag'] == 0)]
+                    for key, group in FN_data.groupby('gt.type_classification'):
+                        top_values = group['gt.id'].value_counts().head(bug_count * 2).index
+                        top_group = group[group['gt.id'].isin(top_values)]
+                        bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
+
+                elif metric == 'lateral_error':
+                    pass
+
+
+
+
+
+        return bug_index_dict
+
     def start(self):
 
         if self.test_action['preprocess']:
             self.load_pred_data()
             self.load_gt_data()
             self.sync_timestamp()
+            self.load_scenario_info()
             self.promote_additional()
 
         if self.test_action['match']:
@@ -3903,6 +4371,10 @@ class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
 
         if self.test_action['metric']:
             self.evaluate_metrics()
+
+        if self.test_action['bug']:
+            self.sketch_bug()
+            # self.bug_report()
 
 
 class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
@@ -3973,11 +4445,22 @@ class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
                 total_match_data_path = os.path.join(get_project_path(), 'Temp', 'total_match_data.csv')
                 total_match_data.to_csv(total_match_data_path, index=False, encoding='utf_8_sig')
 
-                input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
-                    'characteristic_type': self.test_config['target_characteristic'],
-                    'kpi_date_label': self.kpi_date_label,
-                }
+                if self.test_topic == 'Obstacles':
+                    input_parameter_container = {
+                        'metric_type': self.test_config['test_item'][topic],
+                        'characteristic_type': self.test_config['target_characteristic'],
+                        'kpi_date_label': self.kpi_date_label,
+                        'test_topic': self.test_topic,
+                    }
+                elif self.test_topic == 'Lines':
+                    input_parameter_container = {
+                        'metric_type': self.test_config['test_item'][topic],
+                        'kpi_date_label': self.kpi_date_label,
+                        'test_topic': self.test_topic,
+                    }
+                else:
+                    return
+
                 parameter_json_path = os.path.join(get_project_path(), 'Temp', 'evaluate_api_parameter.json')
                 with open(parameter_json_path, 'w', encoding='utf-8') as f:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)

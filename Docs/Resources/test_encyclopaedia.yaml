@@ -1306,12 +1306,8 @@ Information:
     result_column:
       - 召回率
       - 准确率
-      - 线型准确率
-      - 横向位置(近)误差
-      - 横向位置(中)误差
-      - 横向位置(远)误差
-      - 偏航角(近)误差
-      - 偏航角(中)误差
+      - 横向位置误差
+      - 偏航角误差
     metrics:
       recall_precision:
         name: 准召信息
@@ -1323,15 +1319,14 @@ Information:
         name: 偏航角误差
         description: 评价对车道线的偏航方向的感知能力
     bug_items:
-      recall_precision:
-        name: 准召信息
-        description: 包括准确率，召回率，线型准确率，TP/FP/FN目标个数
+      false_positive:
+        name: 正样本误检测
+      false_negative:
+        name: 负样本漏检测
       lateral_error:
         name: 横向位置误差
-        description: 评价对车道线的横向距离的感知能力
       heading_error:
         name: 偏航角误差
-        description: 评价对车道线的偏航方向的感知能力
     type:
       fence:
         name: 道路边沿
