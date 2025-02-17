@@ -13,6 +13,7 @@ import pandas as pd
 import yaml
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_template import FigureCanvas
+from matplotlib.ticker import PercentFormatter
 
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
@@ -132,9 +133,9 @@ class TestResultSummary:
 
     def __init__(self):
         self.visualization_kpi_threshold = {
-            'recall%': 0.04,
+            'recall%': 0.03,
             'precision%': 0.15,
-            'x_abs_95[m]': 0.25,
+            'x_abs_95[m]': 0.1,
             'x%_abs_95[m]': 0.25,
             'y_abs_95[m]': 0.25,
             'yaw_abs_95[deg]': 5,
@@ -142,10 +143,10 @@ class TestResultSummary:
             'width_abs_95[m]': 0.25,
         }
 
-    def load_test_result(self, test_project_folder_list):
+    def load_test_result(self, test_project_folder_list, folder):
         test_result_summary = {}
         for test_project_folder in test_project_folder_list:
-            for test_task_folder in glob.glob(os.path.join(test_project_folder, '04_TestData', '*-*')):
+            for test_task_folder in glob.glob(os.path.join(test_project_folder, '*-*')):
                 test_config_path = os.path.join(test_task_folder, 'TestConfig.yaml')
                 with open(test_config_path, 'r') as f:
                     test_config = yaml.load(f, Loader=yaml.FullLoader)
@@ -154,6 +155,9 @@ class TestResultSummary:
                 test_topic = test_config['test_topic']
                 test_date = test_config['test_date']
                 truth_source = test_config['test_action']['ros2bag']['truth_source']
+                excel_path = os.path.join(test_task_folder, f'{version}.xlsx')
+                print(test_project_folder)
+                print(excel_path)
 
                 if test_topic not in test_result_summary:
                     test_result_summary[test_topic] = {}
@@ -164,12 +168,7 @@ class TestResultSummary:
                 test_result_summary[test_topic]['version'].append(version)
                 test_result_summary[test_topic]['test_date'].append(str(test_date))
 
-                test_result_path = os.path.join(test_task_folder, 'TestResult.yaml')
-                with open(test_result_path, 'r') as f:
-                    test_result = yaml.load(f, Loader=yaml.FullLoader)
-
                 if test_topic == 'Obstacles':
-                    excel_path = os.path.join(test_task_folder, test_result['OutputResult']['report_table']['关键目标'])
                     for _, scenario_tag in enumerate(pd.ExcelFile(excel_path).sheet_names):
                         data = pd.read_excel(excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
                         for col in data.columns:
@@ -208,7 +207,6 @@ class TestResultSummary:
         visualization_item = {key: visualization_item[key] for key in sorted_keys}
         print(len(visualization_item))
 
-        folder = '/home/zhangliwei01/ZONE/123/pic'
         shutil.rmtree(folder, ignore_errors=True)
 
         for title, res in visualization_item.items():
@@ -235,15 +233,32 @@ class TestResultSummary:
                     markerfacecolor=color, markersize=10,
                     linestyle='--', label=kpi_type)
 
-            ax.tick_params(axis='x', labelrotation=0)
+            for i in range(len(x)):
+                if kpi_type in ['recall%', 'precision%']:
+                    text = f'{res[i] * 100:.0f}%'
+                else:
+                    text = f'{res[i]:.3f}'
+                ax.annotate(text,  # 要标注的文本，将 y 值转换为百分比形式
+                            xy=(i, res[i]),  # 标注的位置，即数据点的坐标
+                            xytext=(5, -15),  # 文本相对于标注位置的偏移量
+                            textcoords='offset points',  # 文本坐标的类型
+                            ha='left',  # 水平对齐方式
+                            va='bottom',  # 垂直对齐方式
+                            fontsize=12)  # 标注文本的字体大小
+
+            ax.tick_params(axis='x', labelrotation=0, labelsize=10)
+            ax.tick_params(axis='y', labelrotation=0, labelsize=14)
             ax.legend(loc='best')
             ax.set_title(title.replace('--', ','))
             ax.grid(linestyle='-', linewidth=0.5, color='lightgray', alpha=0.6)
 
             if kpi_type in ['recall%', 'precision%']:
+                ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
                 ax.set_ylim(0, 1)
             else:
                 ax.set_ylim(max(0, 1.5 * min(res) - 0.5 * max(res)), 1.5 * max(res) - 0.5 * min(res))
+
+
 
             path = os.path.join(folder, compare_res, f"{title.replace('/', '')}.png")
             canvas = FigureCanvas(fig)
@@ -261,11 +276,13 @@ if __name__ == "__main__":
     # ]:
     #     tss.register_test_project(test_project_folder, False)
 
+    folder = '/home/zhangliwei01/ZONE/123/pic'
     test_project_folder_list = [
-        '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840',
-        '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250107_010621',
-        '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000',
+        '/home/zhangliwei01/ZONE/123/zpd_es39_manual_20241205_181840',
+        '/home/zhangliwei01/ZONE/123/zpd_es39_20250107_010621',
+        '/home/zhangliwei01/ZONE/123/zpd_es39_20250120_010000',
+        '/home/zhangliwei01/ZONE/123/zpd_es39_20250211_010000',
     ]
 
     trs = TestResultSummary()
-    trs.load_test_result(test_project_folder_list)
+    trs.load_test_result(test_project_folder_list, folder)
