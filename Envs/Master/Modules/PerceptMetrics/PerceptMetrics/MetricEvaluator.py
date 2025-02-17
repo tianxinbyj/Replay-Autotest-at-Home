@@ -1062,23 +1062,26 @@ class LateralError:
         if (limit_0_30 is not None) and (error_0_30 is not None):
             if error_0_30 > limit_0_30:
                 is_abnormal.append(True)
+                over_limit_error.append(error_0_30 - limit_0_30)
             else:
                 is_abnormal.append(False)
-            over_limit_error.append(error_0_30 - limit_0_30)
+                over_limit_error.append(0)
 
         if (limit_30_60 is not None) and (error_30_60 is not None):
             if error_30_60 > limit_30_60:
                 is_abnormal.append(True)
+                over_limit_error.append(error_30_60 - limit_30_60)
             else:
                 is_abnormal.append(False)
-            over_limit_error.append(error_30_60 - limit_30_60)
+                over_limit_error.append(0)
 
         if (limit_60_120 is not None) and (error_60_120 is not None):
             if error_60_120 > limit_60_120:
                 is_abnormal.append(True)
+                over_limit_error.append(error_60_120 - limit_60_120)
             else:
                 is_abnormal.append(False)
-            over_limit_error.append(error_60_120 - limit_60_120)
+                over_limit_error.append(0)
 
         if len(is_abnormal):
             is_abnormal = int(any(is_abnormal))
@@ -1108,7 +1111,7 @@ class HeadingError:
             'pred.heading_50',
             '0.heading.error',
             '50.heading.error',
-            'heading.error'
+            'heading.error',
             'is_abnormal',
         ]
 
@@ -1162,16 +1165,18 @@ class HeadingError:
         if (limit_0 is not None) and (heading_0_error is not None):
             if heading_0_error > limit_0:
                 is_abnormal.append(True)
+                over_limit_error.append(heading_0_error - limit_0)
             else:
                 is_abnormal.append(False)
-            over_limit_error.append(heading_0_error - limit_0)
+                over_limit_error.append(0)
 
         if (limit_50 is not None) and (heading_50_error is not None):
             if heading_50_error > limit_50:
                 is_abnormal.append(True)
+                over_limit_error.append(heading_50_error - limit_50)
             else:
                 is_abnormal.append(False)
-            over_limit_error.append(heading_50_error - limit_50)
+                over_limit_error.append(0)
 
         if len(is_abnormal):
             is_abnormal = int(any(is_abnormal))
