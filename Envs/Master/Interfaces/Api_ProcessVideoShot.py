@@ -210,6 +210,32 @@ class ProcessVideoSnap:
                             except OverflowError as e:
                                 pass
 
+                    if 'gt_line' in one_label_info:
+                        line_uv = [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                       for pt in one_label_info['gt_line'] if pt[0] >= 4]
+                        # points = np.array(line_uv, np.int32).reshape((-1, 1, 2))
+                        # cv2.polylines(origin_shot, [points], isClosed=False, color=(0, 255, 0), thickness=2)
+
+                        if len(line_uv) >= 3:
+                            for i in range(len(line_uv) - 1):
+                                try:
+                                    cv2.line(origin_shot, tuple(line_uv[i]), tuple(line_uv[i + 1]),
+                                             (0, 0, 200), 2)
+                                except OverflowError as e:
+                                    pass
+
+                    if 'pred_line' in one_label_info:
+                        line_uv = [camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
+                                       for pt in one_label_info['pred_line'] if pt[0] >= 4]
+
+                        if len(line_uv) >= 3:
+                            for i in range(len(line_uv) - 1):
+                                try:
+                                    cv2.line(origin_shot, tuple(line_uv[i]), tuple(line_uv[i + 1]),
+                                             (200, 0, 0), 2)
+                                except OverflowError as e:
+                                    pass
+
                     if 'center' in one_label_info:
                         pt = one_label_info['center']
                         text_x, text_y = camera_model[camera_name].world2camera_with_distort(*pt, cut_flag=False)
