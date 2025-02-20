@@ -50,13 +50,14 @@ def change_name(var):
 class Kpi:
 
     def __init__(self, kpi_path=None):
-        self.kpi_target_threshold = pd.read_excel(kpi_target_file_path, sheet_name=0, header=[0, 1, 2], index_col=[0, 1])
-        self.kpi_target_ratio = pd.read_excel(kpi_target_file_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
+        self.kpi_target_threshold = pd.read_excel(kpi_path, sheet_name=0, header=[0, 1, 2], index_col=[0, 1])
+        self.kpi_target_ratio = pd.read_excel(kpi_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
 
-    def get_obstacles_kpi_threshold(self, col_1, col_2, target_type, x=0, y=0, region=None):
+    def get_obstacles_kpi_threshold(self, col_1, col_2, target_type, pt=(10, 10), region_text=None):
 
-        def get_region_text(x, y):
+        def get_region_text(pt):
             x_text = None
+            x, y = pt
             if -100 < x <= -50:
                 x_text = 'x(-100~-50)'
             elif -50 < x <= 0:
@@ -78,12 +79,11 @@ class Kpi:
             return f'{x_text},{y_text}'
 
         df = self.kpi_target_threshold
-        if region is not None:
-            region_text = region
-        else:
-            region_text = get_region_text(x, y)
-            if region_text is None:
-                return None
+        if region_text is None:
+            region_text = get_region_text(pt)
+
+        if region_text is None:
+            return None
 
         index = (target_type, region_text)
         col = (col_1, col_2, '/VA/Obstacles')
@@ -103,24 +103,25 @@ class Kpi:
         else:
             return ratio
 
-    def get_lines_kpi_threshold(self, col_1, col_2, target_type, radius):
+    def get_lines_kpi_threshold(self, col_1, col_2, target_type, r=1000, radius_text=None):
 
-        def get_region_text(radius):
-            radius_text = None
-            if radius is not None:
-                if 20 < radius <= 250:
-                    radius_text = '20-250'
-                elif 250 < radius <= 1000:
-                    radius_text = '250-1000'
-                elif 1000 < radius <= 5000:
-                    radius_text = '1000-5000'
-                elif 5000 < radius <= 10000:
-                    radius_text = '5000-99999'
+        def get_radius_text(r):
+            r_text = None
+            if 20 < r <= 250:
+                r_text = 'R(20~250)'
+            elif 250 < r <= 1000:
+                r_text = 'R(250~1000)'
+            elif 1000 < r <= 5000:
+                r_text = 'R(1000~5000)'
+            elif 5000 < r <= 1e10:
+                r_text = 'R(5000~99999)'
 
-            return radius_text
+            return r_text
 
         df = self.kpi_target_threshold
-        radius_text = get_region_text(radius)
+        if radius_text is None:
+            radius_text = get_radius_text(r)
+
         if radius_text is None:
             return None
 
@@ -244,14 +245,14 @@ class XError:
 
         type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向距离误差', 'x_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向距离误差', 'x_abs_95[m]', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             x_limit = None
         else:
             kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('纵向距离误差', 'x_abs_95[m]', type_classification, kpi_date_label)
             x_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向距离误差', 'x%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向距离误差', 'x%_abs_95', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             x_limit_p = None
         else:
@@ -341,14 +342,14 @@ class YError:
 
         type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('横向距离误差', 'y_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('横向距离误差', 'y_abs_95[m]', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             y_limit = None
         else:
             kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('横向距离误差', 'y_abs_95[m]', type_classification, kpi_date_label)
             y_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('横向距离误差', 'y%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('横向距离误差', 'y%_abs_95', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             y_limit_p = None
         else:
@@ -427,7 +428,7 @@ class VxError:
 
         type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向速度误差', 'vx_abs_95[m/s]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('纵向速度误差', 'vx_abs_95[m/s]', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             vx_limit = None
         else:
@@ -502,7 +503,7 @@ class VyError:
 
         type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('横向速度误差', 'vy_abs_95[m/s]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('横向速度误差', 'vy_abs_95[m/s]', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             vy_limit = None
         else:
@@ -579,7 +580,7 @@ class YawError:
 
         type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('航向角误差', 'yaw_abs_95[deg]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('航向角误差', 'yaw_abs_95[deg]', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             yaw_limit = None
         else:
@@ -665,14 +666,14 @@ class LengthError:
 
         type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('长度误差', 'length_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('长度误差', 'length_abs_95[m]', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             length_limit = None
         else:
             kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('长度误差', 'length_abs_95[m]', type_classification, kpi_date_label)
             length_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('长度误差', 'length%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('长度误差', 'length%_abs_95', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             length_limit_p = None
         else:
@@ -745,14 +746,14 @@ class WidthError:
 
         type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('宽度误差', 'width_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('宽度误差', 'width_abs_95[m]', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             width_limit = None
         else:
             kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('宽度误差', 'width_abs_95[m]', type_classification, kpi_date_label)
             width_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('宽度误差', 'width%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('宽度误差', 'width%_abs_95', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             width_limit_p = None
         else:
@@ -825,14 +826,14 @@ class HeightError:
 
         type_classification = obstacles_type_classification_text[gt_type]
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('高度误差', 'height_abs_95[m]', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('高度误差', 'height_abs_95[m]', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             height_limit = None
         else:
             kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio('高度误差', 'height_abs_95[m]', type_classification, kpi_date_label)
             height_limit = kpi_threshold * kpi_ratio
 
-        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('高度误差', 'height%_abs_95', type_classification, x=gt_x, y=gt_y)
+        kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold('高度误差', 'height%_abs_95', type_classification, (gt_x, gt_y))
         if kpi_threshold is None:
             height_limit_p = None
         else:
