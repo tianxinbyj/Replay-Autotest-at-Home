@@ -431,7 +431,9 @@ ES39:
     - /PK/DR/Result
     parking:
     - /PI/EG/EgoMotionInfo
+    - /PK/DR/Result
     - /VA/Slots
+    - /SA/INSPVA
     - /VA/PK/Obstacles
   record_topic:
     pilot:
@@ -442,21 +444,29 @@ ES39:
     - /AEB/FS/TypeRaCamRoadVcc
     - /AEB/HbLanes
     - /AEB/HbObstacles
-    - /FS/FusionAEBResult
+    - /AEB/HorizonLines
+    - /AEB/HorizonObstacles
+    - /AEB/RadarObjList
     - /Camera/FrontWide/H265
+    - /Camera/FrontNarrow/H265
     - /Camera/FrontWide/MutiModelHevc
-    - /VA/BevObstaclesDet
-    - /VA/BevLaneSeg
-    - /VA/FrontWideObstacles2dDet
-    - /VA/BackViewObstacles2dDet
+    - /Camera/Rear/H265
+    - /Camera/SorroundFront/H265
+    - /Camera/SorroundLeft/H265
+    - /Camera/SorroundRear/H265
+    - /Camera/SorroundRight/H265
     - /COM/CUS/CommonHMI
     - /Diag/DiagServiceHeartbeat
+    - /Diag/ItcDataCollection
+    - /ehr/to_cus_guide_info
     - /ehr/to_dc_data
+    - /ehr/to_ehp_gnss
     - /ehr/to_ehp_hd_status
+    - /ehr/to_ehp_inspva
     - /ehr/to_ehp_vehicle_info
     - /ehr/to_em_data
-    - /ehr/to_soa_hd_status
     - /ehr/to_soa_cloudmap_download_req
+    - /ehr/to_soa_hd_status
     - /ES37/NavigationInfo
     - /FL/EhpInputInfo
     - /FL/Localization
@@ -465,13 +475,19 @@ ES39:
     - /FL/MapMatchDebug
     - /FL/MatchingResult
     - /FM/FctReq
+    - /FS/FusionAEBResult
+    - /FS/AEBFusionObjDbg
     - /FS/FusionODResult
     - /FS/FusionRoadEdgeOutInfo
     - /IS/PRO
     - /LP/Freespaces
     - /LP/GroundWarning
+    - /LP/LidarPerceptionInternal
     - /LP/LidarTrackingObjects
     - /LP/Lines
+    - /LP/Objects
+    - /LP/Obstacles
+    - /MAD/OnlineMapping
     - /MAPEHP/CrossInfo
     - /MAPEHP/Curvature
     - /MAPEHP/DtcMsg
@@ -498,11 +514,11 @@ ES39:
     - /MAPLESS/ZoneEhpLineInfo
     - /MAPLESS/ZoneEhpLinkModel
     - /MAPLESS/ZoneEhpMappingStatus
-    - /MAPLESS/ZoneEhpMappingStatus
     - /MAPLESS/ZoneEhpObjInfo
     - /MAPLESS/ZoneEhpPathCtrl
     - /MAPLESS/ZoneEhpPointInfo
     - /MAPLESS/ZoneEhpPosition
+    - /MAPLESS/ZoneEhpRecommendRoute
     - /MAPLESS/ZoneEhpSlopeInfo
     - /MAPLESS/ZoneEhpStatusSwitch
     - /MAPLESS/ZoneEhpSubPath
@@ -516,11 +532,9 @@ ES39:
     - /PI/DES/SitAnalysis
     - /PI/DES/SitDebugData
     - /PI/EG/EgoMotionInfo
+    - /PI/FS/ObjTracksHorizon
     - /PI/FS/LaneMarkingsHorizon
     - /PI/FS/LaneMarkingsHorizonDebug
-    - /PI/FS/ObjTracksHorizon
-    - /PI/PD/EmHpc2Dbg
-    - /PI/PD/EnvModel
     - /PI/PD/EnvModel4DLPred
     - /PI/PD/PredictionData
     - /PI/PD/PredictionDebug
@@ -528,9 +542,9 @@ ES39:
     - /PI/PD/WorldCondition
     - /PI/PL/MPLatDebug
     - /PI/PL/PlanningData
-    - /PI/PL/QpPathPlanningDebugData
-    - /PI/PL/QpPathPlanningDebugData
     - /PI/PL/StateSpaceSampleTrjDebug
+    - /PI/PL/OclTrjDebug
+    - /PI/PL/DpDebugData
     - /PI/SOA/HMIOutputES37
     - /PI/VC/ControlToPlanningData
     - /PI/VC/ES33LatOutput
@@ -543,77 +557,101 @@ ES39:
     - /PK/CUS/IntelligentSwitch
     - /PK/DR/Result
     - /PP/CUS/FctDebug
+    - /SAFrontRadarLocation
+    - /SAFrontRadarObject
     - /SA/GNSS
     - /SA/IMU
     - /SA/InsIAM
     - /SA/INSPVA
     - /SA/RadarFuncReq
+    - /SASR5FrontLeftCornerRadarObject
+    - /SASR5FrontRightCornerRadarObject
+    - /SASR5RearLeftCornerRadarObject
+    - /SASR5RearRightCornerRadarObject
     - /SA/TSRInfo
     - /SA/UpcodObsList
     - /SA/UpcUssPas
     - /SA/UpcUssRaw
     - /SA/UssRaw
+    - /SA/Vhm
     - /SA/VisionLaneMarkList
     - /SA/VisionObjList
-    - /SAFrontRadarLocation
-    - /SAFrontRadarObject
-    - /SASR5FrontLeftCornerRadarObject
-    - /SASR5FrontRightCornerRadarObject
-    - /SASR5RearLeftCornerRadarObject
-    - /SASR5RearRightCornerRadarObject
+    - /SE/EnvModel
+    - /SE/EnvModelDebug
     - /SOA/CloudMapDownloadResp
+    - /SOA/MAD/BuildMapReqES33
+    - /SOA/MAD/RouteCancelReqES33
     - /SOA/NaviDeviceUUID
     - /SOA/NavigationInfoES33
     - /SOA/NavigationInfoPlus
+    - /SOA/PI/NavigationInfoES37
     - /SOA/SDNaviLinkInfo
     - /SOA/SDNaviStsInfo
+    - /VA/BackViewObstacles2dDet
+    - /VA/BevObstaclesDet
     - /VA/Freespaces
+    - /VA/FrontViewObstacles
     - /VA/FrontWideLaneInstanceDebug
+    - /VA/FrontWideObstacles2dDet
     - /VA/FusLines
-    - /VA/BevLines
-    - /VA/FvLmPostproObjects
     - /VA/FusObjects
     - /VA/IHBC
     - /VA/LightType
     - /VA/Lines
     - /VA/Objects
     - /VA/Obstacles
+    - /VA/PedResult
     - /VA/PKObstacles
     - /VA/VehicleHMI
     - /VA/VehicleMotionIpd
+    - /VA/VehicleResult
     - /VA/VehicleStatusIpd
     - /VA/WeatherType
-    - /Camera/FrontWide/MutiModelHevc
-    - /SOA/PI/NavigationInfoES37
-    - /Diag/ItcDataCollection
+    - /VA/BevLaneSeg
+    - /VA/FvLmDetectObjects
+    - /VA/FvTlrDetectObjects
+    - /VA/FvTlrPostproObjects
+    - /VA/FvLmPostproObjects
+    - /VA/BevLines
+    - /FS/NdmData
+    - /VA/FvTsrDetectObjects
+    - /VA/FvTsrPostproObjects
     parking:
     - /AEB/AEBFlag
-    - /AEB/HbObstacles
-    - /AEB/HbLanes
     - /AEB/AEBDebug
-    - /AEB/EgoMotionInfo
     - /AEB/FS/TypeRaCamRoadVcc
     - /AEB/FS/TypeRaCamObjectVcc
     - /Camera/SorroundFront/H265
     - /Camera/SorroundLeft/H265
     - /Camera/SorroundRear/H265
     - /Camera/SorroundRight/H265
+    - /Camera/FrontWide/H265
+    - /Camera/Rear/H265
+    - /Camera/AVM/H265
     - /Camera/FrontWide/H265t
     - /Camera/FrontWide/MutiModelHevc
     - /COM/CUS/CommonHMI
     - /LP/LidarTrackingObjects
     - /LP/Lines
     - /LP/Freespaces
+    - /LP/ParkingOcc
+    - /VA/BackViewObstacles2dDet
+    - /VA/BevObstaclesDet
+    - /VA/FrontWideObstacles2dDet
     - /VA/Freespaces
     - /VA/FusLines
     - /VA/FusObjects
     - /VA/Lines
     - /VA/Objects
+    - /VA/FrontViewObstacles
     - /VA/Obstacles
     - /PI/EG/EgoMotionInfo
+    - /PI/CUS/HMIOutputES33
+    - /PI/SOA/HMIOutputES37
     - /PK/DR/DeltaInfo
     - /PK/DR/Result
     - /PK/TF/MapToBase
+    - /PK/PER/Parsing
     - /Camera/Rear/H265
     - /Camera/FrontWide/H265
     - /Camera/FrontWide/H265
@@ -623,6 +661,7 @@ ES39:
     - /OTA/SotaConfigData
     - /P/DES/HMIOutput
     - /PI/EG/EgoMotionInfo
+    - /PK/CUS/DIYParkingSlotInfo
     - /PK/CUS/HMIOutput
     - /PK/CUS/HMIOutputES33
     - /PK/CUS/IntelligentSwitch
@@ -634,9 +673,11 @@ ES39:
     - /PK/DES/TargetSlot
     - /PK/DR/DeltaInfo
     - /PK/DR/Result
+    - /PK/DR/DrPaths
     - /PK/FS/FreespacePoints
     - /PK/FS/FusionFreespaces
     - /PK/FS/FreespaceSegments
+    - /FS/AEBFusionObjDbg
     - /PI/FS/ObjTracksHorizon
     - /PK/FS/ObjTracks
     - /PK/FS/ObjTracksHmi
@@ -644,11 +685,11 @@ ES39:
     - /PK/OccupancyGridMap
     - /PK/PER/PerceptionSlots
     - /PK/PER/UssSlots
+    - /PK/PER/AVMLaneDecodingList
     - /PK/PER/VisionPerceptionSlots
     - /PK/PER/VisionSlotListInfo
     - /PK/PER/FSDecodingList
     - /PK/PER/VisionSlotDecodingList
-    - /PK/PER/VisionObstaclesDecodingList
     - /PK/PL/LonPlanning
     - /PK/PL/LonPlanningDebug
     - /PK/PL/Path
@@ -665,7 +706,12 @@ ES39:
     - /PK/VC/ParkingLonCtrlDbgData
     - /PK/VC/ParkingLonPlanDbgData
     - /PK/VC/ParkingCtrlDebug
+    - /PK/PD/PredictionParkData
     - /PP/CUS/FctDebug
+    - /PP/EM/EmSlamLocalizationIcmData
+    - /PP/EM/EmSlamMappingIcmData
+    - /PP/EM/EmSlotsFusion
+    - /PK/NdmData
     - /SA/GNSS
     - /SA/IMU
     - /SA/INSPVA
@@ -674,6 +720,7 @@ ES39:
     - /SA/UpcUssPas
     - /SA/UpcUssRaw
     - /SA/UssRaw
+    - /SA/Vhm
     - /SAFrontRadarObject
     - /SA/RadarFuncReq
     - /VA/Freespaces
@@ -686,10 +733,14 @@ ES39:
     - /VA/ParkingObjects
     - /VA/Slots
     - /VA/PK/Slots
+    - /VA/PK/AVMLandMarking
+    - /VA/PK/AVMLane
     - /VA/VehicleHMI
     - /VA/VehicleMotionIpd
     - /VA/VehicleStatusIpd
     - /SA/PK_RTK/CHCINS
+    - /SOA/PK/DIYParking
+    - /SOA/PK/DIYParkingDirection
     - /PK/GT/TF_ENU_TO_ODOM
     - /Diag/DiagServiceHeartbeat
     - /MCU/FuncStatus
@@ -700,14 +751,37 @@ ES39:
     - /VA/PK/Objects
     - /VA/PK/Obstacles
     - /PK/PER/FSDecodingList
-    - /HPP/VSLAM/VSLAMMappingFailed
-    - /HPP/VSLAM/VSLAMMappingStart
+    - /HPP/VSLAM/VSLAMMappingStatus
+    - /HPP/VSLAM/MapManagementResp
     - /HPP/VSLAM/MappingToICM
     - /HPP/VSLAM/VSLAMLocalizationStart
     - /HPP/VSLAM/VSLAMLocalizationOutput
     - /HPP/VSLAM/LocalizationPreviewInfo
     - /HPP/VSLAM/LocalizationToICM
     - /Diag/ItcDataCollection
+    - /PP/EM/EmSlamLocalizationIcmData
+    - /PP/EM/EmSlamMappingIcmData
+    - /PP/EM/EmSlotsFusion
+    - /PK/NdmData
+    - /VA/PedResult
+    - /VA/VehicleResult
+    - /SOA/HPP/MemparkingToCus
+    - /PI/PL/Planning2CusData
+    - /PI/DES/SitAnalysis
+    - /PI/VC/ControlToPlanningData
+    - /PI/PL/PlanningData
+    - /PI/PL/StateSpaceSampleTrjDebug
+    - /PI/PD/PredictionData
+    - /PI/PD/PredictionDebug
+    - /PI/PD/PredictionDLData
+    - /PI/VC/ES33LatOutput
+    - /PI/VC/ES33LonOutput
+    - /PI/VC/LatCtrlYRCDebug
+    - /PI/VC/LatTrajectoryCtrlDebug
+    - /PI/VC/LongCtrlDebug
+    - /FS/NdmData
+    - /ehp_ehr/to_hpp_data
+    - /FS/NdmResult
   project_id:
   - "ACZPD"
   - "10948"
@@ -1308,6 +1382,10 @@ Information:
       - 准确率
       - 横向位置误差
       - 偏航角误差
+    characteristic:
+      total:
+        name: 全局目标
+        description: 全部可见的车道线
     metrics:
       recall_precision:
         name: 准召信息
