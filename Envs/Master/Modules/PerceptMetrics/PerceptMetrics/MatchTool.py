@@ -374,16 +374,15 @@ class LinesMatchTool:
                 match_data_rows.append(this_row)
 
         data = pd.DataFrame(match_data_rows, columns=total_column)
-        # 进一步过滤极端异常数据
-        # 过滤内容为长度有效性
+
         data.insert(0, 'corresponding_index', range(len(data)))
         return data.dropna(subset=['gt.type_classification', 'pred.type_classification'], how='all')
 
 
 if __name__ == '__main__':
-    pred_data_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/additional/pred_data.csv'
-    gt_data_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/GroundTruth/additional/VABevLines_gt_data.csv'
-    match_timestamp_path = '/home/zhangliwei01/ZONE/TestProject/ES39/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/match/match_timestamp.csv'
+    pred_data_path = '/home/hp/下载/44444/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/additional/pred_data.csv'
+    gt_data_path = '/home/hp/下载/44444/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/GroundTruth/additional/VABevLines_gt_data.csv'
+    match_timestamp_path = '/home/hp/下载/44444/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/VABevLines/match/match_timestamp.csv'
 
     pred_data = pd.read_csv(pred_data_path, index_col=False)
     gt_data = pd.read_csv(gt_data_path, index_col=False)

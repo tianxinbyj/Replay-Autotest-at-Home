@@ -28,6 +28,7 @@ obstacles_parameter_container = {
 
 lines_parameter_container = {
     'lane_width': 3.6,
+    'if_gt': True
 }
 
 
@@ -837,12 +838,12 @@ class LinesCoefficient:
         if len(radius_x) > 2:
             c3, c2, c1, c0 = np.polyfit(radius_x, radius_y, 3)
 
-            if min(radius_x) > 10:
+            if min(radius_x) > 8:
                 heading_0 = None
             else:
-                heading_0 = np.rad2deg(np.arctan(c1))
+                heading_0 = np.rad2deg(np.arctan(25 * c3 + 5 * c2 + c1))
 
-            if max(radius_x) < 51 or min(radius_x) > 49:
+            if max(radius_x) < 52 or min(radius_x) > 48:
                 heading_50 = None
             else:
                 heading_50 = np.rad2deg(np.arctan(7500 * c3 + 100 * c2 + c1))
@@ -932,6 +933,11 @@ class ConnectLines:
     def __init__(self, input_parameter_container=None):
         self.type = 'by_frame'
 
+        if isinstance(input_parameter_container, dict):
+            self.if_gt = input_parameter_container['if_gt']
+        else:
+            self.if_gt = lines_parameter_container['if_gt']
+
     def __call__(self, input_data):
         rows = []
         cols = ['time_stamp', 'frame_id', 'id', 'confidence', 'type', 'position', 'color', 'points_num', 'x_points', 'y_points']
@@ -999,7 +1005,7 @@ class ConnectLines:
                                     'end': merged_points[-1],
                                     'type': current_line['type'],
                                     'position': current_line['position'],
-                                    'id': current_line['id'],
+                                    'id': f"{current_line['id']},{target_line['id']}",
                                     'color': current_line['color'],
                                     'confidence': current_line['confidence'],
                                 })
@@ -1011,7 +1017,7 @@ class ConnectLines:
                                     'end': merged_points[-1],
                                     'type': target_line['type'],
                                     'position': target_line['position'],
-                                    'id': target_line['id'],
+                                    'id': f"{target_line['id']},{current_line['id']}",
                                     'color': target_line['color'],
                                     'confidence': target_line['confidence'],
                                 })
@@ -1048,7 +1054,11 @@ class ConnectLines:
         def distance(p1, p2):
             return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
 
-        epsilon = 0.1
+        if self.if_gt:
+            epsilon = 0.1
+        else:
+            epsilon = 0.00001
+
         if distance(line1['end'], line2['start']) < epsilon:
             return True, 1
         elif distance(line1['start'], line2['end']) < epsilon:
@@ -1134,6 +1144,54 @@ class DefinePosition:
         return input_data
 
 
+class DefineId:
+    """
+    确定真值的id
+
+    """
+
+    def __init__(self, input_parameter_container=None):
+        self.type = 'by_frame'
+
+    def __call__(self, input_data):
+
+        def get_lists_interaction(lst1, lst2):
+            res = [t for t in lst1 if t in lst2]
+            if len(res):
+                return True
+            else:
+                return False
+
+        id_count = 0
+        new_ids = []
+        last_id_dict = {}
+        for time_stamp, frame_data in input_data.groupby('time_stamp'):
+
+            current_id_dict = {}
+            for idx, row in frame_data.iterrows():
+                raw_id = row['id']
+                id_list = str(raw_id).split(',')
+                for last_raw_id, last_new_id in last_id_dict.items():
+                    last_id_list = str(last_raw_id).split(',')
+                    if get_lists_interaction(id_list, last_id_list):
+                        current_id_dict[str(raw_id)] = last_new_id
+                        break
+
+                if raw_id not in current_id_dict:
+                    id_count += 1
+                    current_id_dict[str(raw_id)] = id_count
+
+                new_ids.append(current_id_dict[str(raw_id)])
+
+            last_id_dict = current_id_dict
+
+        input_data['origin_id'] = input_data['id']
+        input_data['id'] = new_ids
+        input_data['id'] = input_data['id'].astype(int)
+
+        return input_data
+
+
 class LinesPreprocess:
 
     def __init__(self, preprocess_types=None):
@@ -1142,6 +1200,7 @@ class LinesPreprocess:
                 'DuplicateId',
                 'ConnectLines',
                 'DefinePosition',
+                'DefineId',
                 'LinesCoefficient',
                 'LinesTypeClassification',
             ]
@@ -1155,6 +1214,7 @@ class LinesPreprocess:
 
         if not input_parameter_container['if_gt']:
             self.preprocess_types.remove('DefinePosition')
+            self.preprocess_types.remove('DefineId')
 
         for preprocess_type in self.preprocess_types:
             print(f'正在预处理 {preprocess_type}')
@@ -1171,8 +1231,6 @@ class LinesPreprocess:
 
 
 if __name__ == '__main__':
-    import json
-
     raw_data_path = '/home/hp/下载/44444/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/GroundTruth/additional/gt_data.csv'
     raw_data = pd.read_csv(raw_data_path, index_col=False)
 
