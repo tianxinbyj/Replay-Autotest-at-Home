@@ -11,15 +11,23 @@ warnings.filterwarnings("ignore")
 # 屏蔽特定的警告
 warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
 
+
 # 对车辆进行分类，分为大车，小车，行人，两轮车
-type_classification_text = {
+obstacles_type_classification_text = {
     'car': '小车',
     'pedestrian': '行人',
     'truck_bus': '大车',
     'cyclist': '两轮车',
 }
 
-characteristic_text = {
+# 对车道线进行分类，分为主车道线，次车道线，道路边沿和其他车道线
+lines_type_classification_text = {
+    'main_lane': '主车道线',
+    'secondary_lane': '次车道线',
+    'fence': '道路边沿',
+}
+
+obstacles_characteristic_text = {
     'is_coverageValid': '全局目标',
     'is_cipv': 'cipv目标',
     'is_keyObj': '关键目标',
@@ -30,7 +38,11 @@ characteristic_text = {
     'is_static': '静止目标',
 }
 
-metric_text = {
+lines_characteristic_text = {
+    'total': '全局目标',
+}
+
+obstacles_metric_text = {
     'recall_precision': '准召信息',
     'x_error': '纵向距离误差',
     'y_error': '横向距离误差',
@@ -40,6 +52,12 @@ metric_text = {
     'length_error': '长度误差',
     'width_error': '宽度误差',
     'height_error': '高度误差',
+}
+
+lines_metric_text = {
+    'recall_precision': '准召信息',
+    'heading_error': '偏航角误差',
+    'lateral_error': '横向位置误差',
 }
 
 
@@ -454,10 +472,10 @@ class ObstaclesMetricStatistics:
 
                     json_datas.append(
                         {
-                            'FeatureDetail': characteristic_text[characteristic],
+                            'FeatureDetail': obstacles_characteristic_text[characteristic],
                             'RangeDetails': region_text,
-                            'ObstacleName': type_classification_text[type_classification],
-                            'MetricTypeName': metric_text[metric],
+                            'ObstacleName': obstacles_type_classification_text[type_classification],
+                            'MetricTypeName': obstacles_metric_text[metric],
                             'Output': res,
                         })
 
@@ -488,3 +506,138 @@ class ObstaclesMetricStatistics:
                 is_valid_list.append(is_valid)
 
         return all(is_valid_list)
+
+
+class LateralError:
+
+    def __call__(self, input_data):
+        if not isinstance(input_data, pd.DataFrame):
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data = input_data
+
+        lateral_0_30_mean = data['0-30.lateral.error'].mean()
+        lateral_0_30_68 = data['0-30.lateral.error'].quantile(0.68)
+        lateral_0_30_95 = data['0-30.lateral.error'].quantile(0.95)
+
+        lateral_30_60_mean = data['30-60.lateral.error'].mean()
+        lateral_30_60_68 = data['30-60.lateral.error'].quantile(0.68)
+        lateral_30_60_95 = data['30-60.lateral.error'].quantile(0.95)
+
+        lateral_60_120_mean = data['60-120.lateral.error'].mean()
+        lateral_60_120_68 = data['60-120.lateral.error'].quantile(0.68)
+        lateral_60_120_95 = data['60-120.lateral.error'].quantile(0.95)
+
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
+
+        res = {
+            '0-30_abs_mean[m]': lateral_0_30_mean, '0-30_abs_68[m]': lateral_0_30_68, '0-30_abs_95[m]': lateral_0_30_95,
+            '30-60_abs_mean[m]': lateral_30_60_mean, '30-60_abs_68[m]': lateral_30_60_68, '30-60_abs_95[m]': lateral_30_60_95,
+            '60-120_abs_mean[m]': lateral_60_120_mean, '60-120_abs_68[m]': lateral_60_120_68, '60-120_abs_95[m]': lateral_60_120_95,
+            'sample_count': len(data), 'pass_ratio%': pass_ratio,
+        }
+
+        return res
+
+
+class HeadingError:
+
+    def __call__(self, input_data):
+        if not isinstance(input_data, pd.DataFrame):
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data = input_data
+
+        heading_0_mean = data['0.heading.error'].mean()
+        heading_0_68 = data['0.heading.error'].quantile(0.68)
+        heading_0_95 = data['0.heading.error'].quantile(0.95)
+
+        heading_50_mean = data['50.heading.error'].mean()
+        heading_50_68 = data['50.heading.error'].quantile(0.68)
+        heading_50_95 = data['50.heading.error'].quantile(0.95)
+
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
+
+        res = {
+            '0_heading_abs_mean[deg]': heading_0_mean, '0_heading_abs_68[deg]': heading_0_68, '0_heading_abs_95[deg]': heading_0_95,
+            '50_heading_abs_mean[deg]': heading_50_mean, '50_heading_abs_68[deg]': heading_50_68, '50_heading_abs_95[deg]': heading_50_95,
+            'sample_count': len(data), 'pass_ratio%': pass_ratio,
+        }
+
+        return res
+
+
+class LinesMetricStatistics:
+
+    def run(self, input_data, input_parameter_container):
+        radius_division = input_parameter_container['radius_division']
+        characteristic = input_parameter_container['characteristic']
+
+        total_data = input_data['recall_precision']
+        total_data.index = total_data['corresponding_index'].to_list()
+
+        # 获取每种目标类型的index历表
+        type_classification_list = set(total_data['pred.type_classification'].drop_duplicates().dropna().to_list()
+                                       + total_data['gt.type_classification'].drop_duplicates().dropna().to_list())
+        type_corresponding_index_dict = {type_classification: [] for type_classification in type_classification_list}
+
+        # 获取每个区域的index列表
+        radius_corresponding_index_dict = {}
+
+        for idx, row in total_data.iterrows():
+
+            for radius in radius_division:
+                radius_text = self.get_radius_text(radius)
+                if row['gt.flag'] == 1:
+                    r = row['gt.radius']
+                    if self.check_radius(r, radius):
+                        if radius_text not in radius_corresponding_index_dict:
+                            radius_corresponding_index_dict[radius_text] = []
+                        radius_corresponding_index_dict[radius_text].append(idx)
+
+                elif row['pred.flag'] == 1:
+                    r = row['pred.radius']
+                    if self.check_radius(r, radius):
+                        if radius_text not in radius_corresponding_index_dict:
+                            radius_corresponding_index_dict[radius_text] = []
+                        radius_corresponding_index_dict[radius_text].append(idx)
+
+            if row['gt.flag'] == 1:
+                type_corresponding_index_dict[row['gt.type_classification']].append(idx)
+
+            elif row['pred.flag'] == 1:
+                type_corresponding_index_dict[row['pred.type_classification']].append(idx)
+
+        json_datas = []
+        for metric, data in input_data.items():
+
+            for radius_text, radius_index in radius_corresponding_index_dict.items():
+                for type_classification, type_index in type_corresponding_index_dict.items():
+
+                    # 获取共同的index
+                    common_index = sorted(list(set(radius_index) & set(type_index)))
+                    selected_data = data[data['corresponding_index'].isin(common_index)]
+                    if len(selected_data) == 0:
+                        continue
+
+                    metric_class = change_name(metric)
+                    func = eval(f'{metric_class}()')
+                    res = func(selected_data)
+
+                    json_datas.append(
+                        {
+                            'FeatureDetail': lines_characteristic_text[characteristic],
+                            'CurvatureRadius': radius_text,
+                            'LinesName': lines_type_classification_text[type_classification],
+                            'MetricTypeName': lines_metric_text[metric],
+                            'Output': res,
+                        })
+
+        return json_datas
+
+    def get_radius_text(self, radius):
+        radius_text = '~'.join([f'{r:.0f}' for r in radius])
+        return f'R({radius_text})'
+
+    def check_radius(self, r, radius):
+        return radius[0] < r <= radius[1]
