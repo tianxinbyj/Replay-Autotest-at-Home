@@ -10,6 +10,8 @@ import re
 import shutil
 import signal
 import subprocess
+import time
+
 import yaml
 
 
@@ -26,6 +28,20 @@ def get_project_path():
         if parent_folder == folder:
             raise Exception("未找到项目路径")
         folder = parent_folder
+
+
+def sync_test_result(method):
+    def wrapper(self, *args, **kwargs):
+        method_start_time = time.time()
+        self.load_test_result()
+        result = method(self, *args, **kwargs)
+        self.save_test_result()
+        method_end_time = time.time()
+        print(f'{self.__class__.__name__}.{method.__name__} '
+              f'-> {method_end_time - method_start_time:.2f} sec')
+        return result
+
+    return wrapper
 
 
 def generate_unique_id(info):

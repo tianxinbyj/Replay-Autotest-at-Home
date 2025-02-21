@@ -1386,7 +1386,7 @@ Information:
       total:
         name: 全局目标
         description: 全部可见的车道线
-    metrics:
+    metric:
       recall_precision:
         name: 准召信息
         description: 包括准确率，召回率，线型准确率，TP/FP/FN目标个数
@@ -1396,7 +1396,7 @@ Information:
       heading_error:
         name: 偏航角误差
         description: 评价对车道线的偏航方向的感知能力
-    bug_items:
+    bug_item:
       false_positive:
         name: 正样本误检测
       false_negative:

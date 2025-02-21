@@ -2,8 +2,8 @@
 Created on 2024/7/5.  
 @author: Bu Yujun  
 """
-from typing import List
 
+from typing import List
 import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment

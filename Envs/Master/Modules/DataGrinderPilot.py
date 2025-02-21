@@ -7,7 +7,6 @@ import json
 import os.path
 import shutil
 import subprocess
-import time
 import uuid
 
 import matplotlib.lines as mlines
@@ -35,7 +34,7 @@ from Libs import get_project_path, copy_to_destination
 sys.path.append(get_project_path())
 
 from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length, project_path
-from Utils.Libs import generate_unique_id, bench_config
+from Utils.Libs import generate_unique_id, bench_config, sync_test_result
 from Utils.Libs import font_size, title_font, axis_font, legend_font
 from Utils.Logger import send_log
 from Utils.SSHClient import SSHClient
@@ -43,119 +42,9 @@ from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 
 # 导入评测api
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.KpiGenerator import ObstaclesKpi, LinesKpi
 
 scenario_test_record_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_test_record.csv')
-
-
-def sync_test_result(method):
-    def wrapper(self, *args, **kwargs):
-        method_start_time = time.time()
-        self.load_test_result()
-        result = method(self, *args, **kwargs)
-        self.save_test_result()
-        method_end_time = time.time()
-        send_log(self, f'{self.__class__.__name__}.{method.__name__} '
-              f'-> {method_end_time - method_start_time:.2f} sec')
-        return result
-
-    return wrapper
-
-
-class Kpi:
-
-    def __init__(self, kpi_path=None):
-        self.kpi_target_threshold = pd.read_excel(kpi_path, sheet_name=0, header=[0, 1, 2], index_col=[0, 1])
-        self.kpi_target_ratio = pd.read_excel(kpi_path, sheet_name=1, header=[0, 1, 2], index_col=[0, 1])
-
-    def get_obstacles_kpi_threshold(self, col_1, col_2, target_type, pt=(10, 10), region_text=None):
-
-        def get_region_text(pt):
-            x_text = None
-            x, y = pt
-            if -100 < x <= -50:
-                x_text = 'x(-100~-50)'
-            elif -50 < x <= 0:
-                x_text = 'x(-50~0)'
-            elif 0 < x <= 50:
-                x_text = 'x(0~50)'
-            elif 50 < x <= 100:
-                x_text = 'x(50~100)'
-            elif 100 < x <= 150:
-                x_text = 'x(100~150)'
-
-            y_text = None
-            if -8 <= y <= 8:
-                y_text = 'y(-8~8)'
-
-            if x_text is None or y_text is None:
-                return None
-
-            return f'{x_text},{y_text}'
-
-        df = self.kpi_target_threshold
-        if region_text is None:
-            region_text = get_region_text(pt)
-
-        if region_text is None:
-            return None
-
-        index = (target_type, region_text)
-        col = (col_1, col_2, '/VA/Obstacles')
-        threshold = df.at[index, col]
-        if np.isnan(threshold):
-            return None
-        else:
-            return threshold
-
-    def get_obstacles_kpi_ratio(self, col_1, col_2, target_type, kpi_date_label):
-        df = self.kpi_target_ratio
-        index = (target_type, int(kpi_date_label))
-        col = (col_1, col_2, '/VA/Obstacles')
-        ratio = df.at[index, col]
-        if np.isnan(ratio) or ratio is None:
-            return 1
-        else:
-            return ratio
-
-    def get_lines_kpi_threshold(self, col_1, col_2, target_type, r=1000, radius_text=None):
-
-        def get_radius_text(r):
-            r_text = None
-            if 20 < r <= 250:
-                r_text = 'R(20~250)'
-            elif 250 < r <= 1000:
-                r_text = 'R(250~1000)'
-            elif 1000 < r <= 5000:
-                r_text = 'R(1000~5000)'
-            elif 5000 < r <= 1e10:
-                r_text = 'R(5000~99999)'
-
-            return r_text
-
-        df = self.kpi_target_threshold
-        if radius_text is None:
-            radius_text = get_radius_text(r)
-
-        if radius_text is None:
-            return None
-
-        index = (target_type, radius_text)
-        col = (col_1, col_2, '/VA/BevLines')
-        threshold = df.at[index, col]
-        if np.isnan(threshold):
-            return None
-        else:
-            return threshold
-
-    def get_lines_kpi_ratio(self, col_1, col_2, target_type, kpi_date_label):
-        df = self.kpi_target_ratio
-        index = (target_type, int(kpi_date_label))
-        col = (col_1, col_2, '/VA/BevLines')
-        ratio = df.at[index, col]
-        if np.isnan(ratio) or ratio is None:
-            return 1
-        else:
-            return ratio
 
 
 class DataGrinderOneCase:
@@ -1472,7 +1361,7 @@ class DataGrinderOneCase:
                         text = [
                             '测试版本: {:s}, {:s}'.format(self.product, self.version),
                             '测试时间: {:s}'.format(self.test_config['test_date']),
-                            '异常类型: {:s}'.format(info['bug_items'][bug_type]['name']),
+                            '异常类型: {:s}'.format(info['bug_item'][bug_type]['name']),
                             '异常发生时刻的场景和截图见附件',
                             '-------------',
                         ]
@@ -1492,7 +1381,7 @@ class DataGrinderOneCase:
 
                         jira_row = [
                             self.version, info['name'], '&'.join(self.scenario_tag.values()),
-                            topic, info['bug_items'][bug_type]['name'], target_type, bug_gt_id, bug_pred_id,
+                            topic, info['bug_item'][bug_type]['name'], target_type, bug_gt_id, bug_pred_id,
                             self.scenario_id, jira_summary, jira_description,
                             '', bug_report_path, f'{project_key}-0', project_id,
                             uuid_content, f'uuid-{uuid}', 0
@@ -2982,7 +2871,7 @@ class DataGrinderOneTask:
         scenario_tag_key = output_result['scenario_tag'].unique()
         type_key = output_result['type'].unique()
         division_key = output_result['division'].unique()
-        metric_key = [v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metrics'].values()
+        metric_key = [v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metric'].values()
                       if v['name'] in output_result['metric'].unique()]
         # 首先生成columns
         if self.test_topic == 'Obstacles':
@@ -3358,7 +3247,7 @@ class DataGrinderOneTask:
 
         output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
         division_key = ';'.join(output_result['division'].unique())
-        metric_key = ';'.join([v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metrics'].values()
+        metric_key = ';'.join([v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metric'].values()
                       if v['name'] in output_result['metric'].unique()])
         characteristic_key = {test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['name']:
                                   test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['description']
@@ -4371,10 +4260,8 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
 
     def __init__(self, task_folder):
         super().__init__(task_folder)
-        kpi_target_file_path = os.path.join(get_project_path(), 'Docs', 'Resources', 'ObstaclesKpi.xlsx')
-        m_kpi = Kpi(kpi_target_file_path)
-        self.get_kpi_threshold = m_kpi.get_obstacles_kpi_threshold
-        self.get_kpi_ratio = m_kpi.get_obstacles_kpi_ratio
+        self.get_kpi_threshold = ObstaclesKpi.get_obstacles_kpi_threshold
+        self.get_kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio
 
 
 class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
@@ -4388,7 +4275,5 @@ class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
 
     def __init__(self, task_folder):
         super().__init__(task_folder)
-        kpi_target_file_path = os.path.join(get_project_path(), 'Docs', 'Resources', 'LinesKpi.xlsx')
-        m_kpi = Kpi(kpi_target_file_path)
-        self.get_kpi_threshold = m_kpi.get_lines_kpi_threshold
-        self.get_kpi_ratio = m_kpi.get_lines_kpi_ratio
+        self.get_kpi_threshold = LinesKpi.get_lines_kpi_threshold
+        self.get_kpi_ratio = LinesKpi.get_lines_kpi_ratio

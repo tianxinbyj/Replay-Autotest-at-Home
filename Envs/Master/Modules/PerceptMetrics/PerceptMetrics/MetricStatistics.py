@@ -2,67 +2,15 @@
 @Author: BU YUJUN
 @Date: 2024/7/25 下午3:27  
 """
+
 import warnings
 import pandas as pd
 
-import warnings
+from KpiGenerator import obstacles_type_classification_text, lines_type_classification_text
+from KpiGenerator import obstacles_characteristic_text, lines_characteristic_text
+from KpiGenerator import obstacles_metric_text, lines_metric_text, change_name
+
 warnings.filterwarnings("ignore")
-
-# 屏蔽特定的警告
-warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
-
-
-# 对车辆进行分类，分为大车，小车，行人，两轮车
-obstacles_type_classification_text = {
-    'car': '小车',
-    'pedestrian': '行人',
-    'truck_bus': '大车',
-    'cyclist': '两轮车',
-}
-
-# 对车道线进行分类，分为主车道线，次车道线，道路边沿和其他车道线
-lines_type_classification_text = {
-    'main_lane': '主车道线',
-    'secondary_lane': '次车道线',
-    'fence': '道路边沿',
-}
-
-obstacles_characteristic_text = {
-    'is_coverageValid': '全局目标',
-    'is_cipv': 'cipv目标',
-    'is_keyObj': '关键目标',
-    'is_sameDir': '同向目标',
-    'is_oppositeDir': '对向目标',
-    'is_crossingDir': '横向目标',
-    'is_moving': '运动目标',
-    'is_static': '静止目标',
-}
-
-lines_characteristic_text = {
-    'total': '全局目标',
-}
-
-obstacles_metric_text = {
-    'recall_precision': '准召信息',
-    'x_error': '纵向距离误差',
-    'y_error': '横向距离误差',
-    'vx_error': '纵向速度误差',
-    'vy_error': '横向速度误差',
-    'yaw_error': '航向角误差',
-    'length_error': '长度误差',
-    'width_error': '宽度误差',
-    'height_error': '高度误差',
-}
-
-lines_metric_text = {
-    'recall_precision': '准召信息',
-    'heading_error': '偏航角误差',
-    'lateral_error': '横向位置误差',
-}
-
-
-def change_name(var):
-    return ''.join([v.title() for v in var.split('_')])
 
 
 class RecallPrecision:
