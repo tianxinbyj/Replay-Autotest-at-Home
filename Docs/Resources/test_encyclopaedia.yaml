@@ -1280,7 +1280,7 @@ Information:
       is_static:
         name: 静止目标
         description: 对地绝对速度小于2m/s的目标
-    metrics:
+    metric:
       recall_precision:
         name: 准召信息
         description: 包括准确率，召回率，类型准确率，TP/FP/FN目标个数
@@ -1308,7 +1308,7 @@ Information:
       height_error:
         name: 高度误差
         description: 评价对目标的高度的感知能力
-    bug_items:
+    bug_item:
       false_positive:
         name: 正样本误检测
       false_negative:

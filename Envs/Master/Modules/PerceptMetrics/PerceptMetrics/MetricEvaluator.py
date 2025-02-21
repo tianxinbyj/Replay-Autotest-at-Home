@@ -3,12 +3,15 @@ Created on 2024/7/24.
 @author: Bu Yujun  
 """
 
+import os
+import sys
 import warnings
 
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from KpiGenerator import ObstaclesKpi, LinesKpi, change_name
 from KpiGenerator import obstacles_type_classification_text, lines_type_classification_text
 
