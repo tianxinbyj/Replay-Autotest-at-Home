@@ -429,7 +429,7 @@ class DataGrinderOneCase:
             "-c", calibrated_data_path
         ]
 
-        print(cmd)
+        print(' '.join(cmd))
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
         if result.stderr and 'UserWarning' not in result.stderr:
@@ -610,7 +610,7 @@ class DataGrinderOneCase:
                 "-p", topic_gt_data_path,
             ]
 
-            print(cmd)
+            print(' '.join(cmd))
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
@@ -687,7 +687,7 @@ class DataGrinderOneCase:
                     "-p", path,
                 ]
 
-                print(cmd)
+                print(' '.join(cmd))
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
                 # os.remove(parameter_json_path)
@@ -737,7 +737,7 @@ class DataGrinderOneCase:
                 "-f", path
             ]
 
-            print(cmd)
+            print(' '.join(cmd))
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             if result.stderr and 'UserWarning' not in result.stderr:
@@ -814,7 +814,7 @@ class DataGrinderOneCase:
                 "-m", path,
             ]
 
-            print(cmd)
+            print(' '.join(cmd))
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
             # os.remove(parameter_json_path)
@@ -880,7 +880,7 @@ class DataGrinderOneCase:
                 "-f", metric_folder,
             ]
 
-            print(cmd)
+            print(' '.join(cmd))
             send_log(self, f'{self.test_topic} {topic} 指标评估')
             cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
             result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
@@ -1182,7 +1182,7 @@ class DataGrinderOneCase:
             bug_label_info_json
         ]
 
-        print(cmd)
+        print(' '.join(cmd))
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
         if result.stderr and 'UserWarning' not in result.stderr:
@@ -1679,7 +1679,7 @@ class DataGrinderOneCase:
             bug_label_info_json
         ]
 
-        print(cmd)
+        print(' '.join(cmd))
         cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
         if result.stderr and 'UserWarning' not in result.stderr:
@@ -2654,7 +2654,7 @@ class DataGrinderOneTask:
                     "-f", metric_folder,
                 ]
 
-                print(cmd)
+                print(' '.join(cmd))
                 send_log(self, f'{self.test_topic} {topic} 指标评估')
                 cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
                 result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
