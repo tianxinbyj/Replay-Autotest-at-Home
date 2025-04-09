@@ -1029,10 +1029,25 @@ data_columns = {
             'nra_abort_status', 'visual_assist_count', 'driver_close_visual_count', 'uss_dist_narrow_count',
             'ihc_state', 'ihc_off_error_code', 'ihc_standby_error_code', 'ihc_beam_off_error_code',
             'ihc_ego_curvature_ahead'
-        ]
+        ],
+    'sensor_msgs/msg/CompressedImage':
+        [
+            'local_time', 'time_stamp', 'frame_id', 'format_',
+        ],
+    'parking_perception_msgs/msg/VisionSlotDecodingList':
+        [
+            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id', 'id',
+            'obj_type', 'confidence', 'slot_center_x', 'slot_center_y',
+            'slot_pt0_x', 'slot_pt0_y', 'slot_pt1_x', 'slot_pt1_y',
+            'slot_pt2_x', 'slot_pt2_y', 'slot_pt3_x', 'slot_pt3_y',
+            'occupy_status', 'lock_status',
+            'stopper_valid', 'stopper_pt0_x', 'stopper_pt0_y', 'stopper_pt1_x', 'stopper_pt1_y',
+        ],
+
 }
 
 topic2msg = {
+    '/Camera/FrontWide/H265': 'sensor_msgs/msg/CompressedImage',
     '/SA/INSPVA': 'gnss_imu_msgs/msg/Inspva',
     '/PK/DR/Result': 'parking_ego_motion_msgs/msg/DrResult',
     '/VA/BevLines': 'env_perception_msgs/msg/EnvFusLines',
@@ -1044,14 +1059,18 @@ topic2msg = {
     '/Groundtruth/VA/Objects': 'proto_horizon_msgs/msg/Objects',
     '/VA/VehicleMotionIpd': 'vehicle_msgs/msg/VehicleMotionIpd',
     '/VA/Obstacles': 'proto_horizon_msgs/msg/Obstacles',
+    '/VA/PK/Obstacles': 'proto_horizon_msgs/msg/Obstacles',
     '/VA/VehicleResult': 'proto_horizon_msgs/msg/Obstacles',
     '/VA/PedResult': 'proto_horizon_msgs/msg/Obstacles',
     '/Groundtruth/VA/Obstacles': 'proto_horizon_msgs/msg/Obstacles',
     '/VA/FrontViewObstacles': 'proto_horizon_msgs/msg/Obstacles',
     '/VA/BevObstaclesDet': 'pilot_perception_msg/msg/ObstaclesDet',
+    '/VA/PK/BevObstaclesDet': 'pilot_perception_msg/msg/ObstaclesDet',
     '/VA/FrontWideObstacles2dDet': 'pilot_perception_msg/msg/Obstacles2dDet',
     '/VA/BackViewObstacles2dDet': 'pilot_perception_msg/msg/Obstacles2dDet',
     '/VA/Slots': 'proto_horizon_msgs/msg/Slots',
+    '/VA/PK/Slots': 'proto_horizon_msgs/msg/Slots',
+    '/PK/PER/VisionSlotDecodingList': 'parking_perception_msgs/msg/VisionSlotDecodingList',
     '/SAFrontRadarObject': 'sensor_abstraction_msgs/msg/RadarObjectArray',
     '/SASR5FrontLeftCornerRadarObject': 'sensor_abstraction_msgs/msg/RadarObjectArray',
     '/SASR5FrontRightCornerRadarObject': 'sensor_abstraction_msgs/msg/RadarObjectArray',
@@ -1080,6 +1099,7 @@ class Ros2BagParser:
         self.frame_id_saver = None
         self.time_saver = None
         self.install_folder = os.path.join(workspace, 'install')
+        self.typestore = get_typestore(Stores.LATEST)
         msg_list = []
         for root, dirs, files in os.walk(self.install_folder):
             for f in files:
@@ -1087,19 +1107,29 @@ class Ros2BagParser:
                 if 'share' in ff and '.msg' in ff and 'detail' not in ff:
                     msg_list.append(ff)
 
-        # for root, dirs, files in os.walk('/opt/ros/rolling'):
-        #     for f in files:
-        #         ff = os.path.join(root, f)
-        #         if 'share' in ff and '.msg' in ff and 'detail' not in ff:
-        #             msg_list.append(ff)
+        for root, dirs, files in os.walk('/opt/ros/rolling'):
+            for f in files:
+                ff = os.path.join(root, f)
+                if 'share' in ff and '.msg' in ff and 'detail' not in ff:
+                    msg_list.append(ff)
 
         add_types = {}
         for pathstr in msg_list:
             msg_path = Path(pathstr)
             msg_def = msg_path.read_text(encoding='utf-8')
-            add_types.update(get_types_from_msg(msg_def, self.getMsgType(msg_path)))
-
+            temp = get_types_from_msg(msg_def, self.getMsgType(msg_path))
+            if list(temp.keys())[0] not in self.typestore.types.keys():
+                add_types.update(temp)
         register_types(add_types)
+
+        # for pathstr in msg_list:
+        #     msg_path = Path(pathstr)
+        #     msg_def = msg_path.read_text(encoding='utf-8')
+        #     temp = get_types_from_msg(msg_def, self.getMsgType(msg_path))
+        #     if list(temp.keys())[0] not in self.typestore.types.keys():
+        #         self.typestore.register(temp)
+        # print(self.typestore.types.keys())
+        # print('proto_horizon_msgs/msg/Obstacles' in self.typestore.types.keys())
 
     def getMsgType(self, path: Path) -> str:
         name = path.relative_to(path.parents[2]).with_suffix('')
@@ -1186,7 +1216,7 @@ class Ros2BagParser:
 
     def parser(self, timestamp, topic, msg, queue):
         local_time = timestamp / 1e9
-        if topic in ['/VA/Obstacles', '/Groundtruth/VA/Obstacles', '/VA/FrontViewObstacles']:
+        if topic in self.getTopics('proto_horizon_msgs/msg/Obstacles'):
             time_stamp = msg.exposure_time_stamp / 1000
             frame_id = msg.frame_id
             self.time_saver[topic].append(time_stamp)
@@ -1260,7 +1290,7 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        if topic in ['/VA/VehicleResult', '/VA/PedResult']:
+        elif topic in ['/VA/VehicleResult', '/VA/PedResult']:
             time_stamp = msg.exposure_time_stamp / 1000
             frame_id = msg.frame_id
             self.time_saver[topic].append(time_stamp)
@@ -1354,7 +1384,7 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        elif topic in ['/VA/BevObstaclesDet']:
+        elif topic in self.getTopics('pilot_perception_msg/msg/ObstaclesDet'):
             time_stamp = msg.time_stamp / 1000
             frame_id = msg.frame_num
             self.time_saver[topic].append(time_stamp)
@@ -1869,10 +1899,7 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        elif topic in ['/SAFrontRadarObject', '/SASR5FrontLeftCornerRadarObject',
-                       '/SASR5FrontRightCornerRadarObject', '/SASR5RearLeftCornerRadarObject',
-                       '/SASR5RearRightCornerRadarObject']:
-
+        elif topic in self.getTopics('sensor_abstraction_msgs/msg/RadarObjectArray'):
             time_stamp = msg.timestamp / 1000
             frame_id = msg.frame_number
             self.time_saver[topic].append(time_stamp)
@@ -1986,7 +2013,6 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        # elif topic in ['/LP/Freespaces', '/VA/Freespaces', '/VA/PK/Freespaces']:  # 可行使区域
         elif topic in self.getTopics('proto_horizon_msgs/msg/Freespaces'):  # 可行使区域
             time_stamp = msg.time_stamp / 1000
             frame_id = msg.frame_id
@@ -2031,7 +2057,7 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        elif topic == '/VA/Slots':  # 后处理输出车位
+        elif topic in self.getTopics('proto_horizon_msgs/msg/Slots'):  # 后处理输出车位
             frame_id = msg.frame_id
             time_stamp = msg.timestamp / 1000
 
@@ -2106,12 +2132,59 @@ class Ros2BagParser:
                 self.last_timestamp[topic] = time_stamp
 
         elif topic == '/PK/PER/VisionSlotDecodingList':  # 模型输出车位
-            #  是独立的msg, 且没有文档。
-            pass
+            frame_id = msg.frame_num
+            time_stamp = msg.timestamp / 1000
 
-        elif topic == '/PK/SlotsFusion':  # 融合输出车位
-            #  是独立的msg, 且没有文档。
-            pass
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+            if time_stamp != self.last_timestamp[topic]:
+                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_seq = msg.header.seq
+
+                slot_num = msg.slot_num
+                for i in range(slot_num):
+                    slot = msg.slot[i]
+                    p1 = slot.p1
+                    slot_pt0_x = p1.x
+                    slot_pt0_y = p1.y
+                    p2 = slot.p2
+                    slot_pt1_x = p2.x
+                    slot_pt1_y = p2.y
+                    p3 = slot.p3
+                    slot_pt2_x = p3.x
+                    slot_pt2_y = p3.y
+                    p4 = slot.p4
+                    slot_pt3_x = p4.x
+                    slot_pt3_y = p4.y
+                    slot_center_x = (slot_pt0_x + slot_pt1_x + slot_pt2_x + slot_pt3_x) / 4
+                    slot_center_y = (slot_pt0_y + slot_pt1_y + slot_pt2_y + slot_pt3_y) / 4
+
+                    p5 = slot.p5
+                    stopper_pt0_x = p5.x
+                    stopper_pt0_y = p5.y
+                    p6 = slot.p6
+                    stopper_pt1_x = p6.x
+                    stopper_pt1_y = p6.y
+                    if stopper_pt1_x * stopper_pt1_y != 0:
+                        stopper_valid = 1
+                    else:
+                        stopper_valid = 0
+
+                    slot_type = slot.type  # 0:unknown 未知;1:vertical 垂直;2:parallel 水平;3:oblique 斜列
+                    obj_conf = slot.conf_slot
+                    lock_status = slot.lock_status
+                    occupy_status = slot.status  # 0: Unknown; 1: Occupied; 2: Not occupied
+
+                    queue.put([
+                        local_time, time_stamp, header_stamp, header_seq, frame_id, -1,
+                        10, obj_conf, slot_type, slot_center_x, slot_center_y,
+                        slot_pt0_x, slot_pt0_y, slot_pt1_x, slot_pt1_y,
+                        slot_pt2_x, slot_pt2_y, slot_pt3_x, slot_pt3_y,
+                        occupy_status, lock_status,
+                        stopper_valid, stopper_pt0_x, stopper_pt0_y, stopper_pt1_x, stopper_pt1_y,
+                    ])
+
+                self.last_timestamp[topic] = time_stamp
 
         elif topic == '/PI/CUS/HMIOutputES33':
             header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
@@ -2549,6 +2622,22 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
+        elif topic == '/Camera/FrontWide/H265':
+            sec = msg.header.stamp.sec
+            nanosec = msg.header.stamp.nanosec
+            time_stamp = sec + nanosec / 1e9
+            frame_id = msg.header.frame_id
+            format_ = msg.format
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+            if time_stamp != self.last_timestamp[topic]:
+                queue.put([
+                    local_time, time_stamp, frame_id, format_
+                ])
+                print(time_stamp, msg.data.shape, type(msg.data), msg.data.tolist()[:20])
+
+                self.last_timestamp[topic] = time_stamp
+
 
 class MsgSaver:
 
@@ -2784,69 +2873,21 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    # workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/03_Workspace'
-    # t_folder = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_manual_20241205_181840/01_Prediction'
-    # ES39_topic_list = [
-    #     '/PI/EG/EgoMotionInfo',
-    #     '/VA/VehicleMotionIpd',
-    #     '/VA/BevObstaclesDet',
-    #     '/VA/FrontWideObstacles2dDet',
-    #     '/VA/BackViewObstacles2dDet',
-    #     '/VA/Obstacles',
-    #     '/VA/FusObjects',
-    #     '/PK/DR/Result',
-    #     '/SA/INSPVA'
-    # ]
-    #
-    # for scenario_id in os.listdir(t_folder):
-    #
-    #     if scenario_id not in ['20241111_093841_n000014', '20241111_155436_n000009']:
-    #         continue
-    #
-    #     if not os.path.isdir(os.path.join(t_folder, scenario_id)):
-    #         continue
-    #
-    #     folder = os.path.join(t_folder, scenario_id, 'RawData')
-    #     if os.path.exists(folder):
-    #         shutil.rmtree(folder)
-    #     os.mkdir(folder)
-    #     ros2bag_xz_path = glob.glob(os.path.join(t_folder, scenario_id, '*.tar.xz'))[0]
-    #     print(f'{os.path.basename(ros2bag_xz_path)}.tar.xz 开始解压缩')
-    #     cmd = 'cd {:s}; tar xvf {:s}'.format(
-    #         os.path.dirname(ros2bag_xz_path), os.path.basename(ros2bag_xz_path)
-    #     )
-    #     os.popen(cmd).read()
-    #     print(f'{os.path.basename(ros2bag_xz_path)}.tar.xz 解压缩完成')
-    #     ros2bag_path = ros2bag_xz_path[:-7]
-    #
-    #     RBP = Ros2BagParser(workspace)
-    #     RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, scenario_id)
-    #     shutil.rmtree(ros2bag_path)
-
-    # import shutil
-    # topic_list = ['/SA/INSPVA', '/PK/DR/Result', '/SOA/SDNaviLinkInfo', '/SOA/SDNaviStsInfo', '/VA/BevLines', '/FL/Localization', '/SA/GNSS']
-    # src_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/raw_rosbag'
-    # dst_path = '/home/zhangliwei01/ZONE/rosbag/rosbag/rosbag2_2024_11_27-14_39_14/ggg'
-    # if os.path.exists(dst_path):
-    #     shutil.rmtree(dst_path)
-    #
-    # dd = Ros2BagClip(workspace)
-    # dd.cutRosbag(src_path, dst_path, topic_list, [1732693156, 1732695736])
-
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/03_Workspace'
-    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/01_Prediction/20241111_155436_n000008/20241111_155436_n000008_2025-01-20-18-09-47'
-    folder = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250120_010000/01_Prediction/20241111_155436_n000008/RawData'
+    workspace = '/home/byj/ZONE/debug'
+    ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
+    folder = '/home/byj/ZONE/debug/test_data'
     ES39_topic_list = [
             # '/PI/EG/EgoMotionInfo',
             # '/VA/VehicleMotionIpd',
             # '/VA/BevObstaclesDet',
-            '/VA/FrontWideObstacles2dDet',
-            '/VA/BackViewObstacles2dDet',
-            # '/VA/BevLines',
-            # '/VA/Obstacles',
+            # '/VA/FrontWideObstacles2dDet',
+            # '/VA/BackViewObstacles2dDet',
+            '/VA/Lines',
+            '/VA/Obstacles',
             # '/PI/FS/ObjTracksHorizon',
             # '/PK/DR/Result',
             # '/SA/INSPVA',
+            '/Camera/FrontWide/H265',
     ]
 
     RBP = Ros2BagParser(workspace)

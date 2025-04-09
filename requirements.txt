@@ -26,3 +26,5 @@ pymongo
 Spire.XLS
 atlassian-python-api==3.41.1
 shapely
+ffmpeg-python
+av
