@@ -2556,10 +2556,10 @@ class DataGrinderOneTask:
                           f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
             if self.test_topic == 'Obstacles':
-                DataGrinderPilotObstaclesOneCase(scenario_run_info['scenario_unit_folder']).start()
+                DataGrinderObstaclesOneCase(scenario_run_info['scenario_unit_folder']).start()
 
             elif self.test_topic == 'Lines':
-                DataGrinderPilotLinesOneCase(scenario_run_info['scenario_unit_folder']).start()
+                DataGrinderLinesOneCase(scenario_run_info['scenario_unit_folder']).start()
 
     @sync_test_result
     def combine_scenario_tag(self):
@@ -4249,14 +4249,14 @@ class DataGrinderOneTask:
             self.test_result = yaml.load(f, Loader=yaml.FullLoader)
 
 
-class DataGrinderPilotObstaclesOneCase(DataGrinderOneCase):
+class DataGrinderObstaclesOneCase(DataGrinderOneCase):
 
     def __init__(self, scenario_unit_folder):
         super().__init__(scenario_unit_folder)
         self.cut_frame_offset = -1.05
 
 
-class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
+class DataGrinderObstaclesOneTask(DataGrinderOneTask):
 
     def __init__(self, task_folder):
         super().__init__(task_folder)
@@ -4264,16 +4264,31 @@ class DataGrinderPilotObstaclesOneTask(DataGrinderOneTask):
         self.get_kpi_ratio = ObstaclesKpi.get_obstacles_kpi_ratio
 
 
-class DataGrinderPilotLinesOneCase(DataGrinderOneCase):
+class DataGrinderLinesOneCase(DataGrinderOneCase):
 
     def __init__(self, scenario_unit_folder):
         super().__init__(scenario_unit_folder)
         self.cut_frame_offset = 0
 
 
-class DataGrinderPilotLinesOneTask(DataGrinderOneTask):
+class DataGrinderLinesOneTask(DataGrinderOneTask):
 
     def __init__(self, task_folder):
         super().__init__(task_folder)
         self.get_kpi_threshold = LinesKpi.get_lines_kpi_threshold
         self.get_kpi_ratio = LinesKpi.get_lines_kpi_ratio
+
+
+class DataGrinderSlotsOneCase(DataGrinderOneCase):
+
+    def __init__(self, scenario_unit_folder):
+        super().__init__(scenario_unit_folder)
+        self.cut_frame_offset = 0
+
+
+class DataGrinderSlotsOneTask(DataGrinderOneTask):
+
+    def __init__(self, task_folder):
+        super().__init__(task_folder)
+        # self.get_kpi_threshold = SLotKpi.get_lines_kpi_threshold
+        # self.get_kpi_ratio = SlotKpi.get_lines_kpi_ratio
