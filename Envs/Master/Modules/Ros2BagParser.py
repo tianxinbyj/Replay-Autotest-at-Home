@@ -950,10 +950,10 @@ data_columns = {
             'obj_type', 'confidence', 'obj_life_time', 'obj_age', 'type',
             'slot_pose_length', 'slot_pose_width',
             'slot_pose_angle', 'slot_heading', 'slot_center_x', 'slot_center_y',
-            'slot_pt0_x', 'slot_pt0_y', 'slot_pt1_x', 'slot_pt1_y',
-            'slot_pt2_x', 'slot_pt2_y', 'slot_pt3_x', 'slot_pt3_y',
+            'pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y',
+            'pt_2_x', 'pt_2_y', 'pt_3_x', 'pt_3_y',
             'occupy_status', 'lock_status', 'lock_center_x', 'lock_center_y',
-            'stopper_valid', 'stopper_pt0_x', 'stopper_pt0_y', 'stopper_pt1_x', 'stopper_pt1_y',
+            'stopper_valid', 'stopper_0_x', 'stopper_0_y', 'stopper_1_x', 'stopper_1_y',
         ],
     'cus_app_msgs/msg/HmiES33':
         [
@@ -1037,13 +1037,23 @@ data_columns = {
     'parking_perception_msgs/msg/VisionSlotDecodingList':
         [
             'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id', 'id',
-            'obj_type', 'confidence', 'slot_center_x', 'slot_center_y',
-            'slot_pt0_x', 'slot_pt0_y', 'slot_pt1_x', 'slot_pt1_y',
-            'slot_pt2_x', 'slot_pt2_y', 'slot_pt3_x', 'slot_pt3_y',
+            'obj_type', 'confidence', 'type', 'slot_center_x', 'slot_center_y',
+            'pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y',
+            'pt_2_x', 'pt_2_y', 'pt_3_x', 'pt_3_y',
             'occupy_status', 'lock_status',
-            'stopper_valid', 'stopper_pt0_x', 'stopper_pt0_y', 'stopper_pt1_x', 'stopper_pt1_y',
+            'stopper_valid', 'stopper_0_x', 'stopper_0_y', 'stopper_1_x', 'stopper_1_y',
         ],
-
+    'qc_perception_msgs/msg/QcObstacles':
+        [
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
+            'id', 'type', 'confidence', 'sub_type',
+            'x', 'y', 'z', 'vx', 'vy', 'yaw', 'length', 'width', 'height', 'age', 'track_status',
+        ],
+    'qc_perception_msgs/msg/QcPose':
+        [
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq',
+            'roll', 'pitch', 'yaw', 'vx', 'vy', 'vel', 'trip_distance',
+        ]
 }
 
 topic2msg = {
@@ -1089,6 +1099,11 @@ topic2msg = {
     '/VA/PK/Freespaces': 'proto_horizon_msgs/msg/Freespaces',
     '/PI/CUS/HMIOutputES33': 'cus_app_msgs/msg/HmiES33',
     '/PP/CUS/FctDebug': 'cus_app_msgs/msg/FctDebug',
+    '/VA/QC/BEVObstaclesTracks': 'qc_perception_msgs/msg/QcObstacles',
+    '/VA/QC/FsObstacles': 'qc_perception_msgs/msg/QcObstacles',
+    '/VA/QC/Lines': 'qc_perception_msgs/msg/QcLines',
+    '/VA/QC/Objects': 'qc_perception_msgs/msg/QcObjects',
+    '/VA/QC/Pose': 'qc_perception_msgs/msg/QcPose',
 }
 
 
@@ -2086,14 +2101,14 @@ class Ros2BagParser:
                     slot_heading = slot_attr.pose.yaw_vcs
                     slot_center_x = slot_attr.pose.center_vcs.x
                     slot_center_y = slot_attr.pose.center_vcs.y
-                    slot_pt0_x = slot_attr.pose.poly_vcs[0].x
-                    slot_pt0_y = slot_attr.pose.poly_vcs[0].y
-                    slot_pt1_x = slot_attr.pose.poly_vcs[1].x
-                    slot_pt1_y = slot_attr.pose.poly_vcs[1].y
-                    slot_pt2_x = slot_attr.pose.poly_vcs[2].x
-                    slot_pt2_y = slot_attr.pose.poly_vcs[2].y
-                    slot_pt3_x = slot_attr.pose.poly_vcs[3].x
-                    slot_pt3_y = slot_attr.pose.poly_vcs[3].y
+                    pt_0_x = slot_attr.pose.poly_vcs[0].x
+                    pt_0_y = slot_attr.pose.poly_vcs[0].y
+                    pt_1_x = slot_attr.pose.poly_vcs[1].x
+                    pt_1_y = slot_attr.pose.poly_vcs[1].y
+                    pt_2_x = slot_attr.pose.poly_vcs[2].x
+                    pt_2_y = slot_attr.pose.poly_vcs[2].y
+                    pt_3_x = slot_attr.pose.poly_vcs[3].x
+                    pt_3_y = slot_attr.pose.poly_vcs[3].y
 
                     slot_occupy_info = slot_attr.occupy_info
                     occupy_status = slot_occupy_info.occupy_status  # 0: Unknown; 1: Occupied; 2: Not occupied
@@ -2107,33 +2122,33 @@ class Ros2BagParser:
 
                     if slot_attr.rod_info.valid:
                         stopper_valid = 1
-                        stopper_pt0_x = slot_attr.rod_info.end_vcs[0].x
-                        stopper_pt0_y = slot_attr.rod_info.end_vcs[0].y
-                        stopper_pt1_x = slot_attr.rod_info.end_vcs[1].x
-                        stopper_pt1_y = slot_attr.rod_info.end_vcs[1].y
+                        stopper_0_x = slot_attr.rod_info.end_vcs[0].x
+                        stopper_0_y = slot_attr.rod_info.end_vcs[0].y
+                        stopper_1_x = slot_attr.rod_info.end_vcs[1].x
+                        stopper_1_y = slot_attr.rod_info.end_vcs[1].y
                     else:
                         stopper_valid = 0
-                        stopper_pt0_x = 0
-                        stopper_pt0_y = 0
-                        stopper_pt1_x = 0
-                        stopper_pt1_y = 0
+                        stopper_0_x = 0
+                        stopper_0_y = 0
+                        stopper_1_x = 0
+                        stopper_1_y = 0
 
                     queue.put([
                         local_time, time_stamp, header_stamp, header_seq, frame_id, obj_id,
                         obj_type, obj_conf, obj_life_time, obj_age, slot_type,
                         slot_pose_length, slot_pose_width,
                         slot_pose_angle, slot_heading, slot_center_x, slot_center_y,
-                        slot_pt0_x, slot_pt0_y, slot_pt1_x, slot_pt1_y,
-                        slot_pt2_x, slot_pt2_y, slot_pt3_x, slot_pt3_y,
+                        pt_0_x, pt_0_y, pt_1_x, pt_1_y,
+                        pt_2_x, pt_2_y, pt_3_x, pt_3_y,
                         occupy_status, lock_status, lock_center_x, lock_center_y,
-                        stopper_valid, stopper_pt0_x, stopper_pt0_y, stopper_pt1_x, stopper_pt1_y,
+                        stopper_valid, stopper_0_x, stopper_0_y, stopper_1_x, stopper_1_y,
                     ])
 
                 self.last_timestamp[topic] = time_stamp
 
         elif topic == '/PK/PER/VisionSlotDecodingList':  # 模型输出车位
             frame_id = msg.frame_num
-            time_stamp = msg.timestamp / 1000
+            time_stamp = msg.time_stamp / 1000
 
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
@@ -2145,27 +2160,27 @@ class Ros2BagParser:
                 for i in range(slot_num):
                     slot = msg.slot[i]
                     p1 = slot.p1
-                    slot_pt0_x = p1.x
-                    slot_pt0_y = p1.y
+                    pt_0_x = p1.x
+                    pt_0_y = p1.y
                     p2 = slot.p2
-                    slot_pt1_x = p2.x
-                    slot_pt1_y = p2.y
+                    pt_1_x = p2.x
+                    pt_1_y = p2.y
                     p3 = slot.p3
-                    slot_pt2_x = p3.x
-                    slot_pt2_y = p3.y
+                    pt_2_x = p3.x
+                    pt_2_y = p3.y
                     p4 = slot.p4
-                    slot_pt3_x = p4.x
-                    slot_pt3_y = p4.y
-                    slot_center_x = (slot_pt0_x + slot_pt1_x + slot_pt2_x + slot_pt3_x) / 4
-                    slot_center_y = (slot_pt0_y + slot_pt1_y + slot_pt2_y + slot_pt3_y) / 4
+                    pt_3_x = p4.x
+                    pt_3_y = p4.y
+                    slot_center_x = (pt_0_x + pt_1_x + pt_2_x + pt_3_x) / 4
+                    slot_center_y = (pt_0_y + pt_1_y + pt_2_y + pt_3_y) / 4
 
                     p5 = slot.p5
-                    stopper_pt0_x = p5.x
-                    stopper_pt0_y = p5.y
+                    stopper_0_x = p5.x
+                    stopper_0_y = p5.y
                     p6 = slot.p6
-                    stopper_pt1_x = p6.x
-                    stopper_pt1_y = p6.y
-                    if stopper_pt1_x * stopper_pt1_y != 0:
+                    stopper_1_x = p6.x
+                    stopper_1_y = p6.y
+                    if stopper_1_x * stopper_1_y != 0:
                         stopper_valid = 1
                     else:
                         stopper_valid = 0
@@ -2178,10 +2193,10 @@ class Ros2BagParser:
                     queue.put([
                         local_time, time_stamp, header_stamp, header_seq, frame_id, -1,
                         10, obj_conf, slot_type, slot_center_x, slot_center_y,
-                        slot_pt0_x, slot_pt0_y, slot_pt1_x, slot_pt1_y,
-                        slot_pt2_x, slot_pt2_y, slot_pt3_x, slot_pt3_y,
+                        pt_0_x, pt_0_y, pt_1_x, pt_1_y,
+                        pt_2_x, pt_2_y, pt_3_x, pt_3_y,
                         occupy_status, lock_status,
-                        stopper_valid, stopper_pt0_x, stopper_pt0_y, stopper_pt1_x, stopper_pt1_y,
+                        stopper_valid, stopper_0_x, stopper_0_y, stopper_1_x, stopper_1_y,
                     ])
 
                 self.last_timestamp[topic] = time_stamp
@@ -2638,6 +2653,87 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
+        # Qcaft
+        elif topic in self.getTopics('qc_perception_msgs/msg/QcObstacles'):
+            time_stamp = msg.timestamp / 1000
+            frame_id = msg.frame_id
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+
+            if time_stamp != self.last_timestamp[topic]:
+                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_seq = msg.header.seq
+
+                obstacles_num = msg.obstacles_num
+                for i in range(obstacles_num):
+                    obstacle_data = msg.obstacles[i]
+                    measurement_type = obstacle_data.measurement_type
+                    if measurement_type == 1:
+                        obstacle_type = 1
+                        sub_type = 1
+                    elif measurement_type == 3:
+                        obstacle_type = 2
+                        sub_type = -1
+                    elif measurement_type == 4:
+                        obstacle_type = 18
+                        sub_type = -1
+                    elif measurement_type == 14:
+                        obstacle_type = 1
+                        sub_type = 9
+                    elif measurement_type == 27:
+                        obstacle_type = 1
+                        sub_type = 4
+                    else:
+                        continue
+
+                    measurement = obstacle_data.obstacle_data
+                    obstacle_id = measurement.track_id
+                    x = measurement.pos_x
+                    y = measurement.pos_y
+                    z = measurement.pos_z
+                    yaw = measurement.heading
+                    age = measurement.tracking_period
+                    vx = measurement.vel_x
+                    vy = measurement.vel_y
+                    length = measurement.length
+                    width = measurement.width
+                    height = measurement.height
+                    conf = measurement.existence_confidence
+                    track_status = measurement.track_status
+
+                    queue.put([
+                        local_time, time_stamp, header_stamp, header_seq, frame_id,
+                        obstacle_id, obstacle_type, conf, sub_type,
+                        x, y, z, vx, vy, yaw, length, width, height, age, track_status,
+                    ])
+
+                    self.last_timestamp[topic] = time_stamp
+
+        elif topic in self.getTopics('qc_perception_msgs/msg/QcLines'):
+            pass
+
+        elif topic in self.getTopics('qc_perception_msgs/msg/QcPose'):
+            header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+            header_seq = msg.header.seq
+            time_stamp = msg.header.timestamp
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(header_seq)
+            if time_stamp != self.last_timestamp[topic]:
+                roll = msg.roll
+                pitch = msg.pitch
+                yaw = msg.yaw
+                vx = msg.vel_smooth.x
+                vy = msg.vel_smooth.y
+                vel = msg.speed
+                trip_distance = msg.trip_distance
+
+                queue.put([
+                    local_time, time_stamp, header_stamp, header_seq,
+                    roll, pitch, yaw, vx, vy, vel, trip_distance,
+                ])
+
+                self.last_timestamp[topic] = time_stamp
+
 
 class MsgSaver:
 
@@ -2873,22 +2969,23 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/byj/ZONE/debug'
-    ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
-    folder = '/home/byj/ZONE/debug/test_data'
+    workspace = '/home/byj/Downloads/bag_with_install'
+    ros2bag_path = '/home/byj/Downloads/bag_with_install/rosbag2_2025_04_08-15_03_03'
+    folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000001/RawData'
     ES39_topic_list = [
             # '/PI/EG/EgoMotionInfo',
             # '/VA/VehicleMotionIpd',
             # '/VA/BevObstaclesDet',
             # '/VA/FrontWideObstacles2dDet',
             # '/VA/BackViewObstacles2dDet',
-            '/VA/Lines',
-            '/VA/Obstacles',
+            # '/VA/Lines',
+            # '/VA/Obstacles',
             # '/PI/FS/ObjTracksHorizon',
             # '/PK/DR/Result',
             # '/SA/INSPVA',
-            '/Camera/FrontWide/H265',
+            # '/Camera/FrontWide/H265',
+            '/PK/PER/VisionSlotDecodingList'
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20241111_155436_n000008')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')

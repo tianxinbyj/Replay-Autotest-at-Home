@@ -1882,9 +1882,9 @@ Information:
     - stopper_0_y
     - stopper_1_x
     - stopper_1_y
-    - stopper_flag
-    - occupy_flag
-    - lock_flag
+    - stopper_valid
+    - occupy_status
+    - lock_status
     additional_column:
     - type_classification
     - in_border_distance
