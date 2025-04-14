@@ -1621,6 +1621,8 @@ Information:
       /VA/BackViewObstacles2dDet: 感知Back模型
       /VA/PedResult: 地平线Ped感知
       /VA/VehicleResult: 地平线Veh感知
+      /VA/PK/BevObstaclesDet: 感知BEV模型
+      /VA/PK/Obstacles: 感知后处理
     description:
     - 将动态要素感知与真值进行时间和空间匹配,
     - 获取感知与真实动态要素的关联关系,
@@ -1789,31 +1791,31 @@ Information:
     - e. 特征准确度(accuracy)：感知车道线的曲率，类型，线型与其对应的真实车道线的符合程度.
     image: LinesTestSetup.png
     raw_column:
-      - time_stamp
-      - frame_id
-      - id
-      - confidence
-      - type
-      - position
-      - color
-      - x_points
-      - y_points
+    - time_stamp
+    - frame_id
+    - id
+    - confidence
+    - type
+    - position
+    - color
+    - x_points
+    - y_points
     additional_column:
-      - type_classification
-      - points_num
-      - c0
-      - c1
-      - c2
-      - c3
-      - heading_0
-      - heading_50
-      - length
-      - radius
+    - type_classification
+    - points_num
+    - c0
+    - c1
+    - c2
+    - c3
+    - heading_0
+    - heading_50
+    - length
+    - radius
     result_column:
-      - 召回率
-      - 准确率
-      - 横向位置误差
-      - 偏航角误差
+    - 召回率
+    - 准确率
+    - 横向位置误差
+    - 偏航角误差
     characteristic:
       total:
         name: 全局目标
@@ -1848,3 +1850,114 @@ Information:
     name: 静态障碍物
     topics:
       /VA/Objects: 感知后处理
+  Slots:
+    name: 泊车位
+    topics:
+      /PK/PER/VisionSlotDecodingList: 感知模型
+      /VA/PK/Slots: 感知后处理
+    description:
+    - 基于车位的中心位置,
+    - 获取感知与真实车位的关联关系,
+    - 在此基础上获得以下检测指标
+    - a. 召回率(recall):真实车位和限位器被感知系统检测及追踪到的比例.
+    - b. 精确率(precision):感知系统检测到的车位和限位器中, 真实存在的比例.
+    - c. 位置偏差(deviation):感知车位的角点位置, 深度和角度和限位器的位置与其对应真值的偏差.
+    - d. 特征准确度(accuracy):感知车位的类型, 限位器的状态与对应真值的符合程度.
+    image: SlotsTestSetup.png
+    raw_column:
+    - time_stamp
+    - frame_id
+    - id
+    - confidence
+    - type
+    - pt_0_x
+    - pt_0_y
+    - pt_1_x
+    - pt_1_y
+    - pt_2_x
+    - pt_2_y
+    - pt_3_x
+    - pt_3_y
+    - stopper_0_x
+    - stopper_0_y
+    - stopper_1_x
+    - stopper_1_y
+    - stopper_flag
+    - occupy_flag
+    - lock_flag
+    additional_column:
+    - type_classification
+    - in_border_distance
+    - in_border_length
+    - slot_length
+    - slot_heading
+    - stopper_depth
+    result_column:
+    - 召回率
+    - 准确率
+    - 类型准确率
+    - 内角点0纵向距离误差
+    - 内角点0横向距离误差
+    - 内角点1纵向距离误差
+    - 内角点1横向距离误差
+    - 内角点2纵向距离误差
+    - 内角点2横向距离误差
+    - 内角点3纵向距离误差
+    - 内角点3横向距离误差
+    - 入库点距离误差
+    - 入库边长度误差
+    - 车位航向角误差
+    - 车位长度误差
+    - 限位器深度误差
+    characteristic:
+      total:
+        name: 全局目标
+        description: 全部可见的车位
+    metric:
+      recall_precision:
+        name: 准召信息
+        description: 包括准确率，召回率，类型准确率，TP/FP/FN目标个数
+      conner_x_error:
+        name: 内角点纵向距离误差
+        description: 评价对内角点的纵向距离的感知能力
+      conner_y_error:
+        name: 内角点横向距离误差
+        description: 评价对内角点的横向距离的感知能力
+      in_border_distance_error:
+        name: 入库点距离误差
+        description: 评价对入库点的距离的感知能力
+      slot_length_error:
+        name: 入库边长度误差
+        description: 评价对入库边长度的感知能力
+      slot_heading_error:
+        name: 车位航向角误差
+        description: 评价对车位航向角的感知能力
+      stopper_depth_error:
+        name: 限位器深度误差
+        description: 评价对限位器深度的感知能力
+    bug_item:
+      false_positive:
+        name: 正样本误检测
+      false_negative:
+        name: 负样本漏检测
+      false_type:
+        name: 类型错误
+      conner_x_error:
+        name: 内角点纵向距离误差
+      conner_y_error:
+        name: 内角点横向距离误差
+      in_border_distance_error:
+        name: 入库点距离误差
+      slot_length_error:
+        name: 入库边长度误差
+      slot_heading_error:
+        name: 车位航向角误差
+      stopper_depth_error:
+        name: 限位器深度误差
+    type:
+      vertical:
+        name: 垂直车位
+      parallel:
+        name: 平行车位
+      oblique:
+        name: 斜列车位
