@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore")
 
 class Ros2BagWriter:
 
-    def __init__(self, workspace, product='ES37'):
+    def __init__(self, workspace, product='ES39'):
         self.last_timestamp = None
         self.frame_id_saver = None
         self.time_saver = None
@@ -32,18 +32,18 @@ class Ros2BagWriter:
                 if 'share' in ff and '.msg' in ff and 'detail' not in ff:
                     msg_list.append(ff)
 
-        # for root, dirs, files in os.walk('/opt/ros/rolling'):
-        #     for f in files:
-        #         ff = os.path.join(root, f)
-        #         if 'share' in ff and '.msg' in ff and 'detail' not in ff:
-        #             msg_list.append(ff)
+        for root, dirs, files in os.walk('/opt/ros/rolling'):
+            for f in files:
+                ff = os.path.join(root, f)
+                if 'share' in ff and '.msg' in ff and 'detail' not in ff:
+                    msg_list.append(ff)
 
         for pathstr in msg_list:
             msg_path = Path(pathstr)
             msg_def = msg_path.read_text(encoding='utf-8')
             temp = get_types_from_msg(msg_def, self.getMsgType(msg_path))
-            self.typestore.register(temp)
-
+            if list(temp.keys())[0] not in self.typestore.types.keys():
+                self.typestore.register(temp)
         print(self.typestore.types.keys())
 
     def getMsgType(self, path: Path) -> str:
@@ -99,38 +99,66 @@ class Ros2BagWriter:
 
         return init_msg[last_key], struct_abbr_corr[last_key]
 
-    def try_write(self):
+    def try_write(self, ros2bag_folder):
 
-        ros2bag = '/home/zhangliwei01/rosbag_2020_03_24'
-        if os.path.exists(ros2bag):
-            shutil.rmtree(ros2bag)
+        if os.path.exists(ros2bag_folder):
+            shutil.rmtree(ros2bag_folder)
 
-        with Writer(ros2bag) as writer:
+        with Writer(ros2bag_folder) as writer:
 
             new_topic = '/VA/Obstacles'
             topic = '/VA/Obstacles'
-            message_zero, msg_type = self.init_message(topic)
-            connection = writer.add_connection(topic=new_topic,
-                                               msgtype=msg_type,
+            message_zero_1, msg_type_1 = self.init_message(topic)
+            connection_1 = writer.add_connection(topic=new_topic,
+                                               msgtype=msg_type_1,
                                                typestore=self.typestore)
 
-            for i in range(150):
-                message = copy.deepcopy(message_zero)
-                timestamp = time.time()
+            new_topic = '/VA/Lines'
+            topic = '/VA/Lines'
+            message_zero_2, msg_type_2 = self.init_message(topic)
+            connection_2 = writer.add_connection(topic=new_topic,
+                                               msgtype=msg_type_2,
+                                               typestore=self.typestore)
+
+            t0 = time.time()
+            interval = 1/15
+            t_range = np.arange(t0, t0 + 10, interval)
+
+            for i, timestamp in enumerate(t_range):
+                timestamp = float(timestamp)
+                message = copy.deepcopy(message_zero_1)
                 message.obstacle_num = i % 64
                 message.header.stamp.sec = int(timestamp)
                 message.header.stamp.nanosec = int((timestamp - int(timestamp)) * 1e9)
                 message.exposure_time_stamp = int(timestamp * 1000)
-                print(f'writing {new_topic} {msg_type} @ {timestamp}')
-                outdata = self.typestore.serialize_cdr(message, msg_type)
-                writer.write(connection, int(timestamp * 1e9), outdata)
+                for obstacle_data in message.obstacles:
+                    obstacle_data.obstacle_id = i * 100
+                print(f'writing {new_topic} {msg_type_1} @ {timestamp}')
+                outdata = self.typestore.serialize_cdr(message, msg_type_1)
+                writer.write(connection_1, int(timestamp * 1e9), outdata)
+
+                message = copy.deepcopy(message_zero_2)
+                message.lines_num = 5
+                message.header.stamp.sec = int(timestamp)
+                message.header.stamp.nanosec = int((timestamp - int(timestamp)) * 1e9)
+                message.exposure_time_stamp = int(timestamp * 1000)
+                for line_data in message.lines:
+                    line_data.line_id = i * 100
+                    line_data.lines_3d_num = 1
+                    for line_3d in line_data.lines_3d:
+                        line_3d.width = 90
+                print(f'writing {new_topic} {msg_type_2} @ {timestamp}')
+                outdata = self.typestore.serialize_cdr(message, msg_type_2)
+                writer.write(connection_2, int(timestamp * 1e9), outdata)
+
                 time.sleep(1 / 15)
 
 
 if __name__ == '__main__':
-    workspace = '/home/zhangliwei01/ZONE/TestProject/ES37_PP_Feature_20240611/03_Workspace'
+    workspace = '/home/vcar/ZONE'
+    ros2bag_folder = '/home/vcar/ZONE/2345'
 
     WW = Ros2BagWriter(workspace)
-    WW.try_write()
+    WW.try_write(ros2bag_folder)
 
 
