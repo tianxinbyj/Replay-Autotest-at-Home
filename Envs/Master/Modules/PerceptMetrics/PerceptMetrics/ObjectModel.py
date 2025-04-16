@@ -5,6 +5,26 @@
 import numpy as np
 
 
+def convert_slot_pts_to_ego_pts(slots_pts: np.array, ctr_to_wheel_arc: float = 1.39698315):
+    # slot_pts 维度(n, 4, 2) n为车位个数,  4为车位4个角点,  2为像素值u, v
+    W, H = 1088, 1216  # AVM图像原始大小为1088*1216 车位角点像素值也是在这个尺度上
+    center_pix = np.array([[[W / 2, H / 2]]], dtype=np.float32)  # 算出图像中心的像素主
+    slots_pts -= center_pix  # 将AVM图像坐标系原点移动到自车中心
+    slots_pts = -slots_pts[:, :, ::-1]  # 颠倒uv以及其正负 配合自车坐标系定义(车辆后轴中心对地投影点为原点 车辆前进方向为X轴 指向车身左侧为Y轴 Z轴指向天空方向)
+    slots_pts *= 0.02  # 尺度转换:AVM图上 1pixel 代表 自车坐标系中0.02m
+    slots_pts[:, :, 0] += ctr_to_wheel_arc  # 将原点由自车中心移动到后轴中心
+    return slots_pts
+
+
+def convert_AVM_to_ego(u, v, ctr_to_wheel_arc: float = 1.39698315):
+    W, H = 1088, 1216
+    if u == v == -1 or u == v == 0:
+        return 0, 0
+    x = (H / 2 - v) * 0.02 + ctr_to_wheel_arc
+    y = (W / 2 - u) * 0.02
+    return x, y
+
+
 class Slot:
 
     def __init__(self, slot_type, pt_0_x, pt_0_y, pt_1_x, pt_1_y, pt_2_x, pt_2_y, pt_3_x, pt_3_y,
@@ -93,3 +113,15 @@ class Slot:
             sign = 1
 
         return sign * np.linalg.norm(np.array(point) - self.in_border_pt)
+
+
+if __name__ == '__main__':
+    data = np.array([
+        [[227.427551269531, 331.182525634766], [155.377395629883, 305.9287109375], [100.616882324219, 468.429077148438], [171.55192565918, 492.236572265625]],
+        [[227.427551269531, 331.182525634766], [155.377395629883, 305.9287109375], [100.616882324219, 468.429077148438], [171.55192565918, 492.236572265625]],
+    ])
+
+    print(convert_slot_pts_to_ego_pts(data))
+
+    u, v = 227.427551269531, 331.182525634766
+    print(convert_AVM_to_ego(u, v))

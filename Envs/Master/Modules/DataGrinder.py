@@ -23,14 +23,13 @@ from openpyxl.styles import PatternFill, Border, Side, Alignment
 from scipy.interpolate import interp1d
 from spire.xls import *
 
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from Libs import get_project_path, copy_to_destination
 from Utils.VideoProcess import image2video
 
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from Libs import get_project_path, copy_to_destination
-
 sys.path.append(get_project_path())
 
 from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length, project_path
@@ -41,7 +40,7 @@ from Utils.SSHClient import SSHClient
 from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 
 # 导入评测api
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics, ObjectModel
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.KpiGenerator import ObstaclesKpi, LinesKpi
 
 scenario_test_record_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_test_record.csv')
@@ -148,7 +147,20 @@ class DataGrinderOneCase:
                 for csv_file in sorted(csv_list, reverse=False):
                     if 'hz' not in csv_file:
                         csv_data.append(pd.read_csv(csv_file, index_col=False))
+
                 pred_data = pd.concat(csv_data).sort_values(by=['time_stamp'])[raw_column]
+                # 泊车中AVM需要转化为ego坐标系
+                if topic == '/PK/PER/VisionSlotDecodingList':
+                    for i in range(4):
+                        pred_data[f'pt_{i}_x'], pred_data[f'pt_{i}_y'] = zip(*pred_data.apply(
+                            lambda row: ObjectModel.convert_AVM_to_ego(row[f'pt_{i}_x'], row[f'pt_{i}_y']),
+                            axis=1
+                        ))
+                    for i in range(2):
+                        pred_data[f'stopper_{i}_x'], pred_data[f'stopper_{i}_y'] = zip(*pred_data.apply(
+                            lambda row: ObjectModel.convert_AVM_to_ego(row[f'stopper_{i}_x'], row[f'stopper_{i}_y']),
+                            axis=1
+                        ))
 
                 # 读取时间辍, 用于时间辍匹配
                 pred_timestamp_csv = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*hz.csv'))[0]
@@ -306,10 +318,10 @@ class DataGrinderOneCase:
                                    f'{round(x, 2)}, {round(y, 2)}, {round(z, 2)}, '
                                    f'{fov_range})')
 
-        new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
-        if os.path.exists(new_scenario_info_folder):
-            shutil.rmtree(new_scenario_info_folder)
-        os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
+            new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
+            if os.path.exists(new_scenario_info_folder):
+                shutil.rmtree(new_scenario_info_folder)
+            os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
 
     @sync_test_result
     def load_gt_data(self):
@@ -327,12 +339,15 @@ class DataGrinderOneCase:
         elif self.test_topic == 'Lines':
             gt_topic = 'line'
 
+        elif self.test_topic == 'Slots':
+            gt_topic = 'slot'
+
         else:
             send_log(self, '未知的测试主题')
             return
 
         flag = '{:s}_csv_flag'.format(gt_topic)
-        timestamp_csv_tag = '{:s}_timestamp'.format(gt_topic.split('_')[0])
+        timestamp_csv_tag = f'{gt_topic}_timestamp'
 
         if not (flag in gt_config.keys() and gt_config[flag]):
             send_log(self, f'GroundTruth 未找到{gt_topic}对应的真值文件')
@@ -366,6 +381,19 @@ class DataGrinderOneCase:
                 'y_list': 'y_points',
             }).sort_values(by=['time_stamp'])
             gt_data['confidence'] = 0.5
+
+        elif self.test_topic == 'Slots':
+            for i in range(4):
+                gt_data[f'pt_{i}_x'], gt_data[f'pt_{i}_y'] = zip(*gt_data.apply(
+                    lambda row: ObjectModel.convert_AVM_to_ego(row[f'pt_{i}_x'], row[f'pt_{i}_y']),
+                    axis=1
+                ))
+            for i in range(2):
+                gt_data[f'stopper_{i}_x'], gt_data[f'stopper_{i}_y'] = zip(*gt_data.apply(
+                    lambda row: ObjectModel.convert_AVM_to_ego(row[f'stopper_{i}_x'], row[f'stopper_{i}_y']),
+                    axis=1
+                ))
+            gt_data = gt_data.sort_values(by=['time_stamp'])
 
         # 读取时间辍, 用于时间辍匹配
         gt_timestamp_csv = \
@@ -2472,6 +2500,8 @@ class DataGrinderOneTask:
             self.output_characteristic = self.test_config['test_action']['output_characteristic']
         elif self.test_topic == 'Lines':
             self.output_characteristic = ['total']
+        elif self.test_topic == 'Slots':
+            self.output_characteristic = ['total']
         else:
             return
 
@@ -2480,10 +2510,15 @@ class DataGrinderOneTask:
         self.scenario_unit_folder = os.path.join(task_folder, '01_ScenarioUnit')
         self.tag_combination_folder = os.path.join(task_folder, '02_TagCombination')
         self.output_result_folder = os.path.join(task_folder, '03_OutputResult')
+
+        # 筛选无用场景
         topic_output_statistics_path = os.path.join(self.test_config['pred_folder'], 'topic_output_statistics.csv')
-        self.scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
-        self.valid_scenario_list = list(self.scenario_statistics[self.scenario_statistics['isValid'] == 1].index)
-        send_log(self, f'Valid Scenario为{self.valid_scenario_list}, 参与结果分析')
+        if os.path.exists(topic_output_statistics_path):
+            scenario_statistics = pd.read_csv(topic_output_statistics_path, index_col=0)
+            self.invalid_scenario_list = list(scenario_statistics[scenario_statistics['isValid'] != 1].index)
+        else:
+            self.invalid_scenario_list = []
+        send_log(self, f'Invalid Scenario为{self.invalid_scenario_list}, 参与结果分析')
 
         self.test_result_yaml = os.path.join(self.task_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
@@ -2502,13 +2537,14 @@ class DataGrinderOneTask:
         scenario_list = []
         for scenario_tag in self.test_config['scenario_tag']:
             for scenario_id in scenario_tag['scenario_id']:
-                if scenario_id in scenario_list or scenario_id not in self.valid_scenario_list:
+                if scenario_id in scenario_list or scenario_id in self.invalid_scenario_list:
                     continue
 
                 scenario_list.append(scenario_id)
                 scenario_test_config = {
                     'product': self.test_config['product'],
                     'version': self.test_config['version'],
+                    'replay_mode': self.test_config['replay_mode'],
                     'test_topic': self.test_config['test_topic'],
                     'test_date': str(self.test_config['test_date']),
                     'kpi_date_label': self.test_config['kpi_date_label'],
@@ -2536,6 +2572,12 @@ class DataGrinderOneTask:
                     ]:
                         scenario_test_config[item] = self.test_config[item]
 
+                elif self.test_topic == 'Slots':
+                    for item in [
+                        'slot_matching_tolerance',
+                    ]:
+                        scenario_test_config[item] = self.test_config[item]
+
                 scenario_run_list[scenario_id] = {
                     'scenario_unit_folder': os.path.join(self.scenario_unit_folder, scenario_id),
                     'scenario_test_config': scenario_test_config,
@@ -2555,11 +2597,8 @@ class DataGrinderOneTask:
                 yaml.dump(scenario_run_info['scenario_test_config'],
                           f, encoding='utf-8', allow_unicode=True, sort_keys=False)
 
-            if self.test_topic == 'Obstacles':
-                DataGrinderObstaclesOneCase(scenario_run_info['scenario_unit_folder']).start()
-
-            elif self.test_topic == 'Lines':
-                DataGrinderLinesOneCase(scenario_run_info['scenario_unit_folder']).start()
+            cmd = f"DataGrinder{self.test_topic}OneCase(scenario_run_info['scenario_unit_folder']).start()"
+            exec(cmd)
 
     @sync_test_result
     def combine_scenario_tag(self):
@@ -2568,7 +2607,7 @@ class DataGrinderOneTask:
         for scenario_tag in self.test_config['scenario_tag']:
             # 需要去除Broken Scenario
             valid_scenario_list = [scenario_id for scenario_id in scenario_tag['scenario_id']
-                                   if scenario_id in self.valid_scenario_list]
+                                   if scenario_id not in self.invalid_scenario_list]
             if len(valid_scenario_list):
                 tag_key = '&'.join(scenario_tag['tag'].values())
                 self.test_result['TagCombination'][tag_key] = {

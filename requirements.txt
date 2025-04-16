@@ -28,3 +28,4 @@ atlassian-python-api==3.41.1
 shapely
 ffmpeg-python
 av
+protobuf==3.20.3
