@@ -54,7 +54,9 @@ class DataGrinderOneCase:
         self.gt_ego_flag = False
         self.pred_ego_flag = False
         self.ego_velocity_generator = None
-        self.cut_frame_offset = - 1.05
+        self.video_start_time = 0
+        self.video_fps = 30
+        self.cut_frame_offset = 0
 
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
@@ -69,6 +71,7 @@ class DataGrinderOneCase:
         self.test_date = str(self.test_config['test_date'])
         self.kpi_date_label = self.test_config['kpi_date_label']
         self.truth_source = self.test_config['truth_source']
+        self.replay_mode = self.test_config['replay_mode']
 
         self.scenario_tag = self.test_config['scenario_tag']
         self.test_action = self.test_config['test_action']
@@ -323,6 +326,14 @@ class DataGrinderOneCase:
                 shutil.rmtree(new_scenario_info_folder)
             os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
 
+            video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
+            with open(video_info_path, 'r', encoding='utf-8') as file:
+                video_info = yaml.safe_load(file)
+            self.video_start_time, self.video_fps = video_info['start_time'], video_info['fps']
+
+        self.test_result['General']['video_start_time'] = self.video_start_time
+        self.test_result['General']['video_fps'] = self.video_fps
+
     @sync_test_result
     def load_gt_data(self):
         gt_config_path = os.path.join(self.gt_raw_folder, 'yaml_management.yaml')
@@ -434,10 +445,10 @@ class DataGrinderOneCase:
                 ['ego_timestamp', 'INS_Speed']].rename(
                 columns={'ego_timestamp': 'time_stamp', 'INS_Speed': 'ego_vx'})
             create_folder(os.path.join(self.DataFolder, 'General'), update=False)
-            path = os.path.join(self.DataFolder, 'General', 'gt_ego.csv')
 
-        ego_data.to_csv(path, index=False, encoding='utf_8_sig')
-        self.test_result['General']['gt_ego'] = self.get_relpath(path)
+        gt_ego_path = os.path.join(self.DataFolder, 'General', 'gt_ego.csv')
+        ego_data.to_csv(gt_ego_path, index=False, encoding='utf_8_sig')
+        self.test_result['General']['gt_ego'] = self.get_relpath(gt_ego_path)
 
     @sync_test_result
     def sync_timestamp(self):
@@ -446,27 +457,32 @@ class DataGrinderOneCase:
         baseline_data_path = self.get_abspath(self.test_result['General']['gt_ego'])
         baseline_data = pd.read_csv(baseline_data_path, index_col=False)
         baseline_time_series = baseline_data['time_stamp'].to_list()
-        calibrated_data_path = self.get_abspath(self.test_result['General']['pred_ego'])
+        if self.pred_ego_flag:
+            calibrated_data_path = self.get_abspath(self.test_result['General']['pred_ego'])
+        else:
+            calibrated_data_path = baseline_data_path
         calibrated_data = pd.read_csv(calibrated_data_path, index_col=False)
         calibrated_time_series = calibrated_data['time_stamp'].to_list()
 
-        cmd = [
-            f"{bench_config['master']['sys_interpreter']}",
-            "Api_GetTimeGap.py",
-            "-b", baseline_data_path,
-            "-c", calibrated_data_path
-        ]
+        t_delta = 0
+        if self.pred_ego_flag and self.gt_ego_flag:
+            cmd = [
+                f"{bench_config['master']['sys_interpreter']}",
+                "Api_GetTimeGap.py",
+                "-b", baseline_data_path,
+                "-c", calibrated_data_path
+            ]
 
-        print(' '.join(cmd))
-        cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'UserWarning' not in result.stderr:
-            send_log(self, f'Api_GetTimeGap 发生错误 {result.stderr}')
-        t_delta, v_error = result.stdout.strip().split('\n')[-1].split(' ')
-        t_delta = float(t_delta)
+            print(' '.join(cmd))
+            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+            if result.stderr and 'UserWarning' not in result.stderr:
+                send_log(self, f'Api_GetTimeGap 发生错误 {result.stderr}')
+            t_delta, v_error = result.stdout.strip().split('\n')[-1].split(' ')
+            t_delta = float(t_delta)
 
-        send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
-        self.test_result['General']['vel_time_gap'] = t_delta
+            send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
+            self.test_result['General']['vel_time_gap'] = t_delta
 
         if 'sa_time_gap' in self.test_result['General']:
             t_delta = self.test_result['General']['sa_time_gap']
@@ -532,10 +548,13 @@ class DataGrinderOneCase:
 
         # 图片拼接: 预览图+地图+自车车速
         overview_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_3000.png')
-        overview_img = resize_image_by_height(overview_pic_path, 900)
         map_pic_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_map.png')
-        map_pic = resize_image_by_height(map_pic_path, 900)
         ego_vx_pic = self.get_abspath(self.test_result['General']['sync_ego_figure'])
+        if not (os.path.exists(overview_pic_path) and os.path.exists(map_pic_path)):
+            return
+
+        overview_img = resize_image_by_height(overview_pic_path, 900)
+        map_pic = resize_image_by_height(map_pic_path, 900)
         ego_vx = resize_image_by_height(ego_vx_pic, 900)
 
         # 创建一个新的空白图片用于拼接
@@ -603,7 +622,7 @@ class DataGrinderOneCase:
 
             if self.test_topic == 'Obstacles':
                 input_parameter_container = {
-                    'camera': self.test_result['General']['camera_position'],
+                    # 'camera': self.test_result['General']['camera_position'],
                     'coverage_reference_point': self.test_config['coverage_reference_point'],
                     'coverage_threshold': self.test_config['coverage_threshold'],
                     'ROI': self.test_config['detected_ROI'][topic],
@@ -683,7 +702,7 @@ class DataGrinderOneCase:
 
                 if self.test_topic == 'Obstacles':
                     input_parameter_container = {
-                        'camera': self.test_result['General']['camera_position'],
+                        # 'camera': self.test_result['General']['camera_position'],
                         'coverage_reference_point': self.test_config['coverage_reference_point'],
                         'coverage_threshold': self.test_config['coverage_threshold'],
                         'ROI': self.test_config['detected_ROI'][topic],
@@ -940,10 +959,8 @@ class DataGrinderOneCase:
             return sorted(corresponding_indices)
 
         # 时间戳换算为帧数，进行视频截图
-        video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
-        with open(video_info_path, 'r', encoding='utf-8') as file:
-            video_info = yaml.safe_load(file)
-        video_start_time, fps = video_info['start_time'] + self.cut_frame_offset, video_info['fps']
+        video_start_time = self.test_result['General']['video_start_time'] + self.cut_frame_offset
+        fps = self.test_result['General']['video_fps']
         # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
         video_snap_dict = {}
 
@@ -1049,172 +1066,173 @@ class DataGrinderOneCase:
                             json.dump(bug_info, f, ensure_ascii=False, indent=4)
 
         # 启用ssh_client, 按照相机批量截图并复制到本机
-        replay_client = SSHClient()
-        video_snap_folder = os.path.join(self.BugFolder, 'General')
-        create_folder(video_snap_folder)
+        if not self.replay_mode.lower() == 'ethernet':
+            replay_client = SSHClient()
+            video_snap_folder = os.path.join(self.BugFolder, 'General')
+            create_folder(video_snap_folder)
 
-        for camera, frame_index_list in video_snap_dict.items():
-            camera_folder = os.path.join(video_snap_folder, camera)
-            create_folder(camera_folder)
+            for camera, frame_index_list in video_snap_dict.items():
+                camera_folder = os.path.join(video_snap_folder, camera)
+                create_folder(camera_folder)
 
-            replay_client.cut_frames(scenario_id=self.scenario_id,
-                                     frame_index_list=sorted(frame_index_list),
-                                     camera=camera,
-                                     local_folder=camera_folder)
+                replay_client.cut_frames(scenario_id=self.scenario_id,
+                                         frame_index_list=sorted(frame_index_list),
+                                         camera=camera,
+                                         local_folder=camera_folder)
 
-        # 将bug需要ps的内容保存为一个json，批量处理
-        bug_label_info_list = []
-        for topic in self.test_result[self.test_topic].keys():
-            if topic == 'GroundTruth':
-                continue
+            # 将bug需要ps的内容保存为一个json，批量处理
+            bug_label_info_list = []
+            for topic in self.test_result[self.test_topic].keys():
+                if topic == 'GroundTruth':
+                    continue
 
-            for characteristic in self.test_result[self.test_topic][topic]['bug']:
-                for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][
-                    characteristic].items():
+                for characteristic in self.test_result[self.test_topic][topic]['bug']:
+                    for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][
+                        characteristic].items():
 
-                    for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
+                        for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
 
-                        send_log(self, f'汇总 {topic} {characteristic} {bug_type} {time_stamp} camera截图数据')
-                        one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
-                        bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
-                        with open(bug_info_json, 'r', encoding='utf-8') as f:
-                            bug_info = json.load(f)
+                            send_log(self, f'汇总 {topic} {characteristic} {bug_type} {time_stamp} camera截图数据')
+                            one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
+                            bug_info_json = os.path.join(one_bug_folder, 'bug_info.json')
+                            with open(bug_info_json, 'r', encoding='utf-8') as f:
+                                bug_info = json.load(f)
 
-                        frame_index = round((float(time_stamp) - video_start_time) * fps)
-                        bug_label_info = {
-                            'scenario_id': self.scenario_id,
-                            'frame_index': frame_index,
-                            'time_stamp': float(time_stamp),
-                            'camera_label_info': {}
-                        }
-
-                        for camera in bug_info['camera']:
-                            bug_label_info['camera_label_info'][camera] = {
-                                'origin_shot': os.path.join(self.BugFolder, 'General', camera,
-                                                            f'{frame_index}.jpg'),
-                                'process_shot': os.path.join(one_bug_folder,
-                                                             f'{camera}-{self.scenario_id}-{frame_index}.jpg'),
-                                'label_info': []
-                            }
-                            one_label_info = {
-                                'bug_type': bug_type,
+                            frame_index = round((float(time_stamp) - video_start_time) * fps)
+                            bug_label_info = {
+                                'scenario_id': self.scenario_id,
+                                'frame_index': frame_index,
+                                'time_stamp': float(time_stamp),
+                                'camera_label_info': {}
                             }
 
-                            if self.test_topic == 'Obstacles':
-                                if bug_info['gt.flag'] == 1:
-                                    # 箭头
-                                    one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
-                                                                  bug_info['gt.height']]
-                                    # 8个角点也放进去
-                                    one_label_info['gt_corner'] = {
-                                        'bottom': [
-                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
-                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
-                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
-                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
-                                        ],
-                                        'top': [
-                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
-                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
-                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
-                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
+                            for camera in bug_info['camera']:
+                                bug_label_info['camera_label_info'][camera] = {
+                                    'origin_shot': os.path.join(self.BugFolder, 'General', camera,
+                                                                f'{frame_index}.jpg'),
+                                    'process_shot': os.path.join(one_bug_folder,
+                                                                 f'{camera}-{self.scenario_id}-{frame_index}.jpg'),
+                                    'label_info': []
+                                }
+                                one_label_info = {
+                                    'bug_type': bug_type,
+                                }
+
+                                if self.test_topic == 'Obstacles':
+                                    if bug_info['gt.flag'] == 1:
+                                        # 箭头
+                                        one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
+                                                                      bug_info['gt.height']]
+                                        # 8个角点也放进去
+                                        one_label_info['gt_corner'] = {
+                                            'bottom': [
+                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                            ],
+                                            'top': [
+                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
+                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
+                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
+                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
+                                            ]
+                                        }
+
+                                    if bug_info['pred.flag'] == 1:
+                                        # 箭头
+                                        one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
+                                                                        bug_info['pred.height']]
+                                        # 8个角点也放进去
+                                        one_label_info['pred_corner'] = {
+                                            'bottom': [
+                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
+                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
+                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
+                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
+                                            ],
+                                            'top': [
+                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'],
+                                                 bug_info['pred.height']],
+                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'],
+                                                 bug_info['pred.height']],
+                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'],
+                                                 bug_info['pred.height']],
+                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'],
+                                                 bug_info['pred.height']],
+                                            ]
+                                        }
+
+                                    if bug_info['gt.flag'] == 1:
+                                        one_label_info['center'] = [
+                                            bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
                                         ]
-                                    }
-
-                                if bug_info['pred.flag'] == 1:
-                                    # 箭头
-                                    one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
-                                                                    bug_info['pred.height']]
-                                    # 8个角点也放进去
-                                    one_label_info['pred_corner'] = {
-                                        'bottom': [
-                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
-                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
-                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
-                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
-                                        ],
-                                        'top': [
-                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'],
-                                             bug_info['pred.height']],
-                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'],
-                                             bug_info['pred.height']],
-                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'],
-                                             bug_info['pred.height']],
-                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'],
-                                             bug_info['pred.height']],
+                                    else:
+                                        one_label_info['center'] = [
+                                            bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
                                         ]
-                                    }
 
-                                if bug_info['gt.flag'] == 1:
-                                    one_label_info['center'] = [
-                                        bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
-                                    ]
-                                else:
-                                    one_label_info['center'] = [
-                                        bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
-                                    ]
+                                elif self.test_topic == 'Lines':
+                                    if bug_info['gt.flag'] == 1:
+                                        x_points = [float(x) for x in bug_info['gt.x_points'].split(',')]
+                                        y_points = [float(y) for y in bug_info['gt.y_points'].split(',')]
 
-                            elif self.test_topic == 'Lines':
-                                if bug_info['gt.flag'] == 1:
-                                    x_points = [float(x) for x in bug_info['gt.x_points'].split(',')]
-                                    y_points = [float(y) for y in bug_info['gt.y_points'].split(',')]
+                                        # 箭头
+                                        len_pt = len(x_points)
+                                        one_label_info['gt_arrow'] = [x_points[len_pt // 2],
+                                                                      y_points[len_pt // 2],
+                                                                      0]
 
-                                    # 箭头
-                                    len_pt = len(x_points)
-                                    one_label_info['gt_arrow'] = [x_points[len_pt // 2],
-                                                                  y_points[len_pt // 2],
-                                                                  0]
+                                        # 车道线的点也点放进去
+                                        one_label_info['gt_line'] = []
+                                        for x, y in zip(x_points, y_points):
+                                            one_label_info['gt_line'].append([x, y, 0])
 
-                                    # 车道线的点也点放进去
-                                    one_label_info['gt_line'] = []
-                                    for x, y in zip(x_points, y_points):
-                                        one_label_info['gt_line'].append([x, y, 0])
+                                    if bug_info['pred.flag'] == 1:
+                                        x_points = [float(x) for x in bug_info['pred.x_points'].split(',')]
+                                        y_points = [float(y) for y in bug_info['pred.y_points'].split(',')]
 
-                                if bug_info['pred.flag'] == 1:
-                                    x_points = [float(x) for x in bug_info['pred.x_points'].split(',')]
-                                    y_points = [float(y) for y in bug_info['pred.y_points'].split(',')]
+                                        # 箭头
+                                        len_pt = len(x_points)
+                                        one_label_info['pred_arrow'] = [x_points[len_pt // 2],
+                                                                        y_points[len_pt // 2],
+                                                                        0]
 
-                                    # 箭头
-                                    len_pt = len(x_points)
-                                    one_label_info['pred_arrow'] = [x_points[len_pt // 2],
-                                                                    y_points[len_pt // 2],
-                                                                    0]
+                                        # 车道线的点也点放进去
+                                        one_label_info['pred_line'] = []
+                                        for x, y in zip(x_points, y_points):
+                                            one_label_info['pred_line'].append([x, y, 0])
 
-                                    # 车道线的点也点放进去
-                                    one_label_info['pred_line'] = []
-                                    for x, y in zip(x_points, y_points):
-                                        one_label_info['pred_line'].append([x, y, 0])
+                                    if bug_info['gt.flag'] == 1:
+                                        one_label_info['center'] = one_label_info['gt_arrow']
+                                    else:
+                                        one_label_info['center'] = one_label_info['pred_arrow']
 
-                                if bug_info['gt.flag'] == 1:
-                                    one_label_info['center'] = one_label_info['gt_arrow']
-                                else:
-                                    one_label_info['center'] = one_label_info['pred_arrow']
+                                bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
-                            bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
+                            bug_label_info_list.append(bug_label_info)
 
-                        bug_label_info_list.append(bug_label_info)
+            bug_label_info_json = os.path.join(self.BugFolder, 'General', 'bug_label_info.json')
+            with open(bug_label_info_json, 'w') as json_file:
+                json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
 
-        bug_label_info_json = os.path.join(self.BugFolder, 'General', 'bug_label_info.json')
-        with open(bug_label_info_json, 'w') as json_file:
-            json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
+            calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
 
-        calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
+            # 调用给视频截图增加箭头的端口
+            cmd = [
+                f"{bench_config['master']['sys_interpreter']}",
+                "Api_ProcessVideoShot.py",
+                "-c",
+                calibration,
+                "-a",
+                bug_label_info_json
+            ]
 
-        # 调用给视频截图增加箭头的端口
-        cmd = [
-            f"{bench_config['master']['sys_interpreter']}",
-            "Api_ProcessVideoShot.py",
-            "-c",
-            calibration,
-            "-a",
-            bug_label_info_json
-        ]
-
-        print(' '.join(cmd))
-        cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'UserWarning' not in result.stderr:
-            send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
+            print(' '.join(cmd))
+            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+            if result.stderr and 'UserWarning' not in result.stderr:
+                send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
     def bug_report(self):
@@ -1432,10 +1450,8 @@ class DataGrinderOneCase:
     def sketch_render(self):
 
         # 时间戳换算为帧数，进行视频截图
-        video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
-        with open(video_info_path, 'r', encoding='utf-8') as file:
-            video_info = yaml.safe_load(file)
-        video_start_time, fps = video_info['start_time'] + self.cut_frame_offset, video_info['fps']
+        video_start_time = self.test_result['General']['video_start_time'] + self.cut_frame_offset
+        fps = self.test_result['General']['video_fps']
         # 将所有需要截图的时间辍都保存起来，统一交给ReplayClient视频截图
         video_snap_dict = {}
 
@@ -2415,20 +2431,21 @@ class DataGrinderOneCase:
 
     def which_camera_saw_you(self, x, y):
         valid_camera = []
-        for camera in self.camera_list:
-            camera_parameter = self.test_result['General']['camera_position'][camera]
-            azimuth = np.arctan2(y - camera_parameter['y'], x - camera_parameter['x'])
-            if azimuth < 0:
-                azimuth += 2 * np.pi
-            azimuth = np.rad2deg(azimuth)
+        if 'camera_position' in self.test_result['General']:
+            for camera in self.camera_list:
+                camera_parameter = self.test_result['General']['camera_position'][camera]
+                azimuth = np.arctan2(y - camera_parameter['y'], x - camera_parameter['x'])
+                if azimuth < 0:
+                    azimuth += 2 * np.pi
+                azimuth = np.rad2deg(azimuth)
 
-            angle_min, angle_max = camera_parameter['fov'][0], camera_parameter['fov'][1]
-            if angle_min >= 0:
-                if angle_min <= azimuth < angle_max:
-                    valid_camera.append(camera)
-            else:
-                if angle_min + 360 <= azimuth or azimuth <= angle_max:
-                    valid_camera.append(camera)
+                angle_min, angle_max = camera_parameter['fov'][0], camera_parameter['fov'][1]
+                if angle_min >= 0:
+                    if angle_min <= azimuth < angle_max:
+                        valid_camera.append(camera)
+                else:
+                    if angle_min + 360 <= azimuth or azimuth <= angle_max:
+                        valid_camera.append(camera)
 
         return valid_camera
 
@@ -3337,12 +3354,15 @@ class DataGrinderOneTask:
             frame, distance = 0, 0
             for scenario_id in scenario_ids:
                 video_info_path = os.path.join(self.scenario_unit_folder, scenario_id, '00_ScenarioInfo', 'video_info.yaml')
-                with open(video_info_path, 'r', encoding='utf-8') as file:
-                    video_info = yaml.safe_load(file)
-                frame += round(video_info['duration'] * video_info['fps'] * 291 / 300)
+                if os.path.exists(video_info_path):
+                    with open(video_info_path, 'r', encoding='utf-8') as file:
+                        video_info = yaml.safe_load(file)
+                    frame += round(video_info['duration'] * video_info['fps'] * 291 / 300)
+
                 ego_vx_path = os.path.join(self.scenario_unit_folder, scenario_id, '01_Data', 'General', 'pred_ego.csv')
-                ego_vx = pd.read_csv(ego_vx_path, index_col=False)
-                distance += np.ceil((ego_vx['time_stamp'].max() - ego_vx['time_stamp'].min()) * ego_vx['ego_vx'].mean() / 1000)
+                if os.path.exists(ego_vx_path):
+                    ego_vx = pd.read_csv(ego_vx_path, index_col=False)
+                    distance += np.ceil((ego_vx['time_stamp'].max() - ego_vx['time_stamp'].min()) * ego_vx['ego_vx'].mean() / 1000)
 
             total_frame += frame
             total_distance += distance
@@ -4206,14 +4226,15 @@ class DataGrinderOneTask:
             img_list = []
             for i, scenario_id in enumerate(self.test_result['TagCombination'][scenario_tag]['scenario_id']):
                 scenario_info_img = os.path.join(self.output_result_folder, 'visualization', scenario_tag, f'{scenario_id}.jpg')
-                img_list.append([scenario_info_img])
-                img_count += 1
-                if img_count == 3 or i == len(self.test_result['TagCombination'][scenario_tag]['scenario_id'])-1:
-                    report_generator.addOnePage(heading=f'{scenario_tag} 测试场景',
-                                                text_list=None,
-                                                img_list=img_list)
-                    img_list = []
-                    img_count = 0
+                if os.path.exists(scenario_info_img):
+                    img_list.append([scenario_info_img])
+                    img_count += 1
+                    if img_count == 3 or i == len(self.test_result['TagCombination'][scenario_tag]['scenario_id'])-1:
+                        report_generator.addOnePage(heading=f'{scenario_tag} 测试场景',
+                                                    text_list=None,
+                                                    img_list=img_list)
+                        img_list = []
+                        img_count = 0
 
         # 测试环境
         heading = '测试环境——硬件在环 | 数采回灌'

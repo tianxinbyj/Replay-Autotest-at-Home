@@ -1646,8 +1646,6 @@ Information:
     - z
     - vx
     - vy
-    - vx_rel
-    - vy_rel
     - yaw
     - length
     - width

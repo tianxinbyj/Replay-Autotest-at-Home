@@ -1100,6 +1100,7 @@ topic2msg = {
     '/PI/CUS/HMIOutputES33': 'cus_app_msgs/msg/HmiES33',
     '/PP/CUS/FctDebug': 'cus_app_msgs/msg/FctDebug',
     '/VA/QC/BEVObstaclesTracks': 'qc_perception_msgs/msg/QcObstacles',
+    '/VA/QC/MonoObstaclesTracks': 'qc_perception_msgs/msg/QcObstacles',
     '/VA/QC/FsObstacles': 'qc_perception_msgs/msg/QcObstacles',
     '/VA/QC/Lines': 'qc_perception_msgs/msg/QcLines',
     '/VA/QC/Objects': 'qc_perception_msgs/msg/QcObjects',
@@ -2970,8 +2971,8 @@ class Ros2BagClip:
 
 if __name__ == "__main__":
     workspace = '/home/byj/Downloads/bag_with_install'
-    ros2bag_path = '/home/byj/Downloads/bag_with_install/rosbag2_2025_04_08-15_03_03'
-    folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000001/RawData'
+    ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
+    folder = '/home/byj/ZONE/debug/test_data'
     ES39_topic_list = [
             # '/PI/EG/EgoMotionInfo',
             # '/VA/VehicleMotionIpd',
@@ -2983,8 +2984,8 @@ if __name__ == "__main__":
             # '/PI/FS/ObjTracksHorizon',
             # '/PK/DR/Result',
             # '/SA/INSPVA',
-            # '/Camera/FrontWide/H265',
-            '/PK/PER/VisionSlotDecodingList'
+            '/Camera/FrontWide/H265',
+            # '/PK/PER/VisionSlotDecodingList'
     ]
 
     RBP = Ros2BagParser(workspace)
