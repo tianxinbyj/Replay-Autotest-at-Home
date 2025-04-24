@@ -2650,7 +2650,7 @@ class Ros2BagParser:
                 queue.put([
                     local_time, time_stamp, frame_id, format_
                 ])
-                print(time_stamp, msg.data.shape, type(msg.data), msg.data.tolist()[:20])
+                print(f'{time_stamp:03f}', msg.data.shape, msg.data.tolist()[:20])
 
                 self.last_timestamp[topic] = time_stamp
 
@@ -2970,12 +2970,13 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/byj/Downloads/bag_with_install'
-    ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
-    folder = '/home/byj/ZONE/debug/test_data'
+    workspace = '/home/byj/ZONE/TestProject/ParkingDebug/03_Workspace'
+    ros2bag_path = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000001/rosbag2_2025_04_24-15_56_18'
+    # ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
+    folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000001/RawData'
     ES39_topic_list = [
             # '/PI/EG/EgoMotionInfo',
-            # '/VA/VehicleMotionIpd',
+            '/VA/VehicleMotionIpd',
             # '/VA/BevObstaclesDet',
             # '/VA/FrontWideObstacles2dDet',
             # '/VA/BackViewObstacles2dDet',
@@ -2983,9 +2984,15 @@ if __name__ == "__main__":
             # '/VA/Obstacles',
             # '/PI/FS/ObjTracksHorizon',
             # '/PK/DR/Result',
-            # '/SA/INSPVA',
-            '/Camera/FrontWide/H265',
-            # '/PK/PER/VisionSlotDecodingList'
+            '/SA/INSPVA',
+            # '/Camera/FrontWide/H265',
+            '/PK/PER/VisionSlotDecodingList',
+            # '/VA/QC/BEVObstaclesTracks',
+            # '/VA/QC/MonoObstaclesTracks',
+            # '/VA/QC/FsObstacles',
+            # '/VA/QC/Lines',
+            # '/VA/QC/Objects',
+            # '/VA/QC/Pose',
     ]
 
     RBP = Ros2BagParser(workspace)

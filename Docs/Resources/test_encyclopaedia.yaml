@@ -1615,8 +1615,13 @@ Information:
     name: 动态障碍物
     topics:
       /VA/Obstacles: 感知后处理
+      /VA/QC/FsObstacles: Q感知后处理
       /PI/FS/ObjTracksHorizon: 感知融合
       /VA/BevObstaclesDet: 感知BEV模型
+      /VA/BevObstaclesDet50: 感知BEV模型50
+      /VA/BevObstaclesDet100: 感知BEV模型100
+      /VA/QC/BEVObstaclesTracks: Q感知BEV模型
+      /VA/QC/MonoObstaclesTracks: Q感知Mono模型
       /VA/FrontWideObstacles2dDet: 感知Front模型
       /VA/BackViewObstacles2dDet: 感知Back模型
       /VA/PedResult: 地平线Ped感知
