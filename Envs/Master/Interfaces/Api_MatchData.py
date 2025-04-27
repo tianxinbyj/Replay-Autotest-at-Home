@@ -5,13 +5,12 @@
 import argparse
 import json
 import sys
-import pandas as pd
 
 from Libs import get_project_path
 
 sys.path.append(get_project_path())
 
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MatchTool import ObstaclesMatchTool, LinesMatchTool
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MatchTool import *
 
 
 def main():
@@ -33,6 +32,8 @@ def main():
         match_tool = ObstaclesMatchTool()
     elif parameter_json['test_topic'] == 'Lines':
         match_tool = LinesMatchTool()
+    elif parameter_json['test_topic'] == 'Slots':
+        match_tool = SlotsMatchTool()
     else:
         return
 

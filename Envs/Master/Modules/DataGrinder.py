@@ -23,7 +23,6 @@ from openpyxl.styles import PatternFill, Border, Side, Alignment
 from scipy.interpolate import interp1d
 from spire.xls import *
 
-
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from Libs import get_project_path, copy_to_destination
 from Utils.VideoProcess import image2video
@@ -855,6 +854,11 @@ class DataGrinderOneCase:
             elif self.test_topic == 'Lines':
                 input_parameter_container = {
                     'lane_matching_width': self.test_config['lane_matching_width'],
+                    'test_topic': self.test_topic,
+                }
+            elif self.test_topic == 'Slots':
+                input_parameter_container = {
+                    'slot_matching_tolerance': self.test_config['slot_matching_tolerance'],
                     'test_topic': self.test_topic,
                 }
 

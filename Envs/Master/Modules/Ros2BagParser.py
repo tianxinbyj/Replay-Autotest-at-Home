@@ -1036,7 +1036,7 @@ data_columns = {
         ],
     'parking_perception_msgs/msg/VisionSlotDecodingList':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id', 'id',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id', 'id',
             'obj_type', 'confidence', 'type', 'slot_center_x', 'slot_center_y',
             'pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y',
             'pt_2_x', 'pt_2_y', 'pt_3_x', 'pt_3_y',
@@ -2158,7 +2158,9 @@ class Ros2BagParser:
                 header_seq = msg.header.seq
 
                 slot_num = msg.slot_num
+                slot_id = (frame_id * 64) % 200000
                 for i in range(slot_num):
+                    slot_id += 1
                     slot = msg.slot[i]
                     p1 = slot.p1
                     pt_0_x = p1.x
@@ -2192,7 +2194,7 @@ class Ros2BagParser:
                     occupy_status = slot.status  # 0: Unknown; 1: Occupied; 2: Not occupied
 
                     queue.put([
-                        local_time, time_stamp, header_stamp, header_seq, frame_id, -1,
+                        local_time, time_stamp, header_stamp, header_seq, frame_id, slot_id,
                         10, obj_conf, slot_type, slot_center_x, slot_center_y,
                         pt_0_x, pt_0_y, pt_1_x, pt_1_y,
                         pt_2_x, pt_2_y, pt_3_x, pt_3_y,

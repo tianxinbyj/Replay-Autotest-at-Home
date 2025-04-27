@@ -28,7 +28,7 @@ def convert_AVM_to_ego(u, v, ctr_to_wheel_arc: float = 1.39698315):
 class Slot:
 
     def __init__(self, slot_type, pt_0_x, pt_0_y, pt_1_x, pt_1_y, pt_2_x, pt_2_y, pt_3_x, pt_3_y,
-                 stopper_1_x=0, stopper_1_y=0, stopper_2_x=0, stopper_2_y=0):
+                 stopper_0_x=0, stopper_0_y=0, stopper_1_x=0, stopper_1_y=0):
         self.pt = {
             0: np.array([pt_0_x, pt_0_y]),
             1: np.array([pt_1_x, pt_1_y]),
@@ -37,11 +37,11 @@ class Slot:
         }
 
         self.stopper_flag = 1
-        if stopper_1_x + stopper_1_y + stopper_2_x + stopper_2_y == 0:
+        if stopper_0_x + stopper_0_y + stopper_1_x + stopper_1_y == 0:
             self.stopper_flag = 0
         self.stp_pt = {
-            0 : np.array([stopper_1_x, stopper_1_y]),
-            1 : np.array([stopper_2_x, stopper_2_y]),
+            0 : np.array([stopper_0_x, stopper_0_y]),
+            1 : np.array([stopper_1_x, stopper_1_y]),
         }
         self.stp_center = (self.stp_pt[0] + self.stp_pt[1]) / 2
 
@@ -57,11 +57,11 @@ class Slot:
         self.slot_length = (np.linalg.norm(self.pt[0] - self.pt[2]) + np.linalg.norm(self.pt[1] - self.pt[3])) / 2
 
         if slot_type in [1, 3]:
-            self.heading = np.arccos(
+            self.slot_heading = np.arccos(
                 np.dot(self.in_border_pt - self.end_border_pt, np.array([1, 0])) / np.linalg.norm(
                     self.in_border_pt - self.end_border_pt))
         else:
-            self.heading = np.arccos(
+            self.slot_heading = np.arccos(
                 np.dot(self.border03_pt - self.border12_pt, np.array([1, 0])) / np.linalg.norm(
                     self.border03_pt - self.border12_pt))
 
