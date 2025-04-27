@@ -2,15 +2,12 @@
 @Author: BU YUJUN
 @Date: 2024/7/8 上午9:57  
 """
+import pandas as pd
+import numpy as np
+from typing import List, Tuple
 from scipy.integrate import quad
 from scipy.signal import savgol_filter
-
-if 'numpy' not in globals():
-    import numpy as np
-
-from typing import List, Tuple
-import pandas as pd
-from scipy.interpolate import interp1d, CubicSpline
+from scipy.interpolate import interp1d
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -28,7 +25,12 @@ obstacles_parameter_container = {
 
 lines_parameter_container = {
     'lane_width': 3.6,
-    'if_gt': True
+}
+
+
+slots_parameter_container = {
+    'ROI': {'x': [-12, 15], 'y': [-6, 6]},
+    'region': {1: {'x': [-12, 15], 'y': [-6, 6]}},
 }
 
 
@@ -108,6 +110,9 @@ def calculate_time_gap(
     return t_delta, res['v_error'].min()
 
 
+# ================= Obstacles ==================
+
+
 def calculate_angle(x, y, z=None):
     """
     返回的azimuth是0-360度内的弧度, elevation是-90到90的弧度
@@ -152,10 +157,11 @@ class ObstaclesTypeClassification:
             type_ = input_data['type']
             sub_type = input_data['sub_type']
             length = input_data['length']
+            height = input_data['height']
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 3):
-            type_, sub_type, length = input_data
+              and len(input_data) == 4):
+            type_, sub_type, length, height = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -172,7 +178,7 @@ class ObstaclesTypeClassification:
             elif sub_type == 4:
                 return 'DRU', self.type_text[4]
             else:
-                if length <= 5.99:
+                if length <= 5.99 and height <= 2.8:
                     return 'DRU', self.type_text[1]
                 else:
                     return 'DRU', self.type_text[5]
@@ -750,6 +756,10 @@ class ObstaclesPreprocess:
         return data
 
 
+# ==========================================
+# =================== Lines ===================
+
+
 class LinesTypeClassification:
     """
     对车道线进行分类，分为主车道线，次车道线，道路边沿
@@ -773,11 +783,10 @@ class LinesTypeClassification:
         if isinstance(input_data, dict):
             type_ = input_data['type']
             position = input_data['position']
-            c0 = input_data['c0']
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 3):
-            type_, position, c0 = input_data
+              and len(input_data) == 2):
+            type_, position = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
@@ -1230,16 +1239,238 @@ class LinesPreprocess:
         return data[data['length'] >= 2].sort_values(by=['time_stamp', 'c0'])
 
 
+# ==========================================
+# =================== Slots ===================
+
+
+class SlotsTypeClassification:
+    """
+    对车道线进行分类，分为主车道线，次车道线，道路边沿
+
+    """
+
+    def __init__(self, input_parameter_container=None):
+        self.columns = [
+            'reserved_lines_type',
+            'type_classification'
+        ]
+        self.type = 'by_row'
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            type_ = input_data['type']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 1):
+            type_, = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        # 第一个为保留位
+        if type_ == 1:
+            return 'reserved_slots_type', 'vertical'
+        elif type_ == 2:
+            return 'reserved_slots_type', 'parallel'
+        elif type_ == 3:
+            return 'reserved_slots_type', 'oblique'
+        else:
+            return 'reserved_slots_type', None
+
+
+class SlotsAttributes:
+
+    def __init__(self, input_parameter_container=None):
+        self.columns = [
+            'in_border_distance',
+            'in_border_length',
+            'slot_length',
+            'slot_heading',
+            'stopper_depth',
+            'slot_distance',
+        ]
+        self.type = 'by_row'
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            slot_type = input_data['type']
+            pt_0_x = input_data['pt_0_x']
+            pt_0_y = input_data['pt_0_y']
+            pt_1_x = input_data['pt_1_x']
+            pt_1_y = input_data['pt_1_y']
+            pt_2_x = input_data['pt_2_x']
+            pt_2_y = input_data['pt_2_y']
+            pt_3_x = input_data['pt_3_x']
+            pt_3_y = input_data['pt_3_y']
+            stopper_0_x = input_data['stopper_0_x']
+            stopper_0_y = input_data['stopper_0_y']
+            stopper_1_x = input_data['stopper_1_x']
+            stopper_1_y = input_data['stopper_1_y']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 13):
+            (slot_type, pt_0_x, pt_0_y, pt_1_x, pt_1_y,
+             pt_2_x, pt_2_y,  pt_3_x, pt_3_y,
+             stopper_0_x, stopper_0_y, stopper_1_x, stopper_1_y) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        slot = Slot(slot_type, pt_0_x, pt_0_y, pt_1_x, pt_1_y, pt_2_x, pt_2_y, pt_3_x, pt_3_y,
+                    stopper_0_x, stopper_0_y, stopper_1_x, stopper_1_y)
+
+        return (slot.in_border_distance, slot.in_border_length, slot.slot_length,
+                slot.slot_heading, slot.stopper_depth, slot.get_slot_distance())
+
+
+class SlotsRegion:
+
+    def __init__(self, input_parameter_container=None):
+        self.columns = [
+            'center_x',
+            'center_y',
+            'is_detectedValid',
+            'region',
+        ]
+        self.type = 'by_row'
+
+        if isinstance(input_parameter_container, dict):
+            self.ROI = input_parameter_container['ROI']
+            self.region = input_parameter_container['region']
+        else:
+            self.ROI = slots_parameter_container['ROI']
+            self.region = input_parameter_container['region']
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            pt_0_x = input_data['pt_0_x']
+            pt_0_y = input_data['pt_0_y']
+            pt_1_x = input_data['pt_1_x']
+            pt_1_y = input_data['pt_1_y']
+            pt_2_x = input_data['pt_2_x']
+            pt_2_y = input_data['pt_2_y']
+            pt_3_x = input_data['pt_3_x']
+            pt_3_y = input_data['pt_3_y']
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 13):
+            (pt_0_x, pt_0_y, pt_1_x, pt_1_y,
+             pt_2_x, pt_2_y,  pt_3_x, pt_3_y) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        center_x = (pt_0_x + pt_1_x + pt_2_x + pt_3_x) / 4
+        center_y = (pt_0_y + pt_1_y + pt_2_y + pt_3_y) / 4
+        pt_center = {
+            'x': center_x, 'y': center_y,
+        }
+
+        is_detectedValid = int(self.check_with_dict(pt_center, self.ROI))
+        for region_num, region_roi in self.region.items():
+            is_inRegion = self.check_with_dict(pt_center, region_roi)
+            if is_inRegion:
+                return center_x, center_y, is_detectedValid, region_num
+
+        return center_x, center_y, is_detectedValid, 0
+
+    def check_with_dict(self, pt, roi_dict):
+        is_valid_list = []
+        for range_type, range_value in roi_dict.items():
+            if range_type in ['x', 'y']:
+
+                # 需要判断是否嵌套了表格，他们的关系为或
+                if isinstance(range_value[0], float) or isinstance(range_value[0], int):
+                    is_valid = range_value[0] <= pt[range_type] <= range_value[1]
+                    is_valid_list.append(is_valid)
+
+                elif isinstance(range_value[0], list) or isinstance(range_value[0], tuple):
+                    is_valid = any(
+                        [sub_range_value[0] <= pt[range_type] <= sub_range_value[1] for sub_range_value in range_value])
+                    is_valid_list.append(is_valid)
+
+            elif range_type == 'azimuth':
+
+                # 需要判断是否嵌套了表格，他们的关系为或
+                if isinstance(range_value[0], float) or isinstance(range_value[0], int):
+                    angle_min, angle_max = range_value[0], range_value[1]
+                    x_ref, y_ref, _ = range_value[2]
+
+                    is_valid = self.check_angle(pt['x'], pt['y'], x_ref, y_ref, angle_min, angle_max)
+                    is_valid_list.append(is_valid)
+
+                elif isinstance(range_value[0], list) or isinstance(range_value[0], tuple):
+                    sub_is_valid_list = []
+
+                    for sub_range_value in range_value:
+                        angle_min, angle_max = sub_range_value[0], sub_range_value[1]
+                        x_ref, y_ref, _ = sub_range_value[2]
+
+                        sub_is_valid = self.check_angle(pt['x'], pt['y'], x_ref, y_ref, angle_min, angle_max)
+                        sub_is_valid_list.append(sub_is_valid)
+
+                    is_valid = any(sub_is_valid_list)
+                    is_valid_list.append(is_valid)
+
+        return all(is_valid_list)
+
+
+class SlotsPreprocess:
+
+    def __init__(self, preprocess_types=None):
+        if preprocess_types is None:
+            self.preprocess_types = [
+                'SlotsRegion',
+            ]
+        else:
+            self.preprocess_types = preprocess_types
+
+    def run(self, data, input_parameter_container):
+        # 增加age
+        id_counts = data['id'].value_counts()
+        data['age'] = data['id'].map(id_counts)
+
+        # if not input_parameter_container['if_gt']:
+        #     self.preprocess_types.remove('DefinePosition')
+        #     self.preprocess_types.remove('DefineId')
+
+        for preprocess_type in self.preprocess_types:
+            print(f'正在预处理 {preprocess_type}')
+            func = eval(f'{preprocess_type}(input_parameter_container)')
+            if func.type == 'by_row':
+                result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
+                result_df.columns = func.columns
+                data = pd.concat([data, result_df], axis=1)
+
+            elif func.type == 'by_frame':
+                data = func(data)
+
+        for col in [
+            'type_classification',
+            'in_border_distance',
+            'in_border_length',
+            'slot_length',
+            'slot_heading',
+            'stopper_depth',
+            'slot_distance',
+        ]:
+            data[col] = 0
+
+        return data.sort_values(by=['time_stamp'])
+
+
 if __name__ == '__main__':
-    raw_data_path = '/home/hp/下载/44444/test_bevlines/04_TestData/2-Lines/01_ScenarioUnit/20240129_155339_n000004/01_Data/Lines/GroundTruth/additional/gt_data.csv'
+    raw_data_path = '/home/byj/ZONE/TestProject/ParkingDebug/04_TestData/3-Slots/01_ScenarioUnit/20250324_144918_n000001/01_Data/Slots/GroundTruth/raw/gt_data.csv'
     raw_data = pd.read_csv(raw_data_path, index_col=False)
 
     parameter_json = {
-        'lane_width': 3.6,
-        'test_topic': 'Lines',
-        'if_gt': True
+        'ROI': {'x': [-12, 15], 'y': [-6, 6]},
+        'region': {1: {'x': [-12, 15], 'y': [-6, 6]}},
     }
 
-    preprocess_instance = LinesPreprocess()
+    preprocess_instance = SlotsPreprocess()
     data = preprocess_instance.run(raw_data, parameter_json)
     data.to_csv('456.csv', index=False, encoding='utf_8_sig')

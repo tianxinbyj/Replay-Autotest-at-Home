@@ -1889,12 +1889,17 @@ Information:
     - occupy_status
     - lock_status
     additional_column:
+    - center_x
+    - center_y
     - type_classification
     - in_border_distance
     - in_border_length
     - slot_length
     - slot_heading
     - stopper_depth
+    - slot_distance
+    - region
+    - is_detectedValid
     result_column:
     - 召回率
     - 准确率

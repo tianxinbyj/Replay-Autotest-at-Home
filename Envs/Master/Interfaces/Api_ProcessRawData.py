@@ -11,7 +11,7 @@ from Libs import get_project_path
 
 sys.path.append(get_project_path())
 
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.PreProcess import ObstaclesPreprocess, LinesPreprocess
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.PreProcess import *
 
 
 def main():
@@ -29,6 +29,8 @@ def main():
         preprocess_instance = ObstaclesPreprocess()
     elif parameter_json['test_topic'] == 'Lines':
         preprocess_instance = LinesPreprocess()
+    elif parameter_json['test_topic'] == 'Slots':
+        preprocess_instance = SlotsPreprocess()
     else:
         return
 

@@ -197,25 +197,26 @@ class DataGrinderOneCase:
                 pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
                 create_folder(os.path.join(self.DataFolder, 'General'), update=False)
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
-                self.pred_ego_flag = True
                 pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result['General']['pred_ego'] = self.get_relpath(path)
+                self.pred_ego_flag = True
 
-            # elif topic == '/VA/VehicleMotionIpd':
-            #     send_log(self, f'Prediction 正在读取{topic}, 用于时间同步')
-            #
-            #     # 读取原始数据
-            #     csv_list = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*.csv'))
-            #     csv_data = []
-            #     for csv_file in sorted(csv_list, reverse=False):
-            #         if 'hz' not in csv_file:
-            #             csv_data.append(pd.read_csv(csv_file, index_col=False))
-            #     pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
-            #     pred_data['ego_vx'] = pred_data['vehicle_speed']
-            #     create_folder(os.path.join(self.DataFolder, 'General'), update=False)
-            #     path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
-            #     pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
-            #     self.test_result['General']['pred_ego'] = self.get_relpath(path)
+            elif topic == '/VA/VehicleMotionIpd' and '/PI/EG/EgoMotionInfo' not in topics_for_parser:
+                send_log(self, f'Prediction 正在读取{topic}, 用于时间同步')
+
+                # 读取原始数据
+                csv_list = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*.csv'))
+                csv_data = []
+                for csv_file in sorted(csv_list, reverse=False):
+                    if 'hz' not in csv_file:
+                        csv_data.append(pd.read_csv(csv_file, index_col=False))
+                pred_data = pd.concat(csv_data).sort_values(by=['time_stamp']).iloc[50:]
+                pred_data['ego_vx'] = pred_data['vehicle_speed']
+                create_folder(os.path.join(self.DataFolder, 'General'), update=False)
+                path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
+                pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
+                self.test_result['General']['pred_ego'] = self.get_relpath(path)
+                self.pred_ego_flag = True
 
             # 拿到/SA/INSPVA得到的时间差
             elif topic == '/SA/INSPVA':
@@ -444,8 +445,8 @@ class DataGrinderOneCase:
             ego_data = pd.read_csv(os.path.join(self.gt_raw_folder, 'od_ego.csv'))[
                 ['ego_timestamp', 'INS_Speed']].rename(
                 columns={'ego_timestamp': 'time_stamp', 'INS_Speed': 'ego_vx'})
-            create_folder(os.path.join(self.DataFolder, 'General'), update=False)
 
+        create_folder(os.path.join(self.DataFolder, 'General'), update=False)
         gt_ego_path = os.path.join(self.DataFolder, 'General', 'gt_ego.csv')
         ego_data.to_csv(gt_ego_path, index=False, encoding='utf_8_sig')
         self.test_result['General']['gt_ego'] = self.get_relpath(gt_ego_path)
@@ -639,6 +640,13 @@ class DataGrinderOneCase:
                     'if_gt': True,
                 }
 
+            elif self.test_topic == 'Slots':
+                input_parameter_container = {
+                    'test_topic': self.test_topic,
+                    'ROI': self.test_config['detected_ROI'],
+                    'region': self.test_config['region_division'],
+                }
+
             else:
                 return
 
@@ -717,6 +725,13 @@ class DataGrinderOneCase:
                         'lane_width': 3.6,
                         'test_topic': self.test_topic,
                         'if_gt': False,
+                    }
+
+                elif self.test_topic == 'Slots':
+                    input_parameter_container = {
+                        'test_topic': self.test_topic,
+                        'ROI': self.test_config['detected_ROI'],
+                        'region': self.test_config['region_division'],
                     }
 
                 else:
@@ -2591,7 +2606,7 @@ class DataGrinderOneTask:
 
                 elif self.test_topic == 'Slots':
                     for item in [
-                        'slot_matching_tolerance',
+                        'slot_matching_tolerance', 'detected_ROI', 'region_division',
                     ]:
                         scenario_test_config[item] = self.test_config[item]
 
