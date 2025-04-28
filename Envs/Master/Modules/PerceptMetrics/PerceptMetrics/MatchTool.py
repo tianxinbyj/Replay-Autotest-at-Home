@@ -429,7 +429,7 @@ class SlotsMatchTool:
                         pred_x = pred_row['center_x']
                         pred_y = pred_row['center_y']
 
-                        if self.get_match_flag(gt_x, pred_x, gt_y, pred_y):
+                        if self.get_match_flag(gt_x, gt_y, pred_x, pred_y):
                             distance = np.sqrt((pred_x - gt_x) ** 2 + (pred_y - gt_y) ** 2)
                         else:
                             distance = 500
