@@ -1369,8 +1369,8 @@ class SlotsPreprocess:
             'type_classification',
             'in_border_distance',
             'in_border_length',
-            'slot_length',
             'slot_heading',
+            'slot_length',
             'stopper_depth',
             'slot_distance',
         ]:

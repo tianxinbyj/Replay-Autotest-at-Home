@@ -931,6 +931,13 @@ class DataGrinderOneCase:
                     'test_topic': self.test_topic,
                 }
 
+            elif self.test_topic == 'Slots':
+                input_parameter_container = {
+                    'metric_type': self.test_config['test_item'][topic],
+                    'kpi_date_label': self.kpi_date_label,
+                    'test_topic': self.test_topic,
+                }
+
             else:
                 return
 
@@ -2961,6 +2968,14 @@ class DataGrinderOneTask:
             columns = [
                 ('基本信息', '基本信息', '车道线类型'),
                 ('基本信息', '基本信息', '曲率半径范围'),
+                ('基本信息', '基本信息', 'start_distance'),
+                ('基本信息', '基本信息', '场景类型'),
+            ]
+
+        elif self.test_topic == 'Slots':
+            columns = [
+                ('基本信息', '基本信息', '车位类型'),
+                ('基本信息', '基本信息', '车位中心点范围'),
                 ('基本信息', '基本信息', 'start_distance'),
                 ('基本信息', '基本信息', '场景类型'),
             ]

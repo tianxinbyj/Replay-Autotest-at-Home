@@ -7,13 +7,10 @@ import os
 import sys
 import warnings
 
-import numpy as np
-import pandas as pd
 from scipy.interpolate import interp1d
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from KpiGenerator import ObstaclesKpi, LinesKpi, change_name
-from KpiGenerator import obstacles_type_classification_text, lines_type_classification_text
+from KpiGenerator import *
 
 warnings.filterwarnings("ignore")
 
@@ -64,6 +61,10 @@ class RecallPrecision:
             TP, FP, FN = 0, 0, 0
 
         return TP, FP, FN, CTP
+
+
+# =======================================
+# =================Obstacles================
 
 
 class XError:
@@ -831,6 +832,10 @@ class ObstaclesMetricFilter:
         return characteristic_data_dict
 
 
+# =======================================
+# ====================Lines================
+
+
 class LateralError:
 
     def __init__(self):
@@ -1085,6 +1090,611 @@ class LinesMetricEvaluator:
         data = data[~((data['gt.flag'] == 0)
                       & ((data['pred.type_classification'].isna())
                          | (data['pred.radius'].isna())))]
+        tp_data = data[(data['gt.flag'] == 1) & (data['pred.flag'] == 1)]
+
+        for metric in metric_type:
+            print(f'正在评估指标 {metric}')
+            metric_class = change_name(metric)
+            func = eval(f'{metric_class}()')
+
+            if metric == 'recall_precision':
+                result_df = data.apply(lambda row: func(row.to_dict()), axis=1, result_type='expand')
+                result_df.columns = func.columns
+                result_df = pd.concat([data, result_df], axis=1)
+            else:
+                result_df = tp_data.apply(lambda row: func(row.to_dict(), kpi_date_label), axis=1, result_type='expand')
+                result_df.columns = func.columns
+                result_df['corresponding_index'] = tp_data['corresponding_index']
+
+            data_dict[metric] = result_df
+
+        return data_dict
+
+
+# =======================================
+# ====================Slots================
+
+
+class ConnerXError:
+
+    """
+    计算车位内角点的纵向距离误差
+
+    """
+
+    def __init__(self):
+        self.columns = [
+            'gt.id',
+            'pred.id',
+            'gt.center_x',
+            'gt.center_y',
+            'gt.type',
+            'pred.type',
+            'pred.x0',
+            'pred.x1',
+            'pred.x2',
+            'pred.x3',
+            'gt.x0',
+            'gt.x1',
+            'gt.x2',
+            'gt.x3',
+            'x0.error',
+            'x1.error',
+            'x2.error',
+            'x3.error',
+            'x0.error_abs',
+            'x1.error_abs',
+            'x2.error_abs',
+            'x3.error_abs',
+            'is_abnormal',
+        ]
+
+    def __call__(self, input_data, kpi_date_label):
+
+        if isinstance(input_data, dict):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_x0, pred_x1, pred_x2, pred_x3, gt_x0, gt_x1, gt_x2, gt_x3) = (
+                input_data['gt.id'], input_data['pred.id'],
+                input_data['gt.center_x'], input_data['gt.center_y'],
+                input_data['gt.type_classification'],
+                input_data['pred.type_classification'],
+                input_data['pred.pt_0_x'], input_data['pred.pt_1_x'],
+                input_data['pred.pt_2_x'], input_data['pred.pt_3_x'],
+                input_data['gt.pt_0_x'], input_data['gt.pt_1_x'],
+                input_data['gt.pt_2_x'], input_data['gt.pt_3_x'],
+            )
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 14):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_x0, pred_x1, pred_x2, pred_x3, gt_x0, gt_x1, gt_x2, gt_x3) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        type_classification = slots_type_classification_text[gt_type]
+
+        x_error = {}
+        x_error_abs = {}
+        x_limit = {}
+        for i in range(4):
+            kpi_threshold = SlotsKpi.get_slots_kpi_threshold('内角点纵向距离误差', f'x{i}_abs_95[m]', type_classification, (gt_center_x, gt_center_y))
+            if kpi_threshold is None:
+                x_limit[i] = None
+            else:
+                kpi_ratio = SlotsKpi.get_slots_kpi_ratio('内角点纵向距离误差', f'x{i}_abs_95[m]', type_classification, kpi_date_label)
+                x_limit[i] = kpi_threshold * kpi_ratio
+
+            x_error[i] = eval(f'pred_x{i} - gt_x{i}')
+            x_error_abs[i] = abs(x_error[i])
+
+        is_abnormal = []
+        if x_limit is not None:
+            for i in range(4):
+                if x_error_abs[i] > x_limit[i]:
+                    is_abnormal.append(True)
+                else:
+                    is_abnormal.append(False)
+
+        if len(is_abnormal):
+            is_abnormal = int(any(is_abnormal))
+        else:
+            is_abnormal = 0
+
+        return (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+                pred_x0, pred_x1, pred_x2, pred_x3, gt_x0, gt_x1, gt_x2, gt_x3,
+                x_error[0], x_error[1], x_error[2], x_error[3],
+                x_error_abs[0], x_error_abs[1], x_error_abs[2], x_error_abs[3],
+                is_abnormal)
+
+
+class ConnerYError:
+
+    """
+    计算车位内角点的横向距离误差
+
+    """
+
+    def __init__(self):
+        self.columns = [
+            'gt.id',
+            'pred.id',
+            'gt.center_x',
+            'gt.center_y',
+            'gt.type',
+            'pred.type',
+            'pred.y0',
+            'pred.y1',
+            'pred.y2',
+            'pred.y3',
+            'gt.y0',
+            'gt.y1',
+            'gt.y2',
+            'gt.y3',
+            'y0.error',
+            'y1.error',
+            'y2.error',
+            'y3.error',
+            'y0.error_abs',
+            'y1.error_abs',
+            'y2.error_abs',
+            'y3.error_abs',
+            'is_abnormal',
+        ]
+
+    def __call__(self, input_data, kpi_date_label):
+
+        if isinstance(input_data, dict):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_y0, pred_y1, pred_y2, pred_y3, gt_y0, gt_y1, gt_y2, gt_y3) = (
+                input_data['gt.id'], input_data['pred.id'],
+                input_data['gt.center_x'], input_data['gt.center_y'],
+                input_data['gt.type_classification'],
+                input_data['pred.type_classification'],
+                input_data['pred.pt_0_y'], input_data['pred.pt_1_y'],
+                input_data['pred.pt_2_y'], input_data['pred.pt_3_y'],
+                input_data['gt.pt_0_y'], input_data['gt.pt_1_y'],
+                input_data['gt.pt_2_y'], input_data['gt.pt_3_y'],
+            )
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 14):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_y0, pred_y1, pred_y2, pred_y3, gt_y0, gt_y1, gt_y2, gt_y3) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        type_classification = slots_type_classification_text[gt_type]
+
+        y_error = {}
+        y_error_abs = {}
+        y_limit = {}
+        for i in range(4):
+            kpi_threshold = SlotsKpi.get_slots_kpi_threshold('内角点横向距离误差', f'y{i}_abs_95[m]', type_classification, (gt_center_x, gt_center_y))
+            if kpi_threshold is None:
+                y_limit[i] = None
+            else:
+                kpi_ratio = SlotsKpi.get_slots_kpi_ratio('内角点横向距离误差', f'y{i}_abs_95[m]', type_classification, kpi_date_label)
+                y_limit[i] = kpi_threshold * kpi_ratio
+
+            y_error[i] = eval(f'pred_y{i} - gt_y{i}')
+            y_error_abs[i] = abs(y_error[i])
+
+        is_abnormal = []
+        if y_limit is not None:
+            for i in range(4):
+                if y_error_abs[i] > y_limit[i]:
+                    is_abnormal.append(True)
+                else:
+                    is_abnormal.append(False)
+
+        if len(is_abnormal):
+            is_abnormal = int(any(is_abnormal))
+        else:
+            is_abnormal = 0
+
+        return (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+                pred_y0, pred_y1, pred_y2, pred_y3, gt_y0, gt_y1, gt_y2, gt_y3,
+                y_error[0], y_error[1], y_error[2], y_error[3],
+                y_error_abs[0], y_error_abs[1], y_error_abs[2], y_error_abs[3],
+                is_abnormal)
+
+
+class InBorderDistanceError:
+
+    """
+    计算车位内角点的横向距离误差
+
+    """
+
+    def __init__(self):
+        self.columns = [
+            'gt.id',
+            'pred.id',
+            'gt.center_x',
+            'gt.center_y',
+            'gt.type',
+            'pred.type',
+            'pred.in_border_distance',
+            'gt.in_border_distance',
+            'in_border_distance.error',
+            'in_border_distance.error_abs',
+            'is_abnormal',
+        ]
+
+    def __call__(self, input_data, kpi_date_label):
+
+        if isinstance(input_data, dict):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_in_border_distance, gt_in_border_distance) = (
+                input_data['gt.id'], input_data['pred.id'],
+                input_data['gt.center_x'], input_data['gt.center_y'],
+                input_data['gt.type_classification'],
+                input_data['pred.type_classification'],
+                input_data['pred.in_border_distance'],
+                input_data['gt.in_border_distance']
+            )
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 8):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_in_border_distance, gt_in_border_distance) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        type_classification = slots_type_classification_text[gt_type]
+
+        kpi_threshold = SlotsKpi.get_slots_kpi_threshold('入库点距离误差', 'in_border_distance_abs_95[m]', type_classification, (gt_center_x, gt_center_y))
+        if kpi_threshold is None:
+            in_border_distance_limit = None
+        else:
+            kpi_ratio = SlotsKpi.get_slots_kpi_ratio('入库点距离误差', 'in_border_distance_abs_95[m]', type_classification, kpi_date_label)
+            in_border_distance_limit = kpi_threshold * kpi_ratio
+
+        in_border_distance_error = pred_in_border_distance - gt_in_border_distance
+        in_border_distance_error_abs = abs(in_border_distance_error)
+
+        is_abnormal = []
+        if in_border_distance_limit is not None:
+            if in_border_distance_error_abs > in_border_distance_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if len(is_abnormal):
+            is_abnormal = int(any(is_abnormal))
+        else:
+            is_abnormal = 0
+
+        return (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+                pred_in_border_distance, gt_in_border_distance,
+                in_border_distance_error, in_border_distance_error_abs,
+                is_abnormal)
+
+
+class InBorderLengthError:
+
+    """
+    计算车位内角点的横向距离误差
+
+    """
+
+    def __init__(self):
+        self.columns = [
+            'gt.id',
+            'pred.id',
+            'gt.center_x',
+            'gt.center_y',
+            'gt.type',
+            'pred.type',
+            'pred.in_border_length',
+            'gt.in_border_length',
+            'in_border_length.error',
+            'in_border_length.error_abs',
+            'is_abnormal',
+        ]
+
+    def __call__(self, input_data, kpi_date_label):
+
+        if isinstance(input_data, dict):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_in_border_length, gt_in_border_length) = (
+                input_data['gt.id'], input_data['pred.id'],
+                input_data['gt.center_x'], input_data['gt.center_y'],
+                input_data['gt.type_classification'],
+                input_data['pred.type_classification'],
+                input_data['pred.in_border_length'],
+                input_data['gt.in_border_length']
+            )
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 8):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_in_border_length, gt_in_border_length) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        type_classification = slots_type_classification_text[gt_type]
+
+        kpi_threshold = SlotsKpi.get_slots_kpi_threshold('入库边长度误差', 'in_border_length_abs_95[m]', type_classification, (gt_center_x, gt_center_y))
+        if kpi_threshold is None:
+            in_border_length_limit = None
+        else:
+            kpi_ratio = SlotsKpi.get_slots_kpi_ratio('入库边长度误差', 'in_border_length_abs_95[m]', type_classification, kpi_date_label)
+            in_border_length_limit = kpi_threshold * kpi_ratio
+
+        in_border_length_error = pred_in_border_length - gt_in_border_length
+        in_border_length_error_abs = abs(in_border_length_error)
+
+        is_abnormal = []
+        if in_border_length_limit is not None:
+            if in_border_length_error_abs > in_border_length_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if len(is_abnormal):
+            is_abnormal = int(any(is_abnormal))
+        else:
+            is_abnormal = 0
+
+        return (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+                pred_in_border_length, gt_in_border_length,
+                in_border_length_error, in_border_length_error_abs,
+                is_abnormal)
+
+
+class SlotHeadingError:
+
+    """
+    计算车位内角点的横向距离误差
+
+    """
+
+    def __init__(self):
+        self.columns = [
+            'gt.id',
+            'pred.id',
+            'gt.center_x',
+            'gt.center_y',
+            'gt.type',
+            'pred.type',
+            'pred.slot_heading',
+            'gt.slot_heading',
+            'slot_heading.error',
+            'slot_heading.error_abs',
+            'is_abnormal',
+        ]
+
+    def __call__(self, input_data, kpi_date_label):
+
+        if isinstance(input_data, dict):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_slot_heading, gt_slot_heading) = (
+                input_data['gt.id'], input_data['pred.id'],
+                input_data['gt.center_x'], input_data['gt.center_y'],
+                input_data['gt.type_classification'],
+                input_data['pred.type_classification'],
+                input_data['pred.slot_heading'],
+                input_data['gt.slot_heading']
+            )
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 8):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_slot_heading, gt_slot_heading) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        type_classification = slots_type_classification_text[gt_type]
+
+        kpi_threshold = SlotsKpi.get_slots_kpi_threshold('车位航向角误差', 'slot_heading_abs_95[deg]', type_classification, (gt_center_x, gt_center_y))
+        if kpi_threshold is None:
+            slot_heading_limit = None
+        else:
+            kpi_ratio = SlotsKpi.get_slots_kpi_ratio('车位航向角误差', 'slot_heading_abs_95[deg]', type_classification, kpi_date_label)
+            slot_heading_limit = kpi_threshold * kpi_ratio
+
+        slot_heading_error = pred_slot_heading - gt_slot_heading
+        slot_heading_error_abs = abs(slot_heading_error)
+
+        is_abnormal = []
+        if slot_heading_limit is not None:
+            if slot_heading_error_abs > slot_heading_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if len(is_abnormal):
+            is_abnormal = int(any(is_abnormal))
+        else:
+            is_abnormal = 0
+
+        return (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+                pred_slot_heading, gt_slot_heading,
+                slot_heading_error, slot_heading_error_abs,
+                is_abnormal)
+
+
+class SlotLengthError:
+
+    """
+    计算车位内角点的横向距离误差
+
+    """
+
+    def __init__(self):
+        self.columns = [
+            'gt.id',
+            'pred.id',
+            'gt.center_x',
+            'gt.center_y',
+            'gt.type',
+            'pred.type',
+            'pred.slot_length',
+            'gt.slot_length',
+            'slot_length.error',
+            'slot_length.error_abs',
+            'is_abnormal',
+        ]
+
+    def __call__(self, input_data, kpi_date_label):
+
+        if isinstance(input_data, dict):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_slot_length, gt_slot_length) = (
+                input_data['gt.id'], input_data['pred.id'],
+                input_data['gt.center_x'], input_data['gt.center_y'],
+                input_data['gt.type_classification'],
+                input_data['pred.type_classification'],
+                input_data['pred.slot_length'],
+                input_data['gt.slot_length']
+            )
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 8):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_slot_length, gt_slot_length) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        type_classification = slots_type_classification_text[gt_type]
+
+        kpi_threshold = SlotsKpi.get_slots_kpi_threshold('车位长度误差', 'slot_length_abs_95[m]', type_classification, (gt_center_x, gt_center_y))
+        if kpi_threshold is None:
+            slot_length_limit = None
+        else:
+            kpi_ratio = SlotsKpi.get_slots_kpi_ratio('车位长度误差', 'slot_length_abs_95[m]', type_classification, kpi_date_label)
+            slot_length_limit = kpi_threshold * kpi_ratio
+
+        slot_length_error = pred_slot_length - gt_slot_length
+        slot_length_error_abs = abs(slot_length_error)
+
+        is_abnormal = []
+        if slot_length_limit is not None:
+            if slot_length_error_abs > slot_length_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if len(is_abnormal):
+            is_abnormal = int(any(is_abnormal))
+        else:
+            is_abnormal = 0
+
+        return (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+                pred_slot_length, gt_slot_length,
+                slot_length_error, slot_length_error_abs,
+                is_abnormal)
+
+
+class StopperDepthError:
+
+    """
+    计算车位内角点的横向距离误差
+
+    """
+
+    def __init__(self):
+        self.columns = [
+            'gt.id',
+            'pred.id',
+            'gt.center_x',
+            'gt.center_y',
+            'gt.type',
+            'pred.type',
+            'pred.stopper_depth',
+            'gt.stopper_depth',
+            'stopper_depth.error',
+            'stopper_depth.error_abs',
+            'is_abnormal',
+        ]
+
+    def __call__(self, input_data, kpi_date_label):
+
+        if isinstance(input_data, dict):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_stopper_depth, gt_stopper_depth) = (
+                input_data['gt.id'], input_data['pred.id'],
+                input_data['gt.center_x'], input_data['gt.center_y'],
+                input_data['gt.type_classification'],
+                input_data['pred.type_classification'],
+                input_data['pred.stopper_depth'],
+                input_data['gt.stopper_depth']
+            )
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 8):
+            (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+             pred_stopper_depth, gt_stopper_depth) = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        type_classification = slots_type_classification_text[gt_type]
+
+        kpi_threshold = SlotsKpi.get_slots_kpi_threshold('限位器深度误差', 'stopper_depth_abs_95[m]', type_classification, (gt_center_x, gt_center_y))
+        if kpi_threshold is None:
+            stopper_depth_limit = None
+        else:
+            kpi_ratio = SlotsKpi.get_slots_kpi_ratio('限位器深度误差', 'stopper_depth_abs_95[m]', type_classification, kpi_date_label)
+            stopper_depth_limit = kpi_threshold * kpi_ratio
+
+        stopper_depth_error = pred_stopper_depth - gt_stopper_depth
+        stopper_depth_error_abs = abs(stopper_depth_error)
+
+        is_abnormal = []
+        if stopper_depth_limit is not None:
+            if stopper_depth_error_abs > stopper_depth_limit:
+                is_abnormal.append(True)
+            else:
+                is_abnormal.append(False)
+
+        if len(is_abnormal):
+            is_abnormal = int(any(is_abnormal))
+        else:
+            is_abnormal = 0
+
+        return (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
+                pred_stopper_depth, gt_stopper_depth,
+                stopper_depth_error, stopper_depth_error_abs,
+                is_abnormal)
+
+
+class SlotsMetricEvaluator:
+
+    def __init__(self):
+        self.kpi_date_label = '20250228'
+        self.metric_type = [
+            'recall_precision',
+            'conner_x_error',
+            'conner_y_error',
+            'in_border_distance_error',
+            'in_border_length_error',
+            'slot_heading_error',
+            'slot_length_error',
+            'stopper_depth_error',
+        ]
+
+    def run(self, input_data, input_parameter_container=None):
+        if input_parameter_container is not None:
+            metric_type = input_parameter_container['metric_type']
+            kpi_date_label = input_parameter_container['kpi_date_label']
+        else:
+            metric_type = self.metric_type
+            kpi_date_label = self.kpi_date_label
+
+        data_dict = {}
+        data = input_data[~((input_data['pred.flag'] == 1)
+                                   & (input_data['pred.type_classification'] == 'unknown'))]
+        data = data[~((data['gt.flag'] == 1)
+                      & (data['pred.type_classification'] == 'unknown'))]
+        data = data[data['gt.region'] != 0]
         tp_data = data[(data['gt.flag'] == 1) & (data['pred.flag'] == 1)]
 
         for metric in metric_type:

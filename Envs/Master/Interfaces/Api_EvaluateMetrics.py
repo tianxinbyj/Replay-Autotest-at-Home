@@ -4,16 +4,12 @@
 """
 import argparse
 import json
-import os
 import sys
-import pandas as pd
 
 from Libs import get_project_path
 
 sys.path.append(get_project_path())
-
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MetricEvaluator import ObstaclesMetricEvaluator, LinesMetricEvaluator
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MetricEvaluator import ObstaclesMetricFilter
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.MetricEvaluator import *
 
 
 def main():
@@ -32,6 +28,8 @@ def main():
         metric_evaluator = ObstaclesMetricEvaluator()
     elif parameter_json['test_topic'] == 'Lines':
         metric_evaluator = LinesMetricEvaluator()
+    elif parameter_json['test_topic'] == 'Slots':
+        metric_evaluator = SlotsMetricEvaluator()
     else:
         return
 
