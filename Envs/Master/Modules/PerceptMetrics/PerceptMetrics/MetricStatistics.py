@@ -4,11 +4,8 @@
 """
 
 import warnings
-import pandas as pd
 
-from KpiGenerator import obstacles_type_classification_text, lines_type_classification_text
-from KpiGenerator import obstacles_characteristic_text, lines_characteristic_text
-from KpiGenerator import obstacles_metric_text, lines_metric_text, change_name
+from KpiGenerator import *
 
 warnings.filterwarnings("ignore")
 
@@ -44,6 +41,10 @@ class RecallPrecision:
         }
 
         return res
+
+
+#=====================================
+#================Obstacles===============
 
 
 class XError:
@@ -456,6 +457,10 @@ class ObstaclesMetricStatistics:
         return all(is_valid_list)
 
 
+#=====================================
+#=================Lines=================
+
+
 class LateralError:
 
     def __call__(self, input_data):
@@ -576,7 +581,7 @@ class LinesMetricStatistics:
                         {
                             'FeatureDetail': lines_characteristic_text[characteristic],
                             'CurvatureRadius': radius_text,
-                            'LinesName': lines_type_classification_text[type_classification],
+                            'LineName': lines_type_classification_text[type_classification],
                             'MetricTypeName': lines_metric_text[metric],
                             'Output': res,
                         })
@@ -589,3 +594,300 @@ class LinesMetricStatistics:
 
     def check_radius(self, r, radius):
         return radius[0] < r <= radius[1]
+
+
+#=====================================
+#=================Slots=================
+
+
+class ConnerXError:
+
+    def __call__(self, input_data):
+        if not isinstance(input_data, pd.DataFrame):
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data = input_data
+
+        x0_abs_mean = data['x0.error_abs'].mean()
+        x0_abs_68 = data['x0.error_abs'].quantile(0.68)
+        x0_abs_95 = data['x0.error_abs'].quantile(0.95)
+
+        x1_abs_mean = data['x1.error_abs'].mean()
+        x1_abs_68 = data['x1.error_abs'].quantile(0.68)
+        x1_abs_95 = data['x1.error_abs'].quantile(0.95)
+
+        x2_abs_mean = data['x2.error_abs'].mean()
+        x2_abs_68 = data['x2.error_abs'].quantile(0.68)
+        x2_abs_95 = data['x2.error_abs'].quantile(0.95)
+
+        x3_abs_mean = data['x3.error_abs'].mean()
+        x3_abs_68 = data['x3.error_abs'].quantile(0.68)
+        x3_abs_95 = data['x3.error_abs'].quantile(0.95)
+
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
+
+        res = {
+            'x0_abs_mean[m]': x0_abs_mean, 'x0_abs_68[m]': x0_abs_68, 'x0_abs_95[m]': x0_abs_95,
+            'x1_abs_mean[m]': x1_abs_mean, 'x1_abs_68[m]': x1_abs_68, 'x1_abs_95[m]': x1_abs_95,
+            'x2_abs_mean[m]': x2_abs_mean, 'x2_abs_68[m]': x2_abs_68, 'x2_abs_95[m]': x2_abs_95,
+            'x3_abs_mean[m]': x3_abs_mean, 'x3_abs_68[m]': x3_abs_68, 'x3_abs_95[m]': x3_abs_95,
+            'sample_count': len(data), 'pass_ratio%': pass_ratio,
+        }
+
+        return res
+
+
+class ConnerYError:
+
+    def __call__(self, input_data):
+        if not isinstance(input_data, pd.DataFrame):
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data = input_data
+
+        y0_abs_mean = data['y0.error_abs'].mean()
+        y0_abs_68 = data['y0.error_abs'].quantile(0.68)
+        y0_abs_95 = data['y0.error_abs'].quantile(0.95)
+
+        y1_abs_mean = data['y1.error_abs'].mean()
+        y1_abs_68 = data['y1.error_abs'].quantile(0.68)
+        y1_abs_95 = data['y1.error_abs'].quantile(0.95)
+
+        y2_abs_mean = data['y2.error_abs'].mean()
+        y2_abs_68 = data['y2.error_abs'].quantile(0.68)
+        y2_abs_95 = data['y2.error_abs'].quantile(0.95)
+
+        y3_abs_mean = data['y3.error_abs'].mean()
+        y3_abs_68 = data['y3.error_abs'].quantile(0.68)
+        y3_abs_95 = data['y3.error_abs'].quantile(0.95)
+
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
+
+        res = {
+            'y0_abs_mean[m]': y0_abs_mean, 'y0_abs_68[m]': y0_abs_68, 'y0_abs_95[m]': y0_abs_95,
+            'y1_abs_mean[m]': y1_abs_mean, 'y1_abs_68[m]': y1_abs_68, 'y1_abs_95[m]': y1_abs_95,
+            'y2_abs_mean[m]': y2_abs_mean, 'y2_abs_68[m]': y2_abs_68, 'y2_abs_95[m]': y2_abs_95,
+            'y3_abs_mean[m]': y3_abs_mean, 'y3_abs_68[m]': y3_abs_68, 'y3_abs_95[m]': y3_abs_95,
+            'sample_count': len(data), 'pass_ratio%': pass_ratio,
+        }
+
+        return res
+
+
+class InBorderDistanceError:
+
+    def __call__(self, input_data):
+        if not isinstance(input_data, pd.DataFrame):
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data = input_data
+
+        in_border_distance_abs_mean = data['in_border_distance.error_abs'].mean()
+        in_border_distance_abs_68 = data['in_border_distance.error_abs'].quantile(0.68)
+        in_border_distance_abs_95 = data['in_border_distance.error_abs'].quantile(0.95)
+
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
+
+        res = {
+            'in_border_distance_abs_mean[m]': in_border_distance_abs_mean,
+            'in_border_distance_abs_68[m]': in_border_distance_abs_68,
+            'in_border_distance_abs_95[m]': in_border_distance_abs_95,
+            'sample_count': len(data), 'pass_ratio%': pass_ratio,
+        }
+
+        return res
+
+
+class InBorderLengthError:
+
+    def __call__(self, input_data):
+        if not isinstance(input_data, pd.DataFrame):
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data = input_data
+
+        in_border_length_abs_mean = data['in_border_length.error_abs'].mean()
+        in_border_length_abs_68 = data['in_border_length.error_abs'].quantile(0.68)
+        in_border_length_abs_95 = data['in_border_length.error_abs'].quantile(0.95)
+
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
+
+        res = {
+            'in_border_length_abs_mean[m]': in_border_length_abs_mean,
+            'in_border_length_abs_68[m]': in_border_length_abs_68,
+            'in_border_length_abs_95[m]': in_border_length_abs_95,
+            'sample_count': len(data), 'pass_ratio%': pass_ratio,
+        }
+
+        return res
+
+
+class SlotHeadingError:
+
+    def __call__(self, input_data):
+        if not isinstance(input_data, pd.DataFrame):
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data = input_data
+
+        slot_heading_abs_mean = data['slot_heading.error_abs'].mean()
+        slot_heading_abs_68 = data['slot_heading.error_abs'].quantile(0.68)
+        slot_heading_abs_95 = data['slot_heading.error_abs'].quantile(0.95)
+
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
+
+        res = {
+            'slot_heading_abs_mean[deg]': slot_heading_abs_mean,
+            'slot_heading_abs_68[deg]': slot_heading_abs_68,
+            'slot_heading_abs_95[deg]': slot_heading_abs_95,
+            'sample_count': len(data), 'pass_ratio%': pass_ratio,
+        }
+
+        return res
+
+
+class SlotLengthError:
+
+    def __call__(self, input_data):
+        if not isinstance(input_data, pd.DataFrame):
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data = input_data
+
+        slot_length_abs_mean = data['slot_length.error_abs'].mean()
+        slot_length_abs_68 = data['slot_length.error_abs'].quantile(0.68)
+        slot_length_abs_95 = data['slot_length.error_abs'].quantile(0.95)
+
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
+
+        res = {
+            'slot_length_abs_mean[m]': slot_length_abs_mean,
+            'slot_length_abs_68[m]': slot_length_abs_68,
+            'slot_length_abs_95[m]': slot_length_abs_95,
+            'sample_count': len(data), 'pass_ratio%': pass_ratio,
+        }
+
+        return res
+
+
+class StopperDepthError:
+
+    def __call__(self, input_data):
+        if not isinstance(input_data, pd.DataFrame):
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        data = input_data
+
+        stopper_depth_abs_mean = data['stopper_depth.error_abs'].mean()
+        stopper_depth_abs_68 = data['stopper_depth.error_abs'].quantile(0.68)
+        stopper_depth_abs_95 = data['stopper_depth.error_abs'].quantile(0.95)
+
+        pass_ratio = 1 - data['is_abnormal'].sum() / len(data)
+
+        res = {
+            'stopper_depth_abs_mean[m]': stopper_depth_abs_mean,
+            'stopper_depth_abs_68[m]': stopper_depth_abs_68,
+            'stopper_depth_abs_95[m]': stopper_depth_abs_95,
+            'sample_count': len(data), 'pass_ratio%': pass_ratio,
+        }
+
+        return res
+
+
+class SlotsMetricStatistics:
+
+    def run(self, input_data, input_parameter_container):
+        region_division = input_parameter_container['region_division']
+        characteristic = input_parameter_container['characteristic']
+
+        total_data = input_data['recall_precision']
+        total_data.index = total_data['corresponding_index'].to_list()
+
+        # 获取每种目标类型的index历表
+        type_classification_list = set(total_data['pred.type_classification'].drop_duplicates().dropna().to_list()
+                                       + total_data['gt.type_classification'].drop_duplicates().dropna().to_list())
+        type_corresponding_index_dict = {type_classification: [] for type_classification in type_classification_list}
+
+        # 获取每个区域的index列表
+        region_corresponding_index_dict = {}
+
+        for idx, row in total_data.iterrows():
+
+            for region in region_division.values():
+                region_text = self.get_region_text(region)
+                if row['gt.flag'] == 1:
+                    pt = {
+                        'x': row['gt.center_x'], 'y': row['gt.center_y'],
+                    }
+                    if self.check_region(pt, region):
+                        if region_text not in region_corresponding_index_dict:
+                            region_corresponding_index_dict[region_text] = []
+                        region_corresponding_index_dict[region_text].append(idx)
+
+                elif row['pred.flag'] == 1:
+                    pt = {
+                        'x': row['pred.center_x'], 'y': row['pred.center_y'],
+                    }
+                    if self.check_region(pt, region):
+                        if region_text not in region_corresponding_index_dict:
+                            region_corresponding_index_dict[region_text] = []
+                        region_corresponding_index_dict[region_text].append(idx)
+
+            if row['gt.flag'] == 1:
+                type_corresponding_index_dict[row['gt.type_classification']].append(idx)
+
+            elif row['pred.flag'] == 1:
+                type_corresponding_index_dict[row['pred.type_classification']].append(idx)
+
+        json_datas = []
+        for metric, data in input_data.items():
+
+            for region_text, region_index in region_corresponding_index_dict.items():
+                for type_classification, type_index in type_corresponding_index_dict.items():
+
+                    # 获取共同的index
+                    common_index = sorted(list(set(region_index) & set(type_index)))
+                    selected_data = data[data['corresponding_index'].isin(common_index)]
+                    if len(selected_data) == 0:
+                        continue
+
+                    metric_class = change_name(metric)
+                    func = eval(f'{metric_class}()')
+                    res = func(selected_data)
+
+                    json_datas.append(
+                        {
+                            'FeatureDetail': slots_characteristic_text[characteristic],
+                            'RangeDetails': region_text,
+                            'SlotName': slots_type_classification_text[type_classification],
+                            'MetricTypeName': slots_metric_text[metric],
+                            'Output': res,
+                        })
+
+        return json_datas
+
+    def get_region_text(self, region):
+        region_text = []
+        for i in ['x', 'y']:
+            r = region[i]
+            if not isinstance(r[0], list):
+                region_text.append(f'{i}({r[0]}~{r[1]})')
+            else:
+                region_text.append(f'{i}({r[0][0]}~{r[0][1]})({r[1][0]}~{r[1][1]})')
+
+        return ','.join(region_text)
+
+    def check_region(self, pt, region):
+        is_valid_list = []
+        for range_type in ['x', 'y']:
+            if isinstance(region[range_type][0], float) or isinstance(region[range_type][0], int):
+                is_valid = region[range_type][0] <= pt[range_type] < region[range_type][1]
+                is_valid_list.append(is_valid)
+
+            elif isinstance(region[range_type][0], list) or isinstance(region[range_type][0], tuple):
+                is_valid = any(
+                    [sub_range_value[0] <= pt[range_type] < sub_range_value[1] for sub_range_value in
+                     region[range_type]])
+                is_valid_list.append(is_valid)
+
+        return all(is_valid_list)

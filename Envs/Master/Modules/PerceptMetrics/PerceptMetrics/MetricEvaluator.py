@@ -1146,6 +1146,7 @@ class ConnerXError:
             'x1.error_abs',
             'x2.error_abs',
             'x3.error_abs',
+            'conner_x.error_abs',
             'is_abnormal',
         ]
 
@@ -1205,6 +1206,7 @@ class ConnerXError:
                 pred_x0, pred_x1, pred_x2, pred_x3, gt_x0, gt_x1, gt_x2, gt_x3,
                 x_error[0], x_error[1], x_error[2], x_error[3],
                 x_error_abs[0], x_error_abs[1], x_error_abs[2], x_error_abs[3],
+                np.mean([x_error_abs[0], x_error_abs[1], x_error_abs[2], x_error_abs[3]]),
                 is_abnormal)
 
 
@@ -1239,6 +1241,7 @@ class ConnerYError:
             'y1.error_abs',
             'y2.error_abs',
             'y3.error_abs',
+            'conner_y.error_abs',
             'is_abnormal',
         ]
 
@@ -1298,6 +1301,7 @@ class ConnerYError:
                 pred_y0, pred_y1, pred_y2, pred_y3, gt_y0, gt_y1, gt_y2, gt_y3,
                 y_error[0], y_error[1], y_error[2], y_error[3],
                 y_error_abs[0], y_error_abs[1], y_error_abs[2], y_error_abs[3],
+                np.mean([y_error_abs[0], y_error_abs[1], y_error_abs[2], y_error_abs[3]]),
                 is_abnormal)
 
 
@@ -1499,7 +1503,7 @@ class SlotHeadingError:
             kpi_ratio = SlotsKpi.get_slots_kpi_ratio('车位航向角误差', 'slot_heading_abs_95[deg]', type_classification, kpi_date_label)
             slot_heading_limit = kpi_threshold * kpi_ratio
 
-        slot_heading_error = pred_slot_heading - gt_slot_heading
+        slot_heading_error = (pred_slot_heading - gt_slot_heading) * 57.3
         slot_heading_error_abs = abs(slot_heading_error)
 
         is_abnormal = []
@@ -1645,20 +1649,24 @@ class StopperDepthError:
             kpi_ratio = SlotsKpi.get_slots_kpi_ratio('限位器深度误差', 'stopper_depth_abs_95[m]', type_classification, kpi_date_label)
             stopper_depth_limit = kpi_threshold * kpi_ratio
 
-        stopper_depth_error = pred_stopper_depth - gt_stopper_depth
-        stopper_depth_error_abs = abs(stopper_depth_error)
+        if pred_stopper_depth < 0.1 or gt_stopper_depth < 0.1:
+            stopper_depth_error = stopper_depth_error_abs = is_abnormal = 0
 
-        is_abnormal = []
-        if stopper_depth_limit is not None:
-            if stopper_depth_error_abs > stopper_depth_limit:
-                is_abnormal.append(True)
-            else:
-                is_abnormal.append(False)
-
-        if len(is_abnormal):
-            is_abnormal = int(any(is_abnormal))
         else:
-            is_abnormal = 0
+            stopper_depth_error = pred_stopper_depth - gt_stopper_depth
+            stopper_depth_error_abs = abs(stopper_depth_error)
+
+            is_abnormal = []
+            if stopper_depth_limit is not None:
+                if stopper_depth_error_abs > stopper_depth_limit:
+                    is_abnormal.append(True)
+                else:
+                    is_abnormal.append(False)
+
+            if len(is_abnormal):
+                is_abnormal = int(any(is_abnormal))
+            else:
+                is_abnormal = 0
 
         return (gt_id, pred_id, gt_center_x, gt_center_y, gt_type, pred_type,
                 pred_stopper_depth, gt_stopper_depth,
@@ -1693,7 +1701,7 @@ class SlotsMetricEvaluator:
         data = input_data[~((input_data['pred.flag'] == 1)
                                    & (input_data['pred.type_classification'] == 'unknown'))]
         data = data[~((data['gt.flag'] == 1)
-                      & (data['pred.type_classification'] == 'unknown'))]
+                      & (data['gt.type_classification'] == 'unknown'))]
         data = data[data['gt.region'] != 0]
         tp_data = data[(data['gt.flag'] == 1) & (data['pred.flag'] == 1)]
 

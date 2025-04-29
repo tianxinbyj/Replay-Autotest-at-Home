@@ -508,6 +508,20 @@ class SlotsMatchTool:
             for gt_idx in no_match_gt_idx_list:
                 gt_flag, pred_flag = 1, 0
                 this_row = [gt_flag, pred_flag]
+
+                gt_data.at[gt_idx, 'type_classification'] = 'unknown'
+                # 计算车位的属性
+                gt_slot = Slot(*gt_data.loc[gt_idx,
+                ['type', 'pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y',
+                 'pt_2_x', 'pt_2_y', 'pt_3_x', 'pt_3_y',
+                 'stopper_0_x', 'stopper_0_y', 'stopper_1_x', 'stopper_1_y']])
+                gt_data.loc[gt_idx,
+                ['in_border_distance', 'in_border_length', 'slot_length',
+                 'slot_heading', 'stopper_depth', 'slot_distance']] = [
+                    gt_slot.in_border_distance, gt_slot.in_border_length, gt_slot.slot_length,
+                    gt_slot.slot_heading, gt_slot.stopper_depth, gt_slot.get_slot_distance()
+                ]
+
                 for col in gt_column:
                     this_row.append(gt_data.at[gt_idx, col])
                 for col in pred_column:
@@ -520,6 +534,31 @@ class SlotsMatchTool:
             for pred_idx in no_match_pred_idx_list:
                 gt_flag, pred_flag = 0, 1
                 this_row = [gt_flag, pred_flag]
+
+                pred_type = pred_data.at[pred_idx, 'type']
+                if pred_type == 1:
+                    type_classification = 'vertical'
+                elif pred_type == 2:
+                    type_classification = 'parallel'
+                elif pred_type == 3:
+                    type_classification = 'oblique'
+                else:
+                    type_classification = 'unknown'
+
+                pred_data.at[pred_idx, 'type_classification'] = type_classification
+
+                # 计算车位的属性
+                pred_slot = Slot(*pred_data.loc[pred_idx,
+                ['type', 'pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y',
+                 'pt_2_x', 'pt_2_y', 'pt_3_x', 'pt_3_y',
+                 'stopper_0_x', 'stopper_0_y', 'stopper_1_x', 'stopper_1_y']])
+                pred_data.loc[pred_idx,
+                ['in_border_distance', 'in_border_length', 'slot_length',
+                 'slot_heading', 'stopper_depth', 'slot_distance']] = [
+                    pred_slot.in_border_distance, pred_slot.in_border_length, pred_slot.slot_length,
+                    pred_slot.slot_heading, pred_slot.stopper_depth, pred_slot.get_slot_distance()
+                ]
+
                 for col in gt_column:
                     if col == 'time_stamp':
                         this_row.append(row['gt_timestamp'])

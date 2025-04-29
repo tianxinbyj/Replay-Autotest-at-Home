@@ -40,7 +40,7 @@ from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 
 # 导入评测api
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics, ObjectModel
-from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.KpiGenerator import ObstaclesKpi, LinesKpi
+from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.KpiGenerator import ObstaclesKpi, LinesKpi, SlotsKpi
 
 scenario_test_record_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_test_record.csv')
 
@@ -465,7 +465,11 @@ class DataGrinderOneCase:
         calibrated_time_series = calibrated_data['time_stamp'].to_list()
 
         t_delta = 0
-        if self.pred_ego_flag and self.gt_ego_flag:
+        if 'sa_time_gap' in self.test_result['General']:
+            t_delta = self.test_result['General']['sa_time_gap']
+            send_log(self, f'使用INSPVA获得的时间间隔 = {t_delta}')
+
+        elif self.pred_ego_flag and self.gt_ego_flag:
             cmd = [
                 f"{bench_config['master']['sys_interpreter']}",
                 "Api_GetTimeGap.py",
@@ -483,10 +487,6 @@ class DataGrinderOneCase:
 
             send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
             self.test_result['General']['vel_time_gap'] = t_delta
-
-        if 'sa_time_gap' in self.test_result['General']:
-            t_delta = self.test_result['General']['sa_time_gap']
-            send_log(self, f'使用INSPVA获得的时间间隔 = {t_delta}')
 
         self.test_result['General']['time_gap'] = t_delta
 
@@ -856,6 +856,7 @@ class DataGrinderOneCase:
                     'lane_matching_width': self.test_config['lane_matching_width'],
                     'test_topic': self.test_topic,
                 }
+
             elif self.test_topic == 'Slots':
                 input_parameter_container = {
                     'slot_matching_tolerance': self.test_config['slot_matching_tolerance'],
@@ -974,7 +975,6 @@ class DataGrinderOneCase:
         def get_middle_index_for_bug(bug_data, sort_value, count_threshold):
             id_counts = bug_data[sort_value].value_counts()
             frequent_ids = id_counts[id_counts >= count_threshold].index
-
             corresponding_indices = []
             for id_ in frequent_ids:
                 id_df = bug_data[bug_data[sort_value] == id_]
@@ -1012,7 +1012,7 @@ class DataGrinderOneCase:
             total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
 
             # 对于车道线，没有characteristic的概念，但为了代码的统一性，强行放一个total
-            if self.test_topic == 'Lines':
+            if self.test_topic in ['Lines', 'Slots']:
                 self.test_action['bug_characteristic'] = ['total']
 
             for characteristic in self.test_result[self.test_topic][topic]['metric']:
@@ -1034,7 +1034,11 @@ class DataGrinderOneCase:
                     else:
                         sorted_id = 'gt.id'
 
-                    bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
+                    if topic == '/PK/PER/VisionSlotDecodingList':
+                        bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, 1)
+                    else:
+                        bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
+
                     for bug_corresponding_index in bug_corresponding_indices:
                         row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
                         time_stamp = row['gt.time_stamp']
@@ -1061,6 +1065,9 @@ class DataGrinderOneCase:
                         elif self.test_topic == 'Lines':
                             self.plot_one_frame_for_lines(topic, frame_data, plot_path, frame_bug_ids)
 
+                        elif self.test_topic == 'Slots':
+                            self.plot_one_frame_for_slots(topic, frame_data, plot_path, frame_bug_ids)
+
                         # 选择截图的相机
                         if self.test_topic == 'Obstacles':
                             if row['gt.flag'] == 1:
@@ -1070,6 +1077,12 @@ class DataGrinderOneCase:
 
                         elif self.test_topic == 'Lines':
                             cameras = ['CAM_FRONT_120']
+
+                        elif self.test_topic == 'Slots':
+                            if row['gt.flag'] == 1:
+                                cameras = self.which_camera_saw_you(row['gt.center_x'], row['gt.center_y'])
+                            else:
+                                cameras = self.which_camera_saw_you(row['pred.center_x'], row['pred.center_y'])
 
                         else:
                             cameras = []
@@ -1234,6 +1247,55 @@ class DataGrinderOneCase:
                                     else:
                                         one_label_info['center'] = one_label_info['pred_arrow']
 
+                                elif self.test_topic == 'Slots':
+                                    if bug_info['gt.flag'] == 1:
+                                        # 箭头
+                                        one_label_info['gt_arrow'] = [bug_info['gt.center_x'], bug_info['gt.center_y'],
+                                                                      0.5]
+                                        # 8个角点也放进去
+                                        one_label_info['gt_corner'] = {
+                                            'bottom': [
+                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                            ],
+                                            'top': [
+                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0.1],
+                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0.1],
+                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0.1],
+                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0.1],
+                                            ]
+                                        }
+
+                                    if bug_info['pred.flag'] == 1:
+                                        # 箭头
+                                        one_label_info['pred_arrow'] = [bug_info['pred.center_x'], bug_info['pred.center_y'], 0.5]
+                                        # 8个角点也放进去
+                                        one_label_info['pred_corner'] = {
+                                            'bottom': [
+                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
+                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
+                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
+                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
+                                            ],
+                                            'top': [
+                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0.1],
+                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0.1],
+                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0.1],
+                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0.1],
+                                            ]
+                                        }
+
+                                    if bug_info['gt.flag'] == 1:
+                                        one_label_info['center'] = [
+                                            bug_info['gt.center_x'], bug_info['gt.center_y'], 0.1
+                                        ]
+                                    else:
+                                        one_label_info['center'] = [
+                                            bug_info['pred.center_x'], bug_info['pred.center_y'], 0.1
+                                        ]
+
                                 bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
                             bug_label_info_list.append(bug_label_info)
@@ -1337,6 +1399,9 @@ class DataGrinderOneCase:
                         elif self.test_topic == 'Lines':
                             target_x = bug_info['gt.c0'] if bug_info['gt.flag'] else bug_info['pred.c0']
 
+                        elif self.test_topic == 'Slots':
+                            target_x = bug_info['gt.center_x'] if bug_info['gt.flag'] else bug_info['pred.center_x']
+
                         target_characteristic = '&'.join(target_characteristic)
 
                         # 获得目标id
@@ -1414,6 +1479,23 @@ class DataGrinderOneCase:
                                     f"{round(bug_info['pred.c2'], 2)}, {round(bug_info['pred.c3'], 2)}, "
                                     f"{round(bug_info['pred.heading_0'], 1)}°, {round(bug_info['pred.heading_50'], 1)}°, "
                                     f"{round(bug_info['pred.length'], 0)}m, {round(bug_info['pred.radius'], 0)}m"
+                                )
+
+                        elif self.test_topic == 'Slots':
+                            text_list.extend(['id, type, in_border_distance, in_border_length, slot_length, slot_heading, slot_distance, region 信息如下:'])
+                            if bug_info['gt.flag']:
+                                text_list.append(
+                                    f"GroundTruth: id-{int(bug_info['gt.id'])}, {bug_info['gt.type_classification']}, "
+                                    f"入库点距离-{round(bug_info['gt.in_border_distance'], 2)}m, 入库边长度-{round(bug_info['gt.in_border_length'], 2)}m, "
+                                    f"车位长度-{round(bug_info['gt.slot_length'], 2)}m, 车位航向角-{round(bug_info['gt.slot_heading'] * 57.3, 2)}°, "
+                                    f"车位距离-{round(bug_info['gt.slot_distance'], 2)}m, 区域-region{bug_info['gt.region']}"
+                                )
+                            if bug_info['pred.flag']:
+                                text_list.append(
+                                    f"Prediction: id-{int(bug_info['pred.id'])}, {bug_info['pred.type_classification']}, "
+                                    f"入库点距离-{round(bug_info['pred.in_border_distance'], 2)}m, 入库边长度-{round(bug_info['pred.in_border_length'], 2)}m, "
+                                    f"车位长度-{round(bug_info['pred.slot_length'], 2)}m, 车位航向角-{round(bug_info['pred.slot_heading'] * 57.3, 2)}°, "
+                                    f"车位距离-{round(bug_info['pred.slot_distance'], 2)}m, 区域-region{bug_info['pred.region']}"
                                 )
 
                         report_generator.addOnePage(
@@ -1495,7 +1577,7 @@ class DataGrinderOneCase:
             total_data = pd.read_csv(self.get_abspath(total_data_path), index_col=False).reset_index(drop=True)
 
             # 对于车道线，没有characteristic的概念，但为了代码的统一性，强行放一个total
-            if self.test_topic == 'Lines':
+            if self.test_topic in ['Lines', 'Slots']:
                 self.test_action['bug_characteristic'] = ['total']
 
             for characteristic in self.test_result[self.test_topic][topic]['metric']:
@@ -1549,6 +1631,12 @@ class DataGrinderOneCase:
                             elif self.test_topic == 'Lines':
                                 cameras = ['CAM_FRONT_120']
 
+                            elif self.test_topic == 'Slots':
+                                if row['gt.flag'] == 1:
+                                    cameras = self.which_camera_saw_you(row['gt.center_x'], row['gt.center_y'])
+                                else:
+                                    cameras = self.which_camera_saw_you(row['pred.center_x'], row['pred.center_y'])
+
                             else:
                                 cameras = []
 
@@ -1568,6 +1656,9 @@ class DataGrinderOneCase:
 
                     elif self.test_topic == 'Lines':
                         self.plot_one_frame_for_lines(topic, frame_data, plot_path, frame_bug_ids)
+
+                    elif self.test_topic == 'Slots':
+                        self.plot_one_frame_for_slots(topic, frame_data, plot_path, frame_bug_ids)
 
                     for camera in self.camera_list:
                         if camera not in video_snap_dict:
@@ -1727,6 +1818,27 @@ class DataGrinderOneCase:
                                     one_label_info['center'] = one_label_info['gt_arrow']
                                 else:
                                     one_label_info['center'] = one_label_info['pred_arrow']
+
+                            elif self.test_topic == 'Slots':
+                                if bug_info['gt.flag'] == 1:
+                                    # 箭头
+                                    one_label_info['gt_arrow'] = [bug_info['gt.center_x'], bug_info['gt.center_y'],
+                                                                  0.5]
+                                    # 8个角点也放进去
+                                    one_label_info['gt_corner'] = {
+                                        'bottom': [
+                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                        ],
+                                        'top': [
+                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0.1],
+                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0.1],
+                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0.1],
+                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0.1],
+                                        ]
+                                    }
 
                             bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
@@ -1920,7 +2032,7 @@ class DataGrinderOneCase:
         for metric, data_path in metric_data_group.items():
             metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
 
-            # 对于车道线，不需要做bug_data的区域筛选
+            # 对于车道线和车位，不需要做bug_data的区域筛选
             if self.test_topic == 'Obstacles':
                 metric_data = filter_valid_bug_data(metric_data)
 
@@ -2063,6 +2175,43 @@ class DataGrinderOneCase:
                     mean_values = filtered_df.groupby('gt.id')[f'{metric.replace("_", ".")}'].mean().reset_index()
                     top_ids = mean_values.sort_values(
                         by=f'{metric.replace("_", ".")}', ascending=False).head(bug_count * 3)['gt.id']
+                    top_5 = filtered_df[filtered_df['gt.id'].isin(top_ids)]
+                    bug_index_dict[metric].extend(top_5['corresponding_index'].to_list())
+
+            elif self.test_topic == 'Slots':
+
+                # 提bug的内容:
+                # 这里不能知道场景，所以无法筛选场景相关的内容
+                if metric == 'recall_precision':
+                    # 进一步筛选出现每种类型帧数最大的N个目标
+                    bug_index_dict['false_positive'] = []
+                    FP_data = metric_data[(metric_data['gt.flag'] == 0)
+                                          & (metric_data['pred.flag'] == 1)]
+                    for key, group in FP_data.groupby('pred.type_classification'):
+                        top_values = group['pred.id'].value_counts().head(bug_count).index
+                        top_group = group[group['pred.id'].isin(top_values)]
+                        bug_index_dict['false_positive'].extend(top_group['corresponding_index'].to_list())
+
+                    # 对漏检需要观察100-150米之内的bug
+                    bug_index_dict['false_negative'] = []
+                    FN_data = metric_data[(metric_data['gt.flag'] == 1)
+                                          & (metric_data['pred.flag'] == 0)]
+                    for key, group in FN_data.groupby('gt.type_classification'):
+                        top_values = group['gt.id'].value_counts().head(bug_count * 2).index
+                        top_group = group[group['gt.id'].isin(top_values)]
+                        bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
+
+                else:
+                    error_data = metric_data[(metric_data['is_abnormal'] == 1)]
+
+                    bug_index_dict[metric] = []
+                    id_counts = error_data['gt.id'].value_counts()
+                    frequent_ids = id_counts[id_counts > 10].index
+                    filtered_df = error_data[error_data['gt.id'].isin(frequent_ids)]
+                    new_metric_name = ".".join(metric.rsplit("_", 1)) + '_abs'
+                    mean_values = filtered_df.groupby('gt.id')[f'{new_metric_name}'].mean().reset_index()
+                    top_ids = mean_values.sort_values(
+                        by=f'{new_metric_name}', ascending=False).head(bug_count * 3)['gt.id']
                     top_5 = filtered_df[filtered_df['gt.id'].isin(top_ids)]
                     bug_index_dict[metric].extend(top_5['corresponding_index'].to_list())
 
@@ -2455,6 +2604,183 @@ class DataGrinderOneCase:
         fig.clf()
         plt.close()
 
+    def plot_one_frame_for_slots(self, topic, frame_data, plot_path, frame_bug_ids=None):
+
+        def plot_polygon(points, text, color, alpha):
+            quad = pc.Polygon(
+                points,
+                closed=True,
+                edgecolor='black',
+                facecolor=color,
+                linewidth=2,
+                alpha=alpha,
+            )
+            ax.add_patch(quad)
+
+            center_x, center_y = np.mean(points, 0)
+            ax.text(center_x, center_y, text, rotation=0,
+                    va='center', ha='center',
+                    fontdict={
+                        'family': 'Ubuntu',
+                        'style': 'normal',
+                        'weight': 'normal',
+                        'color': 'black',
+                        'size': 8,
+                    })
+
+            ax.plot([points[0][0], points[1][0]], [points[0][1], points[1][1]],
+                    linestyle='--', color='lightcoral', alpha=1, linewidth=3)
+
+        def plot_one_frame(ax, data, title, ego_velocity_generator=None, bug_info=None):
+            if bug_info is None:
+                bug_info = {}
+            ax.patch.set_facecolor('white')
+            for pos in ['right', 'left']:
+                ax.spines[pos].set_visible(False)
+
+            ax.add_patch(pc.Rectangle(
+                (-1.0, -0.95), 4.6, 1.9, edgecolor='mediumslateblue', facecolor='limegreen'))
+            ax.arrow(3, 0, 1.3, 0,
+                     length_includes_head=True,
+                     head_width=0.5, head_length=1.3, fc='r', ec='r')
+
+            time_stamp = data.iloc[0]['time_stamp']
+            if ego_velocity_generator is not None:
+                ego_velocity = ego_velocity_generator([time_stamp])[0]
+                ax.text(0, 20, f'{round(ego_velocity * 3.6)} km/h',
+                        va='center', ha='left',
+                        fontdict={
+                            'family': 'Ubuntu',
+                            'style': 'normal',
+                            'weight': 'bold',
+                            'color': 'orange',
+                            'size': 20
+                        })
+
+            for idx, row in data.iterrows():
+                if row['flag'] == 0:
+                    continue
+
+                if row['is_detectedValid'] == 1:
+                    color = color_type.get(row['type_classification'], 'lightgrey')
+                    alpha = 1
+                else:
+                    color = 'none'
+                    alpha = 0.3
+
+                points = np.array([
+                    [row['pt_0_x'], row['pt_0_y']],
+                    [row['pt_1_x'], row['pt_1_y']],
+                    [row['pt_2_x'], row['pt_2_y']],
+                    [row['pt_3_x'], row['pt_3_y']],
+                ])
+                plot_polygon(points=points, text=int(row['id']),
+                               color=color, alpha=alpha)
+
+            for bug_type, id_list in bug_info.items():
+                for id_ in id_list:
+                    id_data = data[data['id'] == id_]
+                    if len(id_data):
+                        row = id_data.iloc[0]
+                        center_x = row['center_x']
+                        center_y = row['center_y']
+                        ax.text(center_x, 1 + center_y, bug_type, rotation=0,
+                                va='center', ha='center',
+                                fontdict={
+                                    'family': 'Ubuntu',
+                                    'style': 'normal',
+                                    'weight': 'normal',
+                                    'color': 'darkred',
+                                    'size': 11,
+                                })
+
+                        ax.plot([center_x - 7, center_x + 7], [center_y, center_y],
+                                linestyle='--', color='lightcoral', alpha=0.5)
+                        ax.plot([center_x, center_x], [center_y - 4, center_y + 4],
+                                linestyle='--', color='lightcoral', alpha=0.5)
+
+            ax.set_xlim(-12, 15)
+            ax.set_xticks([-11, -6, -3, -1, 4, 6, 9, 14])
+            ax.set_xticklabels([f'{x:.0f} m' for x in [-11, -6, -3, -1, 4, 6, 9, 14]])
+            ax.set_ylim(-10, 10)
+            ax.set_yticks([-10, -3, 3, 10])
+            ax.set_yticklabels([f'{y:.0f} m' for y in [-10, -3, 3, 10]])
+            ax.tick_params(direction='out', labelsize=font_size * 1.2, length=4)
+            ax.set_title(title, fontdict=title_font, y=0.9, loc='left')
+            ego_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                          markerfacecolor='limegreen', markersize=12, label='ego_car')
+            vertical_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                          mec='#3682be', mfc='lightgrey', markersize=12, label='small-medium car')
+            parallel_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                                 mec='#45a776', mfc='lightgrey', markersize=12, label='pedestrian')
+            oblique_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
+                                          mec='#f05326', mfc='lightgrey', markersize=12, label='truck_bus')
+
+            # 将这两个图形添加到图例中
+            ax.legend(handles=[ego_rectangle, vertical_rectangle, parallel_rectangle, oblique_rectangle], fontsize=13)
+            ax.grid(linestyle='-', linewidth=0.5, color='lightgray', alpha=0.6)
+
+        color_type = {
+            'vertical': '#3682be',
+            'parallel': '#45a776',
+            'oblique': '#f05326',
+        }
+
+        if self.ego_velocity_generator is None:
+            if self.gt_ego_flag:
+                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
+            else:
+                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
+                                                       ego_data['ego_vx'].values, kind='linear')
+
+        # 开始画图
+        fig = plt.figure(figsize=(9, 15))
+        fig.tight_layout()
+        plt.subplots_adjust(left=0.03, right=0.97, top=0.97, bottom=0.03)
+        grid = plt.GridSpec(2, 1, wspace=0.1, hspace=0.15)
+
+        # 上图为gt，下图为pred
+        ax = fig.add_subplot(grid[0, 0])
+        data = pd.DataFrame()
+        for col in frame_data.columns:
+            if 'pred.' in col:
+                continue
+            if 'gt.' in col:
+                data[col.split('.')[-1]] = frame_data[col]
+            else:
+                data[col] = frame_data[col]
+        if frame_bug_ids is not None:
+            bug_info = frame_bug_ids['gt']
+        else:
+            bug_info = None
+        time_stamp = data.iloc[0]['time_stamp']
+        title = f'GroundTruth <{topic}@{round(time_stamp, 3)}s >'
+        plot_one_frame(ax, data, title, self.ego_velocity_generator, bug_info)
+
+        ax = fig.add_subplot(grid[1, 0])
+        data = pd.DataFrame()
+        for col in frame_data.columns:
+            if 'gt.' in col:
+                continue
+            if 'pred.' in col:
+                data[col.split('.')[-1]] = frame_data[col]
+            else:
+                data[col] = frame_data[col]
+        if frame_bug_ids is not None:
+            bug_info = frame_bug_ids['pred']
+        else:
+            bug_info = None
+        time_stamp = data.iloc[0]['time_stamp']
+        title = f'Prediction <{topic}@{round(time_stamp, 3)}s >'
+        plot_one_frame(ax, data, title, self.ego_velocity_generator, bug_info)
+
+        canvas = FigureCanvas(fig)
+        canvas.print_figure(plot_path, facecolor='white', dpi=100)
+        fig.clf()
+        plt.close()
+
     def which_camera_saw_you(self, x, y):
         valid_camera = []
         if 'camera_position' in self.test_result['General']:
@@ -2715,12 +3041,21 @@ class DataGrinderOneTask:
                         'kpi_date_label': self.kpi_date_label,
                         'test_topic': self.test_topic,
                     }
+
                 elif self.test_topic == 'Lines':
                     input_parameter_container = {
                         'metric_type': self.test_config['test_item'][topic],
                         'kpi_date_label': self.kpi_date_label,
                         'test_topic': self.test_topic,
                     }
+
+                elif self.test_topic == 'Slots':
+                    input_parameter_container = {
+                        'metric_type': self.test_config['test_item'][topic],
+                        'kpi_date_label': self.kpi_date_label,
+                        'test_topic': self.test_topic,
+                    }
+
                 else:
                     return
 
@@ -2877,6 +3212,12 @@ class DataGrinderOneTask:
                     elif self.test_topic == 'Lines':
                         input_parameter_container = {
                             'radius_division': self.test_config['radius_division'],
+                            'characteristic': characteristic,
+                        }
+
+                    elif self.test_topic == 'Slots':
+                        input_parameter_container = {
+                            'region_division': self.test_config['region_division'],
                             'characteristic': characteristic,
                         }
 
@@ -3051,6 +3392,7 @@ class DataGrinderOneTask:
 
                             rows.append(row)
 
+                    print(rows)
                     df = pd.DataFrame(rows, columns=pd.MultiIndex.from_tuples(columns))
                     df.sort_values(by=[columns[0], columns[2]], inplace=True)
                     df.drop(('基本信息', '基本信息', 'start_distance'), axis=1, inplace=True)
@@ -3209,10 +3551,6 @@ class DataGrinderOneTask:
                 wrapped_lines.append(text[i:i + max_length])
             return '\n'.join(wrapped_lines)
 
-        visualization_folder = os.path.join(self.output_result_folder, 'visualization')
-        create_folder(visualization_folder)
-
-        # 生成测试信息总览
         def plot_test_info(test_info, plot_path):
 
             def plot_rect(left_bottom_pt, width, height,
@@ -3280,7 +3618,7 @@ class DataGrinderOneTask:
             ax.set_xlim(-0.1, fig_width + 0.1)
             ax.set_ylim(-fig_height - 0.1, 0.1)
             canvas = FigureCanvas(fig)
-            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+            canvas.print_figure(path, facecolor='white', dpi=100)
 
         def plot_title_table(title_dict, plot_path):
             fig = plt.figure(figsize=(4 * len(title_dict), 3.5))
@@ -3322,6 +3660,10 @@ class DataGrinderOneTask:
             fig.clf()
             plt.close()
 
+        visualization_folder = os.path.join(self.output_result_folder, 'visualization')
+        create_folder(visualization_folder)
+
+        # 生成测试信息总览
         current_version = self.test_config['version']
         version_comparison_folder = self.test_config['version_comparison']
         old_version = ''
@@ -4384,5 +4726,5 @@ class DataGrinderSlotsOneTask(DataGrinderOneTask):
 
     def __init__(self, task_folder):
         super().__init__(task_folder)
-        # self.get_kpi_threshold = SLotKpi.get_lines_kpi_threshold
-        # self.get_kpi_ratio = SlotKpi.get_lines_kpi_ratio
+        self.get_kpi_threshold = SlotsKpi.get_slots_kpi_threshold
+        self.get_kpi_ratio = SlotsKpi.get_slots_kpi_ratio

@@ -1380,14 +1380,18 @@ class SlotsPreprocess:
 
 
 if __name__ == '__main__':
-    raw_data_path = '/home/byj/ZONE/TestProject/ParkingDebug/04_TestData/3-Slots/01_ScenarioUnit/20250324_144918_n000001/01_Data/Slots/GroundTruth/raw/gt_data.csv'
+    raw_data_path = '/home/byj/ZONE/TestProject/ManualTruthTest3/04_TestResult/1-Obstacles/01_ScenarioUnit/20231128_111111_n000001/01_Data/Obstacles/VAQCBEVObstaclesTracks/raw/pred_data.csv'
     raw_data = pd.read_csv(raw_data_path, index_col=False)
 
     parameter_json = {
-        'ROI': {'x': [-12, 15], 'y': [-6, 6]},
-        'region': {1: {'x': [-12, 15], 'y': [-6, 6]}},
+        'coverage_reference_point': [2, 0, 1],
+        'coverage_threshold': 0.6,
+        'lane_width': 3.6,
+        'moving_threshold': 2,
+        'key_coverage_threshold': 0.1,
+        'ROI': {'x': [-100, 150], 'y': [-20, 20]},
     }
 
-    preprocess_instance = SlotsPreprocess()
+    preprocess_instance = ObstaclesPreprocess()
     data = preprocess_instance.run(raw_data, parameter_json)
     data.to_csv('456.csv', index=False, encoding='utf_8_sig')

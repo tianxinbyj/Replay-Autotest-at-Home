@@ -1720,7 +1720,7 @@ Information:
     metric:
       recall_precision:
         name: 准召信息
-        description: 包括准确率，召回率，类型准确率，TP/FP/FN目标个数
+        description: 包括准确率,召回率,类型准确率,TP/FP/FN目标个数
       x_error:
         name: 纵向距离误差
         description: 评价对目标的纵向距离的感知能力
@@ -1790,8 +1790,8 @@ Information:
     - a. 召回率(recall)：真实车道线存在感知车道线的比例.
     - b. 精确率(precision)：感知车道线存在真实车道线的比例.
     - c. 横向偏差(deviation)：感知车道线与其对应的真实车道线的图像取样点的横向偏差的均方根.
-    - d. 纵向检测距离(length)：感知车道线的极限检测长度，即长度的准确度.
-    - e. 特征准确度(accuracy)：感知车道线的曲率，类型，线型与其对应的真实车道线的符合程度.
+    - d. 纵向检测距离(length)：感知车道线的极限检测长度,即长度的准确度.
+    - e. 特征准确度(accuracy)：感知车道线的曲率,类型,线型与其对应的真实车道线的符合程度.
     image: LinesTestSetup.png
     raw_column:
     - time_stamp
@@ -1826,7 +1826,7 @@ Information:
     metric:
       recall_precision:
         name: 准召信息
-        description: 包括准确率，召回率，线型准确率，TP/FP/FN目标个数
+        description: 包括准确率,召回率,线型准确率,TP/FP/FN目标个数
       lateral_error:
         name: 横向位置误差
         description: 评价对车道线的横向距离的感知能力
@@ -1903,15 +1903,8 @@ Information:
     result_column:
     - 召回率
     - 准确率
-    - 类型准确率
-    - 内角点0纵向距离误差
-    - 内角点0横向距离误差
-    - 内角点1纵向距离误差
-    - 内角点1横向距离误差
-    - 内角点2纵向距离误差
-    - 内角点2横向距离误差
-    - 内角点3纵向距离误差
-    - 内角点3横向距离误差
+    - 内角点纵向距离误差
+    - 内角点横向距离误差
     - 入库点距离误差
     - 入库边长度误差
     - 车位航向角误差
@@ -1924,7 +1917,7 @@ Information:
     metric:
       recall_precision:
         name: 准召信息
-        description: 包括准确率，召回率，类型准确率，TP/FP/FN目标个数
+        description: 包括准确率,召回率,TP/FP/FN目标个数
       conner_x_error:
         name: 内角点纵向距离误差
         description: 评价对内角点的纵向距离的感知能力
@@ -1934,12 +1927,15 @@ Information:
       in_border_distance_error:
         name: 入库点距离误差
         description: 评价对入库点的距离的感知能力
-      slot_length_error:
+      in_border_length_error:
         name: 入库边长度误差
         description: 评价对入库边长度的感知能力
       slot_heading_error:
         name: 车位航向角误差
         description: 评价对车位航向角的感知能力
+      slot_length_error:
+        name: 车位长度误差
+        description: 评价对车位长度的感知能力
       stopper_depth_error:
         name: 限位器深度误差
         description: 评价对限位器深度的感知能力
@@ -1948,24 +1944,24 @@ Information:
         name: 正样本误检测
       false_negative:
         name: 负样本漏检测
-      false_type:
-        name: 类型错误
       conner_x_error:
         name: 内角点纵向距离误差
       conner_y_error:
         name: 内角点横向距离误差
       in_border_distance_error:
         name: 入库点距离误差
-      slot_length_error:
+      in_border_length_error:
         name: 入库边长度误差
       slot_heading_error:
         name: 车位航向角误差
+      slot_length_error:
+        name: 车位长度误差
       stopper_depth_error:
         name: 限位器深度误差
     type:
       vertical:
-        name: 垂直车位
+        name: 垂直
       parallel:
-        name: 平行车位
+        name: 平行
       oblique:
-        name: 斜列车位
+        name: 斜列

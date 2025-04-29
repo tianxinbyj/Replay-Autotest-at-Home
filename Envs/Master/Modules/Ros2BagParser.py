@@ -2658,7 +2658,7 @@ class Ros2BagParser:
 
         # Qcaft
         elif topic in self.getTopics('qc_perception_msgs/msg/QcObstacles'):
-            time_stamp = msg.timestamp / 1000
+            time_stamp = msg.timestamp
             frame_id = msg.frame_id
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
@@ -2689,7 +2689,7 @@ class Ros2BagParser:
                     else:
                         continue
 
-                    measurement = obstacle_data.obstacle_data
+                    measurement = obstacle_data.measurement
                     obstacle_id = measurement.track_id
                     x = measurement.pos_x
                     y = measurement.pos_y
@@ -2972,10 +2972,10 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/byj/ZONE/TestProject/ParkingDebug/03_Workspace'
-    ros2bag_path = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000001/rosbag2_2025_04_24-15_56_18'
+    workspace = '/home/byj/ZONE/manual_prediction_robag'
+    ros2bag_path = '/home/byj/ZONE/manual_prediction_robag/20231130_152434_n000001_driving_rosbag'
     # ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
-    folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000001/RawData'
+    folder = '/home/byj/ZONE/TestProject/ManualTruthTest3/01_Prediction/20231128_111111_n000001/RawData'
     ES39_topic_list = [
             # '/PI/EG/EgoMotionInfo',
             '/VA/VehicleMotionIpd',
@@ -2988,14 +2988,14 @@ if __name__ == "__main__":
             # '/PK/DR/Result',
             '/SA/INSPVA',
             # '/Camera/FrontWide/H265',
-            '/PK/PER/VisionSlotDecodingList',
-            # '/VA/QC/BEVObstaclesTracks',
+            # '/PK/PER/VisionSlotDecodingList',
+            '/VA/QC/BEVObstaclesTracks',
             # '/VA/QC/MonoObstaclesTracks',
-            # '/VA/QC/FsObstacles',
+            '/VA/QC/FsObstacles',
             # '/VA/QC/Lines',
             # '/VA/QC/Objects',
             # '/VA/QC/Pose',
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20231128_111111_n000001')
