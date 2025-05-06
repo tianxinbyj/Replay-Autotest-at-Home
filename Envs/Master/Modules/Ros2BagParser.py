@@ -2686,8 +2686,13 @@ class Ros2BagParser:
                     elif measurement_type == 27:
                         obstacle_type = 1
                         sub_type = 4
+                    elif measurement_type == 16:
+                        obstacle_type = 1
+                        sub_type = 5
                     else:
-                        continue
+                        print('unknown obstacle type', measurement_type)
+                        obstacle_type = 1
+                        sub_type = 1
 
                     measurement = obstacle_data.measurement
                     obstacle_id = measurement.track_id
@@ -2972,30 +2977,41 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/byj/ZONE/manual_prediction_robag'
-    ros2bag_path = '/home/byj/ZONE/manual_prediction_robag/20231130_152434_n000001_driving_rosbag'
-    # ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
-    folder = '/home/byj/ZONE/TestProject/ManualTruthTest3/01_Prediction/20231128_111111_n000001/RawData'
-    ES39_topic_list = [
-            # '/PI/EG/EgoMotionInfo',
-            '/VA/VehicleMotionIpd',
-            # '/VA/BevObstaclesDet',
-            # '/VA/FrontWideObstacles2dDet',
-            # '/VA/BackViewObstacles2dDet',
-            # '/VA/Lines',
-            # '/VA/Obstacles',
-            # '/PI/FS/ObjTracksHorizon',
-            # '/PK/DR/Result',
-            '/SA/INSPVA',
-            # '/Camera/FrontWide/H265',
-            # '/PK/PER/VisionSlotDecodingList',
-            '/VA/QC/BEVObstaclesTracks',
-            # '/VA/QC/MonoObstaclesTracks',
-            '/VA/QC/FsObstacles',
-            # '/VA/QC/Lines',
-            # '/VA/QC/Objects',
-            # '/VA/QC/Pose',
-    ]
+    workspace = '/home/byj/ZONE/TestProject/ManualTruthTest3/03_Workspace'
 
-    RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20231128_111111_n000001')
+    for scenario_tag in [
+        '20240118_110536_n000001', '20240118_133925_n000001', '20240118_133925_n000002',
+        '20240118_140210_n000001', '20240119_143055_n000001', '20240119_143055_n000003',
+        '20240119_143055_n000004', '20240119_143055_n000005', '20240119_145625_n000001',
+        '20240119_145625_n000002', '20240119_145625_n000003', '20240119_145625_n000004',
+        '20240119_145625_n000005', '20240123_143218_n000001', '20240123_143218_n000002',
+        '20240123_145155_n000003',
+    ]:
+
+        ros2bag_path = f'/home/byj/Downloads/20240100_rosbag_driving/{scenario_tag}_driving_rosbag'
+        # ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
+        folder = f'/home/byj/ZONE/TestProject/ManualTruthTest3/01_Prediction/{scenario_tag}/RawData'
+        os.makedirs(folder, exist_ok=True)
+        ES39_topic_list = [
+                # '/PI/EG/EgoMotionInfo',
+                '/VA/VehicleMotionIpd',
+                # '/VA/BevObstaclesDet',
+                # '/VA/FrontWideObstacles2dDet',
+                # '/VA/BackViewObstacles2dDet',
+                # '/VA/Lines',
+                # '/VA/Obstacles',
+                # '/PI/FS/ObjTracksHorizon',
+                # '/PK/DR/Result',
+                '/SA/INSPVA',
+                # '/Camera/FrontWide/H265',
+                # '/PK/PER/VisionSlotDecodingList',
+                '/VA/QC/BEVObstaclesTracks',
+                # '/VA/QC/MonoObstaclesTracks',
+                '/VA/QC/FsObstacles',
+                # '/VA/QC/Lines',
+                # '/VA/QC/Objects',
+                # '/VA/QC/Pose',
+        ]
+
+        RBP = Ros2BagParser(workspace)
+        RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, scenario_tag)

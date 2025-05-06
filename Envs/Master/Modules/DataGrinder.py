@@ -490,8 +490,8 @@ class DataGrinderOneCase:
 
         self.test_result['General']['time_gap'] = t_delta
 
-        time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 5
-        time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 5
+        time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
+        time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
         send_log(self, f'测试指标的数据时间段为{time_start}-{time_end}')
         self.test_result['General']['time_start'] = float(time_start)
         self.test_result['General']['time_end'] = float(time_end)
@@ -1023,7 +1023,7 @@ class DataGrinderOneCase:
                 create_folder(characteristic_folder)
                 self.test_result[self.test_topic][topic]['bug'][characteristic] = {}
                 data_for_bug = self.test_result[self.test_topic][topic]['metric'][characteristic]
-                bug_index_dict = self.get_bug_index_dict(data_for_bug)
+                bug_index_dict = self.get_bug_index_dict(topic, data_for_bug)
 
                 for bug_type, corresponding_index in bug_index_dict.items():
                     bug_type_folder = os.path.join(characteristic_folder, bug_type)
@@ -1044,7 +1044,7 @@ class DataGrinderOneCase:
                         time_stamp = row['gt.time_stamp']
                         frame_data = total_data[total_data['gt.time_stamp'] == time_stamp]
                         # 如果这一帧内没有gt或者没有pred，暂时先不提bug
-                        if frame_data['gt.flag'].sum() == 0 or frame_data['pred.flag'].sum() == 0:
+                        if frame_data['gt.flag'].sum() == 0 and frame_data['pred.flag'].sum() == 0:
                             continue
 
                         one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
@@ -1590,7 +1590,7 @@ class DataGrinderOneCase:
                     'sketch': self.get_relpath(characteristic_folder)
                 }
                 data_for_render = self.test_result[self.test_topic][topic]['metric'][characteristic]
-                bug_index_dict = self.get_bug_index_dict(data_for_render)
+                bug_index_dict = self.get_bug_index_dict(topic, data_for_render)
 
                 for time_stamp in (total_data.sort_values(by='gt.time_stamp')
                         .drop_duplicates(subset=['gt.time_stamp'], keep='first')['gt.time_stamp'].values):
@@ -1971,7 +1971,7 @@ class DataGrinderOneCase:
         for folder in glob.glob(os.path.join(self.RenderFolder, self.test_topic, '*', 'sketch')):
             shutil.rmtree(folder)
 
-    def get_bug_index_dict(self, metric_data_group):
+    def get_bug_index_dict(self, topic, metric_data_group):
 
         def filter_valid_bug_data(data):
 
@@ -2025,6 +2025,8 @@ class DataGrinderOneCase:
                 index = bug_excluding_row.index[0]
                 bug_excluding_ids = json.loads(scenario_test_record.at[index, 'bug_excluding'])
 
+        frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
+        send_log(self, f'出现次数低于{frame_threshold}的bug会被忽视')
         send_log(self, f'{self.scenario_id} 排除以下gt.id的bug {bug_excluding_ids}')
 
         bug_count = self.test_action['bug_count']
@@ -2118,7 +2120,7 @@ class DataGrinderOneCase:
                         # 进一步筛选出20米内误差绝对值最大，20米外误差相对值最大的前5个
                         near_group = group[(group['gt.x'] <= distance_n_f) & (group['gt.x'] >= -distance_n_f)]
                         id_counts = near_group['gt.id'].value_counts()
-                        frequent_ids = id_counts[id_counts > 10].index
+                        frequent_ids = id_counts[id_counts > frame_threshold].index
                         filtered_df = near_group[near_group['gt.id'].isin(frequent_ids)]
                         mean_values = filtered_df.groupby('gt.id')[
                             f'{metric.replace("_", ".")}_abs'].mean().reset_index()
@@ -2133,7 +2135,7 @@ class DataGrinderOneCase:
                         else:
                             col = f'{metric.replace("_", ".")}_abs'
                         id_counts = far_group['gt.id'].value_counts()
-                        frequent_ids = id_counts[id_counts > 10].index
+                        frequent_ids = id_counts[id_counts > frame_threshold].index
                         filtered_df = far_group[far_group['gt.id'].isin(frequent_ids)]
                         mean_values = filtered_df.groupby('gt.id')[col].mean().reset_index()
                         top_5_ids = mean_values.sort_values(by=col, ascending=False).head(bug_count)['gt.id']
@@ -2170,7 +2172,7 @@ class DataGrinderOneCase:
 
                     bug_index_dict[metric] = []
                     id_counts = error_data['gt.id'].value_counts()
-                    frequent_ids = id_counts[id_counts > 10].index
+                    frequent_ids = id_counts[id_counts > frame_threshold].index
                     filtered_df = error_data[error_data['gt.id'].isin(frequent_ids)]
                     mean_values = filtered_df.groupby('gt.id')[f'{metric.replace("_", ".")}'].mean().reset_index()
                     top_ids = mean_values.sort_values(
@@ -2867,10 +2869,13 @@ class DataGrinderOneTask:
 
         if self.test_topic == 'Obstacles':
             self.output_characteristic = self.test_config['test_action']['output_characteristic']
+
         elif self.test_topic == 'Lines':
             self.output_characteristic = ['total']
+
         elif self.test_topic == 'Slots':
             self.output_characteristic = ['total']
+
         else:
             return
 
@@ -3392,7 +3397,6 @@ class DataGrinderOneTask:
 
                             rows.append(row)
 
-                    print(rows)
                     df = pd.DataFrame(rows, columns=pd.MultiIndex.from_tuples(columns))
                     df.sort_values(by=[columns[0], columns[2]], inplace=True)
                     df.drop(('基本信息', '基本信息', 'start_distance'), axis=1, inplace=True)
@@ -3618,7 +3622,7 @@ class DataGrinderOneTask:
             ax.set_xlim(-0.1, fig_width + 0.1)
             ax.set_ylim(-fig_height - 0.1, 0.1)
             canvas = FigureCanvas(fig)
-            canvas.print_figure(path, facecolor='white', dpi=100)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
 
         def plot_title_table(title_dict, plot_path):
             fig = plt.figure(figsize=(4 * len(title_dict), 3.5))
@@ -3717,6 +3721,9 @@ class DataGrinderOneTask:
                             target_num[target_type_text] += \
                             scenario_analysis[scenario_tag][scenario_id]['total'][target_type]['all_radius']
 
+                elif self.test_topic == 'Slots':
+                    pass
+
                 else:
                     return
 
@@ -3774,6 +3781,10 @@ class DataGrinderOneTask:
             for target_type_text, num in target_num.items():
                 title_summary[f'{target_type_text}\n(km)'] = f'{(num / 1000):.0f}'
 
+        elif self.test_topic == 'Slots':
+            for target_type_text, num in target_num.items():
+                title_summary[f'{target_type_text}\n(千)'] = f'{(num / 1000):.0f}'
+
         else:
             return
 
@@ -3807,6 +3818,9 @@ class DataGrinderOneTask:
 
         elif self.test_topic == 'Lines':
             division_col = 'Radius[m]'
+
+        elif self.test_topic == 'Slots':
+            division_col = 'Region[m]'
 
         else:
             return
@@ -4414,13 +4428,15 @@ class DataGrinderOneTask:
                         for ii in range(compare_res.shape[0]):
                             for jj in range(compare_res.shape[1]):
                                 res = [pass_or_fails[ii, jj] for pass_or_fails in pass_or_fails_compare]
-                                if self.test_topic == 'Lines' and metric in ['横向位置误差', '偏航角误差']:
+                                if ((self.test_topic == 'Lines' and metric in ['横向位置误差', '偏航角误差'])
+                                        or (self.test_topic == 'Slots' and metric in ['内角点纵向距离误差', '内角点横向距离误差'])):
                                     if 0 in res:
                                         compare_res[ii, jj] = 0
                                     elif 1 in res:
                                         compare_res[ii, jj] = 1
                                     else:
                                         compare_res[ii, jj] = -1
+
                                 else:
                                     if 1 in res:
                                         compare_res[ii, jj] = 1
@@ -4461,6 +4477,14 @@ class DataGrinderOneTask:
                     self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
 
                 elif self.test_topic == 'Lines':
+                    plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
+                                             f'{scenario_tag}--{characteristic}_summary.png')
+                    metric_summary = pd.concat(pass_or_fail_summary, axis=1)
+                    plot_summary_metric(metric_summary, plot_path)
+                    send_log(self, f'{plot_path} 图片已保存')
+                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+
+                elif self.test_topic == 'Slots':
                     plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
                                              f'{scenario_tag}--{characteristic}_summary.png')
                     metric_summary = pd.concat(pass_or_fail_summary, axis=1)
