@@ -106,7 +106,9 @@ class DataGrinderOneCase:
         # 初始化测试配置
         self.test_result_yaml = os.path.join(self.scenario_unit_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
-            self.test_result = {'General': {}, self.test_topic: {'GroundTruth': {}}}
+            self.test_result = {'General': {
+                'pred_ego_flag': False, 'gt_ego_flag': False
+            }, self.test_topic: {'GroundTruth': {}}}
             for topic in self.topics_for_evaluation:
                 self.test_result[self.test_topic][topic] = {}
 
@@ -917,7 +919,7 @@ class DataGrinderOneCase:
 
             if self.test_topic == 'Obstacles':
                 input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
+                    'metric_type': self.test_item[topic],
                     'characteristic_type': self.output_characteristic,
                     'kpi_date_label': self.kpi_date_label,
                     'test_topic': self.test_topic,
@@ -925,14 +927,14 @@ class DataGrinderOneCase:
 
             elif self.test_topic == 'Lines':
                 input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
+                    'metric_type': self.test_item[topic],
                     'kpi_date_label': self.kpi_date_label,
                     'test_topic': self.test_topic,
                 }
 
             elif self.test_topic == 'Slots':
                 input_parameter_container = {
-                    'metric_type': self.test_config['test_item'][topic],
+                    'metric_type': self.test_item[topic],
                     'kpi_date_label': self.kpi_date_label,
                     'test_topic': self.test_topic,
                 }
@@ -1047,7 +1049,7 @@ class DataGrinderOneCase:
 
                         one_bug_folder = os.path.join(bug_type_folder, f'{time_stamp}')
                         create_folder(one_bug_folder)
-                        if bug_type not in self.test_config['test_item']:
+                        if bug_type not in self.test_item:
                             self.test_result[self.test_topic][topic]['bug'][characteristic][bug_type] = (
                                 self.get_relpath(bug_type_folder))
 
@@ -2112,8 +2114,8 @@ class DataGrinderOneCase:
                                                   & (error_data['gt.vel'] <= 2))]
                     if metric == 'yaw_error':
                         error_data = error_data[error_data['yaw.error_abs'] > 15]
-                        # error_data = error_data[(metric_data['gt.x'] <= -50)
-                        #                          & (metric_data['gt.x'] >= -100)]
+                        # error_data = error_data[(error_data['gt.x'] <= -50)
+                        #                          & (error_data['gt.x'] >= -100)]
 
                     bug_index_dict[metric] = []
                     for key, group in error_data.groupby('gt.type'):
@@ -2865,7 +2867,12 @@ class DataGrinderOneTask:
         self.test_date = str(self.test_config['test_date'])
         self.kpi_date_label = self.test_config['kpi_date_label']
         self.test_information = test_encyclopaedia['Information'][self.test_topic]
+        self.test_item = self.test_config['test_item']
         self.scenario_update = self.test_config['test_action']['scenario_unit']['scenario_update']
+
+        for topic in self.test_item.keys():
+            if 'recall_precision' not in self.test_item[topic]:
+                self.test_item[topic].insert(0, 'recall_precision')
 
         if self.test_topic == 'Obstacles':
             self.output_characteristic = self.test_config['test_action']['output_characteristic']
@@ -2927,7 +2934,7 @@ class DataGrinderOneTask:
                     'truth_source': self.truth_source,
                     'test_action': self.test_action['scenario_unit'],
                     'output_characteristic': self.output_characteristic,
-                    'test_item': self.test_config['test_item'],
+                    'test_item': self.test_item,
                     'scenario_tag': scenario_tag['tag'],
                     'scenario_id': scenario_id,
                     'timestamp_matching_tolerance': self.test_config['timestamp_matching_tolerance'],
@@ -3041,7 +3048,7 @@ class DataGrinderOneTask:
 
                 if self.test_topic == 'Obstacles':
                     input_parameter_container = {
-                        'metric_type': self.test_config['test_item'][topic],
+                        'metric_type': self.test_item[topic],
                         'characteristic_type': self.output_characteristic,
                         'kpi_date_label': self.kpi_date_label,
                         'test_topic': self.test_topic,
@@ -3049,14 +3056,14 @@ class DataGrinderOneTask:
 
                 elif self.test_topic == 'Lines':
                     input_parameter_container = {
-                        'metric_type': self.test_config['test_item'][topic],
+                        'metric_type': self.test_item[topic],
                         'kpi_date_label': self.kpi_date_label,
                         'test_topic': self.test_topic,
                     }
 
                 elif self.test_topic == 'Slots':
                     input_parameter_container = {
-                        'metric_type': self.test_config['test_item'][topic],
+                        'metric_type': self.test_item[topic],
                         'kpi_date_label': self.kpi_date_label,
                         'test_topic': self.test_topic,
                     }
@@ -3755,7 +3762,7 @@ class DataGrinderOneTask:
             '测试版本': current_version,
             '版本对比': f'{current_version} <--> {old_version}',
             # 'test_date': self.test_config['test_date'],
-            '测试对象': ';'.join(self.test_config['test_item'].keys()),
+            '测试对象': ';'.join(self.test_item.keys()),
             '目标类型': ';'.join([f'{k}-{v}' for k, v in target_num.items()]),
             '指标类型': metric_key,
             '区域划分': division_key,
@@ -4470,11 +4477,12 @@ class DataGrinderOneTask:
                     send_log(self, f'{plot_path} 图片已保存')
                     self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
 
-                    plot_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{scenario_tag}--{characteristic}_summary_2.png')
-                    metric_summary = pd.concat(pass_or_fail_summary[5:], axis=1)
-                    plot_summary_metric(metric_summary, plot_path)
-                    send_log(self, f'{plot_path} 图片已保存')
-                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+                    if len(pass_or_fail_summary) > 5:
+                        plot_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{scenario_tag}--{characteristic}_summary_2.png')
+                        metric_summary = pd.concat(pass_or_fail_summary[5:], axis=1)
+                        plot_summary_metric(metric_summary, plot_path)
+                        send_log(self, f'{plot_path} 图片已保存')
+                        self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
 
                 elif self.test_topic == 'Lines':
                     plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
