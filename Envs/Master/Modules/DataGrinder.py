@@ -50,8 +50,6 @@ class DataGrinderOneCase:
     def __init__(self, scenario_unit_folder):
         send_log(self, '=' * 25 + self.__class__.__name__ + '=' * 25)
         # 变量初始化
-        self.gt_ego_flag = False
-        self.pred_ego_flag = False
         self.ego_velocity_generator = None
         self.video_start_time = 0
         self.video_fps = 30
@@ -198,7 +196,7 @@ class DataGrinderOneCase:
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
                 pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result['General']['pred_ego'] = self.get_relpath(path)
-                self.pred_ego_flag = True
+                self.test_result['General']['pred_ego_flag'] = True
 
             elif topic == '/VA/VehicleMotionIpd' and '/PI/EG/EgoMotionInfo' not in topics_for_parser:
                 send_log(self, f'Prediction 正在读取{topic}, 用于时间同步')
@@ -215,7 +213,7 @@ class DataGrinderOneCase:
                 path = os.path.join(self.DataFolder, 'General', 'pred_ego.csv')
                 pred_data[['time_stamp', 'ego_vx']].to_csv(path, index=False, encoding='utf_8_sig')
                 self.test_result['General']['pred_ego'] = self.get_relpath(path)
-                self.pred_ego_flag = True
+                self.test_result['General']['pred_ego_flag'] = True
 
             # 拿到/SA/INSPVA得到的时间差
             elif topic == '/SA/INSPVA':
@@ -434,13 +432,13 @@ class DataGrinderOneCase:
         ego_data_path = os.path.join(self.gt_raw_folder, 'od_ego.csv')
         if not os.path.exists(ego_data_path):
             send_log(self, 'GroundTruth未找到自车速度数据')
-            self.gt_ego_flag = False
+            self.test_result['General']['gt_ego_flag'] = False
             ego_data = pd.DataFrame(columns=['time_stamp', 'ego_vx'])
             ego_data['time_stamp'] = gt_timestamp['time_stamp']
             ego_data['ego_vx'] = 0
         else:
             send_log(self, f'GroundTruth 正在读取{os.path.basename(ego_data_path)}, 用于时间同步')
-            self.gt_ego_flag = True
+            self.test_result['General']['gt_ego_flag'] = True
             ego_data = pd.read_csv(os.path.join(self.gt_raw_folder, 'od_ego.csv'))[
                 ['ego_timestamp', 'INS_Speed']].rename(
                 columns={'ego_timestamp': 'time_stamp', 'INS_Speed': 'ego_vx'})
@@ -457,7 +455,7 @@ class DataGrinderOneCase:
         baseline_data_path = self.get_abspath(self.test_result['General']['gt_ego'])
         baseline_data = pd.read_csv(baseline_data_path, index_col=False)
         baseline_time_series = baseline_data['time_stamp'].to_list()
-        if self.pred_ego_flag:
+        if self.test_result['General']['pred_ego_flag']:
             calibrated_data_path = self.get_abspath(self.test_result['General']['pred_ego'])
         else:
             calibrated_data_path = baseline_data_path
@@ -469,7 +467,7 @@ class DataGrinderOneCase:
             t_delta = self.test_result['General']['sa_time_gap']
             send_log(self, f'使用INSPVA获得的时间间隔 = {t_delta}')
 
-        elif self.pred_ego_flag and self.gt_ego_flag:
+        elif self.test_result['General']['pred_ego_flag'] and self.test_result['General']['gt_ego_flag']:
             cmd = [
                 f"{bench_config['master']['sys_interpreter']}",
                 "Api_GetTimeGap.py",
@@ -974,7 +972,7 @@ class DataGrinderOneCase:
         # 对于每个频繁的ID，找到时间戳位于中间的行的索引
         def get_middle_index_for_bug(bug_data, sort_value, count_threshold):
             id_counts = bug_data[sort_value].value_counts()
-            frequent_ids = id_counts[id_counts >= count_threshold].index
+            frequent_ids = id_counts[id_counts >= int(count_threshold)].index
             corresponding_indices = []
             for id_ in frequent_ids:
                 id_df = bug_data[bug_data[sort_value] == id_]
@@ -2113,14 +2111,16 @@ class DataGrinderOneCase:
                         error_data = error_data[~((error_data['gt.type'].isin(['cyclist']))
                                                   & (error_data['gt.vel'] <= 2))]
                     if metric == 'yaw_error':
-                        error_data = error_data[error_data['yaw.error_abs'] > 20]
+                        error_data = error_data[error_data['yaw.error_abs'] > 15]
+                        # error_data = error_data[(metric_data['gt.x'] <= -50)
+                        #                          & (metric_data['gt.x'] >= -100)]
 
                     bug_index_dict[metric] = []
                     for key, group in error_data.groupby('gt.type'):
                         # 进一步筛选出20米内误差绝对值最大，20米外误差相对值最大的前5个
                         near_group = group[(group['gt.x'] <= distance_n_f) & (group['gt.x'] >= -distance_n_f)]
                         id_counts = near_group['gt.id'].value_counts()
-                        frequent_ids = id_counts[id_counts > frame_threshold].index
+                        frequent_ids = id_counts[id_counts >= int(frame_threshold)].index
                         filtered_df = near_group[near_group['gt.id'].isin(frequent_ids)]
                         mean_values = filtered_df.groupby('gt.id')[
                             f'{metric.replace("_", ".")}_abs'].mean().reset_index()
@@ -2135,7 +2135,7 @@ class DataGrinderOneCase:
                         else:
                             col = f'{metric.replace("_", ".")}_abs'
                         id_counts = far_group['gt.id'].value_counts()
-                        frequent_ids = id_counts[id_counts > frame_threshold].index
+                        frequent_ids = id_counts[id_counts >= int(frame_threshold)].index
                         filtered_df = far_group[far_group['gt.id'].isin(frequent_ids)]
                         mean_values = filtered_df.groupby('gt.id')[col].mean().reset_index()
                         top_5_ids = mean_values.sort_values(by=col, ascending=False).head(bug_count)['gt.id']
@@ -2172,7 +2172,7 @@ class DataGrinderOneCase:
 
                     bug_index_dict[metric] = []
                     id_counts = error_data['gt.id'].value_counts()
-                    frequent_ids = id_counts[id_counts > frame_threshold].index
+                    frequent_ids = id_counts[id_counts >= int(frame_threshold)].index
                     filtered_df = error_data[error_data['gt.id'].isin(frequent_ids)]
                     mean_values = filtered_df.groupby('gt.id')[f'{metric.replace("_", ".")}'].mean().reset_index()
                     top_ids = mean_values.sort_values(
@@ -2208,7 +2208,7 @@ class DataGrinderOneCase:
 
                     bug_index_dict[metric] = []
                     id_counts = error_data['gt.id'].value_counts()
-                    frequent_ids = id_counts[id_counts > 10].index
+                    frequent_ids = id_counts[id_counts >= int(frame_threshold)].index
                     filtered_df = error_data[error_data['gt.id'].isin(frequent_ids)]
                     new_metric_name = ".".join(metric.rsplit("_", 1)) + '_abs'
                     mean_values = filtered_df.groupby('gt.id')[f'{new_metric_name}'].mean().reset_index()
@@ -2395,7 +2395,7 @@ class DataGrinderOneCase:
         }
 
         if self.ego_velocity_generator is None:
-            if self.gt_ego_flag:
+            if self.test_result['General']['gt_ego_flag']:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
                 self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
             else:
@@ -2552,7 +2552,7 @@ class DataGrinderOneCase:
         }
 
         if self.ego_velocity_generator is None:
-            if self.gt_ego_flag:
+            if self.test_result['General']['gt_ego_flag']:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
                 self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
             else:
@@ -2729,7 +2729,7 @@ class DataGrinderOneCase:
         }
 
         if self.ego_velocity_generator is None:
-            if self.gt_ego_flag:
+            if self.test_result['General']['gt_ego_flag']:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
                 self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
             else:

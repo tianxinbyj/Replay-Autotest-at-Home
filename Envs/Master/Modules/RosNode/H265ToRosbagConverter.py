@@ -2,18 +2,15 @@
 @Author: BU YUJUN
 @Date: 2025/4/7 14:04  
 """
-# !/usr/bin/env python3
 
 import argparse
 import os
 import shutil
-import subprocess
 
 import pandas as pd
 import rclpy
 from rclpy.serialization import serialize_message
 from sensor_msgs.msg import CompressedImage
-import av
 import rosbag2_py
 from rosbag2_py import SequentialWriter, StorageOptions, ConverterOptions
 from rosbag2_py import TopicMetadata
@@ -22,76 +19,89 @@ from rosbag2_py import TopicMetadata
 class H265ToRosbagConverter:
 
     def __init__(self, topic, h265_path, timestamp_path, rosbag_path):
-        # 初始化参数
-        self.h265_path = h265_path  # 输入视频文件
-        self.timestamp_path = timestamp_path
-        self.rosbag_path = rosbag_path  # 输出bag文件夹
-        self.topic = topic
 
-        if os.path.exists(self.rosbag_path):
-            shutil.rmtree(self.rosbag_path)
+        # 初始化ROS 2上下文（无节点）
+        rclpy.init()
 
-        # 创建rosbag并写入帧数据
-        self.create_rosbag_with_timestamps()
+        if os.path.exists(rosbag_path):
+            shutil.rmtree(rosbag_path)
 
-    def create_rosbag_with_timestamps(self):
-        print("Creating ROS bag with original timestamps...")
-
-        # 设置bag存储选项
+        # 配置输出.db3文件
+        self.writer = SequentialWriter()
         storage_options = StorageOptions(
-            uri=self.rosbag_path,
+            uri=rosbag_path,
             storage_id='sqlite3'
         )
-
-        # 设置转换选项
         converter_options = ConverterOptions(
             input_serialization_format='cdr',
             output_serialization_format='cdr'
         )
-
-        # 创建写入器
-        writer = SequentialWriter()
-        writer.open(storage_options, converter_options)
+        self.writer.open(storage_options, converter_options)
 
         # 创建Topic信息
         topic_metadata = TopicMetadata(
-            name=self.topic,
+            name=topic,
             type="sensor_msgs/msg/CompressedImage",
             serialization_format="cdr"
         )
-        writer.create_topic(topic_metadata)
+        self.writer.create_topic(topic_metadata)
 
         # 打开转换后的H.265文件
-        with open(self.h265_path, 'rb') as f:
-            h265_data = f.read()
-        codec = av.CodecContext.create('hevc', 'r')
-        packets = codec.parse(h265_data)
+        self.h265_path = h265_path
+        self.topic = topic
 
         # 打开时间辍文件
-        time_index = pd.read_csv(self.timestamp_path, index_col=False)
+        self.time_index = pd.read_csv(timestamp_path, index_col=False)
 
-        for i, packet in enumerate(packets):
-            if i == len(packets):
+    def parse_h265_frames(self):
+        """解析H.265裸流文件，分离出各帧"""
+        with open(self.h265_path, 'rb') as f:
+            data = f.read()
+
+        frames = []
+        start = 0
+
+        # 查找NAL单元起始码 (0x00000001)
+        while True:
+            # 查找下一个起始码
+            pos = data.find(b'\x00\x00\x00\x01', start + 1)
+            if pos == -1:
+                # 添加最后一帧
+                frames.append(data[start:])
                 break
+            # 添加当前帧
+            frames.append(data[start:pos])
+            start = pos
 
-            # 创建CompressedImage消息
-            img_msg = CompressedImage()
+        return frames
 
-            # 设置原始时间戳
-            timestamp_sec = time_index.loc[i, 'time_stamp']
-            img_msg.header.stamp.sec = int(timestamp_sec)
-            img_msg.header.stamp.nanosec = int((timestamp_sec - int(timestamp_sec)) * 1e9)
-            img_msg.header.frame_id = str(i)
+    def process_h265_file(self):
+        for i, frame in enumerate(self.parse_h265_frames()):
+            self._write_to_bag(frame, i)
 
-            img_msg.format = "h265"
-            img_msg.data = bytes(packet)  # 使用原始H.265数据包
+        print(f"Processed {i} frames to rosbag2.")
 
-            # 写入bag (使用原始时间戳作为ROS消息时间)
-            writer.write(
-                topic_metadata.name,
-                serialize_message(img_msg),
-                int(timestamp_sec * 1e9)  # 转换为纳秒
+    def _write_to_bag(self, nal_data, frame_id):
+        if frame_id < len(self.time_index):
+            time_stamp = self.time_index.at[frame_id, 'time_stamp']
+            msg = CompressedImage()
+            msg.header.stamp.sec = int(time_stamp)
+            msg.header.stamp.nanosec = int(time_stamp*1e9 - int(time_stamp)*1e9)
+            msg.header.frame_id = f'frame_{frame_id}'
+            msg.format = 'h265'
+            msg.data = bytes(nal_data)
+            print(time_stamp, len(msg.data.tolist()), msg.data.tolist()[:20])
+
+            # 写入数据库
+            self.writer.write(
+                self.topic,
+                serialize_message(msg),
+                int(time_stamp*1e9),
             )
+
+    def close(self):
+        del self.writer
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
@@ -102,8 +112,8 @@ if __name__ == '__main__':
     parser.add_argument("-r", "--rosbag_path", type=str, required=True, help="rosbag_path")
     args = parser.parse_args()
 
-    rclpy.init()
+    converter = H265ToRosbagConverter(args.topic, args.h265_path, args.timestamp_path, args.rosbag_path)
     try:
-        converter = H265ToRosbagConverter(args.topic, args.h265_path, args.timestamp_path, args.rosbag_path)
+        converter.process_h265_file()  # 替换为你的输入文件
     finally:
-        rclpy.shutdown()
+        converter.close()
