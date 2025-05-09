@@ -11,7 +11,6 @@ Replay03:
     password: 123456
     py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
-    ECU_product_preferred: ES39
 Replay02:
   master:
     ip: 172.31.131.253
@@ -25,7 +24,6 @@ Replay02:
     password: 123456
     py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
-    ECU_product_preferred: ES39
 Replay01:
   master:
     ip: 172.31.131.253
@@ -39,7 +37,6 @@ Replay01:
     password: 123456
     py_path: /home/vcar/work/pythonproject/HIL_test_at_home/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
-    ECU_product_preferred: 1J5
 Replay00:
   master:
     ip: localhost
@@ -53,4 +50,3 @@ Replay00:
     password: 123456
     py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
-    ECU_product_preferred: ES37

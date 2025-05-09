@@ -8,10 +8,7 @@ import shutil
 import subprocess
 import sys
 
-import av
 import pandas as pd
-import numpy as np
-
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from Utils.Libs import project_path
