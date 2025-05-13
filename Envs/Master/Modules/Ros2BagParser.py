@@ -2985,7 +2985,7 @@ if __name__ == "__main__":
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
             # '/PI/EG/EgoMotionInfo',
-            # '/VA/VehicleMotionIpd',
+            '/VA/VehicleMotionIpd',
             # '/VA/BevObstaclesDet',
             # '/VA/FrontWideObstacles2dDet',
             # '/VA/BackViewObstacles2dDet',

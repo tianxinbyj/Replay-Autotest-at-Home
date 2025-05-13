@@ -33,7 +33,7 @@ sys.path.append(get_project_path())
 
 from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length, project_path
 from Utils.Libs import generate_unique_id, bench_config, sync_test_result
-from Utils.Libs import font_size, title_font, axis_font, legend_font
+from Utils.Libs import font_size, title_font, axis_font, legend_font, wrap_text
 from Utils.Logger import send_log
 from Utils.SSHClient import SSHClient
 from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
@@ -51,9 +51,11 @@ class DataGrinderOneCase:
         send_log(self, '=' * 25 + self.__class__.__name__ + '=' * 25)
         # 变量初始化
         self.ego_velocity_generator = None
+        self.old_version = ''
         self.video_start_time = 0
         self.video_fps = 30
         self.cut_frame_offset = 0
+        self.AVM_center = 1.42
 
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
@@ -126,6 +128,114 @@ class DataGrinderOneCase:
 
     @sync_test_result
     def load_pred_data(self):
+        # 复制场景相关的信息, 解析相机参数
+        scenario_info_folder = os.path.join(self.pred_raw_folder, 'scenario_info')
+        if copy_to_destination(scenario_info_folder, self.scenario_unit_folder):
+
+            self.test_result['General']['camera_position'] = {}
+            yaml_folder = os.path.join(scenario_info_folder, 'yaml_calib')
+            cam_description_path = os.path.join(yaml_folder, 'cam_description.yaml')
+
+            if os.path.exists(cam_description_path):
+                # 说明是老样式
+                with open(cam_description_path, 'r', encoding='utf-8') as f:
+                    cam_description = yaml.safe_load(f)
+
+                for i, cam_name in cam_description.items():
+                    cam_par_path = os.path.join(yaml_folder, f'camera_{i}.yaml')
+                    with open(cam_par_path, 'r', encoding='utf-8') as f:
+                        cam_par = yaml.safe_load(f)
+                        x, y, z = [
+                            float(cam_par[f'cam_{i}_pos_x']),
+                            float(cam_par[f'cam_{i}_pos_y']),
+                            float(cam_par[f'cam_{i}_pos_z']),
+                        ]
+                        image_width = float(cam_par[f'cam_{i}_image_width'])
+                        focal_x = float(cam_par[f'cam_{i}_focal_x'])
+                        yaw = np.rad2deg(float(cam_par[f'cam_{i}_yaw']))
+                        h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
+
+                        fov_left = float(yaw + h_fov / 2)
+                        fov_right = float(yaw - h_fov / 2)
+
+                        if fov_left < 0:
+                            fov_left += 360
+                        if fov_left > 360:
+                            fov_left -= 360
+
+                        if fov_right < 0:
+                            fov_right += 360
+                        if fov_right > 360:
+                            fov_right -= 360
+
+                        if fov_right > fov_left:
+                            fov_right -= 360
+                        fov_range = [fov_right, fov_left]
+
+                    self.test_result['General']['camera_position'][cam_name] = {
+                        'x': x, 'y': y, 'z': z, 'fov': fov_range,
+                    }
+                    send_log(self, f'{cam_name} 位于({x}, {y}, {z}, {fov_range})')
+
+            else:
+                for cam_par_path in glob.glob(os.path.join(yaml_folder, '*.yaml')):
+                    cam_name = os.path.splitext(os.path.basename(cam_par_path))[0]
+
+                    with open(cam_par_path, 'r', encoding='utf-8') as f:
+                        cam_par = yaml.safe_load(f)
+                        x, y, z = [
+                            float(cam_par[f'pos_x']),
+                            float(cam_par[f'pos_y']),
+                            float(cam_par[f'pos_z']),
+                        ]
+                        image_width = float(cam_par[f'image_width'])
+                        focal_x = float(cam_par[f'focal_x'])
+                        yaw = np.rad2deg(float(cam_par[f'yaw']))
+                        h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
+
+                        fov_left = float(yaw + h_fov / 2)
+                        fov_right = float(yaw - h_fov / 2)
+
+                        if fov_left < 0:
+                            fov_left += 360
+                        if fov_left > 360:
+                            fov_left -= 360
+
+                        if fov_right < 0:
+                            fov_right += 360
+                        if fov_right > 360:
+                            fov_right -= 360
+
+                        if fov_right > fov_left:
+                            fov_right -= 360
+                        fov_range = [fov_right, fov_left]
+
+                    self.test_result['General']['camera_position'][cam_name] = {
+                        'x': x, 'y': y, 'z': z, 'fov': fov_range,
+                    }
+                    send_log(self, f'{cam_name} 位于('
+                                   f'{round(x, 2)}, {round(y, 2)}, {round(z, 2)}, '
+                                   f'{fov_range})')
+
+            if ('CAM_FISHEYE_FRONT' in self.test_result['General']['camera_position']
+                    and 'CAM_FISHEYE_BACK' in self.test_result['General']['camera_position']):
+                self.AVM_center = (self.test_result['General']['camera_position']['CAM_FISHEYE_FRONT']['x']
+                                   + self.test_result['General']['camera_position']['CAM_FISHEYE_BACK']['x']) / 2
+
+            new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
+            if os.path.exists(new_scenario_info_folder):
+                shutil.rmtree(new_scenario_info_folder)
+            os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
+
+            video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
+            with open(video_info_path, 'r', encoding='utf-8') as file:
+                video_info = yaml.safe_load(file)
+            self.video_start_time, self.video_fps = video_info['start_time'], video_info['fps']
+
+        self.test_result['General']['video_start_time'] = self.video_start_time
+        self.test_result['General']['video_fps'] = self.video_fps
+        self.test_result['General']['AVM_center'] = self.AVM_center
+
         test_topic_info_path = os.path.join(self.pred_raw_folder, 'RawData', 'TestTopicInfo.yaml')
         if not os.path.exists(test_topic_info_path):
             send_log(self, 'No TestTopicInfo.yaml is found. Please check')
@@ -232,108 +342,6 @@ class DataGrinderOneCase:
                     self.test_result['General']['sa_time_gap'] \
                         = float(pred_data['time_stamp'].mean() - pred_data['header_stamp'].mean())
 
-        # 复制场景相关的信息, 解析相机参数
-        scenario_info_folder = os.path.join(self.pred_raw_folder, 'scenario_info')
-        if copy_to_destination(scenario_info_folder, self.scenario_unit_folder):
-
-            self.test_result['General']['camera_position'] = {}
-            yaml_folder = os.path.join(scenario_info_folder, 'yaml_calib')
-            cam_description_path = os.path.join(yaml_folder, 'cam_description.yaml')
-
-            if os.path.exists(cam_description_path):
-                # 说明是老样式
-                with open(cam_description_path, 'r', encoding='utf-8') as f:
-                    cam_description = yaml.safe_load(f)
-
-                for i, cam_name in cam_description.items():
-                    cam_par_path = os.path.join(yaml_folder, f'camera_{i}.yaml')
-                    with open(cam_par_path, 'r', encoding='utf-8') as f:
-                        cam_par = yaml.safe_load(f)
-                        x, y, z = [
-                            float(cam_par[f'cam_{i}_pos_x']),
-                            float(cam_par[f'cam_{i}_pos_y']),
-                            float(cam_par[f'cam_{i}_pos_z']),
-                        ]
-                        image_width = float(cam_par[f'cam_{i}_image_width'])
-                        focal_x = float(cam_par[f'cam_{i}_focal_x'])
-                        yaw = np.rad2deg(float(cam_par[f'cam_{i}_yaw']))
-                        h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
-
-                        fov_left = float(yaw + h_fov / 2)
-                        fov_right = float(yaw - h_fov / 2)
-
-                        if fov_left < 0:
-                            fov_left += 360
-                        if fov_left > 360:
-                            fov_left -= 360
-
-                        if fov_right < 0:
-                            fov_right += 360
-                        if fov_right > 360:
-                            fov_right -= 360
-
-                        if fov_right > fov_left:
-                            fov_right -= 360
-                        fov_range = [fov_right, fov_left]
-
-                    self.test_result['General']['camera_position'][cam_name] = {
-                        'x': x, 'y': y, 'z': z, 'fov': fov_range,
-                    }
-                    send_log(self, f'{cam_name} 位于({x}, {y}, {z}, {fov_range})')
-
-            else:
-                for cam_par_path in glob.glob(os.path.join(yaml_folder, '*.yaml')):
-                    cam_name = os.path.splitext(os.path.basename(cam_par_path))[0]
-
-                    with open(cam_par_path, 'r', encoding='utf-8') as f:
-                        cam_par = yaml.safe_load(f)
-                        x, y, z = [
-                            float(cam_par[f'pos_x']),
-                            float(cam_par[f'pos_y']),
-                            float(cam_par[f'pos_z']),
-                        ]
-                        image_width = float(cam_par[f'image_width'])
-                        focal_x = float(cam_par[f'focal_x'])
-                        yaw = np.rad2deg(float(cam_par[f'yaw']))
-                        h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
-
-                        fov_left = float(yaw + h_fov / 2)
-                        fov_right = float(yaw - h_fov / 2)
-
-                        if fov_left < 0:
-                            fov_left += 360
-                        if fov_left > 360:
-                            fov_left -= 360
-
-                        if fov_right < 0:
-                            fov_right += 360
-                        if fov_right > 360:
-                            fov_right -= 360
-
-                        if fov_right > fov_left:
-                            fov_right -= 360
-                        fov_range = [fov_right, fov_left]
-
-                    self.test_result['General']['camera_position'][cam_name] = {
-                        'x': x, 'y': y, 'z': z, 'fov': fov_range,
-                    }
-                    send_log(self, f'{cam_name} 位于('
-                                   f'{round(x, 2)}, {round(y, 2)}, {round(z, 2)}, '
-                                   f'{fov_range})')
-
-            new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
-            if os.path.exists(new_scenario_info_folder):
-                shutil.rmtree(new_scenario_info_folder)
-            os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
-
-            video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
-            with open(video_info_path, 'r', encoding='utf-8') as file:
-                video_info = yaml.safe_load(file)
-            self.video_start_time, self.video_fps = video_info['start_time'], video_info['fps']
-
-        self.test_result['General']['video_start_time'] = self.video_start_time
-        self.test_result['General']['video_fps'] = self.video_fps
-
     @sync_test_result
     def load_gt_data(self):
         gt_config_path = os.path.join(self.gt_raw_folder, 'yaml_management.yaml')
@@ -396,12 +404,14 @@ class DataGrinderOneCase:
         elif self.test_topic == 'Slots':
             for i in range(4):
                 gt_data[f'pt_{i}_x'], gt_data[f'pt_{i}_y'] = zip(*gt_data.apply(
-                    lambda row: ObjectModel.convert_AVM_to_ego(row[f'pt_{i}_x'], row[f'pt_{i}_y']),
+                    lambda row: ObjectModel.convert_AVM_to_ego_gt(row[f'pt_{i}_x'], row[f'pt_{i}_y'],
+                                                                  self.AVM_center),
                     axis=1
                 ))
             for i in range(2):
                 gt_data[f'stopper_{i}_x'], gt_data[f'stopper_{i}_y'] = zip(*gt_data.apply(
-                    lambda row: ObjectModel.convert_AVM_to_ego(row[f'stopper_{i}_x'], row[f'stopper_{i}_y']),
+                    lambda row: ObjectModel.convert_AVM_to_ego_gt(row[f'stopper_{i}_x'], row[f'stopper_{i}_y'],
+                                                                  self.AVM_center),
                     axis=1
                 ))
             gt_data = gt_data.sort_values(by=['time_stamp'])
@@ -488,7 +498,7 @@ class DataGrinderOneCase:
             send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
             self.test_result['General']['vel_time_gap'] = t_delta
 
-        self.test_result['General']['time_gap'] = t_delta
+        self.test_result['General']['time_gap'] = t_delta - 0.85
 
         time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
         time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
@@ -569,7 +579,6 @@ class DataGrinderOneCase:
 
         # 保存拼接后的图片
         path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', f'{self.scenario_id}_Info.jpg')
-        print(path)
         concat_img.save(path)
         img = mpimg.imread(path)
         fig, ax = plt.subplots()
@@ -1105,7 +1114,8 @@ class DataGrinderOneCase:
                             json.dump(bug_info, f, ensure_ascii=False, indent=4)
 
         # 启用ssh_client, 按照相机批量截图并复制到本机
-        if not self.replay_mode.lower() == 'ethernet':
+        # if not self.replay_mode.lower() == 'ethernet':
+        if True:
             replay_client = SSHClient()
             video_snap_folder = os.path.join(self.BugFolder, 'General')
             create_folder(video_snap_folder)
@@ -1270,7 +1280,8 @@ class DataGrinderOneCase:
 
                                     if bug_info['pred.flag'] == 1:
                                         # 箭头
-                                        one_label_info['pred_arrow'] = [bug_info['pred.center_x'], bug_info['pred.center_y'], 0.5]
+                                        one_label_info['pred_arrow'] = [bug_info['pred.center_x'],
+                                                                        bug_info['pred.center_y'], 0.5]
                                         # 8个角点也放进去
                                         one_label_info['pred_corner'] = {
                                             'bottom': [
@@ -1304,7 +1315,8 @@ class DataGrinderOneCase:
             with open(bug_label_info_json, 'w') as json_file:
                 json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
 
-            calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
+            # calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
+            calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib', 'calibration.json')
 
             # 调用给视频截图增加箭头的端口
             cmd = [
@@ -1463,7 +1475,8 @@ class DataGrinderOneCase:
                                 )
 
                         elif self.test_topic == 'Lines':
-                            text_list.extend(['id, type, c0, c1, c2, c3, heading_0, heading_50, length, radius 信息如下:'])
+                            text_list.extend(
+                                ['id, type, c0, c1, c2, c3, heading_0, heading_50, length, radius 信息如下:'])
                             if bug_info['gt.flag']:
                                 text_list.append(
                                     f"GroundTruth: id-{int(bug_info['gt.id'])}, {bug_info['gt.type_classification']}, "
@@ -1482,7 +1495,8 @@ class DataGrinderOneCase:
                                 )
 
                         elif self.test_topic == 'Slots':
-                            text_list.extend(['id, type, in_border_distance, in_border_length, slot_length, slot_heading, slot_distance, region 信息如下:'])
+                            text_list.extend(
+                                ['id, type, in_border_distance, in_border_length, slot_length, slot_heading, slot_distance, region 信息如下:'])
                             if bug_info['gt.flag']:
                                 text_list.append(
                                     f"GroundTruth: id-{int(bug_info['gt.id'])}, {bug_info['gt.type_classification']}, "
@@ -1849,7 +1863,8 @@ class DataGrinderOneCase:
         with open(bug_label_info_json, 'w') as json_file:
             json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
 
-        calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
+        # calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
+        calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib', 'calibration.json')
 
         # 调用给视频截图增加箭头的端口
         cmd = [
@@ -1949,7 +1964,8 @@ class DataGrinderOneCase:
                         else:
                             camera_path_dict[camera] = None
 
-                    send_log(self, f'保存 {self.scenario_id} {topic} {characteristic} bev和camera合并图片 {os.path.basename(combined_pic_path)}')
+                    send_log(self,
+                             f'保存 {self.scenario_id} {topic} {characteristic} bev和camera合并图片 {os.path.basename(combined_pic_path)}')
                     width, height = combine_image(
                         center_pic_path=os.path.join(one_sketch_folder, 'render_sketch.jpg'),
                         camera_path_dict=camera_path_dict,
@@ -1959,7 +1975,8 @@ class DataGrinderOneCase:
                 video_folder = os.path.join(self.RenderFolder, self.test_topic, topic_tag, 'video', characteristic)
                 create_folder(video_folder)
                 combined_video = os.path.join(video_folder, f'{self.scenario_id}-{topic_tag}-{characteristic}.mp4')
-                self.test_result[self.test_topic][topic]['render'][characteristic]['video'] = self.get_relpath(combined_video)
+                self.test_result[self.test_topic][topic]['render'][characteristic]['video'] = self.get_relpath(
+                    combined_video)
                 fps = self.test_result[self.test_topic][topic]['match_frequency']
                 image2video(image_folder, fps, combined_video, 1400, round(1400 * height / width))
                 shutil.rmtree(image_folder)
@@ -2034,7 +2051,8 @@ class DataGrinderOneCase:
         for metric, data_path in metric_data_group.items():
             metric_data = pd.read_csv(self.get_abspath(data_path), index_col=False)
 
-            # 对于车道线和车位，不需要做bug_data的区域筛选
+            # 提bug的内容:
+            # 这里不能知道场景，所以无法筛选场景相关的内容
             if self.test_topic == 'Obstacles':
                 metric_data = filter_valid_bug_data(metric_data)
 
@@ -2127,8 +2145,8 @@ class DataGrinderOneCase:
                         mean_values = filtered_df.groupby('gt.id')[
                             f'{metric.replace("_", ".")}_abs'].mean().reset_index()
                         top_5_ids = \
-                        mean_values.sort_values(by=f'{metric.replace("_", ".")}_abs', ascending=False).head(bug_count)[
-                            'gt.id']
+                            mean_values.sort_values(by=f'{metric.replace("_", ".")}_abs', ascending=False).head(
+                                bug_count)['gt.id']
                         near_top_5 = filtered_df[filtered_df['gt.id'].isin(top_5_ids)]
 
                         far_group = group[(group['gt.x'] > distance_n_f) | (group['gt.x'] < -distance_n_f)]
@@ -2146,10 +2164,9 @@ class DataGrinderOneCase:
                         top_group = pd.concat([near_top_5, far_top_5])
                         bug_index_dict[metric].extend(top_group['corresponding_index'].to_list())
 
+            # 对于车道线和车位，不需要做bug_data的区域筛选
             elif self.test_topic == 'Lines':
 
-                # 提bug的内容:
-                # 这里不能知道场景，所以无法筛选场景相关的内容
                 if metric == 'recall_precision':
                     # 进一步筛选出现每种类型帧数最大的3个目标
                     bug_index_dict['false_positive'] = []
@@ -2184,8 +2201,6 @@ class DataGrinderOneCase:
 
             elif self.test_topic == 'Slots':
 
-                # 提bug的内容:
-                # 这里不能知道场景，所以无法筛选场景相关的内容
                 if metric == 'recall_precision':
                     # 进一步筛选出现每种类型帧数最大的N个目标
                     bug_index_dict['false_positive'] = []
@@ -2210,7 +2225,8 @@ class DataGrinderOneCase:
 
                     bug_index_dict[metric] = []
                     id_counts = error_data['gt.id'].value_counts()
-                    frequent_ids = id_counts[id_counts >= int(frame_threshold)].index
+                    # frequent_ids = id_counts[id_counts >= int(frame_threshold)].index
+                    frequent_ids = id_counts[id_counts >= 1].index
                     filtered_df = error_data[error_data['gt.id'].isin(frequent_ids)]
                     new_metric_name = ".".join(metric.rsplit("_", 1)) + '_abs'
                     mean_values = filtered_df.groupby('gt.id')[f'{new_metric_name}'].mean().reset_index()
@@ -2399,11 +2415,13 @@ class DataGrinderOneCase:
         if self.ego_velocity_generator is None:
             if self.test_result['General']['gt_ego_flag']:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
-                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
+                                                       kind='linear')
             else:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
-                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
-                                                       ego_data['ego_vx'].values, kind='linear')
+                self.ego_velocity_generator = interp1d(
+                    ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
+                    ego_data['ego_vx'].values, kind='linear')
 
         # 开始画图
         fig = plt.figure(figsize=(25, 12))
@@ -2530,17 +2548,16 @@ class DataGrinderOneCase:
             ego_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
                                           markerfacecolor='limegreen', markersize=12, label='ego_car')
             main_lane_label = mlines.Line2D([], [], color='#000000', marker='o', linestyle='--',
-                                          mec='#000000', mfc='white', markersize=12, label='main_lane')
+                                            mec='#000000', mfc='white', markersize=12, label='main_lane')
             secondary_lane_label = mlines.Line2D([], [], color='#808080', marker='o', linestyle='--',
                                                  mec='#808080', mfc='white', markersize=12, label='secondary_lane')
             fence_label = mlines.Line2D([], [], color='#B8860B', marker='>', linestyle='--',
-                                          mec='#B8860B', mfc='white', markersize=12, label='fence')
+                                        mec='#B8860B', mfc='white', markersize=12, label='fence')
 
             # 将这两个图形添加到图例中
             ax.legend(handles=[ego_rectangle, main_lane_label,
                                secondary_lane_label, fence_label], fontsize=13)
             ax.grid(linestyle='-', linewidth=0.5, color='lightgray', alpha=0.6)
-
 
         color_type = {
             'main_lane': '#000000',
@@ -2556,11 +2573,13 @@ class DataGrinderOneCase:
         if self.ego_velocity_generator is None:
             if self.test_result['General']['gt_ego_flag']:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
-                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
+                                                       kind='linear')
             else:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
-                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
-                                                       ego_data['ego_vx'].values, kind='linear')
+                self.ego_velocity_generator = interp1d(
+                    ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
+                    ego_data['ego_vx'].values, kind='linear')
 
         # 开始画图
         fig = plt.figure(figsize=(25, 12))
@@ -2679,7 +2698,7 @@ class DataGrinderOneCase:
                     [row['pt_3_x'], row['pt_3_y']],
                 ])
                 plot_polygon(points=points, text=int(row['id']),
-                               color=color, alpha=alpha)
+                             color=color, alpha=alpha)
 
             for bug_type, id_list in bug_info.items():
                 for id_ in id_list:
@@ -2703,10 +2722,10 @@ class DataGrinderOneCase:
                         ax.plot([center_x, center_x], [center_y - 4, center_y + 4],
                                 linestyle='--', color='lightcoral', alpha=0.5)
 
-            ax.set_xlim(-12, 15)
-            ax.set_xticks([-11, -6, -3, -1, 4, 6, 9, 14])
-            ax.set_xticklabels([f'{x:.0f} m' for x in [-11, -6, -3, -1, 4, 6, 9, 14]])
-            ax.set_ylim(-10, 10)
+            ax.set_xlim(-14, 16)
+            ax.set_xticks([-14, -6, -3, -1, 4, 6, 9, 16])
+            ax.set_xticklabels([f'{x:.0f} m' for x in [-14, -6, -3, -1, 4, 6, 9, 16]])
+            ax.set_ylim(-15, 15)
             ax.set_yticks([-10, -3, 3, 10])
             ax.set_yticklabels([f'{y:.0f} m' for y in [-10, -3, 3, 10]])
             ax.tick_params(direction='out', labelsize=font_size * 1.2, length=4)
@@ -2714,11 +2733,11 @@ class DataGrinderOneCase:
             ego_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
                                           markerfacecolor='limegreen', markersize=12, label='ego_car')
             vertical_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
-                                          mec='#3682be', mfc='lightgrey', markersize=12, label='small-medium car')
+                                               mec='#3682be', mfc='#3682be', markersize=12, label='vertical')
             parallel_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
-                                                 mec='#45a776', mfc='lightgrey', markersize=12, label='pedestrian')
+                                               mec='#45a776', mfc='#45a776', markersize=12, label='parallel')
             oblique_rectangle = mlines.Line2D([], [], color='none', marker='s', linestyle='None',
-                                          mec='#f05326', mfc='lightgrey', markersize=12, label='truck_bus')
+                                              mec='#f05326', mfc='#f05326', markersize=12, label='oblique')
 
             # 将这两个图形添加到图例中
             ax.legend(handles=[ego_rectangle, vertical_rectangle, parallel_rectangle, oblique_rectangle], fontsize=13)
@@ -2733,17 +2752,19 @@ class DataGrinderOneCase:
         if self.ego_velocity_generator is None:
             if self.test_result['General']['gt_ego_flag']:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
-                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values, kind='linear')
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
+                                                       kind='linear')
             else:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
-                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
-                                                       ego_data['ego_vx'].values, kind='linear')
+                self.ego_velocity_generator = interp1d(
+                    ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
+                    ego_data['ego_vx'].values, kind='linear')
 
         # 开始画图
-        fig = plt.figure(figsize=(9, 15))
+        fig = plt.figure(figsize=(25, 12))
         fig.tight_layout()
         plt.subplots_adjust(left=0.03, right=0.97, top=0.97, bottom=0.03)
-        grid = plt.GridSpec(2, 1, wspace=0.1, hspace=0.15)
+        grid = plt.GridSpec(1, 2, wspace=0.1, hspace=0.1)
 
         # 上图为gt，下图为pred
         ax = fig.add_subplot(grid[0, 0])
@@ -2763,7 +2784,7 @@ class DataGrinderOneCase:
         title = f'GroundTruth <{topic}@{round(time_stamp, 3)}s >'
         plot_one_frame(ax, data, title, self.ego_velocity_generator, bug_info)
 
-        ax = fig.add_subplot(grid[1, 0])
+        ax = fig.add_subplot(grid[0, 1])
         data = pd.DataFrame()
         for col in frame_data.columns:
             if 'gt.' in col:
@@ -3156,7 +3177,8 @@ class DataGrinderOneTask:
         create_folder(statistics_folder)
 
         # 统计目标个数
-        total_scenario_analysis_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_analysis.json')
+        total_scenario_analysis_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info',
+                                                    'scenario_analysis.json')
         with open(total_scenario_analysis_path, 'r', encoding='utf-8') as f:
             total_scenario_analysis = json.load(f)
 
@@ -3259,20 +3281,25 @@ class DataGrinderOneTask:
                                     and (json_data['ObstacleName'] in ['行人', '两轮车'])):
                                 continue
 
-                            if ('100~150' in json_data['RangeDetails'] and json_data['ObstacleName'] in ['行人', '两轮车']) \
-                                    or ('-100~-50' in json_data['RangeDetails'] and json_data['ObstacleName'] == '行人'):
+                            if ('100~150' in json_data['RangeDetails'] and json_data['ObstacleName'] in ['行人',
+                                                                                                         '两轮车']) \
+                                    or (
+                                    '-100~-50' in json_data['RangeDetails'] and json_data['ObstacleName'] == '行人'):
                                 continue
 
-                            if json_data['TopicName'] == '/VA/PedResult' and json_data['ObstacleName'] in ['小车', '大车']:
+                            if json_data['TopicName'] == '/VA/PedResult' and json_data['ObstacleName'] in ['小车',
+                                                                                                           '大车']:
                                 continue
 
-                            if json_data['TopicName'] == '/VA/VehicleResult' and json_data['ObstacleName'] in ['两轮车', '行人']:
+                            if json_data['TopicName'] == '/VA/VehicleResult' and json_data['ObstacleName'] in ['两轮车',
+                                                                                                               '行人']:
                                 continue
 
                         # 保存单个json文件
                         json_count += 1
-                        json_name = (f'{json_count:06d}--{self.version}--{tag_key}--{topic_tag}--{json_data[json_keys[2]]}'
-                                     f'--{json_data[json_keys[1]]}--{json_data[json_keys[0]]}--{json_data["MetricTypeName"]}.json')
+                        json_name = (
+                            f'{json_count:06d}--{self.version}--{tag_key}--{topic_tag}--{json_data[json_keys[2]]}'
+                            f'--{json_data[json_keys[1]]}--{json_data[json_keys[0]]}--{json_data["MetricTypeName"]}.json')
                         json_path = os.path.join(statistics_folder, json_name)
 
                         json_data['ScenarioGroup'] = '&'.join(json_data['ScenarioGroup'])
@@ -3369,7 +3396,7 @@ class DataGrinderOneTask:
 
                         for division in division_key:
                             if ('100~150' in division and target_type in ['行人', '两轮车']) \
-                                or ('-100~-50' in division and target_type == '行人'):
+                                    or ('-100~-50' in division and target_type == '行人'):
                                 continue
 
                             start_distance = int(division.split('~')[0].split('(')[1])
@@ -3379,7 +3406,7 @@ class DataGrinderOneTask:
                                 & (output_result['scenario_tag'] == scenario_tag)
                                 & (output_result['type'] == target_type)
                                 & (output_result['division'] == division)
-                            ]
+                                ]
 
                             for metric, res_key, topic in columns[4:]:
                                 if topic == 'kpi_target':
@@ -3387,14 +3414,15 @@ class DataGrinderOneTask:
                                     if kpi_threshold is None:
                                         row.append(np.nan)
                                     else:
-                                        kpi_ratio = self.get_kpi_ratio(metric, res_key, target_type, self.kpi_date_label)
+                                        kpi_ratio = self.get_kpi_ratio(metric, res_key, target_type,
+                                                                       self.kpi_date_label)
                                         row.append(kpi_threshold * kpi_ratio)
 
                                 else:
                                     filter2_data = filter_data[
                                         (filter_data['metric'] == metric)
                                         & (filter_data['topic'] == topic)
-                                    ]
+                                        ]
 
                                     if len(filter2_data):
                                         c = json.loads(filter2_data.iloc[0]['result'])
@@ -3424,7 +3452,263 @@ class DataGrinderOneTask:
         # ====================
 
     @sync_test_result
-    def visualize_output(self):
+    def get_test_info(self):
+
+        def plot_test_info(test_info, plot_path):
+
+            def plot_rect(left_bottom_pt, width, height,
+                          facecolor, text, text_angle,
+                          font_size, fill=True):
+                ax.add_patch(pc.Rectangle(
+                    xy=left_bottom_pt,
+                    width=width, height=height,
+                    angle=0, alpha=1,
+                    rotation_point='xy',
+                    fill=fill,
+                    edgecolor='grey',
+                    facecolor=facecolor,
+                    linewidth=1))
+                va, ha = 'center', 'center'
+                ax.text(left_bottom_pt[0] + width / 2, left_bottom_pt[1] + height / 2, text,
+                        va=va, ha=ha, rotation=text_angle,
+                        fontsize=font_size)
+
+            cell_w = 2
+            cell_h = 0.6
+            font_size = 13
+
+            fig_height = 0
+            for i, (key, info) in enumerate(test_info.items()):
+                if not isinstance(info, dict):
+                    fig_height += cell_h
+                else:
+                    fig_height += cell_h * len(info.keys()) * 0.9
+            fig_width = cell_w * 6
+
+            fig_size = (fig_width + 0.1, fig_height + 0.1)
+            fig = plt.figure(figsize=fig_size)
+            plt.tight_layout()
+            plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
+            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
+            ax = fig.add_subplot(grid[0, 0])
+            ax.axis('off')
+
+            left_bottom_y = 0
+            for i, (key, info) in enumerate(test_info.items()):
+                if key == '测试版本':
+                    left_bottom_y -= cell_h
+                    plot_rect(left_bottom_pt=[0, left_bottom_y],
+                              width=fig_width, height=cell_h, facecolor='lightsteelblue',
+                              text=f'<{info}>测试报告信息总览', text_angle=0, font_size=font_size * 1.2)
+                elif not isinstance(info, dict):
+                    left_bottom_y -= cell_h
+                    plot_rect(left_bottom_pt=[cell_w, left_bottom_y],
+                              width=cell_w * 5, height=cell_h, facecolor='white',
+                              text=info, text_angle=0, font_size=font_size)
+                    plot_rect(left_bottom_pt=[0, left_bottom_y],
+                              width=cell_w, height=cell_h, facecolor='lightsteelblue',
+                              text=key, text_angle=0, font_size=font_size)
+                else:
+                    left_bottom_y -= cell_h * len(info.keys()) * 0.9
+                    text = '\n\n'.join([f'{k}:{v}' for k, v in info.items()])
+                    plot_rect(left_bottom_pt=[cell_w, left_bottom_y],
+                              width=cell_w * 5, height=cell_h * len(info.keys()) * 0.9, facecolor='white',
+                              text=text, text_angle=0, font_size=font_size)
+                    plot_rect(left_bottom_pt=[0, left_bottom_y],
+                              width=cell_w, height=cell_h * len(info.keys()) * 0.9, facecolor='lightsteelblue',
+                              text=key, text_angle=0, font_size=font_size)
+
+            ax.set_xlim(-0.1, fig_width + 0.1)
+            ax.set_ylim(-fig_height - 0.1, 0.1)
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+
+        def plot_title_table(title_dict, plot_path):
+            fig = plt.figure(figsize=(4 * len(title_dict), 3.5))
+            fig.tight_layout()
+            plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+            grid = plt.GridSpec(1, 1, wspace=0.05, hspace=0.05)
+            ax_title_page = fig.add_subplot(grid[0, 0])
+            for pos in ['right', 'top', 'left', 'bottom']:
+                ax_title_page.spines[pos].set_visible(False)
+
+            center_x = 2
+            for k, v in title_dict.items():
+                ax_title_page.text(center_x, 0.875, k,
+                                   va='center', ha='center',
+                                   fontdict={
+                                       'style': 'normal',
+                                       'weight': 'normal',
+                                       'color': 'black',
+                                       'size': font_size * 2.5,
+                                   })
+                ax_title_page.text(center_x, -0.875, str(v),
+                                   va='center', ha='center',
+                                   fontdict={
+                                       'family': 'Ubuntu',
+                                       'style': 'normal',
+                                       'weight': 'bold',
+                                       'color': 'orange',
+                                       'size': font_size * 6,
+                                   })
+                center_x += 4
+
+            ax_title_page.set_xlim(0, len(title_dict) * 4)
+            ax_title_page.set_ylim(-1.75, 1.75)
+            ax_title_page.set_xticks([])
+            ax_title_page.set_yticks([])
+
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+            fig.clf()
+            plt.close()
+
+        visualization_folder = os.path.join(self.output_result_folder, 'visualization')
+        create_folder(visualization_folder)
+
+        # 将速度图和地图都移动过来
+        for scenario_tag in self.test_result['TagCombination']:
+            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
+            for scenario_id in scenario_ids:
+                for root, dirs, files in os.walk(os.path.join(self.scenario_unit_folder, scenario_id)):
+                    for file in files:
+                        if '_Info.jpg' in file:
+                            file_path = os.path.join(root, file)
+                            os.makedirs(os.path.join(visualization_folder, scenario_tag), exist_ok=True)
+                            new_file_path = os.path.join(visualization_folder, scenario_tag, f'{scenario_id}.jpg')
+                            shutil.copy(file_path, new_file_path)
+
+                        if '.mp4' in file:
+                            file_path = os.path.join(root, file)
+                            os.makedirs(os.path.join(visualization_folder, scenario_tag), exist_ok=True)
+                            new_file_path = os.path.join(visualization_folder, scenario_tag,
+                                                         f'{os.path.basename(file_path)}')
+                            shutil.copy(file_path, new_file_path)
+
+        version_comparison_folder = self.test_config['version_comparison']
+        self.old_version = ''
+        if version_comparison_folder is not None and os.path.exists(version_comparison_folder):
+            for root, dirs, files in os.walk(version_comparison_folder):
+                for file in files:
+                    if 'TestConfig.yaml' in file:
+                        file_path = os.path.join(root, file)
+                        with open(file_path, 'r', encoding='utf-8') as file:
+                            old_test_config = yaml.safe_load(file)
+                        if old_test_config['test_topic'] == self.test_topic:
+                            self.old_version = old_test_config['version']
+
+        output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
+        division_key = ';'.join(output_result['division'].unique())
+        metric_key = ';'.join([v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metric'].values()
+                               if v['name'] in output_result['metric'].unique()])
+        characteristic_key = {test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['name']:
+                                  test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['description']
+                              for c in self.output_characteristic}
+
+        with open(self.get_abspath(self.test_result['OutputResult']['scenario_analysis']), 'r',
+                  encoding='utf-8') as file:
+            scenario_analysis = json.load(file)
+
+        target_num, ru_num = {}, {}
+        for scenario_tag in scenario_analysis:
+            for scenario_id in scenario_analysis[scenario_tag]:
+
+                if self.test_topic == 'Obstacles':
+                    for target_type in scenario_analysis[scenario_tag][scenario_id]['is_coverageValid']:
+                        if target_type in self.test_information['type']:
+                            if target_type in ['cyclist', 'pedestrian']:
+                                ru = 'VRU'
+                            else:
+                                ru = 'DRU'
+                            if ru not in ru_num:
+                                ru_num[ru] = 0
+                            ru_num[ru] += scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type][
+                                'all_region']
+
+                            target_type_text = self.test_information['type'][target_type]['name']
+                            if target_type_text not in target_num:
+                                target_num[target_type_text] = 0
+                            target_num[target_type_text] += \
+                            scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
+
+                elif self.test_topic == 'Lines':
+                    for target_type in scenario_analysis[scenario_tag][scenario_id]['total']:
+                        if target_type in self.test_information['type']:
+                            target_type_text = self.test_information['type'][target_type]['name']
+                            if target_type_text not in target_num:
+                                target_num[target_type_text] = 0
+                            target_num[target_type_text] += \
+                                scenario_analysis[scenario_tag][scenario_id]['total'][target_type]['all_radius']
+
+                elif self.test_topic == 'Slots':
+                    pass
+
+        scenario_list = {}
+        total_frame = 0
+        total_distance = 0
+        for i, scenario_tag in enumerate(self.test_result['TagCombination']):
+            scenario_list[scenario_tag] = {}
+            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
+
+            frame, distance = 0, 0
+            for scenario_id in scenario_ids:
+                video_info_path = os.path.join(self.scenario_unit_folder, scenario_id, '00_ScenarioInfo',
+                                               'video_info.yaml')
+                if os.path.exists(video_info_path):
+                    with open(video_info_path, 'r', encoding='utf-8') as file:
+                        video_info = yaml.safe_load(file)
+                    frame += round(video_info['duration'] * video_info['fps'] * 291 / 300)
+
+                ego_vx_path = os.path.join(self.scenario_unit_folder, scenario_id, '01_Data', 'General', 'pred_ego.csv')
+                if os.path.exists(ego_vx_path):
+                    ego_vx = pd.read_csv(ego_vx_path, index_col=False)
+                    distance += np.ceil(
+                        (ego_vx['time_stamp'].max() - ego_vx['time_stamp'].min()) * ego_vx['ego_vx'].mean() / 1000)
+
+            total_frame += frame
+            total_distance += distance
+            scenario_list[scenario_tag] = f'帧数-{frame:.0f} frame, 里程-{distance:.0f} km'
+
+        test_info = {
+            '测试版本': self.test_config['version'],
+            '版本对比': f'{self.test_config["version"]} <--> {self.old_version}',
+            # 'test_date': self.test_config['test_date'],
+            '测试对象': ';'.join(self.test_item.keys()),
+            '目标类型': ';'.join([f'{k}-{v}' for k, v in target_num.items()]),
+            '指标类型': metric_key,
+            '区域划分': division_key,
+            '特征类型': characteristic_key,
+            '测试场景类型': scenario_list,
+        }
+        plot_path = os.path.join(visualization_folder, '测试信息汇总.png')
+        send_log(self, f'{plot_path} 图片已保存')
+        plot_test_info(test_info, plot_path)
+        self.test_result['OutputResult']['test_info'] = self.get_relpath(plot_path)
+
+        title_summary = {
+            '回灌帧数\n(千帧)': f'{(total_frame / 1000):.0f}',
+            '场景里程\n(千米)': f'{total_distance:.0f}',
+            '场景类型\n(类)': len(self.test_result['TagCombination'].keys()),
+        }
+
+        if self.test_topic == 'Obstacles':
+            for ru, num in ru_num.items():
+                title_summary[f'{ru}\n(千)'] = f'{(num / 1000):.0f}'
+
+        elif self.test_topic == 'Lines':
+            for target_type_text, num in target_num.items():
+                title_summary[f'{target_type_text}\n(km)'] = f'{(num / 1000):.0f}'
+
+        elif self.test_topic == 'Slots':
+            for target_type_text, num in target_num.items():
+                title_summary[f'{target_type_text}\n(千)'] = f'{(num / 1000):.0f}'
+
+        plot_path = os.path.join(visualization_folder, '测试报告首页.png')
+        plot_title_table(title_summary, plot_path)
+        self.test_result['OutputResult']['test_title'] = self.get_relpath(plot_path)
+
+    @sync_test_result
+    def visualize_metric(self):
 
         def plot_table(axes, columns, columns_width, values, index=None, index_width=0):
             if index is None:
@@ -3556,264 +3840,8 @@ class DataGrinderOneTask:
             axes.set_xticks([])
             axes.set_yticks([])
 
-        def wrap_text(text, max_length):
-            wrapped_lines = []
-            for i in range(0, len(text), max_length):
-                wrapped_lines.append(text[i:i + max_length])
-            return '\n'.join(wrapped_lines)
-
-        def plot_test_info(test_info, plot_path):
-
-            def plot_rect(left_bottom_pt, width, height,
-                          facecolor, text, text_angle,
-                          font_size, fill=True):
-                ax.add_patch(pc.Rectangle(
-                    xy=left_bottom_pt,
-                    width=width, height=height,
-                    angle=0, alpha=1,
-                    rotation_point='xy',
-                    fill=fill,
-                    edgecolor='grey',
-                    facecolor=facecolor,
-                    linewidth=1))
-                va, ha = 'center', 'center'
-                ax.text(left_bottom_pt[0] + width / 2, left_bottom_pt[1] + height / 2, text,
-                        va=va, ha=ha, rotation=text_angle,
-                        fontsize=font_size)
-
-            cell_w = 2
-            cell_h = 0.6
-            font_size = 13
-
-            fig_height = 0
-            for i, (key, info) in enumerate(test_info.items()):
-                if not isinstance(info, dict):
-                    fig_height += cell_h
-                else:
-                    fig_height += cell_h * len(info.keys()) * 0.9
-            fig_width = cell_w * 6
-
-            fig_size = (fig_width + 0.1, fig_height + 0.1)
-            fig = plt.figure(figsize=fig_size)
-            plt.tight_layout()
-            plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
-            grid = plt.GridSpec(1, 1, wspace=0, hspace=0.02)
-            ax = fig.add_subplot(grid[0, 0])
-            ax.axis('off')
-
-            left_bottom_y = 0
-            for i, (key, info) in enumerate(test_info.items()):
-                if key == '测试版本':
-                    left_bottom_y -= cell_h
-                    plot_rect(left_bottom_pt=[0, left_bottom_y],
-                              width=fig_width, height=cell_h, facecolor='lightsteelblue',
-                              text=f'<{info}>测试报告信息总览', text_angle=0, font_size=font_size * 1.2)
-                elif not isinstance(info, dict):
-                    left_bottom_y -= cell_h
-                    plot_rect(left_bottom_pt=[cell_w, left_bottom_y],
-                              width=cell_w * 5, height=cell_h, facecolor='white',
-                              text=info, text_angle=0, font_size=font_size)
-                    plot_rect(left_bottom_pt=[0, left_bottom_y],
-                              width=cell_w, height=cell_h, facecolor='lightsteelblue',
-                              text=key, text_angle=0, font_size=font_size)
-                else:
-                    left_bottom_y -= cell_h * len(info.keys()) * 0.9
-                    text = '\n\n'.join([f'{k}:{v}' for k, v in info.items()])
-                    plot_rect(left_bottom_pt=[cell_w, left_bottom_y],
-                              width=cell_w * 5, height=cell_h * len(info.keys()) * 0.9, facecolor='white',
-                              text=text, text_angle=0, font_size=font_size)
-                    plot_rect(left_bottom_pt=[0, left_bottom_y],
-                              width=cell_w, height=cell_h * len(info.keys()) * 0.9, facecolor='lightsteelblue',
-                              text=key, text_angle=0, font_size=font_size)
-
-            ax.set_xlim(-0.1, fig_width + 0.1)
-            ax.set_ylim(-fig_height - 0.1, 0.1)
-            canvas = FigureCanvas(fig)
-            canvas.print_figure(plot_path, facecolor='white', dpi=100)
-
-        def plot_title_table(title_dict, plot_path):
-            fig = plt.figure(figsize=(4 * len(title_dict), 3.5))
-            fig.tight_layout()
-            plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-            grid = plt.GridSpec(1, 1, wspace=0.05, hspace=0.05)
-            ax_title_page = fig.add_subplot(grid[0, 0])
-            for pos in ['right', 'top', 'left', 'bottom']:
-                ax_title_page.spines[pos].set_visible(False)
-
-            center_x = 2
-            for k, v in title_dict.items():
-                ax_title_page.text(center_x, 0.875, k,
-                                   va='center', ha='center',
-                                   fontdict={
-                                       'style': 'normal',
-                                       'weight': 'normal',
-                                       'color': 'black',
-                                       'size': font_size * 2.5,
-                                   })
-                ax_title_page.text(center_x, -0.875, str(v),
-                                   va='center', ha='center',
-                                   fontdict={
-                                       'family': 'Ubuntu',
-                                       'style': 'normal',
-                                       'weight': 'bold',
-                                       'color': 'orange',
-                                       'size': font_size * 6,
-                                   })
-                center_x += 4
-
-            ax_title_page.set_xlim(0, len(title_dict) * 4)
-            ax_title_page.set_ylim(-1.75, 1.75)
-            ax_title_page.set_xticks([])
-            ax_title_page.set_yticks([])
-
-            canvas = FigureCanvas(fig)
-            canvas.print_figure(plot_path, facecolor='white', dpi=100)
-            fig.clf()
-            plt.close()
-
-        visualization_folder = os.path.join(self.output_result_folder, 'visualization')
-        create_folder(visualization_folder)
-
-        # 生成测试信息总览
-        current_version = self.test_config['version']
-        version_comparison_folder = self.test_config['version_comparison']
-        old_version = ''
-        if version_comparison_folder is not None and os.path.exists(version_comparison_folder):
-            for root, dirs, files in os.walk(version_comparison_folder):
-                for file in files:
-                    if 'TestConfig.yaml' in file:
-                        file_path = os.path.join(root, file)
-                        with open(file_path, 'r', encoding='utf-8') as file:
-                            old_test_config = yaml.safe_load(file)
-                        if old_test_config['test_topic'] == self.test_topic:
-                            old_version = old_test_config['version']
-
-        output_result = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
-        division_key = ';'.join(output_result['division'].unique())
-        metric_key = ';'.join([v['name'] for v in test_encyclopaedia['Information'][self.test_topic]['metric'].values()
-                      if v['name'] in output_result['metric'].unique()])
-        characteristic_key = {test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['name']:
-                                  test_encyclopaedia['Information'][self.test_topic]['characteristic'][c]['description']
-                              for c in self.output_characteristic}
-
-        with open(self.get_abspath(self.test_result['OutputResult']['scenario_analysis']), 'r', encoding='utf-8') as file:
-            scenario_analysis = json.load(file)
-
-        target_num, ru_num = {}, {}
-        for scenario_tag in scenario_analysis:
-            for scenario_id in scenario_analysis[scenario_tag]:
-
-                if self.test_topic == 'Obstacles':
-                    for target_type in scenario_analysis[scenario_tag][scenario_id]['is_coverageValid']:
-                        if target_type in self.test_information['type']:
-                            if target_type in ['cyclist', 'pedestrian']:
-                                ru = 'VRU'
-                            else:
-                                ru = 'DRU'
-                            if ru not in ru_num:
-                                ru_num[ru] = 0
-                            ru_num[ru] += scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
-
-                            target_type_text = self.test_information['type'][target_type]['name']
-                            if target_type_text not in target_num:
-                                target_num[target_type_text] = 0
-                            target_num[target_type_text] += scenario_analysis[scenario_tag][scenario_id]['is_coverageValid'][target_type]['all_region']
-
-                elif self.test_topic == 'Lines':
-                    for target_type in scenario_analysis[scenario_tag][scenario_id]['total']:
-                        if target_type in self.test_information['type']:
-                            target_type_text = self.test_information['type'][target_type]['name']
-                            if target_type_text not in target_num:
-                                target_num[target_type_text] = 0
-                            target_num[target_type_text] += \
-                            scenario_analysis[scenario_tag][scenario_id]['total'][target_type]['all_radius']
-
-                elif self.test_topic == 'Slots':
-                    pass
-
-                else:
-                    return
-
-        scenario_list = {}
-        total_frame = 0
-        total_distance = 0
-        for i, scenario_tag in enumerate(self.test_result['TagCombination']):
-            scenario_list[scenario_tag] = {}
-            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
-
-            frame, distance = 0, 0
-            for scenario_id in scenario_ids:
-                video_info_path = os.path.join(self.scenario_unit_folder, scenario_id, '00_ScenarioInfo', 'video_info.yaml')
-                if os.path.exists(video_info_path):
-                    with open(video_info_path, 'r', encoding='utf-8') as file:
-                        video_info = yaml.safe_load(file)
-                    frame += round(video_info['duration'] * video_info['fps'] * 291 / 300)
-
-                ego_vx_path = os.path.join(self.scenario_unit_folder, scenario_id, '01_Data', 'General', 'pred_ego.csv')
-                if os.path.exists(ego_vx_path):
-                    ego_vx = pd.read_csv(ego_vx_path, index_col=False)
-                    distance += np.ceil((ego_vx['time_stamp'].max() - ego_vx['time_stamp'].min()) * ego_vx['ego_vx'].mean() / 1000)
-
-            total_frame += frame
-            total_distance += distance
-            scenario_list[scenario_tag] = f'帧数-{frame:.0f} frame, 里程-{distance:.0f} km'
-
-        test_info = {
-            '测试版本': current_version,
-            '版本对比': f'{current_version} <--> {old_version}',
-            # 'test_date': self.test_config['test_date'],
-            '测试对象': ';'.join(self.test_item.keys()),
-            '目标类型': ';'.join([f'{k}-{v}' for k, v in target_num.items()]),
-            '指标类型': metric_key,
-            '区域划分': division_key,
-            '特征类型': characteristic_key,
-            '测试场景类型': scenario_list,
-        }
-        plot_path = os.path.join(visualization_folder, '测试信息汇总.png')
-        send_log(self, f'{plot_path} 图片已保存')
-        self.test_result['OutputResult']['test_info'] = self.get_relpath(plot_path)
-        plot_test_info(test_info, plot_path)
-
-        title_summary = {
-            '回灌帧数\n(千帧)': f'{(total_frame / 1000):.0f}',
-            '场景里程\n(千米)': f'{total_distance:.0f}',
-            '场景类型\n(类)': len(self.test_result['TagCombination'].keys()),
-        }
-
-        if self.test_topic == 'Obstacles':
-            for ru, num in ru_num.items():
-                title_summary[f'{ru}\n(千)'] = f'{(num / 1000):.0f}'
-
-        elif self.test_topic == 'Lines':
-            for target_type_text, num in target_num.items():
-                title_summary[f'{target_type_text}\n(km)'] = f'{(num / 1000):.0f}'
-
-        elif self.test_topic == 'Slots':
-            for target_type_text, num in target_num.items():
-                title_summary[f'{target_type_text}\n(千)'] = f'{(num / 1000):.0f}'
-
-        else:
-            return
-
-        plot_path = os.path.join(visualization_folder, '测试报告首页.png')
-        plot_title_table(title_summary, plot_path)
-        self.test_result['OutputResult']['test_title'] = self.get_relpath(plot_path)
-        # ====================
-
-        # 将速度图和地图都移动过来
-        for scenario_tag in self.test_result['TagCombination']:
-            scenario_ids = self.test_result['TagCombination'][scenario_tag]['scenario_id']
-            for scenario_id in scenario_ids:
-                for root, dirs, files in os.walk(os.path.join(self.scenario_unit_folder, scenario_id)):
-                    for file in files:
-                        if '_Info.jpg' in file:
-                            file_path = os.path.join(root, file)
-                            os.makedirs(os.path.join(visualization_folder, scenario_tag), exist_ok=True)
-                            new_file_path = os.path.join(visualization_folder, scenario_tag, f'{scenario_id}.jpg')
-                            shutil.copy(file_path, new_file_path)
-        # ====================
-
         # 按照场景和目标特征，生成各个指标的场景
+        visualization_folder = os.path.join(self.output_result_folder, 'visualization')
         statistics = pd.read_csv(self.get_abspath(self.test_result['OutputResult']['statistics']), index_col=False)
         group_columns = ['scenario_tag', 'topic', 'type', 'characteristic', 'metric']
         stat_group = statistics.groupby(group_columns)
@@ -3830,7 +3858,7 @@ class DataGrinderOneTask:
             division_col = 'Region[m]'
 
         else:
-            return
+            division_col = 'unknown'
 
         for df_name, df in stat_group:
             scenario_tag, topic, target_type, characteristic, metric = df_name
@@ -4009,7 +4037,9 @@ class DataGrinderOneTask:
 
                         self.test_result['OutputResult']['visualization'][scenario_tag][topic][characteristic][
                             target_type]['plot'] = self.get_relpath(pic_path)
-        # ====================
+
+    @sync_test_result
+    def generate_report_table(self):
 
         # 生成用于汇报的图
         def plot_single_metric(sub_data, old_data, plot_path):
@@ -4173,7 +4203,7 @@ class DataGrinderOneTask:
                         # 用于为excel表格涂色
                         color_for_sheet.append([list(col), j, color])
 
-                        #取出old_data中相应格子的值
+                        # 取出old_data中相应格子的值
                         if old_data is None:
                             comparison = None
                         else:
@@ -4328,8 +4358,9 @@ class DataGrinderOneTask:
             canvas = FigureCanvas(fig)
             canvas.print_figure(plot_path, facecolor='white', dpi=100)
 
-        metric_pass_ratio_by_characteristic_scenario = {} # 用于统计各特征和场景下的指标合格率
-        color_for_sheets = {} # excel的涂色字典
+        visualization_folder = os.path.join(self.output_result_folder, 'visualization')
+        metric_pass_ratio_by_characteristic_scenario = {}  # 用于统计各特征和场景下的指标合格率
+        color_for_sheets = {}  # excel的涂色字典
         self.test_result['OutputResult']['report_plot'] = {}
         for characteristic, excel_path in self.test_result['OutputResult']['report_table'].items():
             excel_path = self.get_abspath(excel_path)
@@ -4339,8 +4370,8 @@ class DataGrinderOneTask:
 
             # 寻找其他版本相同的文件
             old_excel_path = None
-            if old_version:
-                for root, dirs, files in os.walk(version_comparison_folder):
+            if self.old_version:
+                for root, dirs, files in os.walk(self.test_config['version_comparison']):
                     for file in files:
                         if os.path.basename(excel_path) in file and self.test_topic in root:
                             old_excel_path = os.path.join(root, file)
@@ -4352,7 +4383,8 @@ class DataGrinderOneTask:
 
                 old_data = None
                 if old_excel_path is not None and scenario_tag in pd.ExcelFile(excel_path).sheet_names:
-                    old_data = pd.read_excel(old_excel_path, sheet_name=scenario_tag, header=[0, 1, 2], index_col=[0, 1, 2])
+                    old_data = pd.read_excel(old_excel_path, sheet_name=scenario_tag, header=[0, 1, 2],
+                                             index_col=[0, 1, 2])
 
                 sub_data_col = {}
                 for col in data.columns:
@@ -4378,7 +4410,7 @@ class DataGrinderOneTask:
                                 new_cols.append(col)
                         sample_data = data[new_cols]
                         sample_plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
-                                                 f'{scenario_tag}--{characteristic}--样本数量.png')
+                                                        f'{scenario_tag}--{characteristic}--样本数量.png')
                         plot_single_metric(sample_data, old_data, sample_plot_path)
                         self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag][
                             '样本数量'] = self.get_relpath(sample_plot_path)
@@ -4387,7 +4419,8 @@ class DataGrinderOneTask:
                         __metrics = list(dict.fromkeys(sub_data.columns.get_level_values(1)))
                         for __metric in __metrics:
                             temp_data = sub_data.loc[:,
-                                        [(col_0, col_1, col_2) for col_0, col_1, col_2 in sub_data.columns if col_1 == __metric]]
+                                        [(col_0, col_1, col_2) for col_0, col_1, col_2 in sub_data.columns if
+                                         col_1 == __metric]]
                             pass_or_fails = []
                             for idx, row in temp_data.iterrows():
                                 pass_or_fail = []
@@ -4402,9 +4435,11 @@ class DataGrinderOneTask:
                                         pass_or_fail.append(0)
                                 pass_or_fails.append(pass_or_fail)
 
-                            new_data = sub_data.loc[:, [(col_0, col_1, col_2) for col_0, col_1, col_2 in temp_data.columns if
-                                                        col_2 != 'kpi_target']]
-                            pass_or_fail_data = pd.DataFrame(pass_or_fails, columns=new_data.columns, index=new_data.index)
+                            new_data = sub_data.loc[:,
+                                       [(col_0, col_1, col_2) for col_0, col_1, col_2 in temp_data.columns if
+                                        col_2 != 'kpi_target']]
+                            pass_or_fail_data = pd.DataFrame(pass_or_fails, columns=new_data.columns,
+                                                             index=new_data.index)
                             pass_or_fail_summary.append(pass_or_fail_data)
 
                     else:
@@ -4413,7 +4448,8 @@ class DataGrinderOneTask:
                         pass_or_fails_compare = []
                         for __metric in __metrics:
                             temp_data = sub_data.loc[:,
-                                        [(col_0, col_1, col_2) for col_0, col_1, col_2 in sub_data.columns if col_1 == __metric]]
+                                        [(col_0, col_1, col_2) for col_0, col_1, col_2 in sub_data.columns if
+                                         col_1 == __metric]]
                             pass_or_fails = []
                             for idx, row in temp_data.iterrows():
                                 pass_or_fail = []
@@ -4436,7 +4472,8 @@ class DataGrinderOneTask:
                             for jj in range(compare_res.shape[1]):
                                 res = [pass_or_fails[ii, jj] for pass_or_fails in pass_or_fails_compare]
                                 if ((self.test_topic == 'Lines' and metric in ['横向位置误差', '偏航角误差'])
-                                        or (self.test_topic == 'Slots' and metric in ['内角点纵向距离误差', '内角点横向距离误差'])):
+                                        or (self.test_topic == 'Slots' and metric in ['内角点纵向距离误差',
+                                                                                      '内角点横向距离误差'])):
                                     if 0 in res:
                                         compare_res[ii, jj] = 0
                                     elif 1 in res:
@@ -4458,31 +4495,37 @@ class DataGrinderOneTask:
                                 continue
                             if (col_0, col_0, col_2) not in pass_or_fail_columns:
                                 pass_or_fail_columns.append((col_0, col_0, col_2))
-                        pass_or_fail_data = pd.DataFrame(compare_res, columns=pass_or_fail_columns, index=sub_data.index)
+                        pass_or_fail_data = pd.DataFrame(compare_res, columns=pass_or_fail_columns,
+                                                         index=sub_data.index)
                         pass_or_fail_summary.append(pass_or_fail_data)
 
                     plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
                                              f'{scenario_tag}--{characteristic}--{metric}.png')
                     self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag][
                         metric] = self.get_relpath(plot_path)
-                    color_for_sheets[characteristic][scenario_tag].extend(plot_single_metric(sub_data, old_data, plot_path))
+                    color_for_sheets[characteristic][scenario_tag].extend(
+                        plot_single_metric(sub_data, old_data, plot_path))
                     send_log(self, f'{plot_path} 图片已保存')
 
                 self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'] = []
 
                 if self.test_topic == 'Obstacles':
-                    plot_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{scenario_tag}--{characteristic}_summary_1.png')
+                    plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
+                                             f'{scenario_tag}--{characteristic}_summary_1.png')
                     metric_summary = pd.concat(pass_or_fail_summary[:5], axis=1)
                     plot_summary_metric(metric_summary, plot_path)
                     send_log(self, f'{plot_path} 图片已保存')
-                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(
+                        self.get_relpath(plot_path))
 
                     if len(pass_or_fail_summary) > 5:
-                        plot_path = os.path.join(visualization_folder, scenario_tag, characteristic, f'{scenario_tag}--{characteristic}_summary_2.png')
+                        plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
+                                                 f'{scenario_tag}--{characteristic}_summary_2.png')
                         metric_summary = pd.concat(pass_or_fail_summary[5:], axis=1)
                         plot_summary_metric(metric_summary, plot_path)
                         send_log(self, f'{plot_path} 图片已保存')
-                        self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+                        self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(
+                            self.get_relpath(plot_path))
 
                 elif self.test_topic == 'Lines':
                     plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
@@ -4490,7 +4533,8 @@ class DataGrinderOneTask:
                     metric_summary = pd.concat(pass_or_fail_summary, axis=1)
                     plot_summary_metric(metric_summary, plot_path)
                     send_log(self, f'{plot_path} 图片已保存')
-                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(
+                        self.get_relpath(plot_path))
 
                 elif self.test_topic == 'Slots':
                     plot_path = os.path.join(visualization_folder, scenario_tag, characteristic,
@@ -4498,7 +4542,8 @@ class DataGrinderOneTask:
                     metric_summary = pd.concat(pass_or_fail_summary, axis=1)
                     plot_summary_metric(metric_summary, plot_path)
                     send_log(self, f'{plot_path} 图片已保存')
-                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(self.get_relpath(plot_path))
+                    self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary'].append(
+                        self.get_relpath(plot_path))
 
                 else:
                     return
@@ -4576,7 +4621,8 @@ class DataGrinderOneTask:
                                              tester='Hil_DataReplay_TestStand',
                                              version=self.version,
                                              title_page=title_background,
-                                             title_summary_img=self.get_abspath(self.test_result['OutputResult']['test_title']),
+                                             title_summary_img=self.get_abspath(
+                                                 self.test_result['OutputResult']['test_title']),
                                              logo=logo)
 
         heading = '报告信息总览'
@@ -4603,7 +4649,6 @@ class DataGrinderOneTask:
                 )
 
                 for img in self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag]['summary']:
-
                     send_log(self, f'生成页面 {characteristic} {scenario_tag} Overview')
                     report_generator.addOnePage(
                         heading=f'{scenario_tag}<{characteristic}> Overview',
@@ -4611,7 +4656,8 @@ class DataGrinderOneTask:
                         img_list=[[self.get_abspath(img)]],
                     )
 
-                for metric, img in self.test_result['OutputResult']['report_plot'][characteristic][scenario_tag].items():
+                for metric, img in self.test_result['OutputResult']['report_plot'][characteristic][
+                    scenario_tag].items():
                     if metric == 'summary':
                         continue
 
@@ -4633,11 +4679,12 @@ class DataGrinderOneTask:
             img_count = 0
             img_list = []
             for i, scenario_id in enumerate(self.test_result['TagCombination'][scenario_tag]['scenario_id']):
-                scenario_info_img = os.path.join(self.output_result_folder, 'visualization', scenario_tag, f'{scenario_id}.jpg')
+                scenario_info_img = os.path.join(self.output_result_folder, 'visualization', scenario_tag,
+                                                 f'{scenario_id}.jpg')
                 if os.path.exists(scenario_info_img):
                     img_list.append([scenario_info_img])
                     img_count += 1
-                    if img_count == 3 or i == len(self.test_result['TagCombination'][scenario_tag]['scenario_id'])-1:
+                    if img_count == 3 or i == len(self.test_result['TagCombination'][scenario_tag]['scenario_id']) - 1:
                         report_generator.addOnePage(heading=f'{scenario_tag} 测试场景',
                                                     text_list=None,
                                                     img_list=img_list)
@@ -4677,7 +4724,8 @@ class DataGrinderOneTask:
                                     img_list=img)
 
         report_generator.page_count += 0
-        self.report_path = os.path.join(self.task_folder, f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]}).pdf')
+        self.report_path = os.path.join(self.task_folder,
+                                        f'{self.product}_{self.test_topic}_数据回灌测试报告({self.test_config["version"]}).pdf')
         report_generator.genReport(report_path=self.report_path, compress=1)
 
     def start(self):
@@ -4696,7 +4744,9 @@ class DataGrinderOneTask:
             self.compile_statistics()
 
         if self.test_action['visualization']:
-            self.visualize_output()
+            self.get_test_info()
+            self.visualize_metric()
+            self.generate_report_table()
 
         if self.test_action['gen_report']:
             self.gen_report()
