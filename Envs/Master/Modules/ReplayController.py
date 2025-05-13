@@ -210,15 +210,21 @@ class ReplayController:
         self.calib_file[scenario_id] = scenario_info_folder
 
         # 写checksum文件
-        check_file_path = os.path.join(self.calib_file[scenario_id], 'json_calib', 'front.json')
+        check_file_path = os.path.join(self.calib_file[scenario_id], 'yaml_calib', 'camera_0.yaml')
         check_sum = calculate_file_checksum(check_file_path)
         checksum_path = os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info', f'calib-{check_sum}')
         with open(checksum_path, 'w') as file:
             file.write(check_sum)
 
     def get_video_info(self, scenario_id):
+        # 如果之前没有获取过相机参数文件，这里补充获取一次
+        if scenario_id not in self.calib_file:
+            self.get_calib(scenario_id)
+
         send_log(self, f'获取场景信息{scenario_id}')
         scenario_info_folder = os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info')
+        if not os.path.exists(scenario_info_folder):
+            os.makedirs(scenario_info_folder)
         self.replay_client.get_scenario_info(
             scenario_id=scenario_id,
             info_type='VideoInfo',
@@ -230,10 +236,9 @@ class ReplayController:
         with open(video_info_path) as f:
             video_info = yaml.load(f, Loader=yaml.FullLoader)
         parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
-        ego_csv = glob.glob(os.path.join(parser_folder, '*Ego*hz.csv'))[0]
-        ego_data = pd.read_csv(ego_csv)
-        if len(ego_data):
-            ego_t0 = float(ego_data['time_stamp'][0])
+        ego_csv_list = glob.glob(os.path.join(parser_folder, '*Ego*hz.csv'))
+        if len(ego_csv_list) and len(pd.read_csv(ego_csv_list[0])):
+            ego_t0 = float(pd.read_csv(ego_csv_list[0])['time_stamp'][0])
             video_info['time_delta_estimated'] = video_info['start_time'] - ego_t0 - 1
             with open(video_info_path, 'w', encoding='utf-8') as f:
                 yaml.dump(video_info, f, encoding='utf-8', allow_unicode=True)
@@ -385,7 +390,10 @@ class ReplayController:
         send_log(self, '清理临时文件夹')
         self.replay_client.clear_temp_folder()
 
-    def analyze_raw_data(self, calib_checksum):
+        if not self.origin_topic_statistics:
+            self.analyze_raw_data()
+
+    def analyze_raw_data(self, calib_checksum=None):
         rows = []
         index = []
         columns = []
@@ -454,19 +462,19 @@ class ReplayController:
             index.append(scenario_id)
             rows.append(row)
 
+        self.invalid_scenario_list = []
+        self.abnormal_score = 0
         if len(columns):
             output_statistics = pd.DataFrame(rows, columns=columns + ['calib_checksum', 'record_time', 'replay_count', 'isValid'], index=index)
             output_statistics.sort_values(by='record_time', inplace=True)
             output_statistics.to_csv(self.statistics_path)
-            calib_output_statistics = output_statistics[output_statistics['calib_checksum'] == calib_checksum]
-            # 计算失效积分
-            # 每一个invalid场景增加1分，每次出现0/0/0/0-0增加1分
-            # 超过5分，触发重启并重新测试invalid的场景
-            self.invalid_scenario_list = calib_output_statistics[calib_output_statistics['isValid'] == 0].index.tolist()
-            self.abnormal_score = len(self.invalid_scenario_list) + np.sum(calib_output_statistics.values == '0/0/0/0-0')
-        else:
-            self.invalid_scenario_list = []
-            self.abnormal_score = 0
+            if calib_checksum:
+                calib_output_statistics = output_statistics[output_statistics['calib_checksum'] == calib_checksum]
+                # 计算失效积分
+                # 每一个invalid场景增加1分，每次出现0/0/0/0-0增加1分
+                # 超过5分，触发重启并重新测试invalid的场景
+                self.invalid_scenario_list = calib_output_statistics[calib_output_statistics['isValid'] == 0].index.tolist()
+                self.abnormal_score = len(self.invalid_scenario_list) + np.sum(calib_output_statistics.values == '0/0/0/0-0')
 
         send_log(self, f'重启积分为{self.abnormal_score}')
         send_log(self, f'失效场景为{self.invalid_scenario_list}')
