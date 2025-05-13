@@ -39,7 +39,7 @@ class RecallPrecision:
                 input_data['pred.type_classification'])
 
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 8):
+              and len(input_data) == 4):
             (gt_flag, gt_type, pred_flag, pred_type) = input_data
 
         else:

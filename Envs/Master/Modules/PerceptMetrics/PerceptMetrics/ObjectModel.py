@@ -16,12 +16,20 @@ def convert_slot_pts_to_ego_pts(slots_pts: np.array, ctr_to_wheel_arc: float = 1
     return slots_pts
 
 
-def convert_AVM_to_ego(u, v, ctr_to_wheel_arc: float = 1.39698315):
-    W, H = 800, 704
+def convert_AVM_to_ego(u, v):
+    W, H = 704, 800
     if u == v == -1 or u == v == 0:
         return 0, 0
-    x = (H / 2 - v) * 0.03 + ctr_to_wheel_arc
-    y = (W / 2 - u) * 0.03
+    x = (H / 2 + 47.19 - v) * 0.03
+    y = (W / 2  - u) * 0.03
+    return x, y
+
+def convert_AVM_to_ego_gt(u, v, ctr_to_wheel_arc: float = 1.39698315):
+    W, H = 1088, 1216
+    if u == v == -1 or u == v == 0:
+        return 0, 0
+    x = (H / 2 - v) * 0.02 + ctr_to_wheel_arc
+    y = (W / 2 - u) * 0.02
     return x, y
 
 

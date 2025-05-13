@@ -248,6 +248,13 @@ def calculate_file_checksum(file_path, method='md5'):
     return hash_func.hexdigest()
 
 
+def wrap_text(text, max_length):
+    wrapped_lines = []
+    for i in range(0, len(text), max_length):
+        wrapped_lines.append(text[i:i + max_length])
+    return '\n'.join(wrapped_lines)
+
+
 bench_id = get_bench_id()
 project_path = get_project_path()
 bench_config = parse_bench_config()

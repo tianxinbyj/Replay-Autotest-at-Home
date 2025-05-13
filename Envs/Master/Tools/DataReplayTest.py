@@ -9,7 +9,7 @@ from Envs.Master.Modules.ReplayController import ReplayController
 from Utils.Logger import UDPLogServer
 
 
-class DataReplayTestPilot:
+class DataReplayTest:
 
     def __init__(self, test_project_path):
         self.log_server = None

@@ -509,7 +509,7 @@ class SlotsMatchTool:
                 gt_flag, pred_flag = 1, 0
                 this_row = [gt_flag, pred_flag]
 
-                gt_data.at[gt_idx, 'type_classification'] = 'unknown'
+                gt_data.at[gt_idx, 'type_classification'] = 'vertical'
                 # 计算车位的属性
                 gt_slot = Slot(*gt_data.loc[gt_idx,
                 ['type', 'pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y',
