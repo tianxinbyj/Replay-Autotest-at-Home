@@ -82,21 +82,10 @@ class DataGrinderOneCase:
         self.topics_for_evaluation = [
             topic for topic in self.test_item.keys() if topic in self.test_information['topics']]
 
-        # 不同产品用不同的相机
-        if self.product == 'ES37':
-            # self.camera_list = [
-            #     'CAM_FRONT_LEFT', 'CAM_FRONT_120', 'CAM_FRONT_RIGHT',
-            #     'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT',
-            # ]
-            self.camera_list = [
-                'CAM_FISHEYE_LEFT', 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT',
-                'CAM_FISHEYE_FRONT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
-            ]
-        else:
-            self.camera_list = [
-                'CAM_FISHEYE_LEFT', 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT',
-                'CAM_FISHEYE_FRONT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
-            ]
+        self.camera_list = [
+            'CAM_FISHEYE_LEFT', 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT',
+            'CAM_FISHEYE_FRONT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
+        ]
 
         # 初始化文件夹
         self.pred_raw_folder = self.test_config['pred_folder']
@@ -109,7 +98,7 @@ class DataGrinderOneCase:
         self.test_result_yaml = os.path.join(self.scenario_unit_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
             self.test_result = {'General': {
-                'pred_ego_flag': False, 'gt_ego_flag': False
+                'pred_ego_flag': False, 'gt_ego_flag': False, 'replay_client': False,
             }, self.test_topic: {'GroundTruth': {}}}
             for topic in self.topics_for_evaluation:
                 self.test_result[self.test_topic][topic] = {}
@@ -132,6 +121,7 @@ class DataGrinderOneCase:
         scenario_info_folder = os.path.join(self.pred_raw_folder, 'scenario_info')
         if copy_to_destination(scenario_info_folder, self.scenario_unit_folder):
 
+            self.test_result['General']['replay_client'] = True
             self.test_result['General']['camera_position'] = {}
             yaml_folder = os.path.join(scenario_info_folder, 'yaml_calib')
             cam_description_path = os.path.join(yaml_folder, 'cam_description.yaml')
@@ -278,7 +268,7 @@ class DataGrinderOneCase:
                 pred_timestamp_csv = glob.glob(os.path.join(self.pred_raw_folder, 'RawData', f'{topic_tag}*hz.csv'))[0]
                 pred_timestamp = pd.read_csv(pred_timestamp_csv, index_col=False).sort_values(
                     by=['time_stamp']).drop_duplicates(subset=['time_stamp'], keep='first')
-                pred_hz = float(os.path.basename(pred_timestamp_csv).split('_')[1])
+                pred_hz = float(os.path.basename(pred_timestamp_csv).split('_')[-2])
 
                 raw_folder = os.path.join(self.DataFolder, self.test_topic, topic_tag, 'raw')
                 create_folder(raw_folder, False)
@@ -498,7 +488,8 @@ class DataGrinderOneCase:
             send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
             self.test_result['General']['vel_time_gap'] = t_delta
 
-        self.test_result['General']['time_gap'] = t_delta - 0.85
+        # self.test_result['General']['time_gap'] = t_delta - 0.85
+        self.test_result['General']['time_gap'] = t_delta
 
         time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
         time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
@@ -1115,7 +1106,7 @@ class DataGrinderOneCase:
 
         # 启用ssh_client, 按照相机批量截图并复制到本机
         # if not self.replay_mode.lower() == 'ethernet':
-        if True:
+        if self.test_result['General']['replay_client']:
             replay_client = SSHClient()
             video_snap_folder = os.path.join(self.BugFolder, 'General')
             create_folder(video_snap_folder)
@@ -1681,206 +1672,207 @@ class DataGrinderOneCase:
                             video_snap_dict[camera].append(frame_index)
 
         # 启用ssh_client, 按照相机批量截图并复制到本机
-        replay_client = SSHClient()
-        video_snap_folder = os.path.join(self.RenderFolder, 'General')
-        create_folder(video_snap_folder)
+        if self.test_result['General']['replay_client']:
+            replay_client = SSHClient()
+            video_snap_folder = os.path.join(self.RenderFolder, 'General')
+            create_folder(video_snap_folder)
 
-        for camera, frame_index_list in video_snap_dict.items():
-            camera_folder = os.path.join(video_snap_folder, camera)
-            create_folder(camera_folder)
+            for camera, frame_index_list in video_snap_dict.items():
+                camera_folder = os.path.join(video_snap_folder, camera)
+                create_folder(camera_folder)
 
-            replay_client.cut_frames(scenario_id=self.scenario_id,
-                                     frame_index_list=sorted(frame_index_list),
-                                     camera=camera,
-                                     local_folder=camera_folder)
+                replay_client.cut_frames(scenario_id=self.scenario_id,
+                                         frame_index_list=sorted(frame_index_list),
+                                         camera=camera,
+                                         local_folder=camera_folder)
 
-        # 将bug需要ps的内容保存为一个json，批量处理
-        bug_label_info_list = []
-        for topic in self.test_result[self.test_topic].keys():
-            if topic == 'GroundTruth' or topic not in self.test_action['render_topic']:
-                continue
+            # 将bug需要ps的内容保存为一个json，批量处理
+            bug_label_info_list = []
+            for topic in self.test_result[self.test_topic].keys():
+                if topic == 'GroundTruth' or topic not in self.test_action['render_topic']:
+                    continue
 
-            for characteristic in self.test_result[self.test_topic][topic]['render']:
-                characteristic_folder = self.get_abspath(self.test_result[self.test_topic][topic]['render'][
-                                                             characteristic]['sketch'])
+                for characteristic in self.test_result[self.test_topic][topic]['render']:
+                    characteristic_folder = self.get_abspath(self.test_result[self.test_topic][topic]['render'][
+                                                                 characteristic]['sketch'])
 
-                for time_stamp in os.listdir(characteristic_folder):
-                    one_render_folder = os.path.join(characteristic_folder, time_stamp)
-                    bug_info_json = os.path.join(one_render_folder, 'bug_info.json')
-                    with open(bug_info_json, 'r', encoding='utf-8') as f:
-                        bug_info_list = json.load(f)
+                    for time_stamp in os.listdir(characteristic_folder):
+                        one_render_folder = os.path.join(characteristic_folder, time_stamp)
+                        bug_info_json = os.path.join(one_render_folder, 'bug_info.json')
+                        with open(bug_info_json, 'r', encoding='utf-8') as f:
+                            bug_info_list = json.load(f)
 
-                    frame_index = round((float(time_stamp) - video_start_time) * fps)
-                    for camera in self.camera_list:
-                        origin_shot = os.path.join(self.RenderFolder, 'General', camera, f'{frame_index}.jpg')
-                        process_shot = os.path.join(one_render_folder,
-                                                    f'{camera}-{self.scenario_id}-{frame_index}.jpg')
-                        shutil.copy(origin_shot, process_shot)
+                        frame_index = round((float(time_stamp) - video_start_time) * fps)
+                        for camera in self.camera_list:
+                            origin_shot = os.path.join(self.RenderFolder, 'General', camera, f'{frame_index}.jpg')
+                            process_shot = os.path.join(one_render_folder,
+                                                        f'{camera}-{self.scenario_id}-{frame_index}.jpg')
+                            shutil.copy(origin_shot, process_shot)
 
-                    if not len(bug_info_list):
-                        continue
+                        if not len(bug_info_list):
+                            continue
 
-                    bug_label_info = {
-                        'scenario_id': self.scenario_id,
-                        'frame_index': frame_index,
-                        'time_stamp': float(time_stamp),
-                        'camera_label_info': {}
-                    }
+                        bug_label_info = {
+                            'scenario_id': self.scenario_id,
+                            'frame_index': frame_index,
+                            'time_stamp': float(time_stamp),
+                            'camera_label_info': {}
+                        }
 
-                    for bug_info in bug_info_list:
-                        for camera in bug_info['camera']:
-                            if camera not in bug_label_info['camera_label_info']:
-                                bug_label_info['camera_label_info'][camera] = {
-                                    'origin_shot': os.path.join(one_render_folder,
-                                                                f'{camera}-{self.scenario_id}-{frame_index}.jpg'),
-                                    'process_shot': os.path.join(one_render_folder,
-                                                                 f'{camera}-{self.scenario_id}-{frame_index}.jpg'),
-                                    'label_info': []
+                        for bug_info in bug_info_list:
+                            for camera in bug_info['camera']:
+                                if camera not in bug_label_info['camera_label_info']:
+                                    bug_label_info['camera_label_info'][camera] = {
+                                        'origin_shot': os.path.join(one_render_folder,
+                                                                    f'{camera}-{self.scenario_id}-{frame_index}.jpg'),
+                                        'process_shot': os.path.join(one_render_folder,
+                                                                     f'{camera}-{self.scenario_id}-{frame_index}.jpg'),
+                                        'label_info': []
+                                    }
+
+                                one_label_info = {
+                                    'bug_type': bug_info['bug_type'],
                                 }
 
-                            one_label_info = {
-                                'bug_type': bug_info['bug_type'],
-                            }
+                                if self.test_topic == 'Obstacles':
+                                    if bug_info['gt.flag'] == 1:
+                                        # 箭头
+                                        one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
+                                                                      bug_info['gt.height']]
 
-                            if self.test_topic == 'Obstacles':
-                                if bug_info['gt.flag'] == 1:
-                                    # 箭头
-                                    one_label_info['gt_arrow'] = [bug_info['gt.x'], bug_info['gt.y'],
-                                                                  bug_info['gt.height']]
+                                        # 8个角点也放进去
+                                        one_label_info['gt_corner'] = {
+                                            'bottom': [
+                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                            ],
+                                            'top': [
+                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
+                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
+                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
+                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
+                                            ]
+                                        }
 
-                                    # 8个角点也放进去
-                                    one_label_info['gt_corner'] = {
-                                        'bottom': [
-                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
-                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
-                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
-                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
-                                        ],
-                                        'top': [
-                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], bug_info['gt.height']],
-                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], bug_info['gt.height']],
-                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], bug_info['gt.height']],
-                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], bug_info['gt.height']],
+                                    if bug_info['pred.flag'] == 1:
+                                        one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
+                                                                        bug_info['pred.height']]
+
+                                        # 8个角点也放进去
+                                        one_label_info['pred_corner'] = {
+                                            'bottom': [
+                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
+                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
+                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
+                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
+                                            ],
+                                            'top': [
+                                                [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'],
+                                                 bug_info['pred.height']],
+                                                [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'],
+                                                 bug_info['pred.height']],
+                                                [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'],
+                                                 bug_info['pred.height']],
+                                                [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'],
+                                                 bug_info['pred.height']],
+                                            ]
+                                        }
+
+                                    if bug_info['gt.flag'] == 1:
+                                        one_label_info['center'] = [
+                                            bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
                                         ]
-                                    }
-
-                                if bug_info['pred.flag'] == 1:
-                                    one_label_info['pred_arrow'] = [bug_info['pred.x'], bug_info['pred.y'],
-                                                                    bug_info['pred.height']]
-
-                                    # 8个角点也放进去
-                                    one_label_info['pred_corner'] = {
-                                        'bottom': [
-                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'], 0],
-                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'], 0],
-                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'], 0],
-                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'], 0],
-                                        ],
-                                        'top': [
-                                            [bug_info['pred.pt_0_x'], bug_info['pred.pt_0_y'],
-                                             bug_info['pred.height']],
-                                            [bug_info['pred.pt_1_x'], bug_info['pred.pt_1_y'],
-                                             bug_info['pred.height']],
-                                            [bug_info['pred.pt_2_x'], bug_info['pred.pt_2_y'],
-                                             bug_info['pred.height']],
-                                            [bug_info['pred.pt_3_x'], bug_info['pred.pt_3_y'],
-                                             bug_info['pred.height']],
+                                    else:
+                                        one_label_info['center'] = [
+                                            bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
                                         ]
-                                    }
 
-                                if bug_info['gt.flag'] == 1:
-                                    one_label_info['center'] = [
-                                        bug_info['gt.x'], bug_info['gt.y'], bug_info['gt.height']
-                                    ]
-                                else:
-                                    one_label_info['center'] = [
-                                        bug_info['pred.x'], bug_info['pred.y'], bug_info['pred.height']
-                                    ]
+                                elif self.test_topic == 'Lines':
+                                    if bug_info['gt.flag'] == 1:
+                                        x_points = [float(x) for x in bug_info['gt.x_points'].split(',')]
+                                        y_points = [float(y) for y in bug_info['gt.y_points'].split(',')]
 
-                            elif self.test_topic == 'Lines':
-                                if bug_info['gt.flag'] == 1:
-                                    x_points = [float(x) for x in bug_info['gt.x_points'].split(',')]
-                                    y_points = [float(y) for y in bug_info['gt.y_points'].split(',')]
+                                        # 箭头
+                                        len_pt = len(x_points)
+                                        one_label_info['gt_arrow'] = [x_points[len_pt // 2],
+                                                                      y_points[len_pt // 2],
+                                                                      0]
 
-                                    # 箭头
-                                    len_pt = len(x_points)
-                                    one_label_info['gt_arrow'] = [x_points[len_pt // 2],
-                                                                  y_points[len_pt // 2],
-                                                                  0]
+                                        # 车道线的点也点放进去
+                                        one_label_info['gt_line'] = []
+                                        for x, y in zip(x_points, y_points):
+                                            one_label_info['gt_line'].append([x, y, 0])
 
-                                    # 车道线的点也点放进去
-                                    one_label_info['gt_line'] = []
-                                    for x, y in zip(x_points, y_points):
-                                        one_label_info['gt_line'].append([x, y, 0])
+                                    if bug_info['pred.flag'] == 1:
+                                        x_points = [float(x) for x in bug_info['pred.x_points'].split(',')]
+                                        y_points = [float(y) for y in bug_info['pred.y_points'].split(',')]
 
-                                if bug_info['pred.flag'] == 1:
-                                    x_points = [float(x) for x in bug_info['pred.x_points'].split(',')]
-                                    y_points = [float(y) for y in bug_info['pred.y_points'].split(',')]
+                                        # 箭头
+                                        len_pt = len(x_points)
+                                        one_label_info['pred_arrow'] = [x_points[len_pt // 2],
+                                                                        y_points[len_pt // 2],
+                                                                        0]
 
-                                    # 箭头
-                                    len_pt = len(x_points)
-                                    one_label_info['pred_arrow'] = [x_points[len_pt // 2],
-                                                                    y_points[len_pt // 2],
-                                                                    0]
+                                        # 车道线的点也点放进去
+                                        one_label_info['pred_line'] = []
+                                        for x, y in zip(x_points, y_points):
+                                            one_label_info['pred_line'].append([x, y, 0])
 
-                                    # 车道线的点也点放进去
-                                    one_label_info['pred_line'] = []
-                                    for x, y in zip(x_points, y_points):
-                                        one_label_info['pred_line'].append([x, y, 0])
+                                    if bug_info['gt.flag'] == 1:
+                                        one_label_info['center'] = one_label_info['gt_arrow']
+                                    else:
+                                        one_label_info['center'] = one_label_info['pred_arrow']
 
-                                if bug_info['gt.flag'] == 1:
-                                    one_label_info['center'] = one_label_info['gt_arrow']
-                                else:
-                                    one_label_info['center'] = one_label_info['pred_arrow']
+                                elif self.test_topic == 'Slots':
+                                    if bug_info['gt.flag'] == 1:
+                                        # 箭头
+                                        one_label_info['gt_arrow'] = [bug_info['gt.center_x'], bug_info['gt.center_y'],
+                                                                      0.5]
+                                        # 8个角点也放进去
+                                        one_label_info['gt_corner'] = {
+                                            'bottom': [
+                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
+                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
+                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
+                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
+                                            ],
+                                            'top': [
+                                                [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0.1],
+                                                [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0.1],
+                                                [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0.1],
+                                                [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0.1],
+                                            ]
+                                        }
 
-                            elif self.test_topic == 'Slots':
-                                if bug_info['gt.flag'] == 1:
-                                    # 箭头
-                                    one_label_info['gt_arrow'] = [bug_info['gt.center_x'], bug_info['gt.center_y'],
-                                                                  0.5]
-                                    # 8个角点也放进去
-                                    one_label_info['gt_corner'] = {
-                                        'bottom': [
-                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0],
-                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0],
-                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0],
-                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0],
-                                        ],
-                                        'top': [
-                                            [bug_info['gt.pt_0_x'], bug_info['gt.pt_0_y'], 0.1],
-                                            [bug_info['gt.pt_1_x'], bug_info['gt.pt_1_y'], 0.1],
-                                            [bug_info['gt.pt_2_x'], bug_info['gt.pt_2_y'], 0.1],
-                                            [bug_info['gt.pt_3_x'], bug_info['gt.pt_3_y'], 0.1],
-                                        ]
-                                    }
+                                bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
 
-                            bug_label_info['camera_label_info'][camera]['label_info'].append(one_label_info)
+                        send_log(self, f'汇总 {self.scenario_id} {topic} {characteristic} {time_stamp} camera 截图数据')
+                        bug_label_info_list.append(bug_label_info)
 
-                    send_log(self, f'汇总 {self.scenario_id} {topic} {characteristic} {time_stamp} camera 截图数据')
-                    bug_label_info_list.append(bug_label_info)
+            bug_label_info_json = os.path.join(self.RenderFolder, 'General', 'bug_label_info.json')
+            with open(bug_label_info_json, 'w') as json_file:
+                json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
 
-        bug_label_info_json = os.path.join(self.RenderFolder, 'General', 'bug_label_info.json')
-        with open(bug_label_info_json, 'w') as json_file:
-            json.dump(bug_label_info_list, json_file, ensure_ascii=False, indent=4)
+            # calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
+            calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib', 'calibration.json')
 
-        # calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'yaml_calib')
-        calibration = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'origin_calib', 'calibration.json')
+            # 调用给视频截图增加箭头的端口
+            cmd = [
+                f"{bench_config['master']['sys_interpreter']}",
+                "Api_ProcessVideoShot.py",
+                "-c",
+                calibration,
+                "-a",
+                bug_label_info_json
+            ]
 
-        # 调用给视频截图增加箭头的端口
-        cmd = [
-            f"{bench_config['master']['sys_interpreter']}",
-            "Api_ProcessVideoShot.py",
-            "-c",
-            calibration,
-            "-a",
-            bug_label_info_json
-        ]
-
-        print(' '.join(cmd))
-        cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
-        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-        if result.stderr and 'UserWarning' not in result.stderr:
-            send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
+            print(' '.join(cmd))
+            cwd = os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces')
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+            if result.stderr and 'UserWarning' not in result.stderr:
+                send_log(self, f'ProcessVideoShot 发生错误 {result.stderr}')
 
     @sync_test_result
     def generate_image_and_video(self):
