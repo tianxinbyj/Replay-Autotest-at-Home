@@ -1618,8 +1618,9 @@ Information:
       /VA/QC/FsObstacles: Q感知后处理
       /PI/FS/ObjTracksHorizon: 感知融合
       /VA/BevObstaclesDet: 感知BEV模型
-      /VA/BevObstaclesDet50: 感知BEV模型50
-      /VA/BevObstaclesDet100: 感知BEV模型100
+      /pre_v22_ioudel_21: 感知pre_v22_ioudel_21
+      /pre_ioudel_v22: 感知pre_ioudel_v22
+      /pre_iou_del_v21: 感知pre_iou_del_v21
       /VA/QC/BEVObstaclesTracks: Q感知BEV模型
       /VA/QC/MonoObstaclesTracks: Q感知Mono模型
       /VA/FrontWideObstacles2dDet: 感知Front模型

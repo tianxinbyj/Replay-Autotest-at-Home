@@ -2979,9 +2979,9 @@ class Ros2BagClip:
 if __name__ == "__main__":
     workspace = '/home/byj/ZONE/TestProject/ParkingDebug/03_Workspace'
 
-    ros2bag_path = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000001/rosbag2_2025_04_24-15_56_18'
+    ros2bag_path = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000003/20250324_144918_n000003_parking_fusion_rosbag'
     # ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
-    folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000001/RawData'
+    folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000003/RawData'
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
             # '/PI/EG/EgoMotionInfo',
@@ -2990,7 +2990,7 @@ if __name__ == "__main__":
             # '/VA/FrontWideObstacles2dDet',
             # '/VA/BackViewObstacles2dDet',
             # '/VA/Lines',
-            # '/VA/Obstacles',
+            '/VA/PK/Slots',
             # '/PI/FS/ObjTracksHorizon',
             # '/PK/DR/Result',
             '/SA/INSPVA',
@@ -3005,4 +3005,4 @@ if __name__ == "__main__":
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000003')

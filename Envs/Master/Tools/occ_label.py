@@ -73,10 +73,18 @@ for bbid in os.listdir(trackOD_folder):
             with open(od_json_file) as json_file:
                 od_json_data = json.load(json_file)
             pred_boxes = []
+            pred_labels = []
+            pred_sub_labels = []
+            pred_scores = []
             for anno in od_json_data['annotations']:
                 pred_boxes.append(anno['PC_3D'])
+                pred_labels.append(anno['category'])
+                pred_sub_labels.append(anno['sub_category'])
             pcd_name = os.path.basename(od_json_file)[:-5]
-            od_res_data[pcd_name] = json.dumps({'pred_boxes': pred_boxes})
+            od_res_data[pcd_name] = json.dumps({
+                'pred_boxes': pred_boxes,
+                'pred_labels': pred_labels,
+                'pred_sub_labels': pred_sub_labels})
 
 with open(meta_json_path) as json_file:
     meta_json_data = json.load(json_file)
