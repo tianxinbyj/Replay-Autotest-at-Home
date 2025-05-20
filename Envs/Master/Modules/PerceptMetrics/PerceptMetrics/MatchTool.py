@@ -454,18 +454,9 @@ class SlotsMatchTool:
                         *gt_data.loc[gt_idx, ['pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y', 'pt_2_x', 'pt_2_y', 'pt_3_x', 'pt_3_y']],
                         *pred_data.loc[pred_idx, ['pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y', 'pt_2_x', 'pt_2_y', 'pt_3_x', 'pt_3_y']]
                     )
-                    pred_type = pred_data.at[pred_idx, 'type']
-                    if pred_type == 1:
-                        type_classification = 'vertical'
-                    elif pred_type == 2:
-                        type_classification = 'parallel'
-                    elif pred_type == 3:
-                        type_classification = 'oblique'
-                    else:
-                        type_classification = 'unknown'
 
                     gt_data.at[gt_idx, 'type'] = pred_data.at[pred_idx, 'type']
-                    gt_data.at[gt_idx, 'type_classification'] = pred_data.at[pred_idx, 'type_classification'] = type_classification
+                    gt_data.at[gt_idx, 'type_classification'] = pred_data.at[pred_idx, 'type_classification']
 
                     # 计算车位的属性
                     gt_slot = Slot(*gt_data.loc[gt_idx,
@@ -509,7 +500,6 @@ class SlotsMatchTool:
                 gt_flag, pred_flag = 1, 0
                 this_row = [gt_flag, pred_flag]
 
-                gt_data.at[gt_idx, 'type_classification'] = 'vertical'
                 # 计算车位的属性
                 gt_slot = Slot(*gt_data.loc[gt_idx,
                 ['type', 'pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y',
@@ -534,18 +524,6 @@ class SlotsMatchTool:
             for pred_idx in no_match_pred_idx_list:
                 gt_flag, pred_flag = 0, 1
                 this_row = [gt_flag, pred_flag]
-
-                pred_type = pred_data.at[pred_idx, 'type']
-                if pred_type == 1:
-                    type_classification = 'vertical'
-                elif pred_type == 2:
-                    type_classification = 'parallel'
-                elif pred_type == 3:
-                    type_classification = 'oblique'
-                else:
-                    type_classification = 'unknown'
-
-                pred_data.at[pred_idx, 'type_classification'] = type_classification
 
                 # 计算车位的属性
                 pred_slot = Slot(*pred_data.loc[pred_idx,

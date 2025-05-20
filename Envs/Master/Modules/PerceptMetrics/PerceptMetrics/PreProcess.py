@@ -1309,30 +1309,74 @@ class SlotsRegion:
                         [sub_range_value[0] <= pt[range_type] <= sub_range_value[1] for sub_range_value in range_value])
                     is_valid_list.append(is_valid)
 
-            elif range_type == 'azimuth':
-
-                # 需要判断是否嵌套了表格，他们的关系为或
-                if isinstance(range_value[0], float) or isinstance(range_value[0], int):
-                    angle_min, angle_max = range_value[0], range_value[1]
-                    x_ref, y_ref, _ = range_value[2]
-
-                    is_valid = self.check_angle(pt['x'], pt['y'], x_ref, y_ref, angle_min, angle_max)
-                    is_valid_list.append(is_valid)
-
-                elif isinstance(range_value[0], list) or isinstance(range_value[0], tuple):
-                    sub_is_valid_list = []
-
-                    for sub_range_value in range_value:
-                        angle_min, angle_max = sub_range_value[0], sub_range_value[1]
-                        x_ref, y_ref, _ = sub_range_value[2]
-
-                        sub_is_valid = self.check_angle(pt['x'], pt['y'], x_ref, y_ref, angle_min, angle_max)
-                        sub_is_valid_list.append(sub_is_valid)
-
-                    is_valid = any(sub_is_valid_list)
-                    is_valid_list.append(is_valid)
-
         return all(is_valid_list)
+
+
+class SlotTypeClassificationGT:
+
+    def __init__(self, input_parameter_container=None):
+        self.columns = [
+            'reserved_lines_type',
+            'type_classification'
+        ]
+        self.type = 'by_row'
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            type_ = input_data['type']
+
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 1):
+            type_ = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        # 第一个为保留位
+        if type_ in [0, 2, 3]:
+            return 'reserved_slots_type', 'vertical'
+
+        elif type_ == 1:
+            return 'reserved_slots_type', 'parallel'
+
+        return 'reserved_slots_type', None
+
+
+class SlotTypeClassification:
+
+    def __init__(self, input_parameter_container=None):
+        self.columns = [
+            'reserved_lines_type',
+            'type_classification'
+        ]
+        self.type = 'by_row'
+
+    def __call__(self, input_data):
+
+        if isinstance(input_data, dict):
+            type_ = input_data['type']
+
+
+        elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
+              and len(input_data) == 1):
+            type_ = input_data
+
+        else:
+            raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        # 第一个为保留位
+        if type_ == 1:
+            return 'reserved_slots_type', 'vertical'
+
+        elif type_ == 2:
+            return 'reserved_slots_type', 'parallel'
+
+        elif type_ == 3:
+            return 'reserved_slots_type', 'oblique'
+
+        return 'reserved_slots_type', 'unknown'
 
 
 class SlotsPreprocess:
@@ -1341,6 +1385,8 @@ class SlotsPreprocess:
         if preprocess_types is None:
             self.preprocess_types = [
                 'SlotsRegion',
+                'SlotTypeClassificationGT',
+                'SlotTypeClassification',
             ]
         else:
             self.preprocess_types = preprocess_types
@@ -1350,9 +1396,10 @@ class SlotsPreprocess:
         id_counts = data['id'].value_counts()
         data['age'] = data['id'].map(id_counts)
 
-        # if not input_parameter_container['if_gt']:
-        #     self.preprocess_types.remove('DefinePosition')
-        #     self.preprocess_types.remove('DefineId')
+        if input_parameter_container['if_gt']:
+            self.preprocess_types.remove('SlotTypeClassification')
+        else:
+            self.preprocess_types.remove('SlotTypeClassificationGT')
 
         for preprocess_type in self.preprocess_types:
             print(f'正在预处理 {preprocess_type}')
@@ -1366,7 +1413,6 @@ class SlotsPreprocess:
                 data = func(data)
 
         for col in [
-            'type_classification',
             'in_border_distance',
             'in_border_length',
             'slot_heading',
