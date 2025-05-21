@@ -52,9 +52,9 @@ def match_timestamp(prediction_timestamp, groundtruth_timestamp, match_tolerance
 
     return zip(*sorted(zip(pred_timestamp, gt_timestamp)))
 
-final_csv_path = '/media/sf_VBshare/pcd/final.csv'
+final_csv_path = '/home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home/Envs/Master/Tools/final.csv'
 final_csv_data = pd.read_csv(final_csv_path, index_col=0)
-pandar128_compensate_folder = '/media/sf_VBshare/pcd/Pandar128_Compensate'
+pandar128_compensate_folder = '/home/zhangliwei01/ZONE/mnt/qz_temp/e2e-data/parking/20250324_144918_0/Lidar/Pandar128_Compensate'
 pandar128_seg_folder = '/media/sf_VBshare/pcd/pandarSEG'
 trackOD_folder = '/media/sf_VBshare/pcd/trackOD'
 meta_json_path = '/media/sf_VBshare/pcd/meta.json'

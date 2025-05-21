@@ -19,6 +19,8 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from Libs import get_project_path, draw_map
 from Ros2BagParser import Ros2BagParser
 from Ros2BagRecorder import Ros2BagRecorder
+from Ros2BagPlayer import Ros2BagPlayer
+
 
 sys.path.append(get_project_path())
 
@@ -81,6 +83,11 @@ class ReplayController:
             workspace=replay_config['workspace']
         )
 
+        # 实例化播包工具
+        self.ros2bag_player = Ros2BagPlayer(
+            workspace=replay_config['workspace']
+        )
+
         send_log(self, f'回灌的场景为: {self.scenario_ids}')
         send_log(self, f'录制的topic: {self.record_topic}')
         send_log(self, f'解析的topic: {self.parse_topic}')
@@ -117,6 +124,79 @@ class ReplayController:
         if scenario_id:
             send_log(self, f'结束回灌{scenario_id}')
         self.replay_client.stop_replay()
+
+    def start_play_rosbag_and_record_Ethernet(self,ros2bag_path, scenario_id):
+        """
+        开始播放对应的rosbag，然后同时开一个新线程，开始录制相应的板子的输出的ros2bag，
+        根据rosbag的时长信息，在固定时间后停止录包。
+        1. 获取bag包元数据 →
+        2. 启动录包 →
+        3. 等待200ms →
+        4. 开始播放 ros2bag→
+        5. 启动定时器 →
+        6. 定时器触发停止录包
+
+        """
+        # send_log(self, 'H265软回灌先录制一个空的包,用于清除缓存')
+        print(self, 'H265软回灌先录制一个空的包,用于清除缓存')
+        print('self.record_topic:', self.record_topic)
+        null_folder, _ = self.ros2bag_recorder.start_record(
+            scenario_id=scenario_id,
+            folder=self.pred_raw_folder,
+            topic_list=self.record_topic
+        )
+        time.sleep(5)
+        print("FFFFFFFFFFFFFFFFFFFFFFFFF")
+        self.ros2bag_recorder.stop_record()
+        shutil.rmtree(null_folder)
+        # send_log(self, f'获取ros2bag信息 {ros2bag_path}')
+        print(self, f'获取ros2bag信息 {ros2bag_path}')
+
+        bag_duration , topic_in_bag_list = self.ros2bag_player.get_ros2bag_metadata_yaml(ros2bag_path)
+
+        # 先开启录包
+        # send_log(self, f'开始录包{ros2bag_path}_out_put')
+        print(self, f'开始录包{ros2bag_path}_out_put', time.time())
+
+        bag_folder, parser_folder = self.ros2bag_recorder.start_record(
+            scenario_id=scenario_id,
+            folder=self.pred_raw_folder,
+            topic_list=self.record_topic
+        )
+        print("GGGGGGGGGGGGGGGGGGGGGGGGGG", time.time())
+
+        # Step 3: 等待100ms
+        time.sleep(0.1)
+        print("watch out 11111")
+        time.sleep(5)
+        # send_log(self, f'开始播放Ros2bag {ros2bag_path}')
+        print(self, f'开始播放Ros2bag {ros2bag_path}')
+
+        self.ros2bag_player.start_play_ros2bag_ethernet(
+            ros2bag_path=ros2bag_path)
+        print("watch out 22222")
+        time.sleep(5)
+        print("HHHHHHHHHHHHHHHHHHHHHHHHHHH", time.time())
+
+        # Step 5: 创建定时器（duration+3秒后停止录包）
+        stop_delay = bag_duration + 3
+        print(stop_delay)
+        stop_record_timer = threading.Timer(
+            stop_delay,
+            self.ros2bag_recorder.stop_record
+        )
+        print("stop recorder create")
+        stop_record_timer.start()
+        print("stop recorder start already")
+
+        # send_log(self, f'已创建定时器 将在 {stop_delay} 秒后停止录包')
+        print(self, f'已创建定时器 将在 {stop_delay} 秒后停止录包')
+
+        stop_record_timer.join()
+        # send_log(self, f'定时器结束 , 停止录包')
+        print(self, f'定时器结束 , 停止录包')
+
+        return bag_folder, parser_folder
 
     def parse_bag(self, scenario_id):
         xz_l = glob.glob(os.path.join(self.pred_raw_folder,
@@ -497,3 +577,71 @@ class ReplayController:
             time.sleep(5)
 
         return False
+
+
+if __name__ == '__main__':
+
+    test_project_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250211_010000_AEB4j6e'
+
+    workspace_folder = os.path.join(test_project_path, '03_Workspace')
+    # 寻找所有TestConfig.yaml
+    test_config_yaml_list = glob.glob(os.path.join(test_project_path, '04_TestData', '*', 'TestConfig.yaml'))
+    pred_folder = os.path.join(test_project_path, '01_Prediction')
+    gt_folder = os.path.join(test_project_path, '02_GroundTruth')
+
+    feature_group_list = []
+    task_folder_dict = {}
+    test_config_dict = {}
+
+    for test_config_yaml in test_config_yaml_list:
+        with open(test_config_yaml) as f:
+            test_config = yaml.load(f, Loader=yaml.FullLoader)
+        test_topic = test_config['test_topic']
+        test_config['pred_folder'] = pred_folder
+        test_config['gt_folder'] = gt_folder
+        feature_group_list.append(test_config['feature_group'])
+
+        with open(test_config_yaml, 'w', encoding='utf-8') as f:
+            yaml.dump(test_config,
+                      f, encoding='utf-8', allow_unicode=True, sort_keys=False)
+
+        if test_topic not in task_folder_dict:
+            task_folder_dict[test_topic] = []
+        task_folder_dict[test_topic].append(os.path.dirname(test_config_yaml))
+
+        if test_topic not in test_config_dict:
+            test_config_dict[test_topic] = []
+        test_config_dict[test_topic].append(test_config)
+
+    scenario_list = []
+    for test_topic in test_config_dict.keys():
+        # send_log(DRT, f'录制 {test_topic} ros2bag')
+        print('DRT', f'录制 {test_topic} ros2bag')
+
+        for test_config in test_config_dict[test_topic]:
+            for scenario_tag in test_config['scenario_tag']:
+                scenario_list.extend(scenario_tag['scenario_id'])
+
+    # 使用第一个test_config的值作为录包的test_action依据
+    test_topic = list(test_config_dict.keys())[0]
+    test_config = test_config_dict[test_topic][0]
+    if (test_config['test_action']['ros2bag']['record']
+            or test_config['test_action']['ros2bag']['truth']
+            or test_config['test_action']['ros2bag']['video_info']):
+        print('in test config loop')
+        replay_config = {
+            'product': test_config['product'],
+            'feature_group': test_config['feature_group'],
+            'replay_action': test_config['test_action']['ros2bag'],
+            'pred_folder': test_config['pred_folder'],
+            'gt_folder': test_config['gt_folder'],
+            'workspace': os.path.join(test_project_path, '03_Workspace'),
+            'scenario_id': sorted(set(scenario_list)),
+        }
+    print("test config out if-else", replay_config)
+    RC = ReplayController(replay_config)
+    print('ReplayController 实例化成功')
+    ros2bag_path = '/home/zhangliwei01/ZONE/test_AEB/20231130_152434_n000001/20231130_152434_n000001merge_h265_can_ros2bag'
+
+    RC.start_play_rosbag_and_record_Ethernet(ros2bag_path,'20231130_152434_n000001')
+    print("end end endl;")
