@@ -21,9 +21,8 @@ class Ros2BagPlayer:
         self.install = os.path.join(workspace, 'install')
         self.tmux_session = variables['tmux_node']['replay'][0]
         self.tmux_window = variables['tmux_node']['replay'][1]
-        print(self.tmux_session, self.tmux_window)
 
-    def start_play_ros2bag_ethernet(self, ros2bag_path, play_topic_list=None, docker_flag=True, play_remap_flag=True):
+    def start_play(self, ros2bag_path, play_topic_list=None, docker_flag=True, play_remap_flag=True):
         """
         开始播放ros2 bag
         topic_list: 需要播放的ros2bag
@@ -36,16 +35,6 @@ class Ros2BagPlayer:
                           '/Camera/SorroundRight/H265' ,'/Camera/SorroundLeft/H265',
                           '/FM/FctReq' ,'/SA/INSPVA','/SA/IMU','/PK/DR/Result',
                           '/VA/VehicleStatusIpd' ,'/VA/VehicleMotionIpd', '/PI/EG/EgoMotionInfo']
-        # # 关闭可能已经存在的tmux
-        # tmux_exist = check_tmux_session_exists(self.tmux_session)
-        # # 根据tmux 终端状态选择，创建一个新的tmux终端来 准备录包
-        # if tmux_exist:
-        #     # 存在的话，在tmux 中执行两次 ctrl + C
-        #     os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} C-c')
-        #     os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} C-c')
-        # else:
-        # # 否则创建新的tmux 终端
-        #     os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
 
         kill_tmux_session_if_exists(self.tmux_session)
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
@@ -58,31 +47,24 @@ class Ros2BagPlayer:
                                       'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
             os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_sh}" C-m')
             os.system('sleep 3')
-            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
-                      f'"source {self.install}/setup.bash" C-m')
-        else:
-            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
-                      f'"source {self.install}/setup.bash" C-m')
+
+        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
+                  f'"source {self.install}/setup.bash" C-m')
 
         play_topic_str = ' '.join(play_topic_list)
         remap_topic_str = ' '.join([topic + ':=/o' + topic for topic in play_topic_list])
-        print(remap_topic_str)
-        print(play_topic_str)
+
         if play_remap_flag:
             ros_play_cmd = f'ros2 bag play {ros2bag_path} --topic {play_topic_str} --remap {remap_topic_str}'
-            print('ros_play_cmd::',ros_play_cmd)
+
         elif not play_remap_flag:
             ros_play_cmd = f'ros2 bag play {ros2bag_path} --topic {play_topic_str}'
-            print('ros_play_cmd::::::::',ros_play_cmd)
 
         else:
             raise Exception('play_remap_flag must be True or False')
 
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
                   f'"{ros_play_cmd}" C-m')
-
-
-        # ros2bag_path
 
     def get_ros2bag_metadata_yaml(self, ros2bag_path):
         """
@@ -91,10 +73,11 @@ class Ros2BagPlayer:
         if not os.path.exists(ros2bag_path):
             raise FileNotFoundError(ros2bag_path)
 
-        elif os.path.isdir(ros2bag_path) and os.path.exists(os.path.join(ros2bag_path, 'metadata.yaml')):
+        if os.path.isdir(ros2bag_path) and os.path.exists(os.path.join(ros2bag_path, 'metadata.yaml')):
             metadata_yaml_path = os.path.join(ros2bag_path, 'metadata.yaml')
-        elif os.path.exists(ros2bag_path) and ros2bag_path.endswith('.db3'):
+        else:
             metadata_yaml_path = os.path.join(os.path.dirname(ros2bag_path), 'metadata.yaml')
+
         with open(metadata_yaml_path, 'r') as meta_yf:
             rosbag2_bagfile_information_dict = yaml.load(meta_yf, Loader=yaml.FullLoader)
 
@@ -106,12 +89,25 @@ class Ros2BagPlayer:
 
         return ros2bag_duration_nanosec / 1e9, topic_in_bag_list
 
+    def get_play_process(self, start_time, ros2bag_path):
+        if start_time > time.time():
+            return 0
+        elif self.get_ros2bag_metadata_yaml(ros2bag_path)[0] < time.time() - start_time:
+            return 1
+        else:
+            return (time.time() - start_time) / self.get_ros2bag_metadata_yaml(ros2bag_path)[0]
 
-    def start_replay_and_record(self, scenario_id):
-        """
+    def stop_play(self):
+        if check_tmux_session_exists(self.tmux_session):
+            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} C-c')
+            time.sleep(0.5)
+            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} C-c')
+            time.sleep(0.5)
+            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "exit" Enter')
+            time.sleep(0.5)
 
-        """
-        pass
+        kill_tmux_session_if_exists(self.tmux_session)
+        time.sleep(1)
 
 
 if __name__ == '__main__':
@@ -119,4 +115,4 @@ if __name__ == '__main__':
 
     db3_bag = '/home/zhangliwei01/ZONE/20231130_152434_n000001_driving_rosbag/20231130_152434_n000001_driving_rosbag_0.db3'
     duration , topic_in_bag_list = RBP.get_ros2bag_metadata_yaml(db3_bag)
-    RBP.start_play_ros2bag_internet(db3_bag, play_topic_list=None)
+    RBP.start_play(db3_bag, play_topic_list=None)

@@ -46,6 +46,7 @@ class ReplayController:
         self.invalid_scenario_list = []
 
         # 读取参数
+        self.replay_mode = replay_config['replay_mode'].lower()
         self.scenario_ids = replay_config['scenario_id']
         self.pred_raw_folder = replay_config['pred_folder']
         self.gt_raw_folder = replay_config['gt_folder']
@@ -88,7 +89,6 @@ class ReplayController:
             workspace=replay_config['workspace']
         )
 
-        send_log(self, f'回灌的场景为: {self.scenario_ids}')
         send_log(self, f'录制的topic: {self.record_topic}')
         send_log(self, f'解析的topic: {self.parse_topic}')
 
@@ -103,9 +103,16 @@ class ReplayController:
         self.ros2bag_recorder.stop_record()
         shutil.rmtree(null_folder)
 
-        send_log(self, f'开始回灌{scenario_id}')
-        self.replay_client.start_replay(
-            scenario_id=scenario_id)
+        if self.replay_mode != 'ethernet':
+            send_log(self, f'台架回灌模式,开始回灌{scenario_id}')
+            self.replay_client.start_replay(
+                scenario_id=scenario_id
+            )
+        else:
+            send_log(self, f'网络回灌模式,开始回灌{scenario_id}')
+            self.ros2bag_player.start_play(
+                ros2bag_path=self.scenario_ids[scenario_id],
+            )
 
         send_log(self, f'开始录包{scenario_id}')
         bag_folder, parser_folder = self.ros2bag_recorder.start_record(
@@ -123,7 +130,11 @@ class ReplayController:
 
         if scenario_id:
             send_log(self, f'结束回灌{scenario_id}')
-        self.replay_client.stop_replay()
+
+        if self.replay_mode != 'ethernet':
+            self.replay_client.stop_replay()
+        else:
+            self.ros2bag_player.stop_play()
 
     def start_play_rosbag_and_record_Ethernet(self,ros2bag_path, scenario_id):
         """
@@ -374,9 +385,17 @@ class ReplayController:
             send_log(self, '===============================================')
             send_log(self, f'{scenario_id} 第{try_count}次场景录制开始')
             self.start_replay_and_record(scenario_id)
+            start_time = time.time()
 
             while True:
-                replay_process = self.replay_client.get_replay_process()
+                if self.replay_mode != 'ethernet':
+                    replay_process = self.replay_client.get_replay_process()
+                else:
+                    replay_process = self.ros2bag_player.get_play_process(
+                        start_time=start_time,
+                        ros2bag_path=self.scenario_ids[scenario_id],
+                    )
+
                 send_log(self, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
                 if float(replay_process) > self.replay_end / 100:
                     self.stop_replay_and_record(scenario_id)

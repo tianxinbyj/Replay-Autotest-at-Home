@@ -62,7 +62,7 @@ class Ros2BagRecorder:
 
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
 
-        if docker_flag is True:
+        if docker_flag:
             docker_sh = os.path.join(get_project_path(),
                                       'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
             os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_sh}" C-m')

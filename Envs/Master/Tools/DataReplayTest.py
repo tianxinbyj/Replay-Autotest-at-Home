@@ -60,12 +60,16 @@ class DataReplayTest:
 
     def replay_and_record(self):
 
-        scenario_list = []
+        scenario_dict = {}
         for test_topic in self.test_config_dict.keys():
             send_log(self, f'录制 {test_topic} ros2bag')
             for test_config in self.test_config_dict[test_topic]:
                 for scenario_tag in test_config['scenario_tag']:
-                    scenario_list.extend(scenario_tag['scenario_id'])
+                    if isinstance(scenario_tag['scenario_id'], list):
+                        scenario_id_dict = {s_id: None for s_id in scenario_tag['scenario_id']}
+                        scenario_dict.update(scenario_id_dict)
+                    elif isinstance(scenario_tag['scenario_id'], dict):
+                        scenario_dict.update(scenario_tag['scenario_id'])
 
         # 使用第一个test_config的值作为录包的test_action依据
         test_topic = list(self.test_config_dict.keys())[0]
@@ -81,7 +85,8 @@ class DataReplayTest:
                     'pred_folder': test_config['pred_folder'],
                     'gt_folder': test_config['gt_folder'],
                     'workspace': os.path.join(self.test_project_path, '03_Workspace'),
-                    'scenario_id': sorted(set(scenario_list)),
+                    'scenario_id': scenario_dict,
+                    'replay_mode': test_config['replay_mode'],
                 }
 
                 ReplayController(replay_config).start()
@@ -96,7 +101,7 @@ class DataReplayTest:
                         DataGrinderObstaclesOneTask(task_folder).start()
                     elif test_topic == 'Lines':
                         DataGrinderLinesOneTask(task_folder).start()
-                    elif test_topic == 'SLots':
+                    elif test_topic == 'Slots':
                         DataGrinderSlotsOneTask(task_folder).start()
 
     def start(self):

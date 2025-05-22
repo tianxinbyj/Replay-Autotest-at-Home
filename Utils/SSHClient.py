@@ -82,7 +82,6 @@ class SSHClient:
             command = f'cd {self.interface_path} && python3 Api_StartReplay.py -s {scenario_id}'
         else:
             command = f'cd {self.interface_path} && python3 Api_StartReplay.py'
-
         print(command)
         res = self.send_cmd(command)
 
