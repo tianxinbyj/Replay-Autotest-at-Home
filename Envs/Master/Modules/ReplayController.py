@@ -183,7 +183,7 @@ class ReplayController:
         # send_log(self, f'开始播放Ros2bag {ros2bag_path}')
         print(self, f'开始播放Ros2bag {ros2bag_path}')
 
-        self.ros2bag_player.start_play_ros2bag_ethernet(
+        self.ros2bag_player.start_play(
             ros2bag_path=ros2bag_path)
         print("watch out 22222")
         time.sleep(5)

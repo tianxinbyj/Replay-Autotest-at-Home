@@ -471,7 +471,7 @@ class DataGrinderOneCase:
 
         elif self.test_result['General']['pred_ego_flag'] and self.test_result['General']['gt_ego_flag']:
             cmd = [
-                f"{bench_config['master']['sys_interpreter']}",
+                f"{bench_config['Master']['sys_interpreter']}",
                 "Api_GetTimeGap.py",
                 "-b", baseline_data_path,
                 "-c", calibrated_data_path
@@ -658,7 +658,7 @@ class DataGrinderOneCase:
                 = self.get_relpath(topic_gt_data_path)
 
             cmd = [
-                f"{bench_config['master']['sys_interpreter']}",
+                f"{bench_config['Master']['sys_interpreter']}",
                 "Api_ProcessRawData.py",
                 "-r", path,
                 "-j", parameter_json_path,
@@ -743,7 +743,7 @@ class DataGrinderOneCase:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
                 cmd = [
-                    f"{bench_config['master']['sys_interpreter']}",
+                    f"{bench_config['Master']['sys_interpreter']}",
                     "Api_ProcessRawData.py",
                     "-r", path,
                     "-j", parameter_json_path,
@@ -792,7 +792,7 @@ class DataGrinderOneCase:
             path = os.path.join(match_folder, 'match_timestamp.csv')
 
             cmd = [
-                f"{bench_config['master']['sys_interpreter']}",
+                f"{bench_config['Master']['sys_interpreter']}",
                 "Api_MatchTimestamp.py",
                 "-p", pred_timestamp_path,
                 "-g", gt_timestamp_path,
@@ -874,7 +874,7 @@ class DataGrinderOneCase:
             path = os.path.join(match_folder, 'match_data.csv')
 
             cmd = [
-                f"{bench_config['master']['sys_interpreter']}",
+                f"{bench_config['Master']['sys_interpreter']}",
                 "Api_MatchData.py",
                 "-p", pred_data_path,
                 "-g", gt_data_path,
@@ -949,7 +949,7 @@ class DataGrinderOneCase:
                 json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
             cmd = [
-                f"{bench_config['master']['sys_interpreter']}",
+                f"{bench_config['Master']['sys_interpreter']}",
                 "Api_EvaluateMetrics.py",
                 "-m", self.get_abspath(match_data_path),
                 "-j", parameter_json_path,
@@ -1313,7 +1313,7 @@ class DataGrinderOneCase:
 
             # 调用给视频截图增加箭头的端口
             cmd = [
-                f"{bench_config['master']['sys_interpreter']}",
+                f"{bench_config['Master']['sys_interpreter']}",
                 "Api_ProcessVideoShot.py",
                 "-c",
                 calibration,
@@ -1862,7 +1862,7 @@ class DataGrinderOneCase:
 
             # 调用给视频截图增加箭头的端口
             cmd = [
-                f"{bench_config['master']['sys_interpreter']}",
+                f"{bench_config['Master']['sys_interpreter']}",
                 "Api_ProcessVideoShot.py",
                 "-c",
                 calibration,
@@ -3091,7 +3091,7 @@ class DataGrinderOneTask:
                     json.dump(input_parameter_container, f, ensure_ascii=False, indent=4)
 
                 cmd = [
-                    f"{bench_config['master']['sys_interpreter']}",
+                    f"{bench_config['Master']['sys_interpreter']}",
                     "Api_EvaluateMetrics.py",
                     "-m", total_match_data_path,
                     "-j", parameter_json_path,

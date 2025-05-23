@@ -1,5 +1,5 @@
 Replay03:
-  master:
+  Master:
     ip: localhost
     username: hp
     password: admin
@@ -12,12 +12,13 @@ Replay03:
     py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
 Replay02:
-  master:
+  Master:
     ip: 172.31.131.253
     username: zhangliwei01
     password: Pass1234
     py_path: /home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
+    sil_pkg_path: /home/zhangliwei01/ZONE/sil_pkg/sil
   ReplayClient:
     ip: 172.31.131.222
     username: vcar
@@ -25,7 +26,7 @@ Replay02:
     py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
 Replay01:
-  master:
+  Master:
     ip: 172.31.131.253
     username: caobingqi
     password: Pass1234
@@ -38,7 +39,7 @@ Replay01:
     py_path: /home/vcar/work/pythonproject/HIL_test_at_home/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
 Replay00:
-  master:
+  Master:
     ip: localhost
     username: byj
     password: 123456

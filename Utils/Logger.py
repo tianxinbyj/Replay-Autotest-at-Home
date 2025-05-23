@@ -16,7 +16,7 @@ class UDPLogClient:
 
     def __init__(self, host=None, port=None):
         if not host:
-            self.host = bench_config['master']['ip']
+            self.host = bench_config['Master']['ip']
         else:
             self.host = host
         if not port:
@@ -131,7 +131,7 @@ class UDPLogServer:
 
     def __init__(self, host=None, port=None, log_dir=None, filename_prefix='HilTest_log'):
         if not host:
-            self.host = bench_config['master']['ip']
+            self.host = bench_config['Master']['ip']
         else:
             self.host = host
         if not port:

@@ -32,7 +32,7 @@ class Ros2NodeGenerator:
         self.install_folder = os.path.join(self.ws_folder, 'install')
         self.src_folder = os.path.join(self.ws_folder, 'src')
         self.build_folder = os.path.join(self.ws_folder, 'build')
-        self.password = bench_config['master']['password']
+        self.password = bench_config['Master']['password']
 
         self.tmux_session = 'get_topics_session'
         self.tmux_window = 'get_topics_window'

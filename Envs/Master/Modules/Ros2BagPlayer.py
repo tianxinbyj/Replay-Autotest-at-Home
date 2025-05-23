@@ -1,16 +1,14 @@
 import os
-import shutil
 import sys
 import time
 
 import yaml
 
 from Libs import get_project_path
+
 sys.path.append(get_project_path())
-from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists
-from Utils.Libs import variables, docker_flag
-# from Ros2BagRecorder import Ros2BagRecorder
-# from Envs.Master.Modules.ReplayController import ReplayController
+from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists, bench_config
+from Utils.Libs import variables
 
 
 class Ros2BagPlayer:
@@ -19,10 +17,12 @@ class Ros2BagPlayer:
     """
     def __init__(self, workspace):
         self.install = os.path.join(workspace, 'install')
-        self.tmux_session = variables['tmux_node']['replay'][0]
-        self.tmux_window = variables['tmux_node']['replay'][1]
+        self.play_tmux_session = variables['tmux_node']['replay'][0]
+        self.play_tmux_window = variables['tmux_node']['replay'][1]
+        self.sil_tmux_session = variables['tmux_node']['sil_pkg'][0]
+        self.sil_tmux_window = variables['tmux_node']['sil_pkg'][1]
 
-    def start_play(self, ros2bag_path, play_topic_list=None, docker_flag=True, play_remap_flag=True):
+    def start_play(self, ros2bag_path, play_topic_list=None, play_remap_flag=True):
         """
         开始播放ros2 bag
         topic_list: 需要播放的ros2bag
@@ -36,19 +36,18 @@ class Ros2BagPlayer:
                           '/FM/FctReq' ,'/SA/INSPVA','/SA/IMU','/PK/DR/Result',
                           '/VA/VehicleStatusIpd' ,'/VA/VehicleMotionIpd', '/PI/EG/EgoMotionInfo']
 
-        kill_tmux_session_if_exists(self.tmux_session)
-        os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
+        # 打开sil转发节点
+        self.run_sil_pkg()
+
+        kill_tmux_session_if_exists(self.play_tmux_session)
+        os.system(f'tmux new-session -s {self.play_tmux_session} -n {self.play_tmux_window} -d')
         time.sleep(0.1)
 
-        # 在需要docker的环境下终端
-        if docker_flag:
-            # 打开工程中的docker启动脚本
-            docker_sh = os.path.join(get_project_path(),
-                                      'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
-            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_sh}" C-m')
-            os.system('sleep 3')
-
-        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
+        docker_sh = os.path.join(get_project_path(),
+                                  'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
+        os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} "bash {docker_sh}" C-m')
+        os.system('sleep 3')
+        os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} '
                   f'"source {self.install}/setup.bash" C-m')
 
         play_topic_str = ' '.join(play_topic_list)
@@ -63,7 +62,7 @@ class Ros2BagPlayer:
         else:
             raise Exception('play_remap_flag must be True or False')
 
-        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
+        os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} '
                   f'"{ros_play_cmd}" C-m')
 
     def get_ros2bag_metadata_yaml(self, ros2bag_path):
@@ -89,6 +88,21 @@ class Ros2BagPlayer:
 
         return ros2bag_duration_nanosec / 1e9, topic_in_bag_list
 
+    def run_sil_pkg(self):
+        kill_tmux_session_if_exists(self.sil_tmux_session)
+        os.system(f'tmux new-session -s {self.sil_tmux_session} -n {self.sil_tmux_window} -d')
+        time.sleep(0.1)
+
+        docker_sh = os.path.join(get_project_path(),
+                                  'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
+        os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "bash {docker_sh}" C-m')
+        os.system('sleep 3')
+
+        sil_pkg_path = bench_config['Master']['sil_pkg_path']
+        os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} f"cd {sil_pkg_path}" C-m')
+        os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "source install/setup.bash" C-m')
+        os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "ros2 launch src/sil_pkg/launch/rosbag_play_sub.py" C-m')
+
     def get_play_process(self, start_time, ros2bag_path):
         if start_time > time.time():
             return 0
@@ -98,15 +112,24 @@ class Ros2BagPlayer:
             return (time.time() - start_time) / self.get_ros2bag_metadata_yaml(ros2bag_path)[0]
 
     def stop_play(self):
-        if check_tmux_session_exists(self.tmux_session):
-            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} C-c')
+        if check_tmux_session_exists(self.play_tmux_session):
+            os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} C-c')
             time.sleep(0.5)
-            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} C-c')
+            os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} C-c')
             time.sleep(0.5)
-            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "exit" Enter')
+            os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} "exit" Enter')
             time.sleep(0.5)
 
-        kill_tmux_session_if_exists(self.tmux_session)
+        if check_tmux_session_exists(self.sil_tmux_session):
+            os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} C-c')
+            time.sleep(0.5)
+            os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} C-c')
+            time.sleep(0.5)
+            os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "exit" Enter')
+            time.sleep(0.5)
+
+        kill_tmux_session_if_exists(self.play_tmux_session)
+        kill_tmux_session_if_exists(self.sil_tmux_session)
         time.sleep(1)
 
 

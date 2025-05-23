@@ -5,5 +5,8 @@ tmux_node:
   replay:
     - ses_replay
     - win_replay
+  sil_pkg:
+    - ses_sil_pkg
+    - win_sil_pkg
 udp_port:
   master_log: 20008

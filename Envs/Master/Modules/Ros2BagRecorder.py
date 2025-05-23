@@ -11,7 +11,7 @@ from Libs import get_project_path
 sys.path.append(get_project_path())
 
 from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists
-from Utils.Libs import variables, docker_flag
+from Utils.Libs import variables
 
 
 class Ros2BagRecorder:
@@ -56,18 +56,11 @@ class Ros2BagRecorder:
             shutil.rmtree(parser_folder)
         os.makedirs(parser_folder)
 
-        if docker_flag is None:
-            print('未找到台架号')
-            return None, None
-
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
-
-        if docker_flag:
-            docker_sh = os.path.join(get_project_path(),
-                                      'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
-            os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_sh}" C-m')
-            os.system('sleep 3')
-
+        docker_sh = os.path.join(get_project_path(),
+                                  'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
+        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_sh}" C-m')
+        os.system('sleep 3')
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "cd {work_folder}" C-m')
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
                   f'"source {self.install}/setup.bash" C-m')
