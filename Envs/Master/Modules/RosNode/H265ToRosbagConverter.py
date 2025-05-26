@@ -61,16 +61,22 @@ class H265ToRosbagConverter:
         frames = []
         start = 0
 
-        # 查找NAL单元起始码 (0x00000001)
+        # 查找NAL单元起始码 (0x00000001),
+        # 需要合并非00 00 00 01 02开头的（非关键帧 (P/B 帧)）
+        one_frame = b''
         while True:
             # 查找下一个起始码
             pos = data.find(b'\x00\x00\x00\x01', start + 1)
             if pos == -1:
                 # 添加最后一帧
-                frames.append(data[start:])
+                one_frame += data[start:]
+                frames.append(one_frame)
                 break
             # 添加当前帧
-            frames.append(data[start:pos])
+            one_frame += data[start:pos]
+            if len(one_frame) > 50000:
+                frames.append(one_frame)
+                one_frame = b''
             start = pos
 
         return frames
@@ -90,7 +96,7 @@ class H265ToRosbagConverter:
             msg.header.frame_id = f'frame_{frame_id}'
             msg.format = 'h265'
             msg.data = bytes(nal_data)
-            print(time_stamp, len(msg.data.tolist()), msg.data.tolist()[:20])
+            print(time_stamp, len(msg.data.tolist()), msg.data.tolist()[:50])
 
             # 写入数据库
             self.writer.write(
