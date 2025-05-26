@@ -2,6 +2,8 @@
 @Author: BU YUJUN
 @Date: 2024/7/8 上午9:57  
 """
+
+import math
 import pandas as pd
 import numpy as np
 from typing import List, Tuple
@@ -1324,15 +1326,31 @@ class SlotTypeClassificationGT:
     def __call__(self, input_data):
 
         if isinstance(input_data, dict):
+            pt_0_x = input_data['pt_0_x']
+            pt_0_y = input_data['pt_0_y']
+            pt_1_x = input_data['pt_1_x']
+            pt_1_y = input_data['pt_1_y']
+            pt_2_x = input_data['pt_2_x']
+            pt_2_y = input_data['pt_2_y']
+            pt_3_x = input_data['pt_3_x']
+            pt_3_y = input_data['pt_3_y']
             type_ = input_data['type']
 
-
         elif ((isinstance(input_data, tuple) or isinstance(input_data, list))
-              and len(input_data) == 1):
-            type_ = input_data
+              and len(input_data) == 9):
+            pt_0_x, pt_0_y, pt_1_x, pt_1_y, pt_2_x, pt_2_y, pt_3_x, pt_3_y, type_ = input_data
 
         else:
             raise ValueError(f'Invalid input format for {self.__class__.__name__}')
+
+        angles = self.calculate_quadrilateral_angles([
+            [pt_0_x, pt_0_y],
+            [pt_1_x, pt_1_y],
+            [pt_2_x, pt_2_y],
+            [pt_3_x, pt_3_y]])
+
+        if min(angles) < 70:
+            return 'reserved_slots_type', 'oblique'
 
         # 第一个为保留位
         if type_ in [0, 2, 3]:
@@ -1342,6 +1360,46 @@ class SlotTypeClassificationGT:
             return 'reserved_slots_type', 'parallel'
 
         return 'reserved_slots_type', None
+
+    def calculate_quadrilateral_angles(self, points):
+        if len(points) != 4:
+            raise ValueError("必须提供四个顶点")
+
+        # 将点转换为numpy数组方便计算
+        points = np.array(points)
+
+        # 计算四个向量
+        vectors = []
+        for i in range(4):
+            next_i = (i + 1) % 4
+            vectors.append(points[next_i] - points[i])
+
+        angles = []
+        for i in range(4):
+            # 获取当前边和前一边的向量
+            prev_i = (i - 1) % 4
+            current_vector = vectors[i]
+            prev_vector = -vectors[prev_i]  # 取反因为前一边的方向是相反的
+            dot_product = np.dot(prev_vector, current_vector)
+            cross_product = np.cross(prev_vector, current_vector)
+            prev_norm = np.linalg.norm(prev_vector)
+            current_norm = np.linalg.norm(current_vector)
+            cos_theta = dot_product / (prev_norm * current_norm)
+            cos_theta = np.clip(cos_theta, -1.0, 1.0)
+            angle_rad = math.acos(cos_theta)
+
+            # 根据叉积确定角度方向（凸角还是凹角）
+            if cross_product < 0:
+                angle_rad = 2 * math.pi - angle_rad
+
+            # 转换为度数并确保是内角（小于180度）
+            angle_deg = math.degrees(angle_rad)
+            if angle_deg > 180:
+                angle_deg = 360 - angle_deg
+
+            angles.append(angle_deg)
+
+        return angles
 
 
 class SlotTypeClassification:

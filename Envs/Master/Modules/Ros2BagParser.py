@@ -2979,23 +2979,24 @@ class Ros2BagClip:
 if __name__ == "__main__":
     workspace = '/home/byj/ZONE/TestProject/ParkingDebug/03_Workspace'
 
-    ros2bag_path = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000003/20250324_144918_n000003_parking_fusion_rosbag'
-    # ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
-    folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000003/RawData'
+    ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
+    # ros2bag_path = '/home/byj/ZONE/debug/my_bag'
+    # folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000003/RawData'
+    folder = '/home/byj/ZONE/debug/mydebug'
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
             # '/PI/EG/EgoMotionInfo',
-            '/VA/VehicleMotionIpd',
+            # '/VA/VehicleMotionIpd',
             # '/VA/BevObstaclesDet',
             # '/VA/FrontWideObstacles2dDet',
             # '/VA/BackViewObstacles2dDet',
             # '/VA/Lines',
-            '/VA/PK/Slots',
+            # '/VA/PK/Slots',
             # '/PI/FS/ObjTracksHorizon',
             # '/PK/DR/Result',
-            '/SA/INSPVA',
-            # '/Camera/FrontWide/H265',
-            '/PK/PER/VisionSlotDecodingList',
+            # '/SA/INSPVA',
+            '/Camera/FrontWide/H265',
+            # '/PK/PER/VisionSlotDecodingList',
             # '/VA/QC/BEVObstaclesTracks',
             # '/VA/QC/MonoObstaclesTracks',
             # '/VA/QC/FsObstacles',

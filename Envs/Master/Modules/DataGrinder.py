@@ -488,7 +488,7 @@ class DataGrinderOneCase:
             send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
             self.test_result['General']['vel_time_gap'] = t_delta
 
-        self.test_result['General']['time_gap'] = t_delta - 0.85
+        self.test_result['General']['time_gap'] = t_delta - 0.95
         # self.test_result['General']['time_gap'] = t_delta
 
         time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
