@@ -287,12 +287,3 @@ class SSHClient:
             return r
         except:
             return False
-
-
-if __name__ == '__main__':
-    ssh = SSHClient()
-    ssh.control_power('off')
-    res = ssh.control_power('on_with_waiting')
-    print(res)
-    res = ssh.control_power('power')
-    print(res)

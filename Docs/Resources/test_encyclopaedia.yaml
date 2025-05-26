@@ -1241,12 +1241,13 @@ EP39:
     - /PI/EG/EgoMotionInfo
     - /VA/VehicleMotionIpd
     - /VA/BevObstaclesDet
-    - /VA/Obstacles
-    - /VA/BevLines
-    - /VA/FrontWideObstacles2dDet
-    - /VA/BackViewObstacles2dDet
+    - /VA/QC/BEVObstaclesTracks
+    - /VA/QC/MonoObstaclesTracks
+    - /VA/QC/FsObstacles
+    - /VA/QC/Lines
+    - /VA/QC/Objects
+    - /VA/QC/Pose
     - /SA/INSPVA
-    - /VA/FusObjects
     - /PK/DR/Result
     parking:
     - /PI/EG/EgoMotionInfo

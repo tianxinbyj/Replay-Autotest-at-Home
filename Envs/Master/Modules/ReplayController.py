@@ -600,7 +600,7 @@ class ReplayController:
 
 if __name__ == '__main__':
 
-    test_project_path = '/home/zhangliwei01/ZONE/TestProject/ES39/zpd_es39_20250211_010000_AEB4j6e'
+    test_project_path = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e'
 
     workspace_folder = os.path.join(test_project_path, '03_Workspace')
     # 寻找所有TestConfig.yaml
@@ -632,14 +632,15 @@ if __name__ == '__main__':
             test_config_dict[test_topic] = []
         test_config_dict[test_topic].append(test_config)
 
-    scenario_list = []
+    scenario_dict = {}
     for test_topic in test_config_dict.keys():
-        # send_log(DRT, f'录制 {test_topic} ros2bag')
-        print('DRT', f'录制 {test_topic} ros2bag')
-
         for test_config in test_config_dict[test_topic]:
             for scenario_tag in test_config['scenario_tag']:
-                scenario_list.extend(scenario_tag['scenario_id'])
+                if isinstance(scenario_tag['scenario_id'], list):
+                    scenario_id_dict = {s_id: None for s_id in scenario_tag['scenario_id']}
+                    scenario_dict.update(scenario_id_dict)
+                elif isinstance(scenario_tag['scenario_id'], dict):
+                    scenario_dict.update(scenario_tag['scenario_id'])
 
     # 使用第一个test_config的值作为录包的test_action依据
     test_topic = list(test_config_dict.keys())[0]
@@ -655,12 +656,14 @@ if __name__ == '__main__':
             'pred_folder': test_config['pred_folder'],
             'gt_folder': test_config['gt_folder'],
             'workspace': os.path.join(test_project_path, '03_Workspace'),
-            'scenario_id': sorted(set(scenario_list)),
+            'scenario_id': scenario_dict,
+            'replay_mode': test_config['replay_mode'],
         }
-    print("test config out if-else", replay_config)
-    RC = ReplayController(replay_config)
-    print('ReplayController 实例化成功')
-    ros2bag_path = '/home/zhangliwei01/ZONE/test_AEB/20231130_152434_n000001/20231130_152434_n000001merge_h265_can_ros2bag'
 
-    RC.start_play_rosbag_and_record_Ethernet(ros2bag_path,'20231130_152434_n000001')
-    print("end end endl;")
+        print("test config", replay_config)
+        ReplayController(replay_config).start()
+        print('ReplayController 实例化成功')
+    # ros2bag_path = '/home/zhangliwei01/ZONE/test_AEB/20231130_152434_n000001/20231130_152434_n000001merge_h265_can_ros2bag'
+    #
+    # RC.start_play_rosbag_and_record_Ethernet(ros2bag_path,'20231130_152434_n000001')
+    # print("end end endl;")
