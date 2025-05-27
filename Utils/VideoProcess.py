@@ -259,6 +259,6 @@ if __name__ == '__main__':
     # timestamp_path = '/home/byj/ZONE/debug/origin60.csv'
     # gen_h265_timestamp(h265_path, timestamp_path)
 
-    output_file = '/home/byj/ZONE/debug/output_normalized.h265'  # 输出文件（所有分隔符统一为 00 00 00 01）
+    output_file = '/home/hp/ZONE/temp/CAM_FRONT_120/CameraFrontWideH265_norm.h265'  # 输出文件（所有分隔符统一为 00 00 00 01）
     # normalize_h265_startcodes(h265_path, output_file)
     verify_all_delimiters(output_file)

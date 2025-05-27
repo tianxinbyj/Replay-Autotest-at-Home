@@ -200,6 +200,16 @@ def parse_bench_config():
         return data[bench_id]
 
 
+def get_docker_path():
+    bench_config = parse_bench_config()
+    if not bench_config:
+        return None
+
+    docker_path = bench_config['Master']['docker_path']
+    if docker_path == 'self':
+        return os.path.join(get_project_path(), 'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
+    return docker_path
+
 def parse_test_encyclopaedia():
     test_encyclopaedia_yaml = os.path.join(get_project_path(), 'Docs', 'Resources', 'test_encyclopaedia.yaml')
     with open(test_encyclopaedia_yaml, 'r', encoding='utf-8') as file:
@@ -248,6 +258,7 @@ def wrap_text(text, max_length):
 bench_id = get_bench_id()
 project_path = get_project_path()
 bench_config = parse_bench_config()
+docker_path = get_docker_path()
 test_encyclopaedia = parse_test_encyclopaedia()
 variables = parse_code_variables()
 

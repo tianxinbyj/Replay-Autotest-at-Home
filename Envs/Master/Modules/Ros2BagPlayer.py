@@ -8,7 +8,7 @@ from Libs import get_project_path
 
 sys.path.append(get_project_path())
 from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists, bench_config
-from Utils.Libs import variables
+from Utils.Libs import variables, docker_path
 
 
 class Ros2BagPlayer:
@@ -43,9 +43,7 @@ class Ros2BagPlayer:
         os.system(f'tmux new-session -s {self.play_tmux_session} -n {self.play_tmux_window} -d')
         time.sleep(0.1)
 
-        docker_sh = os.path.join(get_project_path(),
-                                  'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
-        os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} "bash {docker_sh}" C-m')
+        os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} "bash {docker_path}" C-m')
         os.system('sleep 3')
         os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} '
                   f'"source {self.install}/setup.bash" C-m')
@@ -93,9 +91,7 @@ class Ros2BagPlayer:
         os.system(f'tmux new-session -s {self.sil_tmux_session} -n {self.sil_tmux_window} -d')
         time.sleep(0.1)
 
-        docker_sh = os.path.join(get_project_path(),
-                                  'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
-        os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "bash {docker_sh}" C-m')
+        os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "bash {docker_path}" C-m')
         os.system('sleep 3')
 
         sil_pkg_path = bench_config['Master']['sil_pkg_path']

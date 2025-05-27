@@ -3,14 +3,14 @@
 # @FileName : TestNodeGenerator.py
 # @Time         : 9/7/22 2:16 PM
 # @Author      : Bu Yujun
+
 import glob
 import os
 import time
-
 import pandas as pd
 
 from Libs import get_project_path
-from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists
+from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists, docker_path
 from Utils.Libs import kill_process_by_port, kill_process_by_keyword, bench_config
 
 
@@ -52,9 +52,7 @@ class Ros2NodeGenerator:
 
         kill_tmux_session_if_exists(self.tmux_session)
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
-        docker_sh = os.path.join(get_project_path(),
-                                  'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
-        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_sh}" C-m')
+        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_path}" C-m')
         os.system('sleep 3')
 
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
@@ -283,9 +281,8 @@ class Ros2NodeGenerator:
 
         # 创建一个tmux窗口，进入docker
         kill_tmux_session_if_exists(node_session)
-        docker_sh = os.path.join(get_project_path(), 'Envs', 'Slave_Ubuntu', 'Resources', 'docker_rolling.sh')
         os.system(f'tmux new-session -s {node_session} -n {node_window} -d')
-        os.system(f'tmux send-keys -t {node_session}:{node_window} "bash {docker_sh}" C-m')
+        os.system(f'tmux send-keys -t {node_session}:{node_window} "bash {docker_path}" C-m')
         time.sleep(2)
         os.system(f'tmux send-keys -t {node_session}:{node_window} "cd {self.install_folder}" C-m')
         os.system(f'tmux send-keys -t {node_session}:{node_window} "source setup.bash" C-m')
