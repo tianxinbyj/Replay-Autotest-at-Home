@@ -2977,12 +2977,12 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/byj/ZONE/TestProject/ParkingDebug/03_Workspace'
+    workspace = '/home/hp/artifacts/ZPD_EP39/RC11'
 
-    ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
+    ros2bag_path = '/home/hp/ZONE/temp/debug'
     # ros2bag_path = '/home/byj/ZONE/debug/my_bag'
     # folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000003/RawData'
-    folder = '/home/byj/ZONE/debug/mydebug'
+    folder = '/home/hp/ZONE/temp/5555'
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
             # '/PI/EG/EgoMotionInfo',

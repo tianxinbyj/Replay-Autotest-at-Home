@@ -8,5 +8,8 @@ tmux_node:
   sil_pkg:
     - ses_sil_pkg
     - win_sil_pkg
+  h265_gen:
+    - ses_h265
+    - win_h265
 udp_port:
   master_log: 20008
