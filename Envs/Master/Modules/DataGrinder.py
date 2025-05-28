@@ -14,6 +14,7 @@ import numpy as np
 import openpyxl
 import pandas as pd
 import yaml
+from io import StringIO
 from PIL import Image
 from matplotlib import patches as pc
 from matplotlib import pyplot as plt, image as mpimg
@@ -121,106 +122,107 @@ class DataGrinderOneCase:
         scenario_info_folder = os.path.join(self.pred_raw_folder, 'scenario_info')
         if copy_to_destination(scenario_info_folder, self.scenario_unit_folder):
 
-            self.test_result['General']['replay_client'] = True
-            self.test_result['General']['camera_position'] = {}
             yaml_folder = os.path.join(scenario_info_folder, 'yaml_calib')
-            cam_description_path = os.path.join(yaml_folder, 'cam_description.yaml')
+            if os.path.exists(yaml_folder):
+                self.test_result['General']['replay_client'] = True
+                self.test_result['General']['camera_position'] = {}
+                cam_description_path = os.path.join(yaml_folder, 'cam_description.yaml')
 
-            if os.path.exists(cam_description_path):
-                # 说明是老样式
-                with open(cam_description_path, 'r', encoding='utf-8') as f:
-                    cam_description = yaml.safe_load(f)
+                if os.path.exists(cam_description_path):
+                    # 说明是老样式
+                    with open(cam_description_path, 'r', encoding='utf-8') as f:
+                        cam_description = yaml.safe_load(f)
 
-                for i, cam_name in cam_description.items():
-                    cam_par_path = os.path.join(yaml_folder, f'camera_{i}.yaml')
-                    with open(cam_par_path, 'r', encoding='utf-8') as f:
-                        cam_par = yaml.safe_load(f)
-                        x, y, z = [
-                            float(cam_par[f'cam_{i}_pos_x']),
-                            float(cam_par[f'cam_{i}_pos_y']),
-                            float(cam_par[f'cam_{i}_pos_z']),
-                        ]
-                        image_width = float(cam_par[f'cam_{i}_image_width'])
-                        focal_x = float(cam_par[f'cam_{i}_focal_x'])
-                        yaw = np.rad2deg(float(cam_par[f'cam_{i}_yaw']))
-                        h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
+                    for i, cam_name in cam_description.items():
+                        cam_par_path = os.path.join(yaml_folder, f'camera_{i}.yaml')
+                        with open(cam_par_path, 'r', encoding='utf-8') as f:
+                            cam_par = yaml.safe_load(f)
+                            x, y, z = [
+                                float(cam_par[f'cam_{i}_pos_x']),
+                                float(cam_par[f'cam_{i}_pos_y']),
+                                float(cam_par[f'cam_{i}_pos_z']),
+                            ]
+                            image_width = float(cam_par[f'cam_{i}_image_width'])
+                            focal_x = float(cam_par[f'cam_{i}_focal_x'])
+                            yaw = np.rad2deg(float(cam_par[f'cam_{i}_yaw']))
+                            h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
 
-                        fov_left = float(yaw + h_fov / 2)
-                        fov_right = float(yaw - h_fov / 2)
+                            fov_left = float(yaw + h_fov / 2)
+                            fov_right = float(yaw - h_fov / 2)
 
-                        if fov_left < 0:
-                            fov_left += 360
-                        if fov_left > 360:
-                            fov_left -= 360
+                            if fov_left < 0:
+                                fov_left += 360
+                            if fov_left > 360:
+                                fov_left -= 360
 
-                        if fov_right < 0:
-                            fov_right += 360
-                        if fov_right > 360:
-                            fov_right -= 360
+                            if fov_right < 0:
+                                fov_right += 360
+                            if fov_right > 360:
+                                fov_right -= 360
 
-                        if fov_right > fov_left:
-                            fov_right -= 360
-                        fov_range = [fov_right, fov_left]
+                            if fov_right > fov_left:
+                                fov_right -= 360
+                            fov_range = [fov_right, fov_left]
 
-                    self.test_result['General']['camera_position'][cam_name] = {
-                        'x': x, 'y': y, 'z': z, 'fov': fov_range,
-                    }
-                    send_log(self, f'{cam_name} 位于({x}, {y}, {z}, {fov_range})')
+                        self.test_result['General']['camera_position'][cam_name] = {
+                            'x': x, 'y': y, 'z': z, 'fov': fov_range,
+                        }
+                        send_log(self, f'{cam_name} 位于({x}, {y}, {z}, {fov_range})')
 
-            else:
-                for cam_par_path in glob.glob(os.path.join(yaml_folder, '*.yaml')):
-                    cam_name = os.path.splitext(os.path.basename(cam_par_path))[0]
+                else:
+                    for cam_par_path in glob.glob(os.path.join(yaml_folder, '*.yaml')):
+                        cam_name = os.path.splitext(os.path.basename(cam_par_path))[0]
 
-                    with open(cam_par_path, 'r', encoding='utf-8') as f:
-                        cam_par = yaml.safe_load(f)
-                        x, y, z = [
-                            float(cam_par[f'pos_x']),
-                            float(cam_par[f'pos_y']),
-                            float(cam_par[f'pos_z']),
-                        ]
-                        image_width = float(cam_par[f'image_width'])
-                        focal_x = float(cam_par[f'focal_x'])
-                        yaw = np.rad2deg(float(cam_par[f'yaw']))
-                        h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
+                        with open(cam_par_path, 'r', encoding='utf-8') as f:
+                            cam_par = yaml.safe_load(f)
+                            x, y, z = [
+                                float(cam_par[f'pos_x']),
+                                float(cam_par[f'pos_y']),
+                                float(cam_par[f'pos_z']),
+                            ]
+                            image_width = float(cam_par[f'image_width'])
+                            focal_x = float(cam_par[f'focal_x'])
+                            yaw = np.rad2deg(float(cam_par[f'yaw']))
+                            h_fov = np.rad2deg(2 * np.arctan(image_width / 2 / focal_x))
 
-                        fov_left = float(yaw + h_fov / 2)
-                        fov_right = float(yaw - h_fov / 2)
+                            fov_left = float(yaw + h_fov / 2)
+                            fov_right = float(yaw - h_fov / 2)
 
-                        if fov_left < 0:
-                            fov_left += 360
-                        if fov_left > 360:
-                            fov_left -= 360
+                            if fov_left < 0:
+                                fov_left += 360
+                            if fov_left > 360:
+                                fov_left -= 360
 
-                        if fov_right < 0:
-                            fov_right += 360
-                        if fov_right > 360:
-                            fov_right -= 360
+                            if fov_right < 0:
+                                fov_right += 360
+                            if fov_right > 360:
+                                fov_right -= 360
 
-                        if fov_right > fov_left:
-                            fov_right -= 360
-                        fov_range = [fov_right, fov_left]
+                            if fov_right > fov_left:
+                                fov_right -= 360
+                            fov_range = [fov_right, fov_left]
 
-                    self.test_result['General']['camera_position'][cam_name] = {
-                        'x': x, 'y': y, 'z': z, 'fov': fov_range,
-                    }
-                    send_log(self, f'{cam_name} 位于('
-                                   f'{round(x, 2)}, {round(y, 2)}, {round(z, 2)}, '
-                                   f'{fov_range})')
+                        self.test_result['General']['camera_position'][cam_name] = {
+                            'x': x, 'y': y, 'z': z, 'fov': fov_range,
+                        }
+                        send_log(self, f'{cam_name} 位于('
+                                       f'{round(x, 2)}, {round(y, 2)}, {round(z, 2)}, '
+                                       f'{fov_range})')
 
-            if ('CAM_FISHEYE_FRONT' in self.test_result['General']['camera_position']
-                    and 'CAM_FISHEYE_BACK' in self.test_result['General']['camera_position']):
-                self.AVM_center = (self.test_result['General']['camera_position']['CAM_FISHEYE_FRONT']['x']
-                                   + self.test_result['General']['camera_position']['CAM_FISHEYE_BACK']['x']) / 2
+                if ('CAM_FISHEYE_FRONT' in self.test_result['General']['camera_position']
+                        and 'CAM_FISHEYE_BACK' in self.test_result['General']['camera_position']):
+                    self.AVM_center = (self.test_result['General']['camera_position']['CAM_FISHEYE_FRONT']['x']
+                                       + self.test_result['General']['camera_position']['CAM_FISHEYE_BACK']['x']) / 2
 
-            new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
-            if os.path.exists(new_scenario_info_folder):
-                shutil.rmtree(new_scenario_info_folder)
-            os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
+                new_scenario_info_folder = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo')
+                if os.path.exists(new_scenario_info_folder):
+                    shutil.rmtree(new_scenario_info_folder)
+                os.rename(os.path.join(self.scenario_unit_folder, 'scenario_info'), new_scenario_info_folder)
 
-            video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
-            with open(video_info_path, 'r', encoding='utf-8') as file:
-                video_info = yaml.safe_load(file)
-            self.video_start_time, self.video_fps = video_info['start_time'], video_info['fps']
+                video_info_path = os.path.join(self.scenario_unit_folder, '00_ScenarioInfo', 'video_info.yaml')
+                with open(video_info_path, 'r', encoding='utf-8') as file:
+                    video_info = yaml.safe_load(file)
+                self.video_start_time, self.video_fps = video_info['start_time'], video_info['fps']
 
         self.test_result['General']['video_start_time'] = self.video_start_time
         self.test_result['General']['video_fps'] = self.video_fps
@@ -331,6 +333,19 @@ class DataGrinderOneCase:
                 if len(pred_data):
                     self.test_result['General']['sa_time_gap'] \
                         = float(pred_data['time_stamp'].mean() - pred_data['header_stamp'].mean())
+
+        # 获取logsim的时间差
+        logsim_txt_list = glob.glob(os.path.join(self.pred_raw_folder, '*H265.txt'))
+        if len(logsim_txt_list):
+            df = pd.read_csv(
+                logsim_txt_list[0],
+                header=None,  # 无表头行
+                names=['t0', 't1'],  # 指定列名为t0和t1
+                sep=',\s*',  # 分隔符为逗号+任意空格（处理数据中的空格）
+                engine='python'  # 使用Python解析器处理复杂分隔符
+            )
+            df['t_delta'] = df['t0'] - df['t1']
+            self.test_result['General']['logsim_time_gap'] = float(df['t_delta'].mean())
 
     @sync_test_result
     def load_gt_data(self):
@@ -465,7 +480,11 @@ class DataGrinderOneCase:
         calibrated_time_series = calibrated_data['time_stamp'].to_list()
 
         t_delta = 0
-        if 'sa_time_gap' in self.test_result['General']:
+        if 'logsim_time_gap' in self.test_result['General']:
+            t_delta = self.test_result['General']['logsim_time_gap']
+            send_log(self, f'使用LOGSIM获得的时间间隔 = {t_delta}')
+
+        elif 'sa_time_gap' in self.test_result['General']:
             t_delta = self.test_result['General']['sa_time_gap']
             send_log(self, f'使用INSPVA获得的时间间隔 = {t_delta}')
 
@@ -488,8 +507,8 @@ class DataGrinderOneCase:
             send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
             self.test_result['General']['vel_time_gap'] = t_delta
 
-        self.test_result['General']['time_gap'] = t_delta - 0.95
-        # self.test_result['General']['time_gap'] = t_delta
+        # self.test_result['General']['time_gap'] = t_delta - 0.95
+        self.test_result['General']['time_gap'] = t_delta
 
         time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
         time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1

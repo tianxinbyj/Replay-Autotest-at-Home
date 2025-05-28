@@ -941,8 +941,9 @@ data_columns = {
         ],
     'proto_horizon_msgs/msg/Freespaces':
         [
-            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id', 'points_num', 'label', 'x', 'y', 'z',
-            'valid'
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
+            'points_num', 'obs_points_num', 'contours_id', 'label', 'x', 'y', 'z',
+            'valid', 'obj_id', 'obj_type',
         ],
     'proto_horizon_msgs/msg/Slots':
         [
@@ -1053,6 +1054,21 @@ data_columns = {
         [
             'local_time', 'time_stamp', 'header_stamp', 'header_seq',
             'roll', 'pitch', 'yaw', 'vx', 'vy', 'vel', 'trip_distance',
+        ],
+    'qc_perception_msgs/msg/QcLines':
+        [
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq',
+            'pose_x', 'pose_y', 'pose_z', 'yaw', 'pitch', 'roll',
+        ],
+    'occupany_perception_msgs/msg/ParkingOcc':
+        [
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq',
+            'resolution', 'x_min', 'x_max', 'y_min', 'y_max',
+        ],
+    'parking_perception_msgs/msgs/FSDecodingList':
+        [
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
+            'cam_num', 'cam_id', 'points_num', 'score', 'type_', 'x', 'y',
         ]
 }
 
@@ -1105,6 +1121,8 @@ topic2msg = {
     '/VA/QC/Lines': 'qc_perception_msgs/msg/QcLines',
     '/VA/QC/Objects': 'qc_perception_msgs/msg/QcObjects',
     '/VA/QC/Pose': 'qc_perception_msgs/msg/QcPose',
+    '/LP/ParkingOcc': 'occupany_perception_msgs/msg/ParkingOcc',
+    '/PK/PER/FSDecodingList': 'parking_perception_msgs/msgs/FSDecodingList',
 }
 
 
@@ -2037,39 +2055,65 @@ class Ros2BagParser:
             if time_stamp != self.last_timestamp[topic]:
                 header_stamp = msg.head.stamp.sec + msg.head.stamp.nanosec / 1e9
                 header_seq = msg.head.seq
-                for points in msg.freespace_points:
-                    points_num = msg.freespace_points_num
-                    if valid := points.valid:
+                points_num = msg.freespace_points_num
+                obs_points_num = msg.obs_points_num
+                contours_id = 9999
+                for point in msg.freespace_points:
+                    label = point.label
+                    x = point.point_vcs.x
+                    y = point.point_vcs.y
+                    z = point.point_vcs.z
+
+                    queue.put([
+                        local_time, time_stamp, header_stamp, header_seq, frame_id,
+                        points_num, obs_points_num, contours_id, label, x, y, z,
+                        1, 0, 0,
+                    ])
+
+                for obs in msg.obs_points:
+                    contours_id = obs.contours_id
+                    valid = obs.valid
+                    obj_id = obs.matched_obj.id
+                    obj_type = obs.matched_obj.type
+
+                    for points in obs.points:
                         label = points.label
                         x = points.point_vcs.x
                         y = points.point_vcs.y
                         z = points.point_vcs.z
 
                         queue.put([
-                            local_time, time_stamp, header_stamp, header_seq, frame_id, points_num, label, x, y, z,
-                            valid
+                            local_time, time_stamp, header_stamp, header_seq, frame_id,
+                            points_num, obs_points_num, contours_id, label, x, y, z,
+                            valid, obj_id, obj_type,
                         ])
 
-                obs_counter = 1
-                for obs in msg.obs_points:
-                    points_num = msg.obs_points_num
-                    if obs_valid := obs.valid:
-                        contours_id = obs.contours_id
-                        obj_id = obs.matched_obj.id
-                        obj_type = obs.matched_obj.type
+                self.last_timestamp[topic] = time_stamp
 
-                        for points in obs.points:
-                            if valid := points.valid:
-                                label = points.label
-                                x = points.point_vcs.x
-                                y = points.point_vcs.y
-                                z = points.point_vcs.z
+        elif topic in self.getTopics('parking_perception_msgs/msgs/FSDecodingList'):
+            time_stamp = msg.time_stamp / 1000
+            frame_id = msg.frame_num
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+            if time_stamp != self.last_timestamp[topic]:
+                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_seq = msg.header.seq
 
-                                queue.put([
-                                    local_time, time_stamp, header_stamp, header_seq, frame_id, obs_counter, label, x,
-                                    y, z, obs_valid, contours_id, obj_id, obj_type
-                                ])
-                        obs_counter += 1
+                cam_num = msg.cam_num
+                for fsinfo in msg.fsinfo:
+                    cam_id = fsinfo.came_id
+                    points_num = fsinfo.point_num
+                    for point in fsinfo.points:
+                        score = point.score
+                        type_ = point.type
+                        x = point.point.x
+                        y = point.point.y
+
+                        if x + y != 0:
+                            queue.put([
+                                local_time, time_stamp, header_stamp, header_seq, frame_id,
+                                cam_num, cam_id, points_num, score, type_, x, y,
+                            ])
 
                 self.last_timestamp[topic] = time_stamp
 
@@ -2201,6 +2245,28 @@ class Ros2BagParser:
                         occupy_status, lock_status,
                         stopper_valid, stopper_0_x, stopper_0_y, stopper_1_x, stopper_1_y,
                     ])
+
+                self.last_timestamp[topic] = time_stamp
+
+        elif topic in self.getTopics('occupany_perception_msgs/msg/ParkingOcc'):
+            frame_id = 0
+            time_stamp = msg.timestamp / 1000
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+            if time_stamp != self.last_timestamp[topic]:
+                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_seq = msg.header.seq
+
+                resolution = msg.resolution
+                x_min = msg.x_min
+                y_min = msg.x_min
+                x_max = msg.x_max
+                y_max = msg.y_max
+
+                queue.put([
+                    local_time, time_stamp, header_stamp, header_seq,
+                    resolution, x_min, x_max, y_min, y_max,
+                ])
 
                 self.last_timestamp[topic] = time_stamp
 
@@ -2717,13 +2783,10 @@ class Ros2BagParser:
 
                     self.last_timestamp[topic] = time_stamp
 
-        elif topic in self.getTopics('qc_perception_msgs/msg/QcLines'):
-            pass
-
         elif topic in self.getTopics('qc_perception_msgs/msg/QcPose'):
             header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
             header_seq = msg.header.seq
-            time_stamp = msg.header.timestamp
+            time_stamp = header_stamp
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(header_seq)
             if time_stamp != self.last_timestamp[topic]:
@@ -2738,6 +2801,28 @@ class Ros2BagParser:
                 queue.put([
                     local_time, time_stamp, header_stamp, header_seq,
                     roll, pitch, yaw, vx, vy, vel, trip_distance,
+                ])
+
+                self.last_timestamp[topic] = time_stamp
+
+        elif topic in self.getTopics('qc_perception_msgs/msg/QcLines'):
+            header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+            header_seq = msg.header.seq
+            time_stamp = header_stamp
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(header_seq)
+            if time_stamp != self.last_timestamp[topic]:
+                vehicle_pose = msg.vehicle_pose
+                pose_x = vehicle_pose.pose_x
+                pose_y = vehicle_pose.pose_y
+                pose_z = vehicle_pose.pose_z
+                yaw = vehicle_pose.pose_yaw
+                pitch = vehicle_pose.pose_pitch
+                roll = vehicle_pose.pose_roll
+
+                queue.put([
+                    local_time, time_stamp, header_stamp, header_seq,
+                    pose_x, pose_y, pose_z, yaw, pitch, roll,
                 ])
 
                 self.last_timestamp[topic] = time_stamp
@@ -2977,15 +3062,12 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/byj/ZONE/TestProject/ParkingDebug/03_Workspace'
-
-    ros2bag_path = '/home/byj/ZONE/debug/rosbag2_2025_01_22-13_14_41'
-    # ros2bag_path = '/home/byj/ZONE/debug/my_bag'
-    # folder = '/home/byj/ZONE/TestProject/ParkingDebug/01_Prediction/20250324_144918_n000003/RawData'
-    folder = '/home/byj/ZONE/debug/mydebug'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e/03_Workspace'
+    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-05-28-14-17-24'
+    folder = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e/01_Prediction/20250324_144918_n000001/RawData'
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
-            # '/PI/EG/EgoMotionInfo',
+            '/PI/EG/EgoMotionInfo',
             # '/VA/VehicleMotionIpd',
             # '/VA/BevObstaclesDet',
             # '/VA/FrontWideObstacles2dDet',
@@ -2993,17 +3075,23 @@ if __name__ == "__main__":
             # '/VA/Lines',
             # '/VA/PK/Slots',
             # '/PI/FS/ObjTracksHorizon',
-            # '/PK/DR/Result',
-            # '/SA/INSPVA',
-            '/Camera/FrontWide/H265',
-            # '/PK/PER/VisionSlotDecodingList',
+            '/PK/DR/Result',
+            '/SA/INSPVA',
+            # '/Camera/FrontWide/H265',
+            '/PK/PER/VisionSlotDecodingList',
             # '/VA/QC/BEVObstaclesTracks',
             # '/VA/QC/MonoObstaclesTracks',
             # '/VA/QC/FsObstacles',
             # '/VA/QC/Lines',
             # '/VA/QC/Objects',
             # '/VA/QC/Pose',
+            '/VA/PK/Slots',
+        '/VA/PK/BevObstaclesDet',
+        '/VA/PK/Obstacles',
+        '/LP/ParkingOcc',
+        '/PK/PER/FSDecodingList',
+        '/VA/PK/Freespaces',
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000003')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, 'xxxx')
