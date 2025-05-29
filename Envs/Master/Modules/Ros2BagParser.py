@@ -8,6 +8,7 @@ import csv
 import glob
 import multiprocessing as mp
 import os
+import shutil
 import time
 import warnings
 from pathlib import Path
@@ -1134,6 +1135,7 @@ class Ros2BagParser:
         self.time_saver = None
         self.install_folder = os.path.join(workspace, 'install')
         self.typestore = get_typestore(Stores.LATEST)
+        self.folder = ''
         msg_list = []
         for root, dirs, files in os.walk(self.install_folder):
             for f in files:
@@ -1172,7 +1174,7 @@ class Ros2BagParser:
         return str(name)
 
     def getMsgInfo(self, bag_path, topic_list, folder, tag):
-        # 创建test
+        self.folder = folder
         TestTopicInfo = {
             'topics_for_parser': topic_list
         }
@@ -1210,6 +1212,11 @@ class Ros2BagParser:
                 print(x.topic)
                 if x.topic in topic_list:
                     connections.append(x)
+                    if x.topic in ['/LP/ParkingOcc']:
+                        single_folder = os.path.join(folder, x.topic.replace('/', ''))
+                        if os.path.exists(single_folder):
+                            shutil.rmtree(single_folder)
+                        os.makedirs(single_folder)
 
             for connection, timestamp, rawdata in reader.messages(connections=connections):
                 msg = deserialize_cdr(rawdata, connection.msgtype)
@@ -2249,6 +2256,7 @@ class Ros2BagParser:
                 self.last_timestamp[topic] = time_stamp
 
         elif topic in self.getTopics('occupany_perception_msgs/msg/ParkingOcc'):
+            single_folder = os.path.join(folder, topic.replace('/', ''))
             frame_id = 0
             time_stamp = msg.timestamp / 1000
             self.time_saver[topic].append(time_stamp)
@@ -2267,6 +2275,12 @@ class Ros2BagParser:
                     local_time, time_stamp, header_stamp, header_seq,
                     resolution, x_min, x_max, y_min, y_max,
                 ])
+
+                score_class = msg.score_class.reshape(256, 256)
+                bottom_boundary = msg.bottom_boundary.reshape(256, 256)
+                up_boundary = msg.up_boundary.reshape(256, 256)
+                occ_matrix = np.dstack((score_class, up_boundary, bottom_boundary))
+                np.save(os.path.join(single_folder, f'{time_stamp}.npy'), occ_matrix)
 
                 self.last_timestamp[topic] = time_stamp
 
@@ -3069,12 +3083,8 @@ if __name__ == "__main__":
     ES39_topic_list = [
             '/PI/EG/EgoMotionInfo',
             # '/VA/VehicleMotionIpd',
-            # '/VA/BevObstaclesDet',
-            # '/VA/FrontWideObstacles2dDet',
-            # '/VA/BackViewObstacles2dDet',
             # '/VA/Lines',
             # '/VA/PK/Slots',
-            # '/PI/FS/ObjTracksHorizon',
             '/PK/DR/Result',
             '/SA/INSPVA',
             # '/Camera/FrontWide/H265',

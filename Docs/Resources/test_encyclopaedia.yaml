@@ -1238,7 +1238,6 @@ EP39:
         3: oblique
   parse_topic:
     pilot:
-    - /PI/EG/EgoMotionInfo
     - /VA/VehicleMotionIpd
     - /VA/QC/BEVObstaclesTracks
     - /VA/QC/FsObstacles
@@ -1246,7 +1245,6 @@ EP39:
     - /VA/QC/Pose
     - /SA/INSPVA
     parking:
-    - /PI/EG/EgoMotionInfo
     - /PK/DR/Result
     - /SA/INSPVA
     - /VA/PK/Obstacles

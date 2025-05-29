@@ -406,7 +406,6 @@ class ReplayController:
                         ros2bag_path=self.scenario_ids[scenario_id],
                     )
 
-                print(replay_process)
                 send_log(self, '{:s}回灌进度{:.1%}'.format(scenario_id, replay_process))
                 if float(replay_process) > self.replay_end / 100:
                     self.stop_replay_and_record(scenario_id)
