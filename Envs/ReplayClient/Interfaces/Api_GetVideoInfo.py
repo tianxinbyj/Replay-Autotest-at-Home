@@ -2,18 +2,17 @@
 Author: Bu Yujun
 Date: 7/2/24  
 """
+
 import argparse
 import os
 import subprocess
 import sys
 import time
-
 import yaml
 
 from Libs import get_project_path
 
 sys.path.append(get_project_path())
-
 from Envs.ReplayClient.Modules.DataSelector import data_selector
 from Utils.VideoProcess import extract_frame
 
@@ -65,22 +64,9 @@ def main():
 
     # 保存視頻截圖
     for frame_number in [300, 3000]:
-        pic_path = os.path.join('/media/data/video_info', f'{args.scenario_id}_{frame_number}.png')
+        pic_path = os.path.join(get_project_path(), 'Temp', f'{args.scenario_id}_{frame_number}.png')
         extract_frame(video_path, frame_number, pic_path)
         print('file', pic_path)
-
-    # 获取地图
-    map_path = os.path.join('/media/data/video_map', f'{args.scenario_id}_map.png')
-    if os.path.exists(map_path):
-        print('file', map_path)
-    else:
-        from PIL import Image, ImageDraw
-        image = Image.new('L', (1600, 900), color=128)
-        draw = ImageDraw.Draw(image)
-        draw.text((500, 360), 'map is missing', fill='black', font_size=100)
-        grey_map_path = os.path.join(get_project_path(), 'Temp', f'{args.scenario_id}_map.png')
-        image.save(grey_map_path)
-        print('file', grey_map_path)
 
 
 if __name__ == "__main__":
