@@ -3,6 +3,7 @@ Created on 2024/6/21.
 @author: Bu Yujun  
 """
 import os
+import subprocess
 import time
 
 import paramiko
@@ -34,7 +35,14 @@ class SSHClient:
         else:
             self.password = str(password)
 
-        # self.clear_temp_folder()
+    def check_connection(self):
+        command = ['ping', '-c', '3', '-W', '1', self.ip]
+        result = subprocess.run(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return result.returncode == 0
 
     def load_info(self, ip, username, password):
         self.ip = ip

@@ -21,9 +21,7 @@ from Ros2BagParser import Ros2BagParser
 from Ros2BagRecorder import Ros2BagRecorder
 from Ros2BagPlayer import Ros2BagPlayer
 
-
 sys.path.append(get_project_path())
-
 from Utils.Libs import test_encyclopaedia, calculate_file_checksum, create_folder
 from Utils.SSHClient import SSHClient
 from Utils.Logger import send_log, bench_config
@@ -32,7 +30,6 @@ from Utils.Logger import send_log, bench_config
 class ReplayController:
 
     def __init__(self, replay_config):
-
         # 变量初始化
         self.thread_list = []
         self.calib_file = {}
@@ -73,6 +70,8 @@ class ReplayController:
 
         # 实例化ssh_client用于控制ReplayClient的Api
         self.replay_client = SSHClient()
+        if not self.replay_client.check_connection():
+            self.replay_client = None
 
         # 实例化录包工具
         self.ros2bag_recorder = Ros2BagRecorder(
@@ -274,8 +273,8 @@ class ReplayController:
             parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
             test_topic_info = os.path.join(parser_folder, 'TestTopicInfo.yaml')
             if self.bag_update or (not os.path.exists(test_topic_info)):
-                check_file_path = os.path.join(self.calib_file[scenario_id], 'json_calib', 'front.json')
-                check_sum = calculate_file_checksum(check_file_path)
+                checksum_path = glob.glob(os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info', f'calib-*'))[0]
+                check_sum = os.path.basename(checksum_path).split('-')[-1]
                 if check_sum not in scenario_groups:
                     scenario_groups[check_sum] = []
                 scenario_groups[check_sum].append(scenario_id)
@@ -288,26 +287,34 @@ class ReplayController:
         self.scenario_calib_groups = scenario_groups
 
     def get_calib(self, scenario_id):
-        send_log(self, f'获取标定文件{scenario_id}')
         scenario_info_folder = os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info')
         if os.path.exists(scenario_info_folder):
             shutil.rmtree(scenario_info_folder)
         os.makedirs(scenario_info_folder)
-        self.replay_client.get_scenario_info(
-            scenario_id=scenario_id,
-            info_type='Calib',
-            local_folder=scenario_info_folder,
-        )
-        self.calib_file[scenario_id] = scenario_info_folder
 
-        # 写checksum文件
-        check_file_path = os.path.join(self.calib_file[scenario_id], 'yaml_calib', 'camera_0.yaml')
-        check_sum = calculate_file_checksum(check_file_path)
+        if not self.replay_client:
+            send_log(self, f'没有replay client连接，无法标定文件{scenario_id}')
+            check_sum = calculate_file_checksum(os.path.join(get_project_path(), 'requirements.txt'))
+        else:
+            send_log(self, f'获取标定文件{scenario_id}')
+            self.replay_client.get_scenario_info(
+                scenario_id=scenario_id,
+                info_type='Calib',
+                local_folder=scenario_info_folder,
+            )
+            self.calib_file[scenario_id] = scenario_info_folder
+            check_file_path = os.path.join(self.calib_file[scenario_id], 'yaml_calib', 'camera_0.yaml')
+            check_sum = calculate_file_checksum(check_file_path)
+
         checksum_path = os.path.join(self.pred_raw_folder, scenario_id, 'scenario_info', f'calib-{check_sum}')
         with open(checksum_path, 'w') as file:
             file.write(check_sum)
 
     def get_video_info(self, scenario_id):
+        if not self.replay_client:
+            send_log(self, f'没有replay client连接，无法视频信息{scenario_id}')
+            return
+
         # 如果之前没有获取过相机参数文件，这里补充获取一次
         if scenario_id not in self.calib_file:
             self.get_calib(scenario_id)
@@ -366,8 +373,11 @@ class ReplayController:
             self.replay_client.scp_folder_remote_to_local(local_folder, remote_folder)
 
     def copy_calib_file(self, scenario_id):
-        send_log(self, f'拷贝相机参数{scenario_id}')
+        if not self.replay_client:
+            send_log(self, f'没有replay client连接，无法拷贝相机参数{scenario_id}')
+            return
 
+        send_log(self, f'拷贝相机参数{scenario_id}')
         # 拷贝参数到ReplayClient的Temp文件夹下
         local_folder = os.path.join(self.calib_file[scenario_id], 'es37_calib')
         remote_folder = f'{bench_config["ReplayClient"]["py_path"]}/Temp'
@@ -421,6 +431,11 @@ class ReplayController:
         t.start()
         self.thread_list.append(t)
 
+        # 网络回灌下，将logsim的时间戳对应关系保存到文件夹下
+        time2time_path = glob.glob(os.path.join('/home', '*', 'CameraFrontWideH265.txt'))
+        if len(time2time_path):
+            shutil.copy2(time2time_path[0], os.path.join(self.pred_raw_folder, scenario_id))
+
     def start(self):
 
         # 1.获取真值，线程中执行
@@ -449,7 +464,7 @@ class ReplayController:
                     if self.abnormal_score > 5 and self.reboot_count <= 10:
                         send_log(self, f'积分={self.abnormal_score},触发重启机制')
                         if not self.reboot_power():
-                            send_log(self, f'重启失败,后续场景{calib_checksum}不再录制')
+                            send_log(self, f'重启失败,后续场景{scenario_id}不再录制')
                             break
 
                         self.wait_for_threading()
@@ -487,9 +502,10 @@ class ReplayController:
 
         self.wait_for_threading()
         send_log(self, '清理临时文件夹')
-        self.replay_client.clear_temp_folder()
+        if self.replay_client:
+            self.replay_client.clear_temp_folder()
 
-        if not self.origin_topic_statistics:
+        if self.origin_topic_statistics is None:
             self.analyze_raw_data()
 
     def analyze_raw_data(self, calib_checksum=None):
@@ -550,10 +566,12 @@ class ReplayController:
             if scenario_id in self.scenario_replay_count:
                 replay_count = self.scenario_replay_count[scenario_id]
                 date_time = self.scenario_replay_datetime[scenario_id]
-                if self.origin_topic_statistics and scenario_id in self.origin_topic_statistics.index:
+                if (isinstance(self.origin_topic_statistics, pd.DataFrame)
+                        and scenario_id in self.origin_topic_statistics.index):
                     replay_count += self.origin_topic_statistics.at[scenario_id, 'replay_count']
 
-            elif self.origin_topic_statistics and scenario_id in self.origin_topic_statistics.index:
+            elif (isinstance(self.origin_topic_statistics, pd.DataFrame)
+                  and scenario_id in self.origin_topic_statistics.index):
                 replay_count = self.origin_topic_statistics.at[scenario_id, 'replay_count']
                 date_time = self.origin_topic_statistics.at[scenario_id, 'record_time']
 
@@ -586,6 +604,10 @@ class ReplayController:
         self.thread_list.clear()
 
     def reboot_power(self):
+        if not self.replay_client:
+            send_log(self, f'没有replay client连接，无法重启电源')
+            return True
+
         self.reboot_count += 1
         for _ in range(3):
             self.replay_client.control_power('off')
@@ -600,8 +622,7 @@ class ReplayController:
 
 if __name__ == '__main__':
 
-    test_project_path = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e'
-
+    test_project_path = '/home/zhangliwei01/ZONE/TestProject/EP39/AH4EM_DEBUG'
     workspace_folder = os.path.join(test_project_path, '03_Workspace')
     # 寻找所有TestConfig.yaml
     test_config_yaml_list = glob.glob(os.path.join(test_project_path, '04_TestData', '*', 'TestConfig.yaml'))
@@ -648,7 +669,6 @@ if __name__ == '__main__':
     if (test_config['test_action']['ros2bag']['record']
             or test_config['test_action']['ros2bag']['truth']
             or test_config['test_action']['ros2bag']['video_info']):
-        print('in test config loop')
         replay_config = {
             'product': test_config['product'],
             'feature_group': test_config['feature_group'],

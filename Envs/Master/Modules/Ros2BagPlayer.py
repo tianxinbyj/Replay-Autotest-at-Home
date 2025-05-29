@@ -95,7 +95,7 @@ class Ros2BagPlayer:
         os.system('sleep 3')
 
         sil_pkg_path = bench_config['Master']['sil_pkg_path']
-        os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} f"cd {sil_pkg_path}" C-m')
+        os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "cd {sil_pkg_path}" C-m')
         os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "source install/setup.bash" C-m')
         os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "ros2 launch src/sil_pkg/launch/rosbag_play_sub.py" C-m')
 

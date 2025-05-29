@@ -1238,19 +1238,13 @@ EP39:
         3: oblique
   parse_topic:
     pilot:
-    - /PI/EG/EgoMotionInfo
     - /VA/VehicleMotionIpd
-    - /VA/BevObstaclesDet
     - /VA/QC/BEVObstaclesTracks
-    - /VA/QC/MonoObstaclesTracks
     - /VA/QC/FsObstacles
     - /VA/QC/Lines
-    - /VA/QC/Objects
     - /VA/QC/Pose
     - /SA/INSPVA
-    - /PK/DR/Result
     parking:
-    - /PI/EG/EgoMotionInfo
     - /PK/DR/Result
     - /SA/INSPVA
     - /VA/PK/Obstacles
@@ -1262,6 +1256,12 @@ EP39:
     - /VA/PK/Freespaces
   record_topic:
     pilot:
+    - /VA/QC/Pose
+    - /VA/QC/Lines
+    - /VA/QC/BEVObstaclesTracks
+    - /VA/QC/MonoObstaclesTracks
+    - /VA/QC/FsObstacles
+    - /VA/QC/Objects
     - /AEB/AEBDebug
     - /AEB/AEBFlag
     - /AEB/EgoMotionInfo
@@ -1273,13 +1273,6 @@ EP39:
     - /AEB/HorizonObstacles
     - /AEB/RadarObjList
     - /Camera/FrontWide/H265
-    - /Camera/FrontNarrow/H265
-    - /Camera/FrontWide/MutiModelHevc
-    - /Camera/Rear/H265
-    - /Camera/SorroundFront/H265
-    - /Camera/SorroundLeft/H265
-    - /Camera/SorroundRear/H265
-    - /Camera/SorroundRight/H265
     - /COM/CUS/CommonHMI
     - /Diag/DiagServiceHeartbeat
     - /Diag/ItcDataCollection
