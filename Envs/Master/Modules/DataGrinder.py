@@ -57,6 +57,14 @@ class DataGrinderOneCase:
         self.video_fps = 30
         self.cut_frame_offset = 0
         self.AVM_center = 1.42
+        self.camera_list = [
+            'CAM_FISHEYE_LEFT', 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT',
+            'CAM_FISHEYE_FRONT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
+        ]
+        self.replay_client = SSHClient()
+        if not self.replay_client.check_connection():
+            send_log(self, f'{self.replay_client.ip} connection fails')
+            self.replay_client = None
 
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
         with open(scenario_config_yaml, 'r', encoding='utf-8') as file:
@@ -83,11 +91,6 @@ class DataGrinderOneCase:
         self.topics_for_evaluation = [
             topic for topic in self.test_item.keys() if topic in self.test_information['topics']]
 
-        self.camera_list = [
-            'CAM_FISHEYE_LEFT', 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT',
-            'CAM_FISHEYE_FRONT', 'CAM_BACK', 'CAM_FISHEYE_BACK',
-        ]
-
         # 初始化文件夹
         self.pred_raw_folder = self.test_config['pred_folder']
         self.gt_raw_folder = self.test_config['gt_folder']
@@ -99,7 +102,7 @@ class DataGrinderOneCase:
         self.test_result_yaml = os.path.join(self.scenario_unit_folder, 'TestResult.yaml')
         if not os.path.exists(self.test_result_yaml):
             self.test_result = {'General': {
-                'pred_ego_flag': False, 'gt_ego_flag': False, 'replay_client': False,
+                'pred_ego_flag': False, 'gt_ego_flag': False,
             }, self.test_topic: {'GroundTruth': {}}}
             for topic in self.topics_for_evaluation:
                 self.test_result[self.test_topic][topic] = {}
@@ -124,7 +127,6 @@ class DataGrinderOneCase:
 
             yaml_folder = os.path.join(scenario_info_folder, 'yaml_calib')
             if os.path.exists(yaml_folder):
-                self.test_result['General']['replay_client'] = True
                 self.test_result['General']['camera_position'] = {}
                 cam_description_path = os.path.join(yaml_folder, 'cam_description.yaml')
 
@@ -1127,8 +1129,7 @@ class DataGrinderOneCase:
 
         # 启用ssh_client, 按照相机批量截图并复制到本机
         # if not self.replay_mode.lower() == 'ethernet':
-        if self.test_result['General']['replay_client']:
-            replay_client = SSHClient()
+        if self.replay_client is not None:
             video_snap_folder = os.path.join(self.BugFolder, 'General')
             create_folder(video_snap_folder)
 
@@ -1136,7 +1137,7 @@ class DataGrinderOneCase:
                 camera_folder = os.path.join(video_snap_folder, camera)
                 create_folder(camera_folder)
 
-                replay_client.cut_frames(scenario_id=self.scenario_id,
+                self.replay_client.cut_frames(scenario_id=self.scenario_id,
                                          frame_index_list=sorted(frame_index_list),
                                          camera=camera,
                                          local_folder=camera_folder)
@@ -1693,8 +1694,7 @@ class DataGrinderOneCase:
                             video_snap_dict[camera].append(frame_index)
 
         # 启用ssh_client, 按照相机批量截图并复制到本机
-        if self.test_result['General']['replay_client']:
-            replay_client = SSHClient()
+        if self.replay_client is not None:
             video_snap_folder = os.path.join(self.RenderFolder, 'General')
             create_folder(video_snap_folder)
 
@@ -1702,7 +1702,7 @@ class DataGrinderOneCase:
                 camera_folder = os.path.join(video_snap_folder, camera)
                 create_folder(camera_folder)
 
-                replay_client.cut_frames(scenario_id=self.scenario_id,
+                self.replay_client.cut_frames(scenario_id=self.scenario_id,
                                          frame_index_list=sorted(frame_index_list),
                                          camera=camera,
                                          local_folder=camera_folder)
