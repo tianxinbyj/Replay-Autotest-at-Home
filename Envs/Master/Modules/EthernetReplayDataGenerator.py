@@ -2,16 +2,16 @@
 @Author: BU YUJUN
 @Date: 2025/5/26 16:21  
 """
+
 import os
 import sys
 import time
-
 import yaml
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from Libs import get_project_path
-sys.path.append(get_project_path())
 
+sys.path.append(get_project_path())
 from Utils.VideoProcess import convert_video_h265, gen_h265_timestamp, normalize_h265_startcodes
 from Utils.Libs import docker_path, variables, kill_tmux_session_if_exists, project_path, get_folder_size
 
@@ -29,7 +29,7 @@ class EthernetReplayDataGenerator:
                 'H265_path': '0',
             } for topic in self.video_config.keys()
         }
-        
+
         self.tmux_session = variables['tmux_node']['h265_gen'][0]
         self.tmux_window = variables['tmux_node']['h265_gen'][1]
         self.install_path = install_path
@@ -40,19 +40,20 @@ class EthernetReplayDataGenerator:
             fps = info['fps']
             video_path = info['path']
             h265_path = os.path.join(os.path.dirname(video_path), f"{topic.replace('/', '')}.h265")
-            convert_video_h265(video_path, fps, h265_path)
             timestamp_path = os.path.join(os.path.dirname(video_path), f"{topic.replace('/', '')}.csv")
-            gen_h265_timestamp(h265_path, timestamp_path)
             normalized_h265_path = os.path.join(os.path.dirname(video_path), f"{topic.replace('/', '')}_norm.h265")
-            normalize_h265_startcodes(h265_path, normalized_h265_path)
             self.h265_config[topic]['timestamp_path'] = timestamp_path
             self.h265_config[topic]['H265_path'] = normalized_h265_path
+
+            convert_video_h265(video_path, fps, h265_path)
+            gen_h265_timestamp(h265_path, timestamp_path)
+            normalize_h265_startcodes(h265_path, normalized_h265_path)
             os.remove(h265_path)
 
         with open(self.h265_config_path, 'w', encoding='utf-8') as file:
             yaml.dump(self.h265_config, file, sort_keys=False, indent=2, allow_unicode=True)
 
-    def gen_db3(self):
+    def gen_h265_db3(self):
         kill_tmux_session_if_exists(self.tmux_session)
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
         time.sleep(0.1)
@@ -90,6 +91,8 @@ class EthernetReplayDataGenerator:
 
         os.remove(self.h265_config_path)
 
+    # def combine
+
 
 if __name__ == '__main__':
     t0 = time.time()
@@ -98,6 +101,6 @@ if __name__ == '__main__':
     ros2bag_path = '/home/hp/ZONE/temp/debug'
     ee = EthernetReplayDataGenerator(config_path, install_path, ros2bag_path)
     ee.transfer_h265()
-    ee.gen_db3()
+    ee.gen_h265_db3()
     ee.stop()
     print(time.time() - t0)

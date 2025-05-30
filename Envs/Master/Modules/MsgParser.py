@@ -57,19 +57,17 @@ class MsgParser:
     def get_msg_struct(self, full_msg):
 
         def get_msg_file(dependency, hpp):
-            path = os.path.join(self.install_folder, dependency, 'include', dependency, dependency, 'msg/detail',
-                                '{:s}_struct.hpp'.format(hpp))
+            path = os.path.join(self.install_folder, dependency, 'include',
+                                dependency, dependency, 'msg/detail', f'{hpp}_struct.hpp')
 
             if os.path.exists(path):
-                # print(full_msg, ' -> ', path)
                 with open(path) as f:
                     return f.readlines()
             else:
                 for inc in self.other_include:
-                    path = os.path.join(inc, dependency, dependency, 'msg/detail',
-                                        '{:s}_struct.hpp'.format(hpp))
+                    print(dependency)
+                    path = os.path.join(inc, dependency, 'msg/detail', f'{hpp}_struct.hpp')
                     if os.path.exists(path):
-                        # print(full_msg, ' -> ', path)
                         with open(path) as f:
                             return f.readlines()
                 return []
@@ -382,7 +380,7 @@ class MsgStruct:
 if __name__ == "__main__":
     ignore_var = ['cov', '_std', '_var', 'var_', 'std_', '_dev', 'dev_', 'accel', 'reserve']
     ignore_var = []
-    ws_folder = '/home/zhangliwei01/ZONE/TestProject/ES37_PP_Feature_20240611/03_Workspace'
+    ws_folder = '/home/hp/artifacts/ZPD_EP39/RC11'
     MP = MsgParser(ws_folder, ignore_var)
     full_msg1 = 'common_msgs::msg::ComHeader'
     print(MP.get_msg_struct(full_msg1))

@@ -2736,7 +2736,6 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        # Qcaft
         elif topic in self.getTopics('qc_perception_msgs/msg/QcObstacles'):
             time_stamp = msg.timestamp
             frame_id = msg.frame_id
@@ -3076,31 +3075,31 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e/03_Workspace'
-    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-05-28-14-17-24'
-    folder = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e/01_Prediction/20250324_144918_n000001/RawData'
+    workspace = '/home/hp/artifacts/ZPD_EP39/RC11'
+    ros2bag_path = '/home/hp/ZHX/rosbag'
+    folder = '/home/hp/ZONE/temp/temp_can_data'
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
-            '/PI/EG/EgoMotionInfo',
-            # '/VA/VehicleMotionIpd',
-            # '/VA/Lines',
-            # '/VA/PK/Slots',
-            '/PK/DR/Result',
-            '/SA/INSPVA',
-            # '/Camera/FrontWide/H265',
-            '/PK/PER/VisionSlotDecodingList',
-            # '/VA/QC/BEVObstaclesTracks',
-            # '/VA/QC/MonoObstaclesTracks',
-            # '/VA/QC/FsObstacles',
-            # '/VA/QC/Lines',
-            # '/VA/QC/Objects',
-            # '/VA/QC/Pose',
-            '/VA/PK/Slots',
-        '/VA/PK/BevObstaclesDet',
-        '/VA/PK/Obstacles',
-        '/LP/ParkingOcc',
-        '/PK/PER/FSDecodingList',
-        '/VA/PK/Freespaces',
+        # '/PI/EG/EgoMotionInfo',
+        '/VA/VehicleMotionIpd',
+        # '/VA/Lines',
+        # '/VA/PK/Slots',
+        # '/PK/DR/Result',
+        '/SA/INSPVA',
+        # '/Camera/FrontWide/H265',
+        # '/PK/PER/VisionSlotDecodingList',
+        # '/VA/QC/BEVObstaclesTracks',
+        # '/VA/QC/MonoObstaclesTracks',
+        # '/VA/QC/FsObstacles',
+        # '/VA/QC/Lines',
+        # '/VA/QC/Objects',
+        # '/VA/QC/Pose',
+        # '/VA/PK/Slots',
+        # '/VA/PK/BevObstaclesDet',
+        # '/VA/PK/Obstacles',
+        # '/LP/ParkingOcc',
+        # '/PK/PER/FSDecodingList',
+        # '/VA/PK/Freespaces',
     ]
 
     RBP = Ros2BagParser(workspace)
