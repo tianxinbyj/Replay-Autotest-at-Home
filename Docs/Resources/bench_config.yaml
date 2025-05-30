@@ -22,10 +22,10 @@ Replay02:
     sil_pkg_path: /home/zhangliwei01/ZONE/sil_pkg/sil
     docker_path: self
   ReplayClient:
-    ip: 172.31.1.222
+    ip: 10.192.68.71
     username: vcar
     password: 123456
-    py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
+    py_path: /home/vcar/work/PythonProject
     sys_interpreter: /usr/bin/python3
 Replay01:
   Master:

@@ -14,7 +14,6 @@ import numpy as np
 import openpyxl
 import pandas as pd
 import yaml
-from io import StringIO
 from PIL import Image
 from matplotlib import patches as pc
 from matplotlib import pyplot as plt, image as mpimg
@@ -1372,10 +1371,6 @@ class DataGrinderOneCase:
 
                 for bug_type, bug_type_folder in self.test_result[self.test_topic][topic]['bug'][
                     characteristic].items():
-
-                    # 模型输出没有速度
-                    if bug_type in ['vx_error', 'vy_error'] and topic != '/VA/Obstacles':
-                        continue
 
                     for time_stamp in os.listdir(self.get_abspath(bug_type_folder)):
                         one_bug_folder = os.path.join(self.get_abspath(bug_type_folder), time_stamp)
@@ -3284,9 +3279,6 @@ class DataGrinderOneTask:
                         # 4.行人和两轮车没有那么远的测试距离
 
                         if self.test_topic == 'Obstacles':
-                            if '速度' in json_data['MetricTypeName'] and json_data['TopicName'] != '/VA/Obstacles':
-                                continue
-
                             if json_data['MetricTypeName'] == '航向角误差' and json_data['ObstacleName'] == '行人':
                                 continue
 
@@ -3294,10 +3286,8 @@ class DataGrinderOneTask:
                                     and (json_data['ObstacleName'] in ['行人', '两轮车'])):
                                 continue
 
-                            if ('100~150' in json_data['RangeDetails'] and json_data['ObstacleName'] in ['行人',
-                                                                                                         '两轮车']) \
-                                    or (
-                                    '-100~-50' in json_data['RangeDetails'] and json_data['ObstacleName'] == '行人'):
+                            if ('100~150' in json_data['RangeDetails'] and json_data['ObstacleName'] in ['行人', '两轮车']) \
+                                    or ('-100~-50' in json_data['RangeDetails'] and json_data['ObstacleName'] == '行人'):
                                 continue
 
                             if json_data['TopicName'] == '/VA/PedResult' and json_data['ObstacleName'] in ['小车',
@@ -4784,7 +4774,7 @@ class DataGrinderObstaclesOneCase(DataGrinderOneCase):
 
     def __init__(self, scenario_unit_folder):
         super().__init__(scenario_unit_folder)
-        self.cut_frame_offset = -1.05
+        self.cut_frame_offset = 0
 
 
 class DataGrinderObstaclesOneTask(DataGrinderOneTask):
