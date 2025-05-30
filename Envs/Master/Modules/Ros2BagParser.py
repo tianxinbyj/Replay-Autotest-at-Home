@@ -2256,7 +2256,7 @@ class Ros2BagParser:
                 self.last_timestamp[topic] = time_stamp
 
         elif topic in self.getTopics('occupany_perception_msgs/msg/ParkingOcc'):
-            single_folder = os.path.join(folder, topic.replace('/', ''))
+            single_folder = os.path.join(self.folder, topic.replace('/', ''))
             frame_id = 0
             time_stamp = msg.timestamp / 1000
             self.time_saver[topic].append(time_stamp)
@@ -2276,11 +2276,11 @@ class Ros2BagParser:
                     resolution, x_min, x_max, y_min, y_max,
                 ])
 
-                score_class = msg.score_class.reshape(256, 256)
-                bottom_boundary = msg.bottom_boundary.reshape(256, 256)
-                up_boundary = msg.up_boundary.reshape(256, 256)
-                occ_matrix = np.dstack((score_class, up_boundary, bottom_boundary))
-                np.save(os.path.join(single_folder, f'{time_stamp}.npy'), occ_matrix)
+                # score_class = msg.score_class.reshape(256, 256)
+                # bottom_boundary = msg.bottom_boundary.reshape(256, 256)
+                # up_boundary = msg.up_boundary.reshape(256, 256)
+                # occ_matrix = np.dstack((score_class, up_boundary, bottom_boundary))
+                # np.save(os.path.join(single_folder, f'{time_stamp}.npy'), occ_matrix)
 
                 self.last_timestamp[topic] = time_stamp
 

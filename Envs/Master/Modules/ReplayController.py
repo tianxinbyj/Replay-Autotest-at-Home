@@ -312,7 +312,7 @@ class ReplayController:
 
     def get_video_info(self, scenario_id):
         if not self.replay_client:
-            send_log(self, f'没有replay client连接，无法视频信息{scenario_id}')
+            send_log(self, f'没有replay client连接，无法获得视频信息{scenario_id}')
             return
 
         # 如果之前没有获取过相机参数文件，这里补充获取一次
@@ -334,14 +334,14 @@ class ReplayController:
         with open(video_info_path) as f:
             video_info = yaml.load(f, Loader=yaml.FullLoader)
         parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
-        ego_csv_list = glob.glob(os.path.join(parser_folder, '*Ego*hz.csv'))
+        ego_csv_list = glob.glob(os.path.join(parser_folder, '*MotionIpd*hz.csv'))
         if len(ego_csv_list) and len(pd.read_csv(ego_csv_list[0])):
             ego_t0 = float(pd.read_csv(ego_csv_list[0])['time_stamp'][0])
             video_info['time_delta_estimated'] = video_info['start_time'] - ego_t0 - 1
             with open(video_info_path, 'w', encoding='utf-8') as f:
                 yaml.dump(video_info, f, encoding='utf-8', allow_unicode=True)
         else:
-            send_log(self, f'{scenario_id} /PI/EG/EgoMotionInfo 数据为空')
+            send_log(self, f'{scenario_id} VehicleMotion数据为空')
 
         sainspva_data_list = []
         sainspva_csv_list = glob.glob(os.path.join(parser_folder, f'SAINSPVA_{scenario_id}*data.csv'))
