@@ -943,8 +943,7 @@ data_columns = {
     'proto_horizon_msgs/msg/Freespaces':
         [
             'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
-            'points_num', 'obs_points_num', 'contours_id', 'label', 'x', 'y', 'z',
-            'valid', 'obj_id', 'obj_type',
+            'confidence', 'cam_num', 'cam_id', 'points_num', 'id', 'type', 'x', 'y',
         ],
     'proto_horizon_msgs/msg/Slots':
         [
@@ -1069,7 +1068,7 @@ data_columns = {
     'parking_perception_msgs/msgs/FSDecodingList':
         [
             'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
-            'cam_num', 'cam_id', 'points_num', 'score', 'type_', 'x', 'y',
+            'confidence', 'cam_num', 'cam_id', 'points_num', 'id', 'type', 'x', 'y',
         ]
 }
 
@@ -2054,7 +2053,21 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-        elif topic in self.getTopics('proto_horizon_msgs/msg/Freespaces'):  # 可行使区域
+        elif topic in self.getTopics('proto_horizon_msgs/msg/Freespaces'):
+            # Unknown            = 0,
+            # ROAD               = 1,    // drivable free area
+            # VehicleFull_Still  = 2,
+            # Pedestrian_Still   = 3,
+            # Cyclist_Still      = 4,
+            # VehicleFull_Moving = 5,
+            # Pedestrian_Moving  = 6,
+            # Cyclist_Moving     = 7,
+            # ParkingColumn      = 9,    // An area, such as an area under construction
+            # TrafficCone        = 10,   // Safety cone
+            # CementColumn_Yes   = 12,   // Connected to the wall
+            # CementColumn_No    = 13,   // Not connected to the wall
+            # NSObject           = 14,   // Non standard general obstacles
+            # Others             = 15
             time_stamp = msg.time_stamp / 1000
             frame_id = msg.frame_id
             self.time_saver[topic].append(time_stamp)
@@ -2066,16 +2079,16 @@ class Ros2BagParser:
                 obs_points_num = msg.obs_points_num
                 contours_id = 9999
                 for point in msg.freespace_points:
-                    label = point.label
+                    type_ = point.label
                     x = point.point_vcs.x
                     y = point.point_vcs.y
-                    z = point.point_vcs.z
 
-                    queue.put([
-                        local_time, time_stamp, header_stamp, header_seq, frame_id,
-                        points_num, obs_points_num, contours_id, label, x, y, z,
-                        1, 0, 0,
-                    ])
+                    if x + y != 0:
+                        queue.put([
+                            local_time, time_stamp, header_stamp, header_seq, frame_id,
+                            points_num, obs_points_num, contours_id, type_, x, y,
+                            1, 0, 0,
+                        ])
 
                 for obs in msg.obs_points:
                     contours_id = obs.contours_id
@@ -2084,16 +2097,16 @@ class Ros2BagParser:
                     obj_type = obs.matched_obj.type
 
                     for points in obs.points:
-                        label = points.label
+                        type_ = points.label
                         x = points.point_vcs.x
                         y = points.point_vcs.y
-                        z = points.point_vcs.z
 
-                        queue.put([
-                            local_time, time_stamp, header_stamp, header_seq, frame_id,
-                            points_num, obs_points_num, contours_id, label, x, y, z,
-                            valid, obj_id, obj_type,
-                        ])
+                        if x + y != 0:
+                            queue.put([
+                                local_time, time_stamp, header_stamp, header_seq, frame_id,
+                                1, 4, -1, points_num, contours_id, type_, x, y,
+                                valid, obj_id, obj_type,
+                            ])
 
                 self.last_timestamp[topic] = time_stamp
 
@@ -2106,6 +2119,7 @@ class Ros2BagParser:
                 header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
                 header_seq = msg.header.seq
 
+                id_ = 0
                 cam_num = msg.cam_num
                 for fsinfo in msg.fsinfo:
                     cam_id = fsinfo.came_id
@@ -2117,9 +2131,10 @@ class Ros2BagParser:
                         y = point.point.y
 
                         if x + y != 0:
+                            id_ += 1
                             queue.put([
                                 local_time, time_stamp, header_stamp, header_seq, frame_id,
-                                cam_num, cam_id, points_num, score, type_, x, y,
+                                score, cam_num, cam_id, points_num, id_, type_, x, y,
                             ])
 
                 self.last_timestamp[topic] = time_stamp
@@ -2276,7 +2291,8 @@ class Ros2BagParser:
                     resolution, x_min, x_max, y_min, y_max,
                 ])
 
-                # score_class = msg.score_class.reshape(256, 256)
+                score_class = msg.score_class
+                print(score_class.shape)
                 # bottom_boundary = msg.bottom_boundary.reshape(256, 256)
                 # up_boundary = msg.up_boundary.reshape(256, 256)
                 # occ_matrix = np.dstack((score_class, up_boundary, bottom_boundary))
@@ -3075,16 +3091,16 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/hp/artifacts/ZPD_EP39/RC11'
-    ros2bag_path = '/home/hp/ZHX/rosbag'
-    folder = '/home/hp/ZONE/temp/temp_can_data'
+    workspace = '/home/byj/ZONE/TestProject/parking_debug/03_Workspace'
+    ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-03-14-08-56'
+    folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
         # '/PI/EG/EgoMotionInfo',
         '/VA/VehicleMotionIpd',
         # '/VA/Lines',
-        # '/VA/PK/Slots',
-        # '/PK/DR/Result',
+        '/VA/PK/Slots',
+        '/PK/DR/Result',
         '/SA/INSPVA',
         # '/Camera/FrontWide/H265',
         # '/PK/PER/VisionSlotDecodingList',
@@ -3094,13 +3110,13 @@ if __name__ == "__main__":
         # '/VA/QC/Lines',
         # '/VA/QC/Objects',
         # '/VA/QC/Pose',
-        # '/VA/PK/Slots',
-        # '/VA/PK/BevObstaclesDet',
-        # '/VA/PK/Obstacles',
-        # '/LP/ParkingOcc',
-        # '/PK/PER/FSDecodingList',
-        # '/VA/PK/Freespaces',
+        '/VA/PK/Slots',
+        '/VA/PK/BevObstaclesDet',
+        '/VA/PK/Obstacles',
+        '/LP/ParkingOcc',
+        '/PK/PER/FSDecodingList',
+        '/VA/PK/Freespaces',
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, 'xxxx')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')

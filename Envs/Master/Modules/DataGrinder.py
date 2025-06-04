@@ -348,6 +348,70 @@ class DataGrinderOneCase:
             df['t_delta'] = df['t0'] - df['t1']
             self.test_result['General']['logsim_time_gap'] = float(df['t_delta'].mean())
 
+    def check_pred_data(self):
+        self.load_gt_data()
+        topic = self.test_action['pred_check']
+        topic_tag = topic.replace('/', '')
+        data_path = self.get_abspath(self.test_result[self.test_topic][topic]['raw']['pred_data'])
+        data = pd.read_csv(data_path, index_col=False)
+        fig_size = {
+            'Obstacles': (25, 6),
+            'Lines': (25, 6),
+            'Slot': (12, 12),
+        }
+        pred_check_folder = os.path.join(self.DataFolder, 'General', topic.replace('/', ''))
+        create_folder(pred_check_folder, update=True)
+
+        for time_stamp, frame_data in data.groupby('time_stamp'):
+
+            plot_path = os.path.join(pred_check_folder, f"{topic.replace('/', '')}-{time_stamp}.png")
+            title = f'Prediction <{topic}@{round(time_stamp, 3)}s >'
+            fig = plt.figure(figsize=fig_size[self.test_topic])
+            fig.tight_layout()
+            plt.subplots_adjust(left=0.03, right=0.97, top=0.97, bottom=0.03)
+            grid = plt.GridSpec(1, 1, wspace=0.1, hspace=0.15)
+            ax = fig.add_subplot(grid[0, 0])
+            ax.patch.set_facecolor('white')
+            for pos in ['right', 'left']:
+                ax.spines[pos].set_visible(False)
+
+            if self.test_topic == 'Obstacles':
+
+                ax.add_patch(pc.Rectangle(
+                    (-1.0, -0.95), 4.6, 1.9, edgecolor='mediumslateblue', facecolor='limegreen'))
+                ax.arrow(3, 0, 1.3, 0,
+                         length_includes_head=True,
+                         head_width=0.5, head_length=1.3, fc='r', ec='r')
+
+                for idx, row in data.iterrows():
+                    color = '#3682be'
+                    fill = True
+                    self.plot_rectangle(axes=ax, center_x=row['x'], center_y=row['y'],
+                                   yaw=row['yaw'], length=row['length'],
+                                   width=row['width'], text=int(row['id']),
+                                   color=color, visibility=row['confidence'], fill=fill)
+
+                ax.set_xlim(-100, 150)
+                ax.set_xticks(np.arange(-100, 151, 50))
+                ax.set_xticklabels([f'{x:.0f} m' for x in np.arange(-100, 151, 50)])
+                ax.set_ylim(-25, 25)
+                ax.set_yticks([-16, -8, 0, 8, 16])
+                ax.set_yticklabels([f'{y:.0f} m' for y in [-16, -8, 0, 8, 16]])
+                ax.tick_params(direction='out', labelsize=font_size * 1.2, length=4)
+                ax.set_title(title, fontdict=title_font, y=0.9, loc='left')
+                ax.grid(linestyle='-', linewidth=0.5, color='lightgray', alpha=0.6)
+
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(plot_path, facecolor='white', dpi=100)
+            fig.clf()
+            plt.close()
+
+        combined_video = os.path.join(self.DataFolder, f'Prediction_{topic_tag}.mp4')
+        fps = self.test_result[self.test_topic][topic]['frequency']
+        width = 1400
+        height = round(width * fig_size[self.test_topic][1] / fig_size[self.test_topic][0])
+        image2video(pred_check_folder, fps, combined_video, width, height)
+
     @sync_test_result
     def load_gt_data(self):
         gt_config_path = os.path.join(self.gt_raw_folder, 'yaml_management.yaml')
@@ -508,7 +572,6 @@ class DataGrinderOneCase:
             send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
             self.test_result['General']['vel_time_gap'] = t_delta
 
-        # self.test_result['General']['time_gap'] = t_delta - 0.95
         self.test_result['General']['time_gap'] = t_delta
 
         time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
@@ -2247,42 +2310,6 @@ class DataGrinderOneCase:
 
     def plot_one_frame_for_obstacles(self, topic, frame_data, plot_path, frame_bug_ids=None):
 
-        def plot_rectangle(center_x, center_y, yaw, length, width, text, color, visibility, fill):
-            res = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
-                [[-length / 2], [-width / 2]])
-            xy = (res[0][0] + center_x, res[1][0] + center_y)
-            rotation = yaw * 57.3
-
-            ax.add_patch(pc.Rectangle(
-                xy=xy,
-                width=length, height=width,
-                angle=rotation, alpha=visibility,
-                rotation_point='xy',
-                facecolor='lightgrey',
-                fill=fill,
-                edgecolor=color,
-                linewidth=2))
-
-            arrow_length = length / 2 + 2
-            dx, dy = arrow_length * np.cos(yaw) / 2, arrow_length * np.sin(yaw) / 2
-            ax.arrow(center_x + dx, center_y + dy, dx, dy,
-                     length_includes_head=True,
-                     head_width=0.5, head_length=1.3, fc='r', ec='r')
-
-            while rotation < -90:
-                rotation += 180
-            while rotation > 90:
-                rotation -= 180
-            ax.text(center_x, center_y, text, rotation=rotation,
-                    va='center', ha='center',
-                    fontdict={
-                        'family': 'Ubuntu',
-                        'style': 'normal',
-                        'weight': 'normal',
-                        'color': 'black',
-                        'size': 8,
-                    })
-
         def plot_outline(center_x, center_y, yaw, length, width, text):
             length += 3
             width += 2
@@ -2360,7 +2387,7 @@ class DataGrinderOneCase:
                 else:
                     visibility = 0.1
 
-                plot_rectangle(center_x=row['x'], center_y=row['y'],
+                self.plot_rectangle(axes=ax, center_x=row['x'], center_y=row['y'],
                                yaw=row['yaw'], length=row['length'],
                                width=row['width'], text=int(row['id']),
                                color=color, visibility=visibility, fill=fill)
@@ -2834,7 +2861,46 @@ class DataGrinderOneCase:
 
         return valid_camera
 
+    def plot_rectangle(self, axes, center_x, center_y, yaw, length, width, text, color, visibility, fill):
+        res = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]]) @ np.array(
+            [[-length / 2], [-width / 2]])
+        xy = (res[0][0] + center_x, res[1][0] + center_y)
+        rotation = yaw * 57.3
+
+        axes.add_patch(pc.Rectangle(
+            xy=xy,
+            width=length, height=width,
+            angle=rotation, alpha=visibility,
+            rotation_point='xy',
+            facecolor='lightgrey',
+            fill=fill,
+            edgecolor=color,
+            linewidth=2))
+
+        arrow_length = length / 2 + 2
+        dx, dy = arrow_length * np.cos(yaw) / 2, arrow_length * np.sin(yaw) / 2
+        axes.arrow(center_x + dx, center_y + dy, dx, dy,
+                 length_includes_head=True,
+                 head_width=0.5, head_length=1.3, fc='r', ec='r')
+
+        while rotation < -90:
+            rotation += 180
+        while rotation > 90:
+            rotation -= 180
+        axes.text(center_x, center_y, text, rotation=rotation,
+                va='center', ha='center',
+                fontdict={
+                    'family': 'Ubuntu',
+                    'style': 'normal',
+                    'weight': 'normal',
+                    'color': 'black',
+                    'size': 8,
+                })
+
     def start(self):
+
+        if 'pred_check' in self.test_action and self.test_action['pred_check'] is not None:
+            self.check_pred_data()
 
         if self.test_action['preprocess']:
             self.load_pred_data()
