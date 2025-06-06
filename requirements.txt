@@ -27,9 +27,9 @@ Spire.XLS
 atlassian-python-api==3.41.1
 shapely
 ffmpeg-python
-av
 protobuf==3.20.3
 requests
 open3d
 opencv-python-headless~=4.10.0.84
 opencv-contrib-python-headless~=4.7.0.72
+psutil

@@ -255,6 +255,34 @@ def wrap_text(text, max_length):
     return '\n'.join(wrapped_lines)
 
 
+def get_folder_size(folder_path: str) -> int:
+    """
+    计算指定文件夹的总大小（以字节为单位）
+
+    参数:
+    folder_path (str): 要计算大小的文件夹路径
+
+    返回:
+    int: 文件夹的总大小（字节）
+    """
+    total_size = 0
+    try:
+        # 遍历文件夹中的所有文件和子文件夹
+        for entry in os.scandir(folder_path):
+            try:
+                if entry.is_file():
+                    # 累加文件大小
+                    total_size += entry.stat().st_size
+                elif entry.is_dir():
+                    # 递归计算子文件夹大小
+                    total_size += get_folder_size(entry.path)
+            except OSError as e:
+                print(f"无法访问 {entry.path}: {e}", file=sys.stderr)
+    except OSError as e:
+        print(f"错误访问文件夹 {folder_path}: {e}", file=sys.stderr)
+    return total_size
+
+
 bench_id = get_bench_id()
 project_path = get_project_path()
 bench_config = parse_bench_config()
