@@ -106,6 +106,7 @@ def convert_video_h265(video_path, target_fps, h265_path=None):
         'ffmpeg',
         '-i', video_path,  # 输入文件
         '-c:v', 'libx265',  # 使用H.265编码
+        '-crf', '24',
         '-pix_fmt', 'yuv420p',  # 像素格式为yuv420p
         '-r', f'{target_fps}',  # 输出帧率15Hz
         '-x265-params', f'keyint={target_fps}:min-keyint={target_fps}:bframes=0',  # 每秒一个I帧，无B帧
@@ -126,7 +127,7 @@ def convert_video_h265(video_path, target_fps, h265_path=None):
         return None
 
 
-def gen_h265_timestamp(h265_path, timestamp_path=None):
+def gen_h265_timestamp(h265_path, start_time, timestamp_path=None):
     if not timestamp_path:
         timestamp_path = os.path.join(project_path, 'Temp', f'{os.path.basename(h265_path).split(".")[0]}.csv')
 
@@ -154,7 +155,7 @@ def gen_h265_timestamp(h265_path, timestamp_path=None):
         match = pattern.search(line)
         if match:
             frame_index = int(match.group(1))
-            pts_time = float(match.group(2))
+            pts_time = float(match.group(2)) + float(start_time)
             frame_type = match.group(3)
             rows.append([frame_index, pts_time, frame_type])
 
