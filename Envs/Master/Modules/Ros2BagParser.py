@@ -1074,6 +1074,11 @@ data_columns = {
 
 topic2msg = {
     '/Camera/FrontWide/H265': 'sensor_msgs/msg/CompressedImage',
+    '/Camera/SorroundRight/H265': 'sensor_msgs/msg/CompressedImage',
+    '/Camera/SorroundLeft/H265': 'sensor_msgs/msg/CompressedImage',
+    '/Camera/SorroundFront/H265': 'sensor_msgs/msg/CompressedImage',
+    '/Camera/SorroundRear/H265': 'sensor_msgs/msg/CompressedImage',
+    '/Camera/Rear/H265': 'sensor_msgs/msg/CompressedImage',
     '/SA/INSPVA': 'gnss_imu_msgs/msg/Inspva',
     '/PK/DR/Result': 'parking_ego_motion_msgs/msg/DrResult',
     '/VA/BevLines': 'env_perception_msgs/msg/EnvFusLines',
@@ -2748,7 +2753,8 @@ class Ros2BagParser:
                 queue.put([
                     local_time, time_stamp, frame_id, format_
                 ])
-                print(f'{time_stamp:03f}', msg.data.shape, msg.data.tolist()[:100])
+                if msg.data[4] != 2:
+                    print(f'{time_stamp:03f}', msg.data.shape, msg.data.tolist()[:100])
 
                 self.last_timestamp[topic] = time_stamp
 
@@ -3091,18 +3097,25 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/byj/ZONE/TestProject/parking_debug/03_Workspace'
-    ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-03-14-08-56'
-    folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e/03_Workspace'
+    ros2bag_path = '/home/zhangliwei01/ZONE/COMBINE_1'
+    folder = '/home/zhangliwei01/ZONE/debug'
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
         # '/PI/EG/EgoMotionInfo',
-        '/VA/VehicleMotionIpd',
+        # '/VA/VehicleMotionIpd',
         # '/VA/Lines',
-        '/VA/PK/Slots',
-        '/PK/DR/Result',
-        '/SA/INSPVA',
+        # '/VA/PK/Slots',
+        # '/PK/DR/Result',
+        # '/SA/INSPVA',
         # '/Camera/FrontWide/H265',
+        '/Camera/SorroundFront/H265',
+        '/Camera/FrontWide/H265',
+        '/Camera/SorroundRight/H265',
+        '/Camera/SorroundLeft/H265',
+        '/Camera/SorroundFront/H265',
+        '/Camera/SorroundRear/H265',
+        '/Camera/Rear/H265',
         # '/PK/PER/VisionSlotDecodingList',
         # '/VA/QC/BEVObstaclesTracks',
         # '/VA/QC/MonoObstaclesTracks',
@@ -3110,13 +3123,13 @@ if __name__ == "__main__":
         # '/VA/QC/Lines',
         # '/VA/QC/Objects',
         # '/VA/QC/Pose',
-        '/VA/PK/Slots',
-        '/VA/PK/BevObstaclesDet',
-        '/VA/PK/Obstacles',
-        '/LP/ParkingOcc',
-        '/PK/PER/FSDecodingList',
-        '/VA/PK/Freespaces',
+        # '/VA/PK/Slots',
+        # '/VA/PK/BevObstaclesDet',
+        # '/VA/PK/Obstacles',
+        # '/LP/ParkingOcc',
+        # '/PK/PER/FSDecodingList',
+        # '/VA/PK/Freespaces',
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, 'xxxx')
