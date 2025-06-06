@@ -12,8 +12,6 @@ import psutil
 import yaml
 from datetime import datetime
 
-from Crypto.SelfTest.Cipher.test_OFB import file_name
-
 from Envs.Master.Modules.Can2Ros.arxml_asc_parser import asc_parser
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))

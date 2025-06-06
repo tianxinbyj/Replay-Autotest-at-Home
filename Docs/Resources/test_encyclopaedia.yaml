@@ -1245,6 +1245,7 @@ EP39:
     - /VA/QC/Pose
     - /SA/INSPVA
     parking:
+    - /VA/VehicleMotionIpd
     - /PK/DR/Result
     - /SA/INSPVA
     - /VA/PK/Obstacles
@@ -1295,7 +1296,6 @@ EP39:
     - /FM/FctReq
     - /FS/FusionAEBResult
     - /FS/AEBFusionObjDbg
-    - /FS/FusionODResult
     - /FS/FusionRoadEdgeOutInfo
     - /IS/PRO
     - /LP/Freespaces
