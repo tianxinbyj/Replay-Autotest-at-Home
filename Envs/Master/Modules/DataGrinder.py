@@ -350,8 +350,8 @@ class DataGrinderOneCase:
             self.test_result['General']['logsim_time_gap'] = float(df['t_delta'].mean())
 
     def check_pred_data(self):
-        self.load_gt_data()
-        topic = self.test_action['pred_check']
+        self.load_pred_data()
+        topic = self.test_action['check']
         topic_tag = topic.replace('/', '')
         data_path = self.get_abspath(self.test_result[self.test_topic][topic]['raw']['pred_data'])
         data = pd.read_csv(data_path, index_col=False)
@@ -360,12 +360,18 @@ class DataGrinderOneCase:
             'Lines': (25, 6),
             'Slot': (12, 12),
         }
-        pred_check_folder = os.path.join(self.DataFolder, 'General', topic.replace('/', ''))
+        pred_check_folder = os.path.join(self.DataFolder, 'General', topic_tag)
         create_folder(pred_check_folder, update=True)
 
+        last_stamp = -1
+        t_idx = 0
         for time_stamp, frame_data in data.groupby('time_stamp'):
+            if time_stamp - last_stamp <= 0.5:
+                continue
+            last_stamp = time_stamp
 
-            plot_path = os.path.join(pred_check_folder, f"{topic.replace('/', '')}-{time_stamp}.png")
+            plot_path = os.path.join(pred_check_folder, 'img{:05d}.jpg'.format(t_idx + 1))
+            t_idx += 1
             title = f'Prediction <{topic}@{round(time_stamp, 3)}s >'
             fig = plt.figure(figsize=fig_size[self.test_topic])
             fig.tight_layout()
@@ -384,7 +390,7 @@ class DataGrinderOneCase:
                          length_includes_head=True,
                          head_width=0.5, head_length=1.3, fc='r', ec='r')
 
-                for idx, row in data.iterrows():
+                for idx, row in frame_data.iterrows():
                     color = '#3682be'
                     fill = True
                     self.plot_rectangle(axes=ax, center_x=row['x'], center_y=row['y'],
@@ -399,7 +405,7 @@ class DataGrinderOneCase:
                 ax.set_yticks([-16, -8, 0, 8, 16])
                 ax.set_yticklabels([f'{y:.0f} m' for y in [-16, -8, 0, 8, 16]])
                 ax.tick_params(direction='out', labelsize=font_size * 1.2, length=4)
-                ax.set_title(title, fontdict=title_font, y=0.9, loc='left')
+                ax.set_title(title, fontsize=13, y=0.9, loc='left')
                 ax.grid(linestyle='-', linewidth=0.5, color='lightgray', alpha=0.6)
 
             canvas = FigureCanvas(fig)
@@ -407,8 +413,10 @@ class DataGrinderOneCase:
             fig.clf()
             plt.close()
 
-        combined_video = os.path.join(self.DataFolder, f'Prediction_{topic_tag}.mp4')
-        fps = self.test_result[self.test_topic][topic]['frequency']
+        combined_video = os.path.join(self.DataFolder, 'General', f'Prediction_{topic_tag}.mp4')
+        if os.path.exists(combined_video):
+            os.remove(combined_video)
+        fps = len(os.listdir(pred_check_folder)) / (data['time_stamp'].max() - data['time_stamp'].min())
         width = 1400
         height = round(width * fig_size[self.test_topic][1] / fig_size[self.test_topic][0])
         image2video(pred_check_folder, fps, combined_video, width, height)
@@ -2900,7 +2908,7 @@ class DataGrinderOneCase:
 
     def start(self):
 
-        if 'pred_check' in self.test_action and self.test_action['pred_check'] is not None:
+        if 'check' in self.test_action and self.test_action['check'] is not None:
             self.check_pred_data()
 
         if self.test_action['preprocess']:
@@ -3197,7 +3205,6 @@ class DataGrinderOneTask:
 
     @sync_test_result
     def summary_bug_items(self):
-
         bugItem_folder = os.path.join(self.output_result_folder, 'bugItems')
         create_folder(bugItem_folder)
         dataframes = []
@@ -4799,7 +4806,8 @@ class DataGrinderOneTask:
         report_generator.genReport(report_path=self.report_path, compress=1)
 
     def start(self):
-        if (self.test_action['scenario_unit']['preprocess']
+        if (self.test_action['scenario_unit']['check'] is not None
+                or self.test_action['scenario_unit']['preprocess']
                 or self.test_action['scenario_unit']['match']
                 or self.test_action['scenario_unit']['metric']
                 or self.test_action['scenario_unit']['bug']
