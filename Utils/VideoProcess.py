@@ -28,6 +28,8 @@ def image2video(image_folder, fps, video, width=None, height=None):
 
 def video2image(video, fps, image_folder):
     cmd = f'ffmpeg -i "{video}" -f image2 -vf fps={fps} -qscale:v 2 "{image_folder}"/img%05d.jpg'
+
+    print(cmd)
     os.system(cmd)
 
 
