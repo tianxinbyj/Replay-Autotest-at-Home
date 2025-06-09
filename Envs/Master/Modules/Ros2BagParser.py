@@ -8,6 +8,7 @@ import csv
 import glob
 import multiprocessing as mp
 import os
+import pickle
 import shutil
 import time
 import warnings
@@ -947,8 +948,8 @@ data_columns = {
         ],
     'proto_horizon_msgs/msg/Slots':
         [
-            'local_time', 'time_stamp', 'header_seq', 'header_stamp', 'frame_id', 'id',
-            'obj_type', 'confidence', 'obj_life_time', 'obj_age', 'type',
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'delta_dr_timestamp',
+            'frame_id', 'id', 'obj_type', 'confidence', 'obj_life_time', 'obj_age', 'type',
             'slot_pose_length', 'slot_pose_width',
             'slot_pose_angle', 'slot_heading', 'slot_center_x', 'slot_center_y',
             'pt_0_x', 'pt_0_y', 'pt_1_x', 'pt_1_y',
@@ -2147,17 +2148,18 @@ class Ros2BagParser:
         elif topic in self.getTopics('proto_horizon_msgs/msg/Slots'):  # 后处理输出车位
             frame_id = msg.frame_id
             time_stamp = msg.timestamp / 1000
+            delta_dr_timestamp = msg.delta_dr_timestamp / 1000
 
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
             if time_stamp != self.last_timestamp[topic]:
                 header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_stamp /= 1000
                 header_seq = msg.header.seq
 
                 for object_data in msg.objects_array:
                     obj_id = object_data.id
                     if obj_id == 0:
-                        # id和conf为0表示无此车位
                         continue
 
                     obj_type = object_data.type  # 静态障碍物的类型，Type=10表示停车位
@@ -2206,8 +2208,8 @@ class Ros2BagParser:
                         stopper_1_y = 0
 
                     queue.put([
-                        local_time, time_stamp, header_stamp, header_seq, frame_id, obj_id,
-                        obj_type, obj_conf, obj_life_time, obj_age, slot_type,
+                        local_time, time_stamp, header_stamp, header_seq, delta_dr_timestamp,
+                        frame_id, obj_id, obj_type, obj_conf, obj_life_time, obj_age, slot_type,
                         slot_pose_length, slot_pose_width,
                         slot_pose_angle, slot_heading, slot_center_x, slot_center_y,
                         pt_0_x, pt_0_y, pt_1_x, pt_1_y,
@@ -2276,7 +2278,31 @@ class Ros2BagParser:
                 self.last_timestamp[topic] = time_stamp
 
         elif topic in self.getTopics('occupany_perception_msgs/msg/ParkingOcc'):
-            single_folder = os.path.join(self.folder, topic.replace('/', ''))
+
+            def extract_high_nibble(input_array: np.ndarray) -> np.ndarray:
+                result = (input_array >> 4) & 0xF
+                return result.astype(np.uint8)
+
+            def reconstruct3d(mono_voxels, mono_lower_bound, mono_upper_bound):
+                w = mono_voxels.shape[0]
+                h = mono_voxels.shape[1]
+                z = 24
+                voxel_3d = np.zeros((w, h, z)).astype(np.uint8)
+                mono_voxels = mono_voxels.astype(np.uint8)
+                mono_lower_bound = mono_lower_bound.astype(np.uint8)
+                mono_upper_bound = mono_upper_bound.astype(np.uint8)
+                for x_i in range(w):
+                    for y_i in range(h):
+                        if mono_voxels[x_i, y_i].any() == 0:  ###添加.any()
+                            continue
+                        hb = mono_upper_bound[x_i, y_i] + 1
+                        if hb.any() > z:
+                            hb = z
+                        voxel_3d[x_i, y_i, :] = mono_voxels[x_i, y_i]
+                        voxel_3d[x_i, y_i, mono_lower_bound[x_i, y_i]:int(hb)] = 0
+                return voxel_3d
+
+
             frame_id = 0
             time_stamp = msg.timestamp / 1000
             self.time_saver[topic].append(time_stamp)
@@ -2296,12 +2322,22 @@ class Ros2BagParser:
                     resolution, x_min, x_max, y_min, y_max,
                 ])
 
-                score_class = msg.score_class
-                print(score_class.shape)
-                # bottom_boundary = msg.bottom_boundary.reshape(256, 256)
-                # up_boundary = msg.up_boundary.reshape(256, 256)
-                # occ_matrix = np.dstack((score_class, up_boundary, bottom_boundary))
-                # np.save(os.path.join(single_folder, f'{time_stamp}.npy'), occ_matrix)
+                pkl_folder = os.path.join(self.folder, topic.replace('/', ''), f'{msg.timestamp}')
+                os.makedirs(pkl_folder, exist_ok=True)
+                voxels = extract_high_nibble(msg.score_class).reshape(256, 256)
+                lower_bound = msg.bottom_boundary.reshape(256, 256)
+                upper_bound = msg.up_boundary.reshape(256, 256)
+                height = upper_bound - lower_bound
+                voxel_3d = reconstruct3d(voxels, lower_bound, upper_bound)
+
+                with open(os.path.join(pkl_folder, 'mono_voxels.pkl'), 'wb') as f:
+                    pickle.dump(voxels, f)
+                with open(os.path.join(pkl_folder, 'mono_lower_bound.pkl'), 'wb') as f:
+                    pickle.dump(lower_bound, f)
+                with open(os.path.join(pkl_folder, 'mono_height.pkl'), 'wb') as f:
+                    pickle.dump(height, f)
+                with open(os.path.join(pkl_folder, 'voxel3d.pkl'), 'wb') as f:
+                    pickle.dump(voxel_3d, f)
 
                 self.last_timestamp[topic] = time_stamp
 
@@ -2753,8 +2789,7 @@ class Ros2BagParser:
                 queue.put([
                     local_time, time_stamp, frame_id, format_
                 ])
-                if msg.data[4] != 2:
-                    print(f'{time_stamp:03f}', msg.data.shape, msg.data.tolist()[:100])
+                print(f'{time_stamp:03f}', msg.data.shape, msg.data.tolist()[:100])
 
                 self.last_timestamp[topic] = time_stamp
 
@@ -3097,39 +3132,32 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/zhangliwei01/ZONE/TestProject/EP39/zpd_es39_20250211_010000_AEB4j6e/03_Workspace'
-    ros2bag_path = '/home/zhangliwei01/ZONE/COMBINE_1'
-    folder = '/home/zhangliwei01/ZONE/debug'
+    workspace = '/home/byj/ZONE/TestProject/parking_debug/03_Workspace'
+    ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-05-16-36-22'
+    folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
         # '/PI/EG/EgoMotionInfo',
-        # '/VA/VehicleMotionIpd',
+        '/VA/VehicleMotionIpd',
         # '/VA/Lines',
-        # '/VA/PK/Slots',
-        # '/PK/DR/Result',
-        # '/SA/INSPVA',
+        '/VA/PK/Slots',
+        '/PK/DR/Result',
+        '/SA/INSPVA',
         # '/Camera/FrontWide/H265',
-        '/Camera/SorroundFront/H265',
-        '/Camera/FrontWide/H265',
-        '/Camera/SorroundRight/H265',
-        '/Camera/SorroundLeft/H265',
-        '/Camera/SorroundFront/H265',
-        '/Camera/SorroundRear/H265',
-        '/Camera/Rear/H265',
-        # '/PK/PER/VisionSlotDecodingList',
+        '/PK/PER/VisionSlotDecodingList',
         # '/VA/QC/BEVObstaclesTracks',
         # '/VA/QC/MonoObstaclesTracks',
         # '/VA/QC/FsObstacles',
         # '/VA/QC/Lines',
         # '/VA/QC/Objects',
         # '/VA/QC/Pose',
-        # '/VA/PK/Slots',
-        # '/VA/PK/BevObstaclesDet',
-        # '/VA/PK/Obstacles',
-        # '/LP/ParkingOcc',
-        # '/PK/PER/FSDecodingList',
-        # '/VA/PK/Freespaces',
+        '/VA/PK/Slots',
+        '/VA/PK/BevObstaclesDet',
+        '/VA/PK/Obstacles',
+        '/LP/ParkingOcc',
+        '/PK/PER/FSDecodingList',
+        '/VA/PK/Freespaces',
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, 'xxxx')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')

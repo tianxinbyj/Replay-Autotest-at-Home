@@ -24,6 +24,7 @@ def convert_AVM_to_ego(u, v):
     y = (W / 2  - u) * 0.03
     return x, y
 
+
 def convert_AVM_to_ego_gt(u, v, ctr_to_wheel_arc: float = 1.39698315):
     W, H = 1088, 1216
     if u == v == -1 or u == v == 0:

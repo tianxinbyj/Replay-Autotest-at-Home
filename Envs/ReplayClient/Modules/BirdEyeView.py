@@ -558,6 +558,7 @@ class DistortCameraObject:
         rvec = cv2.Rodrigues(extrinsic[0:3, 0:3])[0]
         pts = [x, y, z]
         objectPoints = np.array([[pts]], dtype=np.float32)
+
         if self.camera_model == 'opencv_fisheye':
             imagePoints, _ = cv2.fisheye.projectPoints(
                 objectPoints=objectPoints,
@@ -567,6 +568,7 @@ class DistortCameraObject:
                 D=self.camera_object.distort,
                 alpha=0,
             )
+
         elif self.camera_model == 'opencv_pinhole':
             imagePoints, _ = cv2.projectPoints(
                 objectPoints=objectPoints,
@@ -577,6 +579,7 @@ class DistortCameraObject:
             )
             # opencv_pinhole.projectPoints输出的imagePoints为 (N * 1 * 2），需要转化为统一的 (1 * N * 2）
             imagePoints = changeCvDataShape(imagePoints, direction='N*1*mto1*N*m')
+
         else:
             # opencv_omni
             imagePoints, _ = cv2.omnidir.projectPoints(
@@ -1137,6 +1140,7 @@ def transfer_es39_2_2j5(json_folder_3s39, json_folder_2j5):
             with open(camera_json_2j5, 'w+') as f:
                 json.dump(camera_dict, f, indent=2)
 
+
 def transfer_1j5_2_es39(yaml_folder, json_folder):
     """
     将 生成出的1j5 格式的yaml 文件生成 用于es39软件(ES37 2J5 板子) 回灌使用的参数格式
@@ -1245,8 +1249,6 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
 
         with open(os.path.join(json_folder, f'{pos_camera_name}.json'), 'w+') as camera_json:
             json.dump(json_camera_dict, camera_json, indent=2)
-
-
 
 
 

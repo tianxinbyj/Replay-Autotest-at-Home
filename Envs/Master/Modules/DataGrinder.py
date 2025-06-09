@@ -55,6 +55,7 @@ class DataGrinderOneCase:
         self.video_start_time = 0
         self.video_fps = 30
         self.cut_frame_offset = 0
+        self.sync_delta_offset = 0
         self.AVM_center = 1.42
         self.camera_list = [
             'CAM_FISHEYE_LEFT', 'CAM_FRONT_120', 'CAM_FISHEYE_RIGHT',
@@ -572,7 +573,7 @@ class DataGrinderOneCase:
             send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
             self.test_result['General']['vel_time_gap'] = t_delta
 
-        self.test_result['General']['time_gap'] = t_delta
+        self.test_result['General']['time_gap'] = t_delta + self.sync_delta_offset
 
         time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
         time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
@@ -4841,6 +4842,7 @@ class DataGrinderObstaclesOneCase(DataGrinderOneCase):
     def __init__(self, scenario_unit_folder):
         super().__init__(scenario_unit_folder)
         self.cut_frame_offset = 0
+        self.sync_delta_offset = 0
 
 
 class DataGrinderObstaclesOneTask(DataGrinderOneTask):
@@ -4856,6 +4858,7 @@ class DataGrinderLinesOneCase(DataGrinderOneCase):
     def __init__(self, scenario_unit_folder):
         super().__init__(scenario_unit_folder)
         self.cut_frame_offset = 0
+        self.sync_delta_offset = 0
 
 
 class DataGrinderLinesOneTask(DataGrinderOneTask):
@@ -4871,6 +4874,7 @@ class DataGrinderSlotsOneCase(DataGrinderOneCase):
     def __init__(self, scenario_unit_folder):
         super().__init__(scenario_unit_folder)
         self.cut_frame_offset = 0
+        self.sync_delta_offset = -1.1
 
 
 class DataGrinderSlotsOneTask(DataGrinderOneTask):
