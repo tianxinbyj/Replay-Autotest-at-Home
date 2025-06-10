@@ -1059,7 +1059,9 @@ data_columns = {
     'qc_perception_msgs/msg/QcLines':
         [
             'local_time', 'time_stamp', 'header_stamp', 'header_seq',
-            'pose_x', 'pose_y', 'pose_z', 'yaw', 'pitch', 'roll',
+            'pose_x', 'pose_y', 'pose_z', 'yaw', 'pitch', 'roll', 'lane_id', 'confidence',
+            'position', 'c0', 'c1', 'c2', 'c3', 'start_x', 'start_y', 'lane_types_str',
+            'x_point_str', 'y_point_str',
         ],
     'occupany_perception_msgs/msg/ParkingOcc':
         [
@@ -1701,22 +1703,6 @@ class Ros2BagParser:
                             pt = line3d_data.points[i]
                             x_points.append(pt.x)
                             y_points.append(pt.y)
-
-                        # start_x = x_points[0]
-                        # start_y = y_points[0]
-                        #
-                        # c_x_0 = line3d_data.x_coeffs[0]
-                        # c_x_1 = line3d_data.x_coeffs[1]
-                        # c_x_2 = line3d_data.x_coeffs[2]
-                        # c_x_3 = line3d_data.x_coeffs[3]
-                        #
-                        # c_y_0 = line3d_data.y_coeffs[0]
-                        # c_y_1 = line3d_data.y_coeffs[1]
-                        # c_y_2 = line3d_data.y_coeffs[2]
-                        # c_y_3 = line3d_data.y_coeffs[3]
-                        #
-                        # end_x = x_points[points_num - 1]
-                        # width = 0.2
 
                         line_color = line3d_data.line_color
                         if line_type == 2:
@@ -2850,7 +2836,7 @@ class Ros2BagParser:
                         x, y, z, vx, vy, yaw, length, width, height, age, track_status,
                     ])
 
-                    self.last_timestamp[topic] = time_stamp
+                self.last_timestamp[topic] = time_stamp
 
         elif topic in self.getTopics('qc_perception_msgs/msg/QcPose'):
             header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
@@ -2889,10 +2875,42 @@ class Ros2BagParser:
                 pitch = vehicle_pose.pose_pitch
                 roll = vehicle_pose.pose_roll
 
-                queue.put([
-                    local_time, time_stamp, header_stamp, header_seq,
-                    pose_x, pose_y, pose_z, yaw, pitch, roll,
-                ])
+                for bev_lane in msg.vehicle_bev_lanes:
+                    lane_id = bev_lane.lane_id
+                    confidence = bev_lane.confidence
+                    if confidence == 0 or lane_id == 0:
+                        continue
+
+                    c0 = bev_lane.c0
+                    c1 = bev_lane.c1
+                    c2 = bev_lane.c2
+                    c3 = bev_lane.c3
+                    start_x = bev_lane.start_point.x
+                    start_y = bev_lane.start_point.y
+                    position = bev_lane.lane_position_index
+
+                    lane_types, x_points, y_points = [], [], []
+                    last_type = ''
+                    for points in bev_lane.bev_lane_points:
+                        lane_type = points.bev_lane_type
+                        x_point = points.bev_point.x
+                        y_point = points.bev_point.y
+                        if x_point != 0 or y_point != 0:
+                            x_points.append(x_point)
+                            y_points.append(y_point)
+                            if lane_type != last_type:
+                                lane_types.append(lane_type)
+
+                    x_point_str = ','.join([f'{x:.3f}' for x in x_points])
+                    y_point_str = ','.join([f'{y:.3f}' for y in y_points])
+                    lane_types_str = ','.join(lane_types)
+
+                    queue.put([
+                        local_time, time_stamp, header_stamp, header_seq,
+                        pose_x, pose_y, pose_z, yaw, pitch, roll, lane_id, confidence,
+                        position, c0, c1, c2, c3, start_x, start_y, lane_types_str,
+                        x_point_str, y_point_str
+                    ])
 
                 self.last_timestamp[topic] = time_stamp
 
