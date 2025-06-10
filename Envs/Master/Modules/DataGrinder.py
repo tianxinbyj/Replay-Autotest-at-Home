@@ -2456,15 +2456,15 @@ class DataGrinderOneCase:
         }
 
         if self.ego_velocity_generator is None:
-            if self.test_result['General']['gt_ego_flag']:
-                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
-                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
-                                                       kind='linear')
-            else:
+            if self.test_result['General']['pred_ego_flag']:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
                 self.ego_velocity_generator = interp1d(
                     ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
                     ego_data['ego_vx'].values, kind='linear')
+            else:
+                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
+                                                       kind='linear')
 
         # 开始画图
         fig = plt.figure(figsize=(25, 12))
@@ -2614,15 +2614,15 @@ class DataGrinderOneCase:
         }
 
         if self.ego_velocity_generator is None:
-            if self.test_result['General']['gt_ego_flag']:
-                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
-                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
-                                                       kind='linear')
-            else:
+            if self.test_result['General']['pred_ego_flag']:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
                 self.ego_velocity_generator = interp1d(
                     ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
                     ego_data['ego_vx'].values, kind='linear')
+            else:
+                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
+                                                       kind='linear')
 
         # 开始画图
         fig = plt.figure(figsize=(25, 12))
@@ -2793,15 +2793,15 @@ class DataGrinderOneCase:
         }
 
         if self.ego_velocity_generator is None:
-            if self.test_result['General']['gt_ego_flag']:
-                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
-                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
-                                                       kind='linear')
-            else:
+            if self.test_result['General']['pred_ego_flag']:
                 ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['pred_ego']), index_col=False)
                 self.ego_velocity_generator = interp1d(
                     ego_data['time_stamp'].values + self.test_result['General']['time_gap'],
                     ego_data['ego_vx'].values, kind='linear')
+            else:
+                ego_data = pd.read_csv(self.get_abspath(self.test_result['General']['gt_ego']), index_col=False)
+                self.ego_velocity_generator = interp1d(ego_data['time_stamp'].values, ego_data['ego_vx'].values,
+                                                       kind='linear')
 
         # 开始画图
         fig = plt.figure(figsize=(25, 12))
