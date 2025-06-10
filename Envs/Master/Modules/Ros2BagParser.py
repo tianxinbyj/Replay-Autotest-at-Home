@@ -2302,7 +2302,6 @@ class Ros2BagParser:
                         voxel_3d[x_i, y_i, mono_lower_bound[x_i, y_i]:int(hb)] = 0
                 return voxel_3d
 
-
             frame_id = 0
             time_stamp = msg.timestamp / 1000
             self.time_saver[topic].append(time_stamp)

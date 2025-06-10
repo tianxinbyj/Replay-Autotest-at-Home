@@ -94,15 +94,8 @@ class DataReplayTest:
     def data_grinder(self):
         for test_topic in self.test_config_dict.keys():
             for task_folder in self.task_folder_dict[test_topic]:
-                if not os.path.exists(os.path.join(self.test_project_path, '01_Prediction', 'topic_output_statistics.csv')):
-                    send_log(self, f'{task_folder}不存在topic_output_statistics')
-                else:
-                    if test_topic == 'Obstacles':
-                        DataGrinderObstaclesOneTask(task_folder).start()
-                    elif test_topic == 'Lines':
-                        DataGrinderLinesOneTask(task_folder).start()
-                    elif test_topic == 'Slots':
-                        DataGrinderSlotsOneTask(task_folder).start()
+                cmd = f"DataGrinder{test_topic}OneTask(task_folder).start()"
+                exec(cmd)
 
     def start(self):
         if len(list(set(self.feature_group_list))) > 1:

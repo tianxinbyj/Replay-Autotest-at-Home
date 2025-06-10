@@ -63,7 +63,7 @@ class DataGrinderOneCase:
         ]
         self.replay_client = SSHClient()
         if not self.replay_client.check_connection():
-            send_log(self, f'{self.replay_client.ip} connection fails')
+            send_log(self, f'{self.replay_client.ip} 连接失败,没有回灌客户端')
             self.replay_client = None
 
         scenario_config_yaml = os.path.join(scenario_unit_folder, 'TestConfig.yaml')
@@ -467,8 +467,6 @@ class DataGrinderOneCase:
                 'subtype': 'sub_type',
                 'type_conf_3d': 'confidence',
             }).sort_values(by=['time_stamp'])
-            gt_data['vx_rel'] = gt_data['vx'] - gt_data['ego_v']
-            gt_data['vy_rel'] = gt_data['vy']
             gt_data = gt_data[gt_data['type'].isin([1, 2, 18])]
 
         elif self.test_topic == 'Lines':
@@ -541,7 +539,6 @@ class DataGrinderOneCase:
 
     @sync_test_result
     def sync_timestamp(self):
-
         # 调用计算时间差的接口
         baseline_data_path = self.get_abspath(self.test_result['General']['gt_ego'])
         baseline_data = pd.read_csv(baseline_data_path, index_col=False)
@@ -581,7 +578,9 @@ class DataGrinderOneCase:
             send_log(self, f'使用速度平移获得的最佳时间间隔 = {t_delta}, 平均速度误差 = {v_error}')
             self.test_result['General']['vel_time_gap'] = t_delta
 
-        self.test_result['General']['time_gap'] = t_delta + self.sync_delta_offset
+        self.test_result['General']['time_gap_offset_manually'] = self.sync_delta_offset
+        t_delta += self.sync_delta_offset
+        self.test_result['General']['time_gap'] = t_delta
 
         time_start = max(min(calibrated_time_series) + t_delta, min(baseline_time_series)) + 1
         time_end = min(max(calibrated_time_series) + t_delta, max(baseline_time_series)) - 1
@@ -4806,7 +4805,8 @@ class DataGrinderOneTask:
         report_generator.genReport(report_path=self.report_path, compress=1)
 
     def start(self):
-        if (self.test_action['scenario_unit']['check'] is not None
+        if (('check' in self.test_action['scenario_unit']
+                and self.test_action['scenario_unit']['check'] is not None)
                 or self.test_action['scenario_unit']['preprocess']
                 or self.test_action['scenario_unit']['match']
                 or self.test_action['scenario_unit']['metric']
