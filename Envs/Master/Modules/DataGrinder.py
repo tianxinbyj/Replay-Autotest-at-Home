@@ -1078,7 +1078,6 @@ class DataGrinderOneCase:
         def get_middle_index_for_bug(bug_data, sort_value, count_threshold):
             id_counts = bug_data[sort_value].value_counts()
             frequent_ids = id_counts[id_counts >= int(count_threshold)].index
-            print(frequent_ids)
             corresponding_indices = []
             for id_ in frequent_ids:
                 id_df = bug_data[bug_data[sort_value] == id_]
