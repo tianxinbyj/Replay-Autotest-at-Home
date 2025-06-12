@@ -88,8 +88,7 @@ class DataGrinderOneCase:
         self.test_topic = self.test_config['test_topic']
         self.output_characteristic = self.test_config['output_characteristic']
         self.test_information = test_encyclopaedia['Information'][self.test_topic]
-        self.topics_for_evaluation = [
-            topic for topic in self.test_item.keys() if topic in self.test_information['topics']]
+        self.topics_for_evaluation = [topic for topic in self.test_item.keys()]
 
         # 初始化文件夹
         self.pred_raw_folder = self.test_config['pred_folder']
@@ -107,7 +106,16 @@ class DataGrinderOneCase:
             for topic in self.topics_for_evaluation:
                 self.test_result[self.test_topic][topic] = {}
 
-            self.save_test_result()
+        else:
+            self.load_test_result()
+            useless_topics = []
+            for topic in self.test_result[self.test_topic].keys():
+                if topic not in self.topics_for_evaluation and topic != 'GroundTruth':
+                    useless_topics.append(topic)
+            for topic in useless_topics:
+                del self.test_result[self.test_topic][topic]
+
+        self.save_test_result()
 
         test_encyclopaedia_yaml = os.path.join(self.scenario_unit_folder, 'TestEncyclopaedia.yaml')
         with open(test_encyclopaedia_yaml, 'w', encoding='utf-8') as f:

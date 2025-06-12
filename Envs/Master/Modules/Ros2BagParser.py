@@ -2309,9 +2309,9 @@ class Ros2BagParser:
 
                 pkl_folder = os.path.join(self.folder, topic.replace('/', ''), f'{msg.timestamp}')
                 os.makedirs(pkl_folder, exist_ok=True)
-                voxels = extract_high_nibble(msg.score_class).reshape(256, 256)
-                lower_bound = msg.bottom_boundary.reshape(256, 256)
-                upper_bound = msg.up_boundary.reshape(256, 256)
+                voxels = extract_high_nibble(msg.score_class)[:61440].reshape(192, 320)
+                lower_bound = msg.bottom_boundary[:61440].reshape(192, 320)
+                upper_bound = msg.up_boundary[:61440].reshape(192, 320)
                 height = upper_bound - lower_bound
                 voxel_3d = reconstruct3d(voxels, lower_bound, upper_bound)
 
@@ -3156,7 +3156,6 @@ if __name__ == "__main__":
     ES39_topic_list = [
         # '/PI/EG/EgoMotionInfo',
         '/VA/VehicleMotionIpd',
-        # '/VA/Lines',
         '/VA/PK/Slots',
         '/PK/DR/Result',
         '/SA/INSPVA',
