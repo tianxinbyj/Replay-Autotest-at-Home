@@ -756,7 +756,7 @@ class BirdEyeView:
         # 最终的融合图片
         cv2.imwrite(os.path.join(folder, f'BEV_{self.bev_type}.jpg'), bird_image_merge_addweight)
         # cv2.imwrite(os.path.join(folder, f'BEV_ALL.jpg'), bird_image_merge)
-        return
+        return os.path.join(folder, f'BEV_{self.bev_type}.jpg')
 
 
 def kunyi_bev(folder, calibration_json, bev_type='fisheye', rect_pts=None):
