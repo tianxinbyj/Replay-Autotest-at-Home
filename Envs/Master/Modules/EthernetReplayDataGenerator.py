@@ -13,6 +13,7 @@ import yaml
 from datetime import datetime
 
 from Envs.Master.Modules.Can2Ros.arxml_asc_parser import asc_parser
+from Envs.Master.Modules.Ros2Bag2BirdView import Ros2Bag2BirdView
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from Libs import get_project_path
@@ -23,9 +24,10 @@ from Utils.Libs import docker_path, variables, kill_tmux_session_if_exists, proj
 
 class EthernetReplayDataGenerator:
 
-    def __init__(self, file_path, install_path):
+    def __init__(self, file_path, install_path, generate_bev=False):
         self.install_path = install_path
         self.file_path = file_path
+        self.generate_bev = generate_bev
         self.can_file_path = os.path.join(self.file_path, 'CAN_Trace')
         self.ros2bag_path_h265 = os.path.join(self.file_path, 'ROSBAG', 'ROSBAG_H265')
         self.ros2bag_path_ins = os.path.join(self.file_path, 'ROSBAG', 'ROSBAG_INS')
@@ -185,11 +187,20 @@ class EthernetReplayDataGenerator:
         if os.path.exists(self.ros2bag_path_h265):
             shutil.rmtree(self.ros2bag_path_h265)
 
+        # 是否生成bird_view
+        if self.generate_bev:
+            self.generate_bev_view()
+
+    def generate_bev_view(self):
+        bev_object = Ros2Bag2BirdView(self.install_path, self.file_path)
+        bev_object.extract_h265_raw_streams()
+        bev_object.extract_frames_from_h265()
+
 
 if __name__ == '__main__':
     t0 = time.time()
-    file_name = '/home/hp/temp/20250324_144918_n000003'
-    install_path = '/home/hp/artifacts/ZPD_EP39/4.3.0_RC11/install'
+    file_name = '/home/hp/bevlane/20250115_142321_n000001'
+    install_path = '/home/hp/artifacts/TEST/install_0610_bevlane/install'
     ee = EthernetReplayDataGenerator(file_name, install_path)
     ee.transfer_h265()
     ee.gen_h265_db3()
