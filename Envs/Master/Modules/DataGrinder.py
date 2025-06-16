@@ -347,7 +347,7 @@ class DataGrinderOneCase:
                         = float(pred_data['time_stamp'].mean() - pred_data['header_stamp'].mean())
 
         # 获取logsim的时间差
-        logsim_txt_list = glob.glob(os.path.join(self.pred_raw_folder, '*H265.txt'))
+        logsim_txt_list = glob.glob(os.path.join(self.pred_raw_folder, 'CameraFrontWideH265.txt'))
         if len(logsim_txt_list):
             df = pd.read_csv(
                 logsim_txt_list[0],
@@ -702,8 +702,7 @@ class DataGrinderOneCase:
         data = pd.read_csv(self.get_abspath(raw['gt_timestamp']), index_col=False)
         data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
         path = os.path.join(additional_folder, 'gt_timestamp.csv')
-        self.test_result[self.test_topic]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(
-            path)
+        self.test_result[self.test_topic]['GroundTruth']['additional']['gt_timestamp'] = self.get_relpath(path)
         data.to_csv(path, index=False, encoding='utf_8_sig')
 
         # 预处理原始数据, 增加列
@@ -791,6 +790,7 @@ class DataGrinderOneCase:
             # 时间辍补齐
             send_log(self, f'{self.test_topic} {topic} 时间辍同步')
             data = pd.read_csv(self.get_abspath(raw['pred_timestamp']), index_col=False)
+            data['ecu_time_stamp'] = data['time_stamp']
             data['time_stamp'] += time_gap
             data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
             path = os.path.join(additional_folder, 'pred_timestamp.csv')
@@ -805,6 +805,7 @@ class DataGrinderOneCase:
             path = os.path.join(additional_folder, 'pred_data.csv')
             self.test_result[self.test_topic][topic]['additional']['pred_data'] = self.get_relpath(path)
             if len(data):
+                data['ecu_time_stamp'] = data['time_stamp']
                 data['time_stamp'] += time_gap
                 data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
                 data.to_csv(path, index=False, encoding='utf_8_sig')
