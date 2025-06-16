@@ -18,7 +18,7 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from Libs import get_project_path
 sys.path.append(get_project_path())
 from Utils.VideoProcess import convert_video_h265, gen_h265_timestamp, normalize_h265_startcodes
-from Utils.Libs import docker_path, variables, kill_tmux_session_if_exists, project_path, get_folder_size
+from Utils.Libs import ros_docker_path, variables, kill_tmux_session_if_exists, project_path, get_folder_size
 
 
 class EthernetReplayDataGenerator:
@@ -81,7 +81,7 @@ class EthernetReplayDataGenerator:
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
         time.sleep(0.1)
 
-        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_path}" C-m')
+        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {ros_docker_path}" C-m')
         os.system('sleep 3')
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
                   f'"source {self.install_path}/setup.bash" C-m')
@@ -159,7 +159,7 @@ class EthernetReplayDataGenerator:
         os.system(f'tmux new-session -s {tmux_session} -n {tmux_window} -d')
         time.sleep(0.1)
 
-        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "bash {docker_path}" C-m')
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "bash {ros_docker_path}" C-m')
         os.system('sleep 3')
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
                   f'"source {self.install_path}/setup.bash" C-m')
