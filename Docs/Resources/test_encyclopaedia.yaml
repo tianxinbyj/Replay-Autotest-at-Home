@@ -1833,6 +1833,7 @@ Information:
     - width
     - height
     additional_column:
+    - ecu_time_stamp
     - type_classification
     - road_user
     - distance

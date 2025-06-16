@@ -359,9 +359,9 @@ class ReplayController:
         self.thread_list.append(t)
 
         # 网络回灌下，将logsim的时间戳对应关系保存到文件夹下
-        time2time_path = glob.glob(os.path.join('/home', '*', 'CameraFrontWideH265.txt'))
-        if len(time2time_path):
-            shutil.copy2(time2time_path[0], os.path.join(self.pred_raw_folder, scenario_id))
+        time2time_path = glob.glob(os.path.join('/home', '*', '*H265.txt'))
+        for f in time2time_path:
+            shutil.copy2(f, os.path.join(self.pred_raw_folder, scenario_id))
 
     def start(self):
 
