@@ -329,5 +329,15 @@ legend_font = {
     'weight': 'normal',
     'size': font_size * 0.8,
 }
+
 mpl_colors = ['#3682be', '#45a776', '#f05326', '#eed777', '#334f65', '#b3974e', '#38cb7d', '#ddae33', '#844bb3',
               '#93c555', '#5f6694', '#df3881'] * 2
+
+topic2camera = {
+    '/Camera/FrontWide/H265': 'CAM_FRONT_120',
+    '/Camera/SorroundRight/H265': 'CAM_FISHEYE_RIGHT',
+    '/Camera/SorroundLeft/H265': 'CAM_FISHEYE_LEFT',
+    '/Camera/SorroundFront/H265': 'CAM_FISHEYE_FRONT',
+    '/Camera/SorroundRear/H265': 'CAM_FISHEYE_BACK',
+    '/Camera/Rear/H265': 'CAM_BACK',
+}
