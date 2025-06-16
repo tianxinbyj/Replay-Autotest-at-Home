@@ -2899,7 +2899,8 @@ class Ros2BagParser:
                             x_points.append(x_point)
                             y_points.append(y_point)
                             if lane_type != last_type:
-                                lane_types.append(lane_type)
+                                lane_types.append(str(lane_type))
+                                last_type = lane_type
 
                     x_point_str = ','.join([f'{x:.3f}' for x in x_points])
                     y_point_str = ','.join([f'{y:.3f}' for y in y_points])
@@ -3149,32 +3150,38 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/byj/ZONE/TestProject/parking_debug/03_Workspace'
-    ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-05-16-36-22'
-    folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
+    workspace = '/home/appuser/aeb_replay/test_project/DEBUG/03_Workspace'
+    # ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-05-16-36-22'
+    # folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
+
+    ros2bag_path = '/home/appuser/aeb_replay/test_project/DEBUG/01_Prediction/20231130_152434_n000001/20231130_152434_n000001_2025-06-12-15-41-47'
+    folder = '/home/appuser/aeb_replay/test_project/DEBUG/01_Prediction/20231130_152434_n000001/RawData'
+
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
         # '/PI/EG/EgoMotionInfo',
         '/VA/VehicleMotionIpd',
         # '/VA/Lines',
-        '/VA/PK/Slots',
+        # '/VA/PK/Slots',
         '/PK/DR/Result',
         '/SA/INSPVA',
         # '/Camera/FrontWide/H265',
         '/PK/PER/VisionSlotDecodingList',
-        # '/VA/QC/BEVObstaclesTracks',
-        # '/VA/QC/MonoObstaclesTracks',
-        # '/VA/QC/FsObstacles',
-        # '/VA/QC/Lines',
+        '/VA/QC/BEVObstaclesTracks',
+        '/VA/QC/MonoObstaclesTracks',
+        '/VA/QC/FsObstacles',
+        '/VA/QC/Lines',
         # '/VA/QC/Objects',
-        # '/VA/QC/Pose',
-        '/VA/PK/Slots',
-        '/VA/PK/BevObstaclesDet',
-        '/VA/PK/Obstacles',
-        '/LP/ParkingOcc',
-        '/PK/PER/FSDecodingList',
-        '/VA/PK/Freespaces',
+        '/VA/QC/Pose',
+        # '/VA/PK/Slots',
+        # '/VA/PK/BevObstaclesDet',
+        # '/VA/PK/Obstacles',
+        # '/LP/ParkingOcc',
+        # '/PK/PER/FSDecodingList',
+        # '/VA/PK/Freespaces',
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')
+    # RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')
+
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20231130_152434_n000001')
