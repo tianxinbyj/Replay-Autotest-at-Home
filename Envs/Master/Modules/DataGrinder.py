@@ -86,10 +86,11 @@ class DataGrinderOneCase:
         self.test_encyclopaedia = test_encyclopaedia[self.product]
         self.test_item = self.test_config['test_item']
         self.test_topic = self.test_config['test_topic']
+        self.gt_id_flag = self.test_config['gt_id_flag']
+        self.topic_with_id = self.test_config['topic_with_id'],
         self.output_characteristic = self.test_config['output_characteristic']
         self.test_information = test_encyclopaedia['Information'][self.test_topic]
-        self.topics_for_evaluation = [
-            topic for topic in self.test_item.keys() if topic in self.test_information['topics']]
+        self.topics_for_evaluation = [topic for topic in self.test_item.keys()]
 
         # 初始化文件夹
         self.pred_raw_folder = self.test_config['pred_folder']
@@ -107,7 +108,16 @@ class DataGrinderOneCase:
             for topic in self.topics_for_evaluation:
                 self.test_result[self.test_topic][topic] = {}
 
-            self.save_test_result()
+        else:
+            self.load_test_result()
+            useless_topics = []
+            for topic in self.test_result[self.test_topic].keys():
+                if topic not in self.topics_for_evaluation and topic != 'GroundTruth':
+                    useless_topics.append(topic)
+            for topic in useless_topics:
+                del self.test_result[self.test_topic][topic]
+
+        self.save_test_result()
 
         test_encyclopaedia_yaml = os.path.join(self.scenario_unit_folder, 'TestEncyclopaedia.yaml')
         with open(test_encyclopaedia_yaml, 'w', encoding='utf-8') as f:
@@ -1092,10 +1102,6 @@ class DataGrinderOneCase:
             self.test_result[self.test_topic][topic]['bug'] = {}
             create_folder(sketch_folder)
 
-            # 异常至少存在frame_threshold帧，才会被识别为bug用作分析
-            frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
-            send_log(self, f'出现次数低于{frame_threshold}的bug会被忽视')
-
             # 使用total中的recall_precision数据可视化，但只抓取部分特镇的bug
             if 'total' not in self.test_result[self.test_topic][topic]['metric']:
                 send_log(self, f'{self.scenario_id} {topic} 不存在metric数据')
@@ -1121,16 +1127,20 @@ class DataGrinderOneCase:
                 for bug_type, corresponding_index in bug_index_dict.items():
                     bug_type_folder = os.path.join(characteristic_folder, bug_type)
                     bug_data = total_data[total_data['corresponding_index'].isin(corresponding_index)]
+
+                    # 异常至少存在frame_threshold帧，才会被识别为bug用作分析
+                    frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
                     # 根据id的出现次数排序
                     if bug_type == 'false_positive':
                         sorted_id = 'pred.id'
+                        if topic not in self.topic_with_id:
+                            frame_threshold = 1
                     else:
                         sorted_id = 'gt.id'
+                        if not self.gt_id_flag:
+                            frame_threshold = 1
 
-                    if topic == '/PK/PER/VisionSlotDecodingList':
-                        bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, 1)
-                    else:
-                        bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
+                    bug_corresponding_indices = get_middle_index_for_bug(bug_data, sorted_id, frame_threshold)
 
                     for bug_corresponding_index in bug_corresponding_indices:
                         row = bug_data[bug_data['corresponding_index'] == bug_corresponding_index].iloc[0]
@@ -2121,8 +2131,6 @@ class DataGrinderOneCase:
                 index = bug_excluding_row.index[0]
                 bug_excluding_ids = json.loads(scenario_test_record.at[index, 'bug_excluding'])
 
-        frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
-        send_log(self, f'出现次数低于{frame_threshold}的bug会被忽视')
         send_log(self, f'{self.scenario_id} 排除以下gt.id的bug {bug_excluding_ids}')
 
         bug_count = self.test_action['bug_count']
@@ -2146,8 +2154,8 @@ class DataGrinderOneCase:
                     bug_index_dict['false_positive'] = []
                     FP_data = metric_data[(metric_data['gt.flag'] == 0)
                                           & (metric_data['pred.flag'] == 1)
-                                          & (metric_data['pred.x'] <= 100)
-                                          & (metric_data['pred.x'] >= -50)
+                                          & (metric_data['pred.x'] <= 150)
+                                          & (metric_data['pred.x'] >= -100)
                                           & (metric_data['pred.y'] <= 8)
                                           & (metric_data['pred.y'] >= -8)]
                     FP_data = FP_data[~((FP_data['pred.type_classification'].isin(['pedestrian', 'cyclist']))
@@ -2167,12 +2175,14 @@ class DataGrinderOneCase:
                                         & ((FN_data['gt.x'] > 50) | (FN_data['gt.x'] < -50)))]
                     FN_data_near = FN_data[(metric_data['gt.x'] <= 100)
                                            & (metric_data['gt.x'] >= -100)]
+
                     for key, group in FN_data_near.groupby('gt.type_classification'):
                         top_values = group['gt.id'].value_counts().head(bug_count * 2).index
                         top_group = group[group['gt.id'].isin(top_values)]
                         bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
                     FN_data_far = FN_data[(metric_data['gt.x'] <= 150)
                                           & (metric_data['gt.x'] > 100)]
+
                     for key, group in FN_data_far.groupby('gt.type_classification'):
                         top_values = group['gt.id'].value_counts().head(bug_count * 2).index
                         top_group = group[group['gt.id'].isin(top_values)]
@@ -2194,10 +2204,15 @@ class DataGrinderOneCase:
                         bug_index_dict['false_type'].extend(top_group['corresponding_index'].to_list())
 
                 else:
+                    if not self.gt_id_flag:
+                        frame_threshold = 1
+                    else:
+                        frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
+
                     distance_n_f = 50
                     error_data = metric_data[(metric_data['is_abnormal'] == 1)
-                                             & (metric_data['gt.x'] <= 100)
-                                             & (metric_data['gt.x'] >= -50)
+                                             & (metric_data['gt.x'] <= 150)
+                                             & (metric_data['gt.x'] >= -100)
                                              & (metric_data['gt.y'] <= 8)
                                              & (metric_data['gt.y'] >= -8)
                                              & (metric_data['gt.type'] == metric_data['pred.type'])]
@@ -2211,8 +2226,6 @@ class DataGrinderOneCase:
                                                   & (error_data['gt.vel'] <= 2))]
                     if metric == 'yaw_error':
                         error_data = error_data[error_data['yaw.error_abs'] > 15]
-                        # error_data = error_data[(error_data['gt.x'] <= -50)
-                        #                          & (error_data['gt.x'] >= -100)]
 
                     bug_index_dict[metric] = []
                     for key, group in error_data.groupby('gt.type'):
@@ -2266,8 +2279,12 @@ class DataGrinderOneCase:
                         bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
 
                 else:
-                    error_data = metric_data[(metric_data['is_abnormal'] == 1)]
+                    if not self.gt_id_flag:
+                        frame_threshold = 1
+                    else:
+                        frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
 
+                    error_data = metric_data[(metric_data['is_abnormal'] == 1)]
                     bug_index_dict[metric] = []
                     id_counts = error_data['gt.id'].value_counts()
                     frequent_ids = id_counts[id_counts >= int(frame_threshold)].index
@@ -2300,12 +2317,15 @@ class DataGrinderOneCase:
                         bug_index_dict['false_negative'].extend(top_group['corresponding_index'].to_list())
 
                 else:
-                    error_data = metric_data[(metric_data['is_abnormal'] == 1)]
+                    if not self.gt_id_flag:
+                        frame_threshold = 1
+                    else:
+                        frame_threshold = round(self.test_result[self.test_topic][topic]['match_frequency'])
 
+                    error_data = metric_data[(metric_data['is_abnormal'] == 1)]
                     bug_index_dict[metric] = []
                     id_counts = error_data['gt.id'].value_counts()
-                    # frequent_ids = id_counts[id_counts >= int(frame_threshold)].index
-                    frequent_ids = id_counts[id_counts >= 1].index
+                    frequent_ids = id_counts[id_counts >= int(frame_threshold)].index
                     filtered_df = error_data[error_data['gt.id'].isin(frequent_ids)]
                     new_metric_name = ".".join(metric.rsplit("_", 1)) + '_abs'
                     mean_values = filtered_df.groupby('gt.id')[f'{new_metric_name}'].mean().reset_index()
@@ -3036,6 +3056,8 @@ class DataGrinderOneTask:
                     'gt_folder': os.path.join(self.test_config['gt_folder'], scenario_id),
                     'truth_source': self.truth_source,
                     'test_action': self.test_action['scenario_unit'],
+                    'gt_id_flag': self.test_config['gt_id_flag'],
+                    'topic_with_id': self.test_config['topic_with_id'],
                     'output_characteristic': self.output_characteristic,
                     'test_item': self.test_item,
                     'scenario_tag': scenario_tag['tag'],

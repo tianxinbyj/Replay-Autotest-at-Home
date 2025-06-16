@@ -389,10 +389,11 @@ class ReplayController:
 
                     # 积分触发重启控制器，并将invalid场景的数据删除重新测试
                     if self.replay_action['retest'] > 1 and self.abnormal_score > 5 and self.reboot_count <= 10:
-                        send_log(self, f'积分={self.abnormal_score},触发中间重测机制')
-                        if not self.reboot_power():
-                            send_log(self, f'重启失败,后续场景{scenario_id}不再录制')
-                            break
+                        if self.replay_client is not None:
+                            send_log(self, f'积分={self.abnormal_score},尝试触发中间重测机制')
+                            if not self.reboot_power():
+                                send_log(self, f'重启失败,后续场景{scenario_id}不再录制')
+                                break
 
                         self.wait_for_threading()
                         for invalid_scenario_id in self.invalid_scenario_list:
@@ -407,10 +408,11 @@ class ReplayController:
 
                 invalid_scenario_list = copy.deepcopy(self.invalid_scenario_list)
                 if self.replay_action['retest'] > 1 and len(invalid_scenario_list) > 0:
-                    send_log(self, f'{calib_checksum},触发最终重测机制')
-                    if not self.reboot_power():
-                        send_log(self, '重启失败,后续场景不再录制')
-                        break
+                    if self.replay_client is not None:
+                        send_log(self, f'{calib_checksum},尝试触发最终重测机制')
+                        if not self.reboot_power():
+                            send_log(self, '重启失败,后续场景不再录制')
+                            break
 
                     # 最后再将invalid的场景再测一次
                     self.wait_for_threading()
@@ -532,10 +534,6 @@ class ReplayController:
         self.thread_list.clear()
 
     def reboot_power(self):
-        if not self.replay_client:
-            send_log(self, f'没有replay client连接，不再重启电源')
-            return True
-
         self.reboot_count += 1
         for _ in range(3):
             self.replay_client.control_power('off')
