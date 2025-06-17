@@ -2,7 +2,7 @@
 @Author: BU YUJUN
 @Date: 2025/5/26 16:21  
 """
-
+import glob
 import os
 import shutil
 import sys
@@ -19,6 +19,7 @@ from Libs import get_project_path
 sys.path.append(get_project_path())
 from Utils.VideoProcess import convert_video_h265, gen_h265_timestamp, normalize_h265_startcodes
 from Utils.Libs import ros_docker_path, variables, kill_tmux_session_if_exists, project_path, get_folder_size
+from Utils.Libs import topic2camera
 
 
 class EthernetReplayDataGenerator:
@@ -34,10 +35,8 @@ class EthernetReplayDataGenerator:
         self.mapping = os.path.join(get_project_path(), 'Envs', 'Master', 'Modules', 'Can2Ros', 'config', 'CAN2ROS_ES37.csv')
         self.arxml = os.path.join(get_project_path(), 'Envs', 'Master', 'Modules', 'Can2Ros', 'config', '20240315-cgy-ES37_IPD_V6.0.arxml')
         self.config_path = os.path.join(self.file_path, 'Images', 'Config.yaml')
+        self.video_config = self.gen_config_file()
         self.parse_asc_data_path = os.path.join(self.file_path, 'ASCParseData')
-        with open(self.config_path, 'r', encoding='utf-8') as file:
-            self.video_config = yaml.safe_load(file)
-
         self.h265_config_path = os.path.join(os.path.dirname(self.config_path), 'H265.yaml')
         self.h265_config = {
             topic: {
@@ -48,6 +47,27 @@ class EthernetReplayDataGenerator:
 
         self.tmux_session = variables['tmux_node']['h265_gen'][0]
         self.tmux_window = variables['tmux_node']['h265_gen'][1]
+
+    def gen_config_file(self):
+        config = {}
+        for topic, camera_name in topic2camera.items():
+            video_list = glob.glob(os.path.join(self.file_path, 'Images', f'{camera_name}', f'*{camera_name}.mkv'))
+            if not len(video_list):
+                print(f'No video file found for {camera_name} in {self.file_path}')
+                return None
+            if len(video_list) > 1:
+                print(f'Multiple video files found for {camera_name} in {self.file_path}')
+                return None
+
+            config[topic] = {
+                'fps': 10,
+                'path': video_list[0],
+            }
+
+        with open(self.config_path, 'w', encoding='utf-8') as file:
+            yaml.dump(config, file)
+
+        return config
 
     def transfer_h265(self):
         for topic, info in self.video_config.items():
