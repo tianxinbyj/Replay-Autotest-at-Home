@@ -200,15 +200,15 @@ def parse_bench_config():
         return data[bench_id]
 
 
-def get_docker_path():
+def get_ros_docker_path():
     bench_config = parse_bench_config()
     if not bench_config:
         return None
 
-    docker_path = bench_config['Master']['docker_path']
-    if docker_path == 'self':
+    ros_docker_path = bench_config['Master']['ros_docker_path']
+    if ros_docker_path == 'self':
         return os.path.join(get_project_path(), 'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
-    return docker_path
+    return ros_docker_path
 
 def parse_test_encyclopaedia():
     test_encyclopaedia_yaml = os.path.join(get_project_path(), 'Docs', 'Resources', 'test_encyclopaedia.yaml')
@@ -286,7 +286,7 @@ def get_folder_size(folder_path: str) -> int:
 bench_id = get_bench_id()
 project_path = get_project_path()
 bench_config = parse_bench_config()
-docker_path = get_docker_path()
+ros_docker_path = get_ros_docker_path()
 test_encyclopaedia = parse_test_encyclopaedia()
 variables = parse_code_variables()
 
@@ -329,5 +329,15 @@ legend_font = {
     'weight': 'normal',
     'size': font_size * 0.8,
 }
+
 mpl_colors = ['#3682be', '#45a776', '#f05326', '#eed777', '#334f65', '#b3974e', '#38cb7d', '#ddae33', '#844bb3',
               '#93c555', '#5f6694', '#df3881'] * 2
+
+topic2camera = {
+    '/Camera/FrontWide/H265': 'CAM_FRONT_120',
+    '/Camera/SorroundRight/H265': 'CAM_FISHEYE_RIGHT',
+    '/Camera/SorroundLeft/H265': 'CAM_FISHEYE_LEFT',
+    '/Camera/SorroundFront/H265': 'CAM_FISHEYE_FRONT',
+    '/Camera/SorroundRear/H265': 'CAM_FISHEYE_BACK',
+    '/Camera/Rear/H265': 'CAM_BACK',
+}

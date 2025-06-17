@@ -6,7 +6,7 @@ Replay04:
     py_path: /home/appuser/PycharmProjects/Replay-Autotest-at-Home
     sys_interpreter: /home/appuser/PycharmProjects/Replay-Autotest-at-Home/.venv/bin/python3
     sil_pkg_path: /home/appuser/aeb_replay/sil
-    docker_path: /home/appuser/aeb_replay/docker_rolling/docker_rolling_hil.sh
+    ros_docker_path: /home/appuser/aeb_replay/docker_rolling/docker_rolling_hil.sh
   ReplayClient:
     ip: 10.192.68.115
     username: vcar
@@ -20,7 +20,7 @@ Replay03:
     password: admin
     py_path: /home/hp/Replay-Autotest-at-Home
     sys_interpreter: /home/hp/ZONE/PythonProject/base_interpreter/.venv/bin/python3
-    docker_path: /home/hp/docker_rolling.sh
+    ros_docker_path: /home/hp/docker_rolling.sh
   ReplayClient:
     ip: 10.192.68.115
     username: vcar
@@ -35,7 +35,7 @@ Replay02:
     py_path: /home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
     sil_pkg_path: /home/zhangliwei01/ZONE/sil_pkg/sil
-    docker_path: self
+    ros_docker_path: self
   ReplayClient:
     ip: 10.192.68.71
     username: vcar
@@ -49,7 +49,7 @@ Replay01:
     password: Pass1234
     py_path: /home/caobingqi/ZONE/PythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
-    docker_path: self
+    ros_docker_path: self
   ReplayClient:
     ip: 172.31.1.222
     username: vcar
@@ -63,7 +63,7 @@ Replay00:
     password: 123456
     py_path: /home/byj/ZONE/PythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
-    docker_path: self
+    ros_docker_path: self
   ReplayClient:
     ip: 10.192.68.71
     username: vcar

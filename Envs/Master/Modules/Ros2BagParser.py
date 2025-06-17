@@ -1059,7 +1059,9 @@ data_columns = {
     'qc_perception_msgs/msg/QcLines':
         [
             'local_time', 'time_stamp', 'header_stamp', 'header_seq',
-            'pose_x', 'pose_y', 'pose_z', 'yaw', 'pitch', 'roll',
+            'pose_x', 'pose_y', 'pose_z', 'yaw', 'pitch', 'roll', 'lane_id', 'confidence',
+            'position', 'c0', 'c1', 'c2', 'c3', 'start_x', 'start_y', 'lane_types_str',
+            'x_point_str', 'y_point_str',
         ],
     'occupany_perception_msgs/msg/ParkingOcc':
         [
@@ -1702,22 +1704,6 @@ class Ros2BagParser:
                             x_points.append(pt.x)
                             y_points.append(pt.y)
 
-                        # start_x = x_points[0]
-                        # start_y = y_points[0]
-                        #
-                        # c_x_0 = line3d_data.x_coeffs[0]
-                        # c_x_1 = line3d_data.x_coeffs[1]
-                        # c_x_2 = line3d_data.x_coeffs[2]
-                        # c_x_3 = line3d_data.x_coeffs[3]
-                        #
-                        # c_y_0 = line3d_data.y_coeffs[0]
-                        # c_y_1 = line3d_data.y_coeffs[1]
-                        # c_y_2 = line3d_data.y_coeffs[2]
-                        # c_y_3 = line3d_data.y_coeffs[3]
-                        #
-                        # end_x = x_points[points_num - 1]
-                        # width = 0.2
-
                         line_color = line3d_data.line_color
                         if line_type == 2:
                             line_marking = 2
@@ -2323,9 +2309,9 @@ class Ros2BagParser:
 
                 pkl_folder = os.path.join(self.folder, topic.replace('/', ''), f'{msg.timestamp}')
                 os.makedirs(pkl_folder, exist_ok=True)
-                voxels = extract_high_nibble(msg.score_class).reshape(256, 256)
-                lower_bound = msg.bottom_boundary.reshape(256, 256)
-                upper_bound = msg.up_boundary.reshape(256, 256)
+                voxels = extract_high_nibble(msg.score_class)[:61440].reshape(192, 320)
+                lower_bound = msg.bottom_boundary[:61440].reshape(192, 320)
+                upper_bound = msg.up_boundary[:61440].reshape(192, 320)
                 height = upper_bound - lower_bound
                 voxel_3d = reconstruct3d(voxels, lower_bound, upper_bound)
 
@@ -2850,7 +2836,7 @@ class Ros2BagParser:
                         x, y, z, vx, vy, yaw, length, width, height, age, track_status,
                     ])
 
-                    self.last_timestamp[topic] = time_stamp
+                self.last_timestamp[topic] = time_stamp
 
         elif topic in self.getTopics('qc_perception_msgs/msg/QcPose'):
             header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
@@ -2889,10 +2875,43 @@ class Ros2BagParser:
                 pitch = vehicle_pose.pose_pitch
                 roll = vehicle_pose.pose_roll
 
-                queue.put([
-                    local_time, time_stamp, header_stamp, header_seq,
-                    pose_x, pose_y, pose_z, yaw, pitch, roll,
-                ])
+                for bev_lane in msg.vehicle_bev_lanes:
+                    lane_id = bev_lane.lane_id
+                    confidence = bev_lane.confidence
+                    if confidence == 0 or lane_id == 0:
+                        continue
+
+                    c0 = bev_lane.c0
+                    c1 = bev_lane.c1
+                    c2 = bev_lane.c2
+                    c3 = bev_lane.c3
+                    start_x = bev_lane.start_point.x
+                    start_y = bev_lane.start_point.y
+                    position = bev_lane.lane_position_index
+
+                    lane_types, x_points, y_points = [], [], []
+                    last_type = ''
+                    for points in bev_lane.bev_lane_points:
+                        lane_type = points.bev_lane_type
+                        x_point = points.bev_point.x
+                        y_point = points.bev_point.y
+                        if x_point != 0 or y_point != 0:
+                            x_points.append(x_point)
+                            y_points.append(y_point)
+                            if lane_type != last_type:
+                                lane_types.append(str(lane_type))
+                                last_type = lane_type
+
+                    x_point_str = ','.join([f'{x:.3f}' for x in x_points])
+                    y_point_str = ','.join([f'{y:.3f}' for y in y_points])
+                    lane_types_str = ','.join(lane_types)
+
+                    queue.put([
+                        local_time, time_stamp, header_stamp, header_seq,
+                        pose_x, pose_y, pose_z, yaw, pitch, roll, lane_id, confidence,
+                        position, c0, c1, c2, c3, start_x, start_y, lane_types_str,
+                        x_point_str, y_point_str
+                    ])
 
                 self.last_timestamp[topic] = time_stamp
 
@@ -3131,32 +3150,38 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/byj/ZONE/TestProject/parking_debug/03_Workspace'
-    ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-05-16-36-22'
-    folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
+    workspace = '/home/appuser/aeb_replay/test_project/DEBUG/03_Workspace'
+    # ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-05-16-36-22'
+    # folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
+
+    ros2bag_path = '/home/appuser/aeb_replay/test_project/DEBUG/01_Prediction/20231130_152434_n000001/20231130_152434_n000001_2025-06-12-15-41-47'
+    folder = '/home/appuser/aeb_replay/test_project/DEBUG/01_Prediction/20231130_152434_n000001/RawData'
+
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
         # '/PI/EG/EgoMotionInfo',
         '/VA/VehicleMotionIpd',
         # '/VA/Lines',
-        '/VA/PK/Slots',
+        # '/VA/PK/Slots',
         '/PK/DR/Result',
         '/SA/INSPVA',
         # '/Camera/FrontWide/H265',
         '/PK/PER/VisionSlotDecodingList',
-        # '/VA/QC/BEVObstaclesTracks',
-        # '/VA/QC/MonoObstaclesTracks',
-        # '/VA/QC/FsObstacles',
-        # '/VA/QC/Lines',
+        '/VA/QC/BEVObstaclesTracks',
+        '/VA/QC/MonoObstaclesTracks',
+        '/VA/QC/FsObstacles',
+        '/VA/QC/Lines',
         # '/VA/QC/Objects',
-        # '/VA/QC/Pose',
-        '/VA/PK/Slots',
-        '/VA/PK/BevObstaclesDet',
-        '/VA/PK/Obstacles',
-        '/LP/ParkingOcc',
-        '/PK/PER/FSDecodingList',
-        '/VA/PK/Freespaces',
+        '/VA/QC/Pose',
+        # '/VA/PK/Slots',
+        # '/VA/PK/BevObstaclesDet',
+        # '/VA/PK/Obstacles',
+        # '/LP/ParkingOcc',
+        # '/PK/PER/FSDecodingList',
+        # '/VA/PK/Freespaces',
     ]
 
     RBP = Ros2BagParser(workspace)
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')
+    # RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')
+
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20231130_152434_n000001')

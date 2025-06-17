@@ -11,7 +11,7 @@ from Libs import get_project_path
 sys.path.append(get_project_path())
 
 from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists
-from Utils.Libs import variables, docker_path
+from Utils.Libs import variables, ros_docker_path
 
 
 class Ros2BagRecorder:
@@ -57,7 +57,7 @@ class Ros2BagRecorder:
         os.makedirs(parser_folder)
 
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
-        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {docker_path}" C-m')
+        os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {ros_docker_path}" C-m')
         os.system('sleep 3')
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "cd {work_folder}" C-m')
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '

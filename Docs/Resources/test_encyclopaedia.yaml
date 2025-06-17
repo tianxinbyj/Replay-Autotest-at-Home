@@ -1797,7 +1797,6 @@ Information:
       /VA/QC/FsObstacles: Q感知后处理
       /PI/FS/ObjTracksHorizon: 感知融合
       /VA/BevObstaclesDet: 感知BEV模型
-      /pre_gt2eval0609: 感知pre_gt2eval0609
       /VA/QC/BEVObstaclesTracks: Q感知BEV模型
       /VA/QC/MonoObstaclesTracks: Q感知Mono模型
       /VA/FrontWideObstacles2dDet: 感知Front模型
@@ -1834,6 +1833,7 @@ Information:
     - width
     - height
     additional_column:
+    - ecu_time_stamp
     - type_classification
     - road_user
     - distance

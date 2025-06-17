@@ -33,3 +33,5 @@ open3d
 opencv-python-headless~=4.10.0.84
 opencv-contrib-python-headless~=4.7.0.72
 psutil
+python-can
+cantools
