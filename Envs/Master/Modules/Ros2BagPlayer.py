@@ -44,7 +44,7 @@ class Ros2BagPlayer:
         time.sleep(0.1)
 
         os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} "bash {ros_docker_path}" C-m')
-        os.system('sleep 3')
+        time.sleep(3)
         os.system(f'tmux send-keys -t {self.play_tmux_session}:{self.play_tmux_window} '
                   f'"source {self.install}/setup.bash" C-m')
 
@@ -92,7 +92,7 @@ class Ros2BagPlayer:
         time.sleep(0.1)
 
         os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "bash {ros_docker_path}" C-m')
-        os.system('sleep 3')
+        time.sleep(3)
 
         sil_pkg_path = bench_config['Master']['sil_pkg_path']
         os.system(f'tmux send-keys -t {self.sil_tmux_session}:{self.sil_tmux_window} "cd {sil_pkg_path}" C-m')
