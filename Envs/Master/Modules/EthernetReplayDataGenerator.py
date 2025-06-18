@@ -130,9 +130,9 @@ class EthernetReplayDataGenerator:
         with open(self.h265_config_path, 'r', encoding='utf-8') as file:
             h265_config = yaml.safe_load(file)
 
-        # for topic in h265_config:
-        #     os.remove(h265_config[topic]['H265_path'])
-        #     os.remove(h265_config[topic]['timestamp_path'])
+        for topic in h265_config:
+            os.remove(h265_config[topic]['H265_path'])
+            os.remove(h265_config[topic]['timestamp_path'])
 
         # os.remove(self.h265_config_path)
 
@@ -218,13 +218,16 @@ class EthernetReplayDataGenerator:
 
 
 if __name__ == '__main__':
-    t0 = time.time()
-    file_name = '/home/hp/bevlane/20250115_142321_n000001'
-    install_path = '/home/hp/artifacts/TEST/install_0610_bevlane/install'
-    ee = EthernetReplayDataGenerator(file_name, install_path)
-    ee.transfer_h265()
-    ee.gen_h265_db3()
-    ee.stop()
-    ee.can_to_ros_bag()
-    ee.combine()
+    file_path_list = ['/home/hp/temp/20231130_182612_n000001', '/home/hp/temp/20231130_184025_n000001', '/home/hp/temp/20240118_110536_n000001', '/home/hp/temp/20240118_133925_n000001', '/home/hp/temp/20240118_133925_n000002', '/home/hp/temp/20240118_140210_n000001']
+    for file_name in file_path_list:
+        t0 = time.time()
+        # file_name = '/home/hp/temp/20250324_144918_n000001'
+        install_path = '/home/hp/artifacts/ZPD_EP39/4.3.0_RC11/install'
+        ee = EthernetReplayDataGenerator(file_name, install_path, True)
+        ee.transfer_h265()
+        ee.gen_h265_db3()
+        ee.stop()
+        ee.can_to_ros_bag()
+        ee.combine()
+    # ee.generate_bev_view()
     # print(time.time() - t0)
