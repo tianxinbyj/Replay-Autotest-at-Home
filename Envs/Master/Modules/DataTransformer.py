@@ -5,13 +5,18 @@
 import glob
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
 from datetime import datetime
 
 import pandas as pd
+import psutil
 import yaml
+
+from Envs.Master.Modules.Can2Ros.arxml_asc_parser import asc_parser
+from Envs.Master.Modules.Ros2Bag2BirdView import Ros2Bag2BirdView
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from Libs import get_project_path
@@ -24,6 +29,14 @@ from Utils.Libs import topic2camera
 class DataTransformer:
 
     def __init__(self, install_path=None):
+        self.parse_asc_data_file_name = 'ASCParseData'
+        self.ros2bag_ins_name = os.path.join('ROSBAG', 'ROSBAG_INS')
+        self.ros2bag_h265_name = os.path.join('ROSBAG', 'ROSBAG_H265')
+        self.ros2bag_combine_name = os.path.join('ROSBAG', 'COMBINE')
+        self.can_file_name = 'CAN_Trace'
+        self.csv = os.path.join(get_project_path(), 'Envs', 'Master', 'Modules', 'Can2Ros', 'config', 'CAN_Signal.csv')
+        self.mapping = os.path.join(get_project_path(), 'Envs', 'Master', 'Modules', 'Can2Ros', 'config', 'CAN2ROS_ES37.csv')
+        self.arxml = os.path.join(get_project_path(), 'Envs', 'Master', 'Modules', 'Can2Ros', 'config', '20240315-cgy-ES37_IPD_V6.0.arxml')
         self.install_path = install_path
         self.tmux_session = variables['tmux_node']['h265_gen'][0]
         self.tmux_window = variables['tmux_node']['h265_gen'][1]
@@ -138,7 +151,7 @@ class DataTransformer:
 
             h265_config[topic] = {
                 'timestamp_path': timestamp_path,
-                'H265_path': h265_path,
+                'H265_path': normalized_h265_path,
             }
 
         with open(video_config_path, 'w', encoding='utf-8') as file:
@@ -187,22 +200,94 @@ class DataTransformer:
             os.remove(h265_config[topic]['H265_path'])
             os.remove(h265_config[topic]['timestamp_path'])
 
-    def kunyiCan_to_db3(self, kunyi_package_path, db3_path):
-        can_file_path = os.path.join(kunyi_package_path, 'CAN_Trace')
-        if not os.path.exists(can_file_path):
-            print(f'{kunyi_package_path} <UNK>')
-            return None
+    def kunyiCan_to_db3(self, install_path, kunyi_package_path):
+        def check_process():
+            return any(
+                proc.info['name'] == 'python3' and 'can_to_ros_bag.py' in ' '.join(proc.info['cmdline'] or [])
+                for proc in psutil.process_iter(['name', 'cmdline'])
+            )
 
-    def combine_db3(self, db3_list, combine_db3_path):
-        pass
+        def wait_for_parse_end():
+            while check_process():
+                time.sleep(10)
+            return True
 
-    def gen_AVM_from_db3(self, db3_path, avm_folder):
-        pass
+        def convert_can_to_ros(dirpath, csv_path, mapping_path, arxml_path, install_path, ros_bag_path):
+            print(f"文件路径: {dirpath}")
+            ros2_bag_name = ros_bag_path
+            asc_data_path = asc_parser(dirpath, csv_path, arxml_path)
+            script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Can2Ros')
+            os.system(
+                f'cd {script_path}; python3 can_to_ros_bag_api.py -i {install_path} -m {mapping_path} -d {asc_data_path} -n {ros2_bag_name}')
+            time.sleep(2)
+        parse_asc_data_path = os.path.join(kunyi_package_path, self.parse_asc_data_file_name)
+        ros2bag_ins_path = os.path.join(kunyi_package_path, self.ros2bag_ins_name)
+        can_file_path = os.path.join(kunyi_package_path, self.can_file_name)
+        if os.path.exists(parse_asc_data_path):
+            shutil.rmtree(parse_asc_data_path)
+        if os.path.exists(ros2bag_ins_path):
+            shutil.rmtree(ros2bag_ins_path)
+        os.makedirs(parse_asc_data_path)
+        kill_tmux_session_if_exists('write_ros2_bag')
+        convert_can_to_ros(can_file_path, self.csv, self.mapping, self.arxml, install_path, ros2bag_ins_path)
+        time.sleep(5)
+        wait_for_parse_end()
+        kill_tmux_session_if_exists('write_ros2_bag')
+        if os.path.exists(parse_asc_data_path):
+            shutil.rmtree(parse_asc_data_path)
+
+    def combine_db3(self, kunyi_package_path):
+        ros2bag_ins_path = os.path.join(kunyi_package_path, self.ros2bag_ins_name)
+        ros2bag_h265_path = os.path.join(kunyi_package_path, self.ros2bag_h265_name)
+        ros2bag_combine_path = os.path.join(kunyi_package_path, self.ros2bag_combine_name)
+        input_bags = [ros2bag_h265_path, ros2bag_ins_path]
+        output_bag = ros2bag_combine_path
+        tmux_session = 'combine_session'
+        tmux_window = 'combine_session_windows'
+        kill_tmux_session_if_exists(tmux_session)
+        os.system(f'tmux new-session -s {tmux_session} -n {tmux_window} -d')
+        time.sleep(0.1)
+
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "bash {ros_docker_path}" C-m')
+        os.system('sleep 3')
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
+                  f'"source {self.install_path}/setup.bash" C-m')
+
+        py_path = os.path.join(project_path, 'Envs', 'Master', 'Modules', 'Can2Ros')
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
+                  f'"cd {py_path}" C-m')
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
+                  f'"python3 CombineRosBag.py -i {" ".join(input_bags)} -o {output_bag}" C-m')
+        # 判断合并是否完成
+        while True:
+            time.sleep(1)
+            running = any(
+                proc.info['name'] == 'python3' and 'CombineRosBag.py' in ' '.join(proc.info['cmdline'] or [])
+                for proc in psutil.process_iter(['name', 'cmdline'])
+            )
+            if not running:
+                kill_tmux_session_if_exists(tmux_session)
+                break
+        # 删除两个rosbag包
+        if os.path.exists(ros2bag_ins_path):
+            shutil.rmtree(ros2bag_ins_path)
+        if os.path.exists(ros2bag_h265_path):
+            shutil.rmtree(ros2bag_h265_path)
+
+    def gen_AVM_from_db3(self, install_path, kunyi_package_path):
+        bev_object = Ros2Bag2BirdView(install_path, kunyi_package_path)
+        bev_object.extract_h265_raw_streams()
+        bev_object.extract_frames_from_h265()
+
 
 
 if __name__ == '__main__':
-    install_path = '/home/zhangliwei01/ZONE/TestProject/EP39/EP39_AD_4.3.0_RC24_ENG/03_Workspace/install'
-    qqq = DataTransformer(install_path)
-    kunyi_package_path = '/home/zhangliwei01/ZONE/manual_scenario/20240119_145625_n000001'
-    h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
-    qqq.h265_to_db3(h265_config_path, '/home/zhangliwei01/ZONE/manual_scenario/temp')
+    install_path = '/home/hp/artifacts/ZPD_EP39/4.3.0_RC11/install'
+    qqq = DataTransformer()
+    kunyi_package_path = '/home/hp/temp/20240123_145155_n000003'
+    # h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
+    # db3_path = os.path.join(kunyi_package_path, qqq.ros2bag_h265_name)
+    # qqq.h265_to_db3(h265_config_path, db3_path)
+    # qqq.kunyiCan_to_db3(install_path, kunyi_package_path)
+    # qqq.combine_db3(kunyi_package_path)
+    qqq.gen_AVM_from_db3(install_path, kunyi_package_path)
