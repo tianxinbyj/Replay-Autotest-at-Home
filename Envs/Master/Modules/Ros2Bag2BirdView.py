@@ -1,21 +1,19 @@
-import csv
+import copy
 import glob
 import json
-import multiprocessing as mp
 import os
-import pickle
+
 import shutil
-import subprocess
-import time
-import warnings
+
 from pathlib import Path
 
 import cv2
+from pandas.io.common import file_path_to_url
 from rosbags.rosbag2 import Reader, Writer
 from rosbags.typesys import Stores, get_typestore
-from rosbags.typesys import get_types_from_msg, register_types
+from rosbags.typesys import get_types_from_msg
 
-from Envs.ReplayClient.Modules.BirdEyeView import h265_bev, euler2matrix, vector2matrix, matrix2euler, \
+from Envs.ReplayClient.Modules.BirdEyeView import euler2matrix, vector2matrix, matrix2euler, \
     DistortCameraObject, BirdEyeView
 from Utils.Libs import get_project_path
 import numpy as np
@@ -25,40 +23,51 @@ from scipy.spatial.transform import Rotation
 class Ros2Bag2BirdView:
 
     def __init__(self, workspace, filepath):
+        self.timestamp_topic = '/Camera/FrontWide/H265'
+        self.skip_frames = {
+            'SorroundFront': 0,
+            'SorroundRear': 0,
+            'SorroundLeft': 0,
+            'SorroundRight': 0,
+            'Rear': 0,
+            'FrontWide': 2
+        }
         # self.skip_frames = {
         #     'SorroundFront': 7,
         #     'SorroundRear': 7,
         #     'SorroundLeft': 7,
         #     'SorroundRight': 7,
-        #     'Rear': 5
+        #     'Rear': 4
         # }
-        self.skip_frames = {
-            'SorroundFront': 7,
-            'SorroundRear': 7,
-            'SorroundLeft': 7,
-            'SorroundRight': 7,
-            'Rear': 4
-        }
-        self.timestamp = {}
+        # self.skip_frames = {
+        #     'SorroundFront': 0,
+        #     'SorroundRear': 0,
+        #     'SorroundLeft': 0,
+        #     'SorroundRight': 0,
+        #     'Rear': 0,
+        #     'FrontWide': 0
+        # }
+        self.timestamp = []
         self.distort_camera_dict = {}
         self.image_count = 0
         self.file_path = filepath
         self.rosbag_path = os.path.join(self.file_path, 'ROSBAG', 'COMBINE')
         self.bev_path = os.path.join(self.file_path, 'PICTURE', 'BIRD_VIEW')
         self.jpg_path = os.path.join(self.file_path, 'PICTURE', 'FRAME')
-        self.calibration_json = os.path.join(self.file_path, 'Config', '20250324_144918_calibration.json')
+        self.calibration_json = glob.glob(os.path.join(self.file_path, 'Config', '*calibration.json'))[0]
         self.bev_obj = self.getBevObj()
         if not os.path.exists(self.rosbag_path):
             raise FileNotFoundError(f"{self.rosbag_path}不存在")
         self.h265_path = os.path.join(self.file_path, 'ROSBAG', 'H265')
         self.picture_path = os.path.join(self.file_path, 'PICTURE')
         self.struct_dict = None
-        self.topic_info ={'/Camera/FrontWide/H265':  'sensor_msgs/msg/CompressedImage'
-                    , '/Camera/SorroundRight/H265': 'sensor_msgs/msg/CompressedImage'
-                    , '/Camera/SorroundLeft/H265': 'sensor_msgs/msg/CompressedImage',
-                          '/Camera/SorroundFront/H265': 'sensor_msgs/msg/CompressedImage',
-                          '/Camera/SorroundRear/H265': 'sensor_msgs/msg/CompressedImage',
-                          '/Camera/Rear/H265': 'sensor_msgs/msg/CompressedImage'
+        self.topic_info ={
+            '/Camera/FrontWide/H265':  'sensor_msgs/msg/CompressedImage',
+            '/Camera/SorroundRight/H265': 'sensor_msgs/msg/CompressedImage',
+            '/Camera/SorroundLeft/H265': 'sensor_msgs/msg/CompressedImage',
+            '/Camera/SorroundFront/H265': 'sensor_msgs/msg/CompressedImage',
+            '/Camera/SorroundRear/H265': 'sensor_msgs/msg/CompressedImage',
+            '/Camera/Rear/H265': 'sensor_msgs/msg/CompressedImage'
         }
         self.last_timestamp = None
         self.frame_id_saver = None
@@ -169,6 +178,8 @@ class Ros2Bag2BirdView:
             self.extract_h265_raw_stream(self.rosbag_path, os.path.join(self.h265_path, f'{h265_name}.h265'), topic)
             if topic == '/Camera/FrontWide/H265':
                 self.gen_timestamp(self.rosbag_path, topic)
+        self.cal_frame_skip(self.rosbag_path, self.topic_info.keys())
+
 
 
     def extract_frames_from_h265(self):
@@ -197,7 +208,27 @@ class Ros2Bag2BirdView:
             for connection, timestamp, rawdata in reader.messages():
                 if connection.topic == image_topic:
                     msg = self.typestore.deserialize_cdr(rawdata, connection.msgtype)
-                    self.timestamp[msg.header.frame_id.split('_')[-1]] = msg.header.stamp.sec * 1e9+ msg.header.stamp.nanosec
+                    self.timestamp.append(msg.header.stamp.sec * 1e9+ msg.header.stamp.nanosec)
+
+
+    def cal_frame_skip(self, bag_path, topic_list):
+        topic_start_time = self.skip_frames
+        topic_list_copy = copy.deepcopy(list(topic_list))
+        with Reader(bag_path) as reader:
+            for connection, timestamp, rawdata in reader.messages():
+                if connection.topic in topic_list_copy:
+                    msg = self.typestore.deserialize_cdr(rawdata, connection.msgtype)
+                    timestamp = msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec
+                    topic_start_time[connection.topic.split('/')[2]] = timestamp
+                    topic_list_copy.remove(connection.topic)
+                    if len(topic_list_copy) == 0:
+                        break
+        max_start_time = max(topic_start_time.values())
+        for key, value in topic_start_time.items():
+            self.skip_frames[key] = int((max_start_time - value) / 1e8)
+        if self.timestamp_topic.split('/')[2] in self.skip_frames and self.skip_frames[self.timestamp_topic.split('/')[2]] != 0:
+            self.timestamp = self.timestamp[self.skip_frames[self.timestamp_topic.split('/')[2]]:]
+
 
 
     def extract_h265_raw_stream(self, bag_path, output_h265_path, image_topic):
@@ -268,13 +299,14 @@ class Ros2Bag2BirdView:
         os.makedirs(bev_folder)
         while True:
             bev_file_num = len(glob.glob(os.path.join(bev_folder, "*.jpg")) + glob.glob(os.path.join(bev_folder, "*.JPG")))
-            if bev_file_num == len(self.timestamp):
+            if bev_file_num >= len(self.timestamp):
                 break
             if os.path.exists(self.jpg_path):
                 shutil.rmtree(self.jpg_path)
             os.makedirs(self.jpg_path)
             for name, cap in caps.items():
                 skipped= self.skip_initial_frames(cap, name, frame_count)
+                # skipped = False
                 if skipped:
                     print(f"跳过了{name}摄像头的第{frame_count}帧")
                     continue
@@ -299,7 +331,7 @@ class Ros2Bag2BirdView:
                 for camera in self.distort_camera_dict.keys():
                     images[camera] = os.path.join(self.jpg_path, f'{camera}.jpg')
                 bev_jpg_path = self.bev_obj.getBev(images, bev_folder, rect_pts=None)
-                os.rename(bev_jpg_path, os.path.join(os.path.dirname(bev_jpg_path), f'{self.timestamp[str(frame_count-skip_frame_max-1)]:.0f}_BEV.jpg'))
+                os.rename(bev_jpg_path, os.path.join(os.path.dirname(bev_jpg_path), f'{self.timestamp[frame_count-skip_frame_max-1]:.0f}_BEV.jpg'))
             shutil.rmtree(self.jpg_path)
             # 显示进度
             if (frame_count-skip_frame_max-1) % 100 == 0:
@@ -317,7 +349,7 @@ class Ros2Bag2BirdView:
         # frames_to_skip = skip_frames.get(camera_name, float('inf'))
 
         # 如果当前帧计数小于等于需要跳过的帧数，则跳过
-        if camera_name in self.skip_frames.keys() and frame_count <= self.skip_frames[camera_name]:
+        if camera_name in self.skip_frames.keys() and self.skip_frames[camera_name] != 0 and frame_count + 1 <= self.skip_frames[camera_name]:
             ret, frame = cap.read()  # 读取并丢弃帧
             return True  # 返回True表示跳过了帧
 
@@ -376,16 +408,17 @@ class Ros2Bag2BirdView:
                 break
             for name, cap in caps.items():
                 skipped= self.skip_initial_frames(cap, name, frame_count)
+                # skipped = False
                 if skipped:
                     print(f"跳过了{name}摄像头的第{frame_count}帧")
                     continue
                 elif frame_count > skip_frame_max:
-                    time_stamp = str(self.timestamp[str(frame_count - skip_frame_max - 1)])
+                    time_stamp = str(self.timestamp[frame_count - skip_frame_max - 1])
                     ret, frame = cap.read()
                     if not ret:
                         break
                     # 构建输出文件名
-                    if 1742799302000000000 < int(float(time_stamp)) < 1742799304000000000:
+                    if 1701329127834000128 < int(float(time_stamp)) < 1701329129834000128:
                         if not os.path.exists(os.path.join(self.jpg_path, time_stamp)):
                             os.makedirs(os.path.join(self.jpg_path, time_stamp))
                         frame_filename = f"{file_name[name]}.{format}"
@@ -419,12 +452,14 @@ class Ros2Bag2BirdView:
 
 
 if __name__ == '__main__':
-    file_path = '/home/hp/temp/20250324_144918_n000002/'
-    install_path = '/home/hp/artifacts/ZPD_EP39/4.3.0_RC11/install'
-    # bev_folder = os.path.join(file_path, 'PICTURE', 'BIRD_VIEW')
-    # bev_file_num = len(glob.glob(os.path.join(bev_folder, "*.jpg")) + glob.glob(os.path.join(bev_folder, "*.JPG")))
-    r = Ros2Bag2BirdView(install_path, file_path)
-    r.extract_h265_raw_streams()
-    # print(len(r.timestamp))
-    # r.extract_h265_raw_stream('/home/hp/temp/20250324_144918_n000001/ROSBAG/COMBINE', '/home/hp/ZHX/read_can_signal/h265', '/Camera/FrontWide/H265')
-    r.extract_frames_from_h265()
+    file_path_list = ['/home/hp/temp/20231130_152434_n000001']
+    for file_path in file_path_list:
+        # file_path = '/home/hp/temp/20250324_144918_n000001/'
+        install_path = '/home/hp/artifacts/ZPD_EP39/4.3.0_RC11/install'
+        # bev_folder = os.path.join(file_path, 'PICTURE', 'BIRD_VIEW')
+        # bev_file_num = len(glob.glob(os.path.join(bev_folder, "*.jpg")) + glob.glob(os.path.join(bev_folder, "*.JPG")))
+        r = Ros2Bag2BirdView(install_path, file_path)
+        r.extract_h265_raw_streams()
+        # print(len(r.timestamp))
+        # r.extract_h265_raw_stream('/home/hp/temp/20250324_144918_n000001/ROSBAG/COMBINE', '/home/hp/ZHX/read_can_signal/h265', '/Camera/FrontWide/H265')
+        r.extract_frames_from_h265()
