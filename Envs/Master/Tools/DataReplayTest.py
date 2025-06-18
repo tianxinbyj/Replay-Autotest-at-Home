@@ -21,6 +21,7 @@ class DataReplayTest:
 
         # 寻找所有TestConfig.yaml
         test_config_yaml_list = glob.glob(os.path.join(test_project_path, '04_TestData', '*', 'TestConfig.yaml'))
+        send_log(self, 'test_config_yaml_list: ' + str(test_config_yaml_list))
         if not test_config_yaml_list:
             send_log(self, '未找到TestConfig.yaml文件！')
             return

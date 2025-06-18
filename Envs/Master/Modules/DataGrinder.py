@@ -4906,7 +4906,7 @@ class DataGrinderSlotsOneCase(DataGrinderOneCase):
     def __init__(self, scenario_unit_folder):
         super().__init__(scenario_unit_folder)
         self.cut_frame_offset = 0
-        self.sync_delta_offset = -1.1
+        self.sync_delta_offset = 0
 
 
 class DataGrinderSlotsOneTask(DataGrinderOneTask):

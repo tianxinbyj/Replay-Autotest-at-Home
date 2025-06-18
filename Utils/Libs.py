@@ -297,7 +297,7 @@ def force_delete_folder(folder_path):
     os.system(f'tmux new-session -s {tmux_session} -n {tmux_window} -d')
     time.sleep(0.1)
     os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "sudo rm -r {folder_path}" C-m')
-    time.sleep(3)
+    time.sleep(1)
     os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "{password}" C-m')
     t0 = time.time()
     while os.path.exists(folder_path):
