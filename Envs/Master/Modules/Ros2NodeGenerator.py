@@ -53,7 +53,7 @@ class Ros2NodeGenerator:
         kill_tmux_session_if_exists(self.tmux_session)
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {ros_docker_path}" C-m')
-        os.system('sleep 3')
+        time.sleep(3)
 
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
                   f'"source {self.install_folder}/setup.bash" C-m')

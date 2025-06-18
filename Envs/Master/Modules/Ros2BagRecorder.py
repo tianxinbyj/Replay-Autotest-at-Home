@@ -58,7 +58,7 @@ class Ros2BagRecorder:
 
         os.system(f'tmux new-session -s {self.tmux_session} -n {self.tmux_window} -d')
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "bash {ros_docker_path}" C-m')
-        os.system('sleep 3')
+        time.sleep(3)
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} "cd {work_folder}" C-m')
         os.system(f'tmux send-keys -t {self.tmux_session}:{self.tmux_window} '
                   f'"source {self.install}/setup.bash" C-m')

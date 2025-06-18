@@ -388,7 +388,7 @@ class ReplayController:
                     self.replay_one_scenario(calib_checksum, scenario_id)
 
                     # 积分触发重启控制器，并将invalid场景的数据删除重新测试
-                    if self.replay_action['retest'] > 1 and self.abnormal_score > 5 and self.reboot_count <= 10:
+                    if self.replay_action['retest'] > 1 and self.abnormal_score > 5 and self.reboot_count <= 25:
                         if self.replay_client is not None:
                             send_log(self, f'积分={self.abnormal_score},尝试触发中间重测机制')
                             if not self.reboot_power():

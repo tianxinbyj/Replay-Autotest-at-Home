@@ -35,3 +35,5 @@ opencv-contrib-python-headless~=4.7.0.72
 psutil
 python-can
 cantools
+boto3
+botocore

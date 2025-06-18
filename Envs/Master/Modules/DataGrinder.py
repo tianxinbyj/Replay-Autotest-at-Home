@@ -709,6 +709,7 @@ class DataGrinderOneCase:
         send_log(self, f'{self.test_topic} GroundTruth 预处理步骤 {preprocess_instance.preprocess_types}')
         data = pd.read_csv(self.get_abspath(raw['gt_data']), index_col=False)
         data = data[(data['time_stamp'] <= time_end) & (data['time_stamp'] >= time_start)]
+        data['ecu_time_stamp'] = data['time_stamp'] - time_gap
         path = os.path.join(additional_folder, 'gt_data.csv')
         data.to_csv(path, index=False, encoding='utf_8_sig')
         self.test_result[self.test_topic]['GroundTruth']['additional']['gt_data'] = {}
@@ -4905,7 +4906,7 @@ class DataGrinderSlotsOneCase(DataGrinderOneCase):
     def __init__(self, scenario_unit_folder):
         super().__init__(scenario_unit_folder)
         self.cut_frame_offset = 0
-        self.sync_delta_offset = -1.1
+        self.sync_delta_offset = 0
 
 
 class DataGrinderSlotsOneTask(DataGrinderOneTask):

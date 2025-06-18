@@ -10,8 +10,8 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import time
-
 import yaml
 
 
@@ -210,6 +210,7 @@ def get_ros_docker_path():
         return os.path.join(get_project_path(), 'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
     return ros_docker_path
 
+
 def parse_test_encyclopaedia():
     test_encyclopaedia_yaml = os.path.join(get_project_path(), 'Docs', 'Resources', 'test_encyclopaedia.yaml')
     with open(test_encyclopaedia_yaml, 'r', encoding='utf-8') as file:
@@ -281,6 +282,33 @@ def get_folder_size(folder_path: str) -> int:
     except OSError as e:
         print(f"错误访问文件夹 {folder_path}: {e}", file=sys.stderr)
     return total_size
+
+
+def force_delete_folder(folder_path):
+    if not os.path.exists(folder_path):
+        print(f'不存在{folder_path}, 不需要删除')
+        return None
+
+    tmux_session = 'temp_session'
+    tmux_window = 'temp_windows'
+    password = parse_bench_config()['Master']['password']
+
+    kill_tmux_session_if_exists(tmux_session)
+    os.system(f'tmux new-session -s {tmux_session} -n {tmux_window} -d')
+    time.sleep(0.1)
+    os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "sudo rm -r {folder_path}" C-m')
+    time.sleep(1)
+    os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "{password}" C-m')
+    t0 = time.time()
+    while os.path.exists(folder_path):
+        time.sleep(1)
+        if time.time() - t0 > 10:
+            kill_tmux_session_if_exists(tmux_session)
+            print(f'{folder_path} 删除失败')
+            return None
+
+    kill_tmux_session_if_exists(tmux_session)
+    print(f'{folder_path} 删除成功')
 
 
 bench_id = get_bench_id()
