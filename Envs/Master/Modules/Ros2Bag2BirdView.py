@@ -47,6 +47,14 @@ class Ros2Bag2BirdView:
         #     'Rear': 0,
         #     'FrontWide': 0
         # }
+        self.total_frames = {
+            'SorroundFront': 0,
+            'SorroundRear': 0,
+            'SorroundLeft': 0,
+            'SorroundRight': 0,
+            'Rear': 0,
+            'FrontWide': 2
+        }
         self.timestamp = []
         self.distort_camera_dict = {}
         self.image_count = 0
@@ -247,7 +255,7 @@ class Ros2Bag2BirdView:
 
                         if count % 100 == 0:
                             print(f"已处理 {count} 帧")
-
+        self.total_frames[image_topic.split('/')[2]] = count
         print(f"处理完成! 共写入 {count} 帧到 {output_h265_path}")
 
 
@@ -278,7 +286,7 @@ class Ros2Bag2BirdView:
             caps[h265_name] = cap
             # 获取视频信息
             print(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            total_frames =  self.total_frames[h265_name.split('.')[0]]
             fps = cap.get(cv2.CAP_PROP_FPS)
             print(f"视频信息: {total_frames} 帧, {fps:.2f} FPS")
 
@@ -297,10 +305,7 @@ class Ros2Bag2BirdView:
         if os.path.exists(bev_folder):
             shutil.rmtree(bev_folder)
         os.makedirs(bev_folder)
-        while True:
-            bev_file_num = len(glob.glob(os.path.join(bev_folder, "*.jpg")) + glob.glob(os.path.join(bev_folder, "*.JPG")))
-            if bev_file_num >= len(self.timestamp):
-                break
+        for i in range(min(self.total_frames.values())):
             if os.path.exists(self.jpg_path):
                 shutil.rmtree(self.jpg_path)
             os.makedirs(self.jpg_path)
@@ -335,7 +340,7 @@ class Ros2Bag2BirdView:
             shutil.rmtree(self.jpg_path)
             # 显示进度
             if (frame_count-skip_frame_max-1) % 100 == 0:
-                print(f"已处理: {frame_count-skip_frame_max-1}/{len(self.timestamp)}帧 ")
+                print(f"已处理: {frame_count-skip_frame_max-1}/{min(self.total_frames.values())}帧 ")
 
             frame_count += 1
         for name, cap in caps.items():
@@ -452,7 +457,7 @@ class Ros2Bag2BirdView:
 
 
 if __name__ == '__main__':
-    file_path_list = ['/home/hp/temp/20231130_152434_n000001']
+    file_path_list = ['/home/zhangliwei01/ZONE/manual_scenario/20240119_145625_n000004']
     for file_path in file_path_list:
         # file_path = '/home/hp/temp/20250324_144918_n000001/'
         install_path = '/home/hp/artifacts/ZPD_EP39/4.3.0_RC11/install'

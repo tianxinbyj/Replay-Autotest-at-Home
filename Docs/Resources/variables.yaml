@@ -11,5 +11,8 @@ tmux_node:
   h265_gen:
     - ses_h265
     - win_h265
+  q_parse:
+    - ses_q
+    - win_q
 udp_port:
   master_log: 20008
