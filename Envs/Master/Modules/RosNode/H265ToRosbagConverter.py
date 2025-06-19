@@ -39,6 +39,8 @@ class H265ToRosbagConverter:
         )
         self.writer.open(storage_options, converter_options)
 
+        if 'h265_temp' in h265_config:
+            del h265_config['h265_temp']
         # 创建Topic信息
         for topic in h265_config:
             topic_metadata = TopicMetadata(
@@ -55,34 +57,40 @@ class H265ToRosbagConverter:
                 self.write_to_bag(topic, frame, i, timestamp)
 
     def parse_h265_frames(self, h265_path):
-        """解析H.265裸流文件，分离出各帧"""
-        with open(h265_path, 'rb') as f:
-            data = f.read()
 
         frames = []
-        start = 0
+        if not isinstance(h265_path, list):
+            # 解析H.265裸流文件，分离出各帧
+            with open(h265_path, 'rb') as f:
+                data = f.read()
 
-        # 查找NAL单元起始码 (0x00000001),
-        # 需要合并非00 00 00 01 02开头的（非关键帧 (P/B 帧)）
-        one_frame = b''
-        while True:
-            # 查找下一个起始码
-            pos = data.find(b'\x00\x00\x00\x01', start + 1)
-            if pos == -1:
-                # 添加最后一帧
-                one_frame += data[start:]
-                frames.append(one_frame)
-                break
-            # 添加当前帧
-            f = data[start:pos]
-            if f[4] != 2:
-                one_frame += f
-            else:
-                if len(one_frame):
+            start = 0
+            # 查找NAL单元起始码 (0x00000001),
+            # 需要合并非00 00 00 01 02开头的（非关键帧 (P/B 帧)）
+            one_frame = b''
+            while True:
+                # 查找下一个起始码
+                pos = data.find(b'\x00\x00\x00\x01', start + 1)
+                if pos == -1:
+                    # 添加最后一帧
+                    one_frame += data[start:]
                     frames.append(one_frame)
-                frames.append(data[start:pos])
-                one_frame = b''
-            start = pos
+                    break
+                # 添加当前帧
+                f = data[start:pos]
+                if f[4] != 2:
+                    one_frame += f
+                else:
+                    if len(one_frame):
+                        frames.append(one_frame)
+                    frames.append(data[start:pos])
+                    one_frame = b''
+                start = pos
+
+        else:
+            for h265_file in h265_path:
+                with open(h265_file, 'rb') as f:
+                    frames.append(f.read())
 
         return frames
 

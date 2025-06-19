@@ -430,6 +430,7 @@ class DataGrinderOneCase:
         width = 1400
         height = round(width * fig_size[self.test_topic][1] / fig_size[self.test_topic][0])
         image2video(pred_check_folder, fps, combined_video, width, height)
+        shutil.rmtree(pred_check_folder)
 
     @sync_test_result
     def load_gt_data(self):
