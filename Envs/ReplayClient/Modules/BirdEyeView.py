@@ -541,7 +541,10 @@ class DistortCameraObject:
         return ret, CameraMatrix, distort
 
     def de_distort(self, image_path):
-        image = cv2.imread(image_path)
+        if isinstance(image_path, str):
+            image = cv2.imread(image_path)
+        else:
+            image = image_path
         image = cv2.remap(image, self.mapX, self.mapY, cv2.INTER_LINEAR)
         w, h = self.camera_object.size
         if self.camera_model == 'opencv_pinhole':
