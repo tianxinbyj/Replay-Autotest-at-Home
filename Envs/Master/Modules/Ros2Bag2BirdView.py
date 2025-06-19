@@ -258,8 +258,7 @@ class Ros2Bag2BirdView:
         self.total_frames[image_topic.split('/')[2]] = count
         print(f"处理完成! 共写入 {count} 帧到 {output_h265_path}")
 
-
-    def extract_frames(self, video_name_list, output_dir, prefix="frame", format="jpg", quality=95):
+    def extract_frames(self, video_name_list, output_dir):
         """
         从视频文件中提取每一帧并保存为图片
 
@@ -309,6 +308,7 @@ class Ros2Bag2BirdView:
             if os.path.exists(self.jpg_path):
                 shutil.rmtree(self.jpg_path)
             os.makedirs(self.jpg_path)
+            images = {camera: None for camera in self.distort_camera_dict.keys()}
             for name, cap in caps.items():
                 skipped= self.skip_initial_frames(cap, name, frame_count)
                 # skipped = False
@@ -319,22 +319,9 @@ class Ros2Bag2BirdView:
                     ret, frame = cap.read()
                     if not ret:
                         break
-                    # 构建输出文件名
-                    frame_filename = f"{file_name[name]}.{format}"
-                    frame_full_path = os.path.join(self.jpg_path, frame_filename)
-
-                    # 根据格式设置保存参数
-                    if format.lower() == "jpg":
-                        cv2.imwrite(frame_full_path, frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
-                    else:
-                        cv2.imwrite(frame_full_path, frame)
-
-            file_num = glob.glob(os.path.join(self.jpg_path, "*.jpg")) + glob.glob(os.path.join(self.jpg_path, "*.JPG"))
-            if len(file_num) == 6:
+                    images[file_name[name]] = frame
+            if all(value is not None for value in images.values()):
                 # 拼图
-                images = {}
-                for camera in self.distort_camera_dict.keys():
-                    images[camera] = os.path.join(self.jpg_path, f'{camera}.jpg')
                 bev_jpg_path = self.bev_obj.getBev(images, bev_folder, rect_pts=None)
                 os.rename(bev_jpg_path, os.path.join(os.path.dirname(bev_jpg_path), f'{self.timestamp[frame_count-skip_frame_max-1]:.0f}_BEV.jpg'))
             shutil.rmtree(self.jpg_path)
@@ -457,7 +444,7 @@ class Ros2Bag2BirdView:
 
 
 if __name__ == '__main__':
-    file_path_list = ['/home/zhangliwei01/ZONE/manual_scenario/20240119_145625_n000004']
+    file_path_list = ['/home/hp/temp/20240123_145155_n000003']
     for file_path in file_path_list:
         # file_path = '/home/hp/temp/20250324_144918_n000001/'
         install_path = '/home/hp/artifacts/ZPD_EP39/4.3.0_RC11/install'
