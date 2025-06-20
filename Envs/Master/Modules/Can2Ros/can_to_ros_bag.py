@@ -43,13 +43,19 @@ def split_by_operators(s):
 
 def extract_signal_names(s):
     """从字符串中提取信号名（包含字母的标记）"""
-    tokens = split_by_operators(s)
-    signal_names = []
-    for token in tokens:
-        # 检查标记是否包含字母且不是纯数字
-        if any(c.isalpha() for c in token) and not token.isdigit():
-            signal_names.append(token)
-    return signal_names
+    if s == '/':
+        return None
+    elif is_int(s) or is_float(s):
+        return float(s)
+    else:
+        tokens = split_by_operators(s)
+        signal_names = []
+        for token in tokens:
+            if any(c.isalpha() for c in token) and not token.isdigit():
+                signal_names.append('I' + token)
+            else:
+                signal_names.append(token)
+        return signal_names
 
 
 def read_can_data(file_name, simulation_start_time, duration):
@@ -150,35 +156,66 @@ def is_int(s):
     except ValueError:
         return False
 
+def create_message_class(topic_info):
+    message_class_group = {}
+    for topic in topic_info:
+        if topic['name'] == '/SA/GNSS':
+            gnss_msg = Gnss()
+            message_class_group['/SA/GNSS'] = gnss_msg
+        elif topic['name'] == '/SA/IMU':
+            imu_msg = Imu()
+            message_class_group['/SA/IMU'] = imu_msg
+        elif topic['name'] == '/SA/INSPVA':
+            inspva_msg = Inspva()
+            message_class_group['/SA/INSPVA'] = inspva_msg
+        elif topic['name'] == '/VA/VehicleStatusIpd':
+            vehicle_status_ipd_msg = VehicleStatusIpd()
+            message_class_group['/VA/VehicleStatusIpd'] = vehicle_status_ipd_msg
+        elif topic['name'] == '/VA/VehicleMotionIpd':
+            vehicle_motion_ipd_msg = VehicleMotionIpd()
+            message_class_group['/VA/VehicleMotionIpd'] = vehicle_motion_ipd_msg
+    return message_class_group
 
-def create_message(csv_data, can_data, msg_class, topic_name, index):
+def group_csv_data(csv_data):
+    # 获取列名（如果没有表头，pandas 会自动生成整数索引作为列名）
+    columns = csv_data.columns
+
+    # 按第一列分组并转换为所需的字典结构
+    result_dict = {}
+    for group_name, group_data in csv_data.groupby(columns[0]):
+        group_list = []
+        for _, row in group_data.iterrows():
+            item = {
+                'msg_type': row[columns[1]],
+                'msg_name': row[columns[2]],
+                'can_signal_name': row[columns[3]]
+            }
+            group_list.append(item)
+        result_dict[group_name] = group_list
+    return result_dict
+
+
+
+def create_message(csv_data_group, can_data, msg_class, topic_name, index):
     """创建并填充ROS消息"""
     msg = msg_class()
-    for _, row in csv_data.iterrows():
-        # print(row[0])
-        if row[0] == topic_name and row[3] != '/':
-            try:
-                # print(row[0])
-                signal_names = extract_signal_names(row[3])
-                # print(signal_names)
-                if len(signal_names) == 0:
-                    signal_raw_value = row[3]
-                    # print(f"{row[2]}在定义中为常量{signal_raw_value}")
-                else:
-                    for signal_name in signal_names:
-                        can_signal_name = 'I' + signal_name
-                        if can_signal_name in can_data.columns and index < len(can_data):
-                            signal_raw_value = row[3].replace(signal_name, f"can_data[\'I{signal_name}\'].iloc[{index}]")
-                            # print(signal_raw_value)
-                            # signal_raw_value = 'can_data[can_signal_name].iloc[index]'
-                        else:
-                            print(f"Warning: Column {can_signal_name} not found or index out of range")
-                            continue
-
-                signal_value = convert_data_type(eval(signal_raw_value), row[1])
-                setattr(msg, row[2], signal_value)
-            except Exception as e:
-                print(f"Error setting attribute {row[2]}: {e}")
+    if topic_name in csv_data_group.keys():
+        for item in csv_data_group[topic_name]:
+            signal_name = extract_signal_names(item['can_signal_name'])
+            if signal_name is not None:
+                msg_value = 0
+                if isinstance(signal_name, float):
+                    msg_value = signal_name
+                elif isinstance(signal_name, list) and len(signal_name) == 1:
+                    msg_value = can_data[signal_name[0]].iloc[index]
+                elif isinstance(signal_name, list) and len(signal_name) == 3:
+                    signal_name_raw = ''.join(signal_name)
+                    signal_name_replace = signal_name_raw.replace(signal_name[0], f"can_data[\'{signal_name[0]}\'].iloc[{index}]")
+                    # print(signal_name_raw)
+                    msg_value = eval(signal_name_replace)
+                    # print(f"{signal_name[0]}信号值为{can_data[signal_name[0]].iloc[index]}，计算出的值为{msg_value}")
+                msg_value = convert_data_type(msg_value, item['msg_type'])
+                setattr(msg, item['msg_name'], msg_value)
     return msg
 
 
@@ -265,6 +302,7 @@ def write_ros_bag(csv_data_path='/home/hp/Replay-Autotest-at-Home/Envs/Master/Mo
         # 读取数据
         start_read_data_time = time.time()
         csv_data = pd.read_csv(csv_data_path)
+        csv_data_grouped = group_csv_data(csv_data)
         simulation_start_time = 0.000176
         can_data = read_can_data(can_data_path, simulation_start_time, 0.01)
         end_read_data_time = time.time()
@@ -277,9 +315,9 @@ def write_ros_bag(csv_data_path='/home/hp/Replay-Autotest-at-Home/Envs/Master/Mo
         start_publish_time = time.time()
 
         for i in range(num_messages):
-            # start_ros_time = time.time()
+            start_ros_time = time.time()
             # 发布inspva消息
-            inspva_msg = create_message(csv_data, can_data, Inspva, '/SA/INSPVA', i)
+            inspva_msg = create_message(csv_data_grouped, can_data, Inspva, '/SA/INSPVA', i)
             inspva_msg.header.stamp.sec = int(inspva_msg.utc_time_us / 1000)
             inspva_msg.header.stamp.nanosec = int(inspva_msg.utc_time_us % 1000 * 1000000)
             inspva_msg.header.seq = i % UINT32_MAX
@@ -289,13 +327,10 @@ def write_ros_bag(csv_data_path='/home/hp/Replay-Autotest-at-Home/Envs/Master/Mo
                 continue
             serialized_inspva_msg = rclpy.serialization.serialize_message(inspva_msg)
             writer.write('/SA/INSPVA', serialized_inspva_msg, inspva_msg.utc_time_us*1000000)
-            # print(inspva_msg.utc_time_us)
-            end_publish_time = time.time()
-            start_publish_time = end_publish_time
 
             if i % 20 == 0:
                 # 发布GNSS消息
-                gnss_msg = create_message(csv_data, can_data, Gnss, '/SA/GNSS', i)
+                gnss_msg = create_message(csv_data_grouped, can_data, Gnss, '/SA/GNSS', i)
                 gnss_msg.header.stamp.sec = int(inspva_msg.utc_time_us / 1000)
                 gnss_msg.header.stamp.nanosec = int(inspva_msg.utc_time_us % 1000 * 1000000)
                 gnss_msg.header.seq = (i // 20) % UINT32_MAX
@@ -305,7 +340,7 @@ def write_ros_bag(csv_data_path='/home/hp/Replay-Autotest-at-Home/Envs/Master/Mo
                 writer.write('/SA/GNSS', serialized_gnss_msg, inspva_msg.utc_time_us*1000000)
 
             # 发布IMU消息
-            imu_msg = create_message(csv_data, can_data, Imu, '/SA/IMU', i)
+            imu_msg = create_message(csv_data_grouped, can_data, Imu, '/SA/IMU', i)
             imu_msg.header.stamp.sec = int(inspva_msg.utc_time_us / 1000)
             imu_msg.header.stamp.nanosec = int(inspva_msg.utc_time_us % 1000 * 1000000)
             imu_msg.header.seq = i % UINT32_MAX
@@ -316,7 +351,7 @@ def write_ros_bag(csv_data_path='/home/hp/Replay-Autotest-at-Home/Envs/Master/Mo
 
             if i % 2 == 0:
                 # 发布VehicleStatusIpd消息
-                vehicle_status_ipd_msg = create_message(csv_data, can_data, VehicleStatusIpd, '/VA/VehicleStatusIpd', i)
+                vehicle_status_ipd_msg = create_message(csv_data_grouped, can_data, VehicleStatusIpd, '/VA/VehicleStatusIpd', i)
                 vehicle_status_ipd_msg.header.stamp.sec = int(inspva_msg.utc_time_us / 1000)
                 vehicle_status_ipd_msg.header.stamp.nanosec = int(inspva_msg.utc_time_us % 1000 * 1000000)
                 vehicle_status_ipd_msg.header.seq = (i // 2) % UINT32_MAX
@@ -324,14 +359,12 @@ def write_ros_bag(csv_data_path='/home/hp/Replay-Autotest-at-Home/Envs/Master/Mo
                 writer.write('/VA/VehicleStatusIpd', serialized_vehicle_status_ipd_msg, inspva_msg.utc_time_us*1000000)
 
                 # 发布VehicleMotionIpd消息
-                vehicle_motion_ipd_msg = create_message(csv_data, can_data, VehicleMotionIpd, '/VA/VehicleMotionIpd', i)
+                vehicle_motion_ipd_msg = create_message(csv_data_grouped, can_data, VehicleMotionIpd, '/VA/VehicleMotionIpd', i)
                 vehicle_motion_ipd_msg.header.stamp.sec = int(inspva_msg.utc_time_us / 1000)
                 vehicle_motion_ipd_msg.header.stamp.nanosec = int(inspva_msg.utc_time_us % 1000 * 1000000)
                 vehicle_motion_ipd_msg.header.seq = (i // 2) % UINT32_MAX
                 serialized_vehicle_motion_ipd_msg = rclpy.serialization.serialize_message(vehicle_motion_ipd_msg)
                 writer.write('/VA/VehicleMotionIpd', serialized_vehicle_motion_ipd_msg, inspva_msg.utc_time_us*1000000)
-            # end_ros_time = time.time()
-            # print(f"第{i}消息发布运行时间: {end_ros_time - start_ros_time} 秒")
         end_publish_time = time.time()
         print(f"消息发布运行时间: {end_publish_time - start_publish_time} 秒")
 

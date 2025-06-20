@@ -1,5 +1,5 @@
-"/SA/GNSS",,"gps_time.gnss_week","/",
-"/SA/GNSS",,"gps_time.seconds_from_week_start","/",
+"/SA/GNSS","float64","gps_time.gnss_week","/",
+"/SA/GNSS","float64","gps_time.seconds_from_week_start","/",
 "/SA/GNSS","uint8","gnss_solution_status","/",
 "/SA/GNSS","float64","gnss_longitude","RTKLong",
 "/SA/GNSS","float64","gnss_latitude","RTKLati",
