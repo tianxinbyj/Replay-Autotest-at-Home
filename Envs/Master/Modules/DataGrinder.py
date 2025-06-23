@@ -2901,7 +2901,7 @@ class DataGrinderOneCase:
         axes.add_patch(pc.Rectangle(
             xy=xy,
             width=length, height=width,
-            angle=rotation, alpha=visibility,
+            angle=rotation, alpha=min(visibility, 1),
             rotation_point='xy',
             facecolor='lightgrey',
             fill=fill,

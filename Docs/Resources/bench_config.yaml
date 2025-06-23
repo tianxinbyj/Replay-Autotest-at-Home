@@ -8,10 +8,10 @@ Replay04:
     sil_pkg_path: /home/appuser/aeb_replay/sil
     ros_docker_path: /home/appuser/aeb_replay/docker_rolling/docker_rolling_hil.sh
   ReplayClient:
-    ip: 10.192.68.115
+    ip: 10.192.68.71
     username: vcar
     password: 123456
-    py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
+    py_path: /home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
 Replay03:
   Master:
