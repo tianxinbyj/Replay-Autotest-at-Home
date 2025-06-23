@@ -32,7 +32,7 @@ plt.rcParams['axes.unicode_minus'] = False
 sys.path.append(get_project_path())
 
 from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length, project_path
-from Utils.Libs import generate_unique_id, bench_config, sync_test_result
+from Utils.Libs import generate_unique_id, bench_config, sync_test_result, find_file
 from Utils.Libs import font_size, title_font, axis_font, legend_font, wrap_text
 from Utils.Logger import send_log
 from Utils.SSHClient import SSHClient
@@ -3255,9 +3255,11 @@ class DataGrinderOneTask:
                 if not os.path.exists(folder):
                     os.makedirs(folder)
 
-                bug_report_path = row['attachment_path']
-                shutil.copy(bug_report_path, folder)
-                bug_report_path_list.append(os.path.join(folder, os.path.basename(bug_report_path)))
+                bug_report_name = os.path.basename(row['attachment_path'])
+                bug_report_path = find_file(bug_report_name, self.scenario_unit_folder)
+                if bug_report_path is not None:
+                    shutil.copy(bug_report_path, folder)
+                    bug_report_path_list.append(os.path.join(folder, os.path.basename(bug_report_path)))
 
             bug_summary['attachment_path'] = bug_report_path_list
             bug_summary_path = os.path.join(bugItem_folder, 'bug_summary.csv')
