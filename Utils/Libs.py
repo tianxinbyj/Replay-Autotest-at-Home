@@ -311,6 +311,24 @@ def force_delete_folder(folder_path):
     print(f'{folder_path} 删除成功')
 
 
+def find_file(filename, directory):
+    """
+    在指定目录及其子目录中递归查找特定文件名的文件。
+
+    参数:
+    filename (str): 要查找的文件名
+    directory (str): 要搜索的目录路径
+
+    返回:
+    str: 如果找到文件，返回文件的完整路径；否则返回None
+    """
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if file == filename:
+                return os.path.join(root, file)
+    return None
+
+
 bench_id = get_bench_id()
 project_path = get_project_path()
 bench_config = parse_bench_config()

@@ -485,7 +485,7 @@ class ReplayController:
                     len(hz_data), hz_data['count'].sum(), topic_duration[topic],
                         hz_data['time_stamp'].min(), hz_data['time_stamp'].max()))
 
-            if max(topic_duration.values()) - min(topic_duration.values()) <= 10:
+            if max(topic_duration.values()) - min(topic_duration.values()) <= 25:
                 valid_flag = 1
             else:
                 valid_flag = 0
