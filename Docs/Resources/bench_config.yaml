@@ -70,3 +70,11 @@ Replay00:
     password: 123456
     py_path: /home/vcar/work/PythonProject
     sys_interpreter: /usr/bin/python3
+Replay0Z:
+  Master:
+    ip: 10.192.68.71
+    username: vcar
+    password: 123456
+    py_path: /home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home
+    sys_interpreter: /usr/bin/python3
+    ros_docker_path: /home/vcar/docker_rolling_hil.sh

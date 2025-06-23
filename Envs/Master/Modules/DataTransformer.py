@@ -3,6 +3,7 @@
 @Date: 2025/6/18 上午9:45
 """
 import glob
+import json
 import os
 import re
 import shutil
@@ -22,10 +23,9 @@ from Envs.Master.Modules.Can2Ros.arxml_asc_parser import asc_parser
 from Envs.Master.Modules.Ros2Bag2BirdView import Ros2Bag2BirdView
 from Utils.VideoProcess import normalize_h265_startcodes
 from Utils.Libs import ros_docker_path, variables, kill_tmux_session_if_exists, project_path, get_folder_size
-from Utils.Libs import topic2camera, force_delete_folder
+from Utils.Libs import topic2camera, bench_id, bench_config
 
 camera2topic = {b:a for a,b in topic2camera.items()}
-
 camera2camera = {
     'CAM_PBQ_FRONT_FISHEYE': 'CAM_FISHEYE_FRONT',
     'CAM_PBQ_REAR_FISHEYE': 'CAM_FISHEYE_BACK',
@@ -175,6 +175,14 @@ class DataTransformer:
         """
         qcraft_package_path和h265_folder_path都是docker内的地址
         """
+
+        # 如果不是Replay0Z机,不能运行
+        if bench_id != 'Replay0Z':
+            print('本机不是Q机,无法执行函数')
+            return None
+
+        password = bench_config['Master']['password']
+
         # 解析q文件为h265
         # '''
         tmux_session = variables['tmux_node']['q_parse'][0]
@@ -183,16 +191,24 @@ class DataTransformer:
 
         os.system(f'tmux new-session -s {tmux_session} -n {tmux_window} -d')
         time.sleep(0.1)
-        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "docker start qcraft_formpackage" C-m')
-        time.sleep(0.1)
-        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "docker exec -it qcraft_formpackage bash" C-m')
-        time.sleep(0.1)
+
+        # 打开docker
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "sudo docker start qcraft_formpackage" C-m')
+        time.sleep(1)
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "{password}" C-m')
+        time.sleep(2)
+
+        # 进入docker
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "sudo docker exec -it qcraft_formpackage bash" C-m')
+        time.sleep(2)
+
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "cd qcraft_msg_tool/" C-m')
         time.sleep(0.1)
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "rm -r {h265_folder_path}" C-m')
         time.sleep(1)
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "mkdir {h265_folder_path}" C-m')
-        time.sleep(1)
+        time.sleep(0.1)
+
         cmd = f"./script/run_export_image_only.sh --run={qcraft_package_path} --output_dir={h265_folder_path} --output_text=true"
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "{cmd}" C-m')
 
@@ -210,7 +226,6 @@ class DataTransformer:
         print(f'{qcraft_package_path} transfer stops')
         kill_tmux_session_if_exists(tmux_session)
 
-        #将H265合并成一个文件
         h265_config = {}
         data_storage_folder = os.path.join('/home', os.getlogin(), 'ZONE', 'temp_data')
         if os.path.exists(data_storage_folder):
@@ -247,6 +262,25 @@ class DataTransformer:
         tmux_window = variables['tmux_node']['h265_gen'][1]
         kill_tmux_session_if_exists(tmux_session)
 
+        with open(h265_config_path, 'r', encoding='utf-8') as file:
+            h265_config = yaml.safe_load(file)
+
+        if 'h265_temp' in h265_config:
+            del h265_config['h265_temp']
+        min_ts, max_ts = 9999999999, 0
+        for topic in h265_config:
+            timestamp = pd.read_csv(h265_config[topic]['timestamp_path'], index_col=False)['time_stamp']
+            min_ts = min(float(timestamp.min()), min_ts)
+            max_ts = max(float(timestamp.max()), max_ts)
+
+        if max_ts - min_ts < 15:
+            print('H265没有足够的数据，不执行转化.db3')
+            return
+
+        print(f'开始转化.db3, 时间长度为{round(max_ts - min_ts, 3)} seconds')
+        min_ts = datetime.fromtimestamp(int(min_ts)).strftime("%Y_%m_%d-%H_%M_%S")
+        max_ts = datetime.fromtimestamp(int(max_ts)).strftime("%Y_%m_%d-%H_%M_%S")
+        ros2bag_path = os.path.join(db3_path, f'{min_ts}={max_ts}')
         os.system(f'tmux new-session -s {tmux_session} -n {tmux_window} -d')
         time.sleep(0.1)
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "bash {ros_docker_path}" C-m')
@@ -255,19 +289,18 @@ class DataTransformer:
                   f'"source {self.install_path}/setup.bash" C-m')
 
         h265_rosnode_path = os.path.join(project_path, 'Envs', 'Master', 'Modules', 'RosNode')
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "cd {h265_rosnode_path}" C-m')
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
-                  f'"cd {h265_rosnode_path}" C-m')
-        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
-                  f'"python3 H265ToRosbagConverter.py -f {h265_config_path} -r {db3_path}" C-m')
+                  f'"python3 H265ToRosbagConverter.py -f {h265_config_path} -r {ros2bag_path}" C-m')
 
         # 监控文件夹大小，并删除中间数据
         count = 3
+        t0 = time.time()
         while count:
-            time.sleep(3)
             folder_size_1 = get_folder_size(db3_path)
-            time.sleep(3)
+            time.sleep(8)
             folder_size_2 = get_folder_size(db3_path)
-            print(f'ros2bag size == {round(folder_size_2 / 1024 / 1024, 2)} MB')
+            print(f'{round(time.time() - t0)} ros2bag size == {round(folder_size_2 / 1024 / 1024, 2)} MB')
             if folder_size_2 == folder_size_1:
                 count -= 1
         print(f'ros2bag gen stops')
@@ -276,15 +309,15 @@ class DataTransformer:
         with open(h265_config_path, 'r', encoding='utf-8') as file:
             h265_config = yaml.safe_load(file)
 
-        if 'h265_temp' in h265_config:
-            force_delete_folder(h265_config['h265_temp'])
-            del h265_config['h265_temp']
-            for topic in h265_config:
-                os.remove(h265_config[topic]['timestamp_path'])
-        else:
-            for topic in h265_config:
-                os.remove(h265_config[topic]['H265_path'])
-                os.remove(h265_config[topic]['timestamp_path'])
+        # if 'h265_temp' in h265_config:
+        #     force_delete_folder(h265_config['h265_temp'])
+        #     del h265_config['h265_temp']
+        #     for topic in h265_config:
+        #         os.remove(h265_config[topic]['timestamp_path'])
+        # else:
+        #     for topic in h265_config:
+        #         os.remove(h265_config[topic]['H265_path'])
+        #         os.remove(h265_config[topic]['timestamp_path'])
 
     def kunyiCan_to_db3(self, install_path, kunyi_package_path):
         def check_process():
@@ -366,9 +399,58 @@ class DataTransformer:
         bev_object.extract_frames_from_h265()
 
 
+class DataLoggerAnalysis:
+
+    def __init__(self, folder):
+        self.folder = os.path.join(folder, 'rosbag')
+
+        # 解压缩
+        install_zip = os.path.join(self.folder, 'install', 'install.tar.gz')
+        if not os.path.exists(install_zip):
+            print(f'未找到{install_zip}')
+            return
+
+        cmd = 'cd {:s}; tar -xzvf install.tar.gz'.format(
+            os.path.join(self.folder, 'install'),
+        )
+        p = os.popen(cmd)
+        p.read()
+
+        self.ros2bag_info = []
+        for ros2bag_folder in glob.glob(os.path.join(self.folder, 'rosbag', 'rosbag2*')):
+            t0 = datetime.strptime(os.path.basename(ros2bag_folder)[8:], "%Y_%m_%d-%H_%M_%S").timestamp()
+            print(t0)
+
+            for ros2bag_zip in sorted(glob.glob(os.path.join(ros2bag_folder, '*.tar.gz'))):
+                t1 = datetime.strptime(os.path.basename(ros2bag_zip).split('.')[0], "%Y_%m_%d-%H_%M_%S").timestamp()
+                if t1 - t0 < 30:
+                    continue
+
+                self.ros2bag_info.append(
+                    {
+                        'start_time': t0, 'end_time': t1, 'path': ros2bag_zip
+                    }
+                )
+                t0 = t1
+
+    def load_install(self, target_folder='/media/data/Q_DATA'):
+        target_install = os.path.join(target_folder, 'install')
+        if os.path.exists(target_install):
+            shutil.rmtree(target_install)
+
+        shutil.move(os.path.join(self.folder, 'install', 'install'), target_install)
+
+        json_str = json.dumps(self.ros2bag_info, indent=2, sort_keys=False)
+        ros2bag_info_path = os.path.join(target_folder, 'ros2bag_info.json')
+        with open(ros2bag_info_path, 'w', encoding='utf-8') as f:
+            f.write(json_str)
+
+        return target_install, ros2bag_info_path
+
+
 if __name__ == '__main__':
-    install_path = '/home/zhangliwei01/ZONE/TestProject/EP39/EP39_AD_4.3.0_RC24_ENG/03_Workspace/install'
-    q_docker_base_path = f'/home/{os.getlogin()}/ZONE'
+    install_path = '/home/vcar/ZONE/03_Workspace/install'
+    q_docker_base_path = f'/media/data'
 
     qqq = DataTransformer(install_path=install_path, q_docker_base_path=q_docker_base_path)
     # kunyi_package_path = '/home/zhangliwei01/ZONE/manual_scenario/20240119_145625_n000001'
@@ -376,8 +458,12 @@ if __name__ == '__main__':
     # h265_config_path = '/home/zhangliwei01/ZONE/manual_scenario/20240119_145625_n000001/Images/h265_config.yaml'
     # qqq.h265_to_db3(h265_config_path, '/home/zhangliwei01/ZONE/manual_scenario/temp')
 
-    qcraft_package_path = '/Q_DATA/20250610_182724_Q3403'
-    h265_folder_path = '/Q_DATA/ttt'
+    # qcraft_package_path = '/Q_DATA/debug_data/20250614_105002_Q3402'
+    # h265_folder_path = '/Q_DATA/result'
     # h265_config_path = qqq.qStf_to_h265(qcraft_package_path, h265_folder_path)
-    h265_config_path = '/home/zhangliwei01/ZONE/temp_data/h265_config.yaml'
-    qqq.h265_to_db3(h265_config_path, '/home/zhangliwei01/ZONE/temp_data2')
+    # h265_config_path = f'/home/{os.getlogin()}/ZONE/temp_data/h265_config.yaml'
+    # qqq.h265_to_db3(h265_config_path, '/media/data/Q_DATA/ros2bag')
+
+    dla = DataLoggerAnalysis('/media/data/Q_DATA/debug_data/20250614-005-AEB')
+    target_install, ros2bag_info_path = dla.load_install()
+    print(target_install, ros2bag_info_path)

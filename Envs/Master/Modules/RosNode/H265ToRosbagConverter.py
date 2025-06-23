@@ -19,10 +19,10 @@ from rosbag2_py import TopicMetadata
 
 class H265ToRosbagConverter:
 
-    def __init__(self, h265_config_path, rosbag_path):
+    def __init__(self, h265_config_path, ros2bag_path):
 
-        if os.path.exists(rosbag_path):
-            shutil.rmtree(rosbag_path)
+        if os.path.exists(ros2bag_path):
+            shutil.rmtree(ros2bag_path)
 
         with open(h265_config_path, 'r', encoding='utf-8') as file:
             h265_config = yaml.safe_load(file)
@@ -30,7 +30,7 @@ class H265ToRosbagConverter:
         # 配置输出.db3文件
         self.writer = SequentialWriter()
         storage_options = StorageOptions(
-            uri=rosbag_path,
+            uri=ros2bag_path,
             storage_id='sqlite3'
         )
         converter_options = ConverterOptions(
@@ -119,13 +119,13 @@ class H265ToRosbagConverter:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="process raw data")
     parser.add_argument("-f", "--h265_config_path", type=str, required=True, help="h265_path")
-    parser.add_argument("-r", "--rosbag_path", type=str, required=True, help="rosbag_path")
+    parser.add_argument("-r", "--ros2bag_path", type=str, required=True, help="ros2bag_path")
     args = parser.parse_args()
 
     try:
         # 初始化ROS 2上下文（无节点）
         rclpy.init()
-        converter = H265ToRosbagConverter(args.h265_config_path, args.rosbag_path)
+        converter = H265ToRosbagConverter(args.h265_config_path, args.ros2bag_path)
         converter.close()
     finally:
         rclpy.shutdown()
