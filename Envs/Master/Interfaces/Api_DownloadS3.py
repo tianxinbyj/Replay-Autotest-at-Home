@@ -23,6 +23,25 @@ class S3Client:
             region_name='cn-north-1'  # 区域名称，可根据实际情况修改
         )
 
+    def list_objects(self, bucket_name, s3_path):
+        try:
+            response = self.s3_client.list_objects_v2(
+                Bucket=bucket_name,
+                Prefix=s3_path  # 过滤指定路径下的对象
+            )
+            total_size = 0
+            if 'Contents' in response:
+                # print(f"在路径 {s3_path} 下找到 {len(response['Contents'])} 个对象：")
+                for obj in response['Contents']:
+                    print(f"- {obj['Key']} (大小 {round(obj['Size'] / 1024 / 1024 / 1024, 4)} GB)")
+                    total_size += obj['Size']
+                print(
+                    f"在路径 {s3_path} 下找到 {len(response['Contents'])} 个对象, 大小 {round(total_size / 1024 / 1024 / 1024, 4)} GB")
+            else:
+                print(f"路径 {s3_path} 下没有找到对象。")
+        except Exception as e:
+            print(f"列出对象时出错: {e}")
+
     def download_s3_folder(self, bucket_name, s3_path, local_dir):
 
         if not os.path.exists(local_dir):
@@ -59,10 +78,10 @@ def main():
     parser = argparse.ArgumentParser(description="match obstacles")
     parser.add_argument("-u", "--endpoint_url", type=str, required=True, help="endpoint url")
     parser.add_argument("-k", "--aws_access_key_id", type=str, required=True, help="access key id")
-    parser.add_argument("-t", "--aws_secret_access_key", type=str, required=True, help="secret access key")
+    parser.add_argument("-s", "--aws_secret_access_key", type=str, required=True, help="secret access key")
     parser.add_argument("-n", "--bucket_name", type=str, required=True, help="bucket name")
     parser.add_argument("-p", "--s3_path", type=str, required=True, help="s3 path")
-    parser.add_argument("-f", "--local_dir", type=str, required=True, help="local dir")
+    parser.add_argument("-f", "--local_dir", type=str, required=False, default='n/a', help="local dir")
     args = parser.parse_args()
 
     endpoint_url = args.endpoint_url
@@ -75,12 +94,19 @@ def main():
     if s3_path.startswith('/'):
         s3_path = s3_path[1:]
 
+    print(local_dir)
     s3_client = S3Client(endpoint_url, aws_access_key_id, aws_secret_access_key)
-    s3_client.download_s3_folder(bucket_name, s3_path, local_dir)
+    if local_dir != 'n/a':
+        s3_client.download_s3_folder(bucket_name, s3_path, local_dir)
+    else:
+        s3_client.list_objects(bucket_name, s3_path)
 
 
 if __name__ == '__main__':
     main()
+    cmd = '''
+    /usr/bin/python3 Api_DownloadS3.py -u http://10.192.53.221:8080 -k QB1YGVNUKJP2MRK8AK2R -s JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH -n prod-ac-dmp -p backup/data/collect/self/driving/20250616_upload_Q3402/
+    '''
     endpoint_url='http://10.192.53.221:8080',  # 你的S3 endpoint
     aws_access_key_id='QB1YGVNUKJP2MRK8AK2R',  # 替换为你的Access Key
     aws_secret_access_key='JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH',  # 替换为你的Secret Key
