@@ -19,13 +19,14 @@ Replay03:
     username: hp
     password: admin
     py_path: /home/hp/Replay-Autotest-at-Home
-    sys_interpreter: /home/hp/ZONE/PythonProject/base_interpreter/.venv/bin/python3
+    sys_interpreter: /usr/bin/python3
+    sil_pkg_path: /home/hp/ZONE/sil
     ros_docker_path: /home/hp/docker_rolling.sh
   ReplayClient:
-    ip: 10.192.68.115
+    ip: 10.192.68.71
     username: vcar
     password: 123456
-    py_path: /home/vcar/work/pythonProject/Replay-Autotest-at-Home
+    py_path: /home/vcar/work/PythonProject
     sys_interpreter: /usr/bin/python3
 Replay02:
   Master:

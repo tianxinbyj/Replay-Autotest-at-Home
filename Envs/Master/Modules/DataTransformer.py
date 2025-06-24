@@ -355,12 +355,7 @@ class DataTransformer:
         if os.path.exists(parse_asc_data_path):
             shutil.rmtree(parse_asc_data_path)
 
-    def combine_db3(self, kunyi_package_path):
-        ros2bag_ins_path = os.path.join(kunyi_package_path, self.ros2bag_ins_name)
-        ros2bag_h265_path = os.path.join(kunyi_package_path, self.ros2bag_h265_name)
-        ros2bag_combine_path = os.path.join(kunyi_package_path, self.ros2bag_combine_name)
-        input_bags = [ros2bag_h265_path, ros2bag_ins_path]
-        output_bag = ros2bag_combine_path
+    def combine_db3(self, input_bags:list, output_bag:str):
         tmux_session = 'combine_session'
         tmux_window = 'combine_session_windows'
         kill_tmux_session_if_exists(tmux_session)
@@ -387,6 +382,14 @@ class DataTransformer:
             if not running:
                 kill_tmux_session_if_exists(tmux_session)
                 break
+
+    def combine_Kunyi_db3(self, kunyi_package_path):
+        ros2bag_ins_path = os.path.join(kunyi_package_path, self.ros2bag_ins_name)
+        ros2bag_h265_path = os.path.join(kunyi_package_path, self.ros2bag_h265_name)
+        ros2bag_combine_path = os.path.join(kunyi_package_path, self.ros2bag_combine_name)
+        input_bags = [ros2bag_h265_path, ros2bag_ins_path]
+        output_bag = ros2bag_combine_path
+        self.combine_db3(input_bags, output_bag)
         # 删除两个rosbag包
         if os.path.exists(ros2bag_ins_path):
             shutil.rmtree(ros2bag_ins_path)
