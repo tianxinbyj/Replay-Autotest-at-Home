@@ -94,7 +94,6 @@ def main():
     if s3_path.startswith('/'):
         s3_path = s3_path[1:]
 
-    print(local_dir)
     s3_client = S3Client(endpoint_url, aws_access_key_id, aws_secret_access_key)
     if local_dir != 'n/a':
         s3_client.download_s3_folder(bucket_name, s3_path, local_dir)
@@ -106,6 +105,9 @@ if __name__ == '__main__':
     main()
     cmd = '''
     /usr/bin/python3 Api_DownloadS3.py -u http://10.192.53.221:8080 -k QB1YGVNUKJP2MRK8AK2R -s JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH -n prod-ac-dmp -p backup/data/collect/self/driving/20250616_upload_Q3402/
+    '''
+    cmd = '''
+    /usr/bin/python3 Api_DownloadS3.py -u http://10.192.53.221:8080 -k QB1YGVNUKJP2MRK8AK2R -s JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH -n prod-ac-dmp -p backup/data/collect/self/driving/20250530-20250529-car2-bev-Lidar/3D_data_LSJWK4095NS119733
     '''
     endpoint_url='http://10.192.53.221:8080',  # 你的S3 endpoint
     aws_access_key_id='QB1YGVNUKJP2MRK8AK2R',  # 替换为你的Access Key
