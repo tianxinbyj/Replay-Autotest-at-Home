@@ -7,7 +7,7 @@ import time
 from rclpy.time import Time
 from rosbag2_py import SequentialReader, StorageOptions, ConverterOptions, SequentialWriter, StorageOptions, TopicMetadata
 
-def merge_rosbags(input_bags, output_bag):
+def merge_rosbags(input_bags, output_bag, start_time=-1, stop_time=1e11):
     # 初始化读取器和写入器
     if os.path.exists(output_bag):
         shutil.rmtree(output_bag)
@@ -60,8 +60,10 @@ def merge_rosbags(input_bags, output_bag):
 
         # 写入最早的消息
         if earliest_index != -1:
-            time, topic, data, reader = next_messages[earliest_index]
-            writer.write(topic, data, time.nanoseconds)
+            time_, topic, data, reader = next_messages[earliest_index]
+            print(time_.nanoseconds)
+            if stop_time * 1e9 >= time_.nanoseconds >= start_time * 1e9:
+                writer.write(topic, data, time_.nanoseconds)
 
             # 获取下一条消息
             if reader.has_next():
@@ -76,6 +78,8 @@ def main():
     parser = argparse.ArgumentParser(description='Merge ROS2 bags with time alignment')
     parser.add_argument('-i', '--input', nargs='+', required=True, help='Input ROS2 bag paths')
     parser.add_argument('-o', '--output', required=True, help='Output ROS2 bag path')
+    parser.add_argument('-t', '--start_time', default=-1, help='Output ROS2 bag path')
+    parser.add_argument('-p', '--stop_time', default=1e10, help='Output ROS2 bag path')
     args = parser.parse_args()
 
     # 检查输入文件是否存在
@@ -90,7 +94,7 @@ def main():
         os.makedirs(output_dir)
 
     try:
-        merge_rosbags(args.input, args.output)
+        merge_rosbags(args.input, args.output, args.start_time, args.stop_time)
     except Exception as e:
         print(f"合并过程中发生错误: {str(e)}")
 
