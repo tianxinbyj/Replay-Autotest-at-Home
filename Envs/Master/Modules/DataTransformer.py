@@ -355,7 +355,7 @@ class DataTransformer:
         if os.path.exists(parse_asc_data_path):
             shutil.rmtree(parse_asc_data_path)
 
-    def combine_db3(self, input_bags:list, output_bag:str):
+    def combine_db3(self, input_bags:list, output_bag:str, start_time=-1, stop_time=1e10):
         tmux_session = 'combine_session'
         tmux_window = 'combine_session_windows'
         kill_tmux_session_if_exists(tmux_session)
@@ -371,7 +371,7 @@ class DataTransformer:
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
                   f'"cd {py_path}" C-m')
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
-                  f'"python3 CombineRosBag.py -i {" ".join(input_bags)} -o {output_bag}" C-m')
+                  f'"python3 CombineRosBag.py -i {" ".join(input_bags)} -o {output_bag} -t {start_time} -p {stop_time}" C-m')
         # 判断合并是否完成
         while True:
             time.sleep(1)
@@ -467,6 +467,6 @@ if __name__ == '__main__':
     # h265_config_path = f'/home/{os.getlogin()}/ZONE/temp_data/h265_config.yaml'
     # qqq.h265_to_db3(h265_config_path, '/media/data/Q_DATA/ros2bag')
 
-    dla = DataLoggerAnalysis('/media/data/Q_DATA/debug_data/20250614-005-AEB')
-    target_install, ros2bag_info_path = dla.load_install()
-    print(target_install, ros2bag_info_path)
+    # dla = DataLoggerAnalysis('/media/data/Q_DATA/debug_data/20250614-005-AEB')
+    # target_install, ros2bag_info_path = dla.load_install()
+    # print(target_install, ros2bag_info_path)
