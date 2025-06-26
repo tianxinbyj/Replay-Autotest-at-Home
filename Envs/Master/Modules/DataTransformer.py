@@ -113,8 +113,9 @@ class DataTransformer:
                     frame_type = match.group(3)
                     rows.append([frame_index, pts_time, frame_type])
 
-            pd.DataFrame(rows, columns=col).to_csv(timestamp_path, index=False)
-            return timestamp_path
+            timestamp_data = pd.DataFrame(rows, columns=col)
+            timestamp_data.to_csv(timestamp_path, index=False)
+            return timestamp_data
 
         image_folder = os.path.join(kunyi_package_path, 'Images')
         if not os.path.exists(image_folder):
@@ -143,8 +144,9 @@ class DataTransformer:
 
         # 生成H265
         h265_config = {
-            'h265': {}
+            'h265': {}, 'start_time': 0, 'end_time': 0,
         }
+        min_ts, max_ts = 9999999999, 0
         h265_config_path = os.path.join(image_folder, 'h265_config.yaml')
         for topic, info in video_config.items():
             fps = info['fps']
@@ -160,7 +162,9 @@ class DataTransformer:
             dt = dt.replace(microsecond=int(millisecond_part) * 1000)
             start_time = dt.timestamp()
             convert_video_h265(video_path, fps, h265_path)
-            gen_h265_timestamp(h265_path, start_time, timestamp_path)
+            timestamp_data = gen_h265_timestamp(h265_path, start_time, timestamp_path)
+            min_ts = min(min_ts, timestamp_data['time_stamp'].min())
+            max_ts = max(max_ts, timestamp_data['time_stamp'].max())
             normalize_h265_startcodes(h265_path, normalized_h265_path)
             os.remove(h265_path)
 
@@ -169,6 +173,8 @@ class DataTransformer:
                 'H265_path': normalized_h265_path,
             }
 
+        h265_config['start_time'] = min_ts
+        h265_config['end_time'] = max_ts
         with open(h265_config_path, 'w', encoding='utf-8') as file:
             yaml.dump(h265_config, file)
 
@@ -212,6 +218,9 @@ class DataTransformer:
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "mkdir {h265_folder_path}" C-m')
         time.sleep(0.1)
 
+        cmd = f"./script/run_info_export.sh --run={qcraft_package_path} --output_dir={h265_folder_path}"
+        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "{cmd}" C-m')
+        time.sleep(1)
         cmd = f"./script/run_export_image_only.sh --run={qcraft_package_path} --output_dir={h265_folder_path} --output_text=true"
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "{cmd}" C-m')
 
@@ -223,11 +232,16 @@ class DataTransformer:
             folder_size_1 = get_folder_size(full_folder_path)
             time.sleep(2)
             folder_size_2 = get_folder_size(full_folder_path)
-            print(f'{os.path.basename(qcraft_package_path)} data size == {round(folder_size_2 / 1024 / 1024, 2)} MB')
+            print(f'{os.path.basename(qcraft_package_path)} data size = {round(folder_size_2 / 1024 / 1024, 2)} MB')
             if folder_size_2 == folder_size_1:
                 count -= 1
         print(f'{os.path.basename(qcraft_package_path)} transfer stops')
         kill_tmux_session_if_exists(tmux_session)
+
+        # 相机标定文件
+        config_json_path = os.path.join(full_folder_path, 'run_info.json')
+        if not os.path.exists(config_json_path):
+            config_json_path = None
 
         h265_config = {
             'h265': {}, 'start_time': 0, 'end_time': 0, 'h265_temp': full_folder_path
@@ -264,7 +278,7 @@ class DataTransformer:
         with open(h265_config_path, 'w', encoding='utf-8') as file:
             yaml.dump(h265_config, file)
 
-        return h265_config_path
+        return h265_config_path, config_json_path
 
     def h265_to_db3(self, h265_config_path, db3_dir, delete_raw_h265=False):
         tmux_session = variables['tmux_node']['h265_gen'][0]
@@ -304,7 +318,7 @@ class DataTransformer:
             folder_size_1 = get_folder_size(db3_dir)
             time.sleep(8)
             folder_size_2 = get_folder_size(db3_dir)
-            print(f'{round(time.time() - t0, 3)} {os.path.basename(ros2bag_path)} size == {round(folder_size_2 / 1024 / 1024, 2)} MB')
+            print(f'{round(time.time() - t0, 3)} {os.path.basename(ros2bag_path)} size = {round(folder_size_2 / 1024 / 1024, 2)} MB')
             if folder_size_2 == folder_size_1:
                 count -= 1
         print(f'{os.path.basename(ros2bag_path)} gen stops')
