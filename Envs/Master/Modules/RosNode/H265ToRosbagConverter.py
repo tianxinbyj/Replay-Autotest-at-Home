@@ -39,10 +39,8 @@ class H265ToRosbagConverter:
         )
         self.writer.open(storage_options, converter_options)
 
-        if 'h265_temp' in h265_config:
-            del h265_config['h265_temp']
         # 创建Topic信息
-        for topic in h265_config:
+        for topic in h265_config['h265']:
             topic_metadata = TopicMetadata(
                 name=topic,
                 type="sensor_msgs/msg/CompressedImage",
@@ -50,8 +48,8 @@ class H265ToRosbagConverter:
             )
             self.writer.create_topic(topic_metadata)
 
-            frames = self.parse_h265_frames(h265_config[topic]['H265_path'])
-            timestamp = pd.read_csv(h265_config[topic]['timestamp_path'], index_col=False)
+            frames = self.parse_h265_frames(h265_config['h265'][topic]['H265_path'])
+            timestamp = pd.read_csv(h265_config['h265'][topic]['timestamp_path'], index_col=False)
 
             for i, frame in enumerate(frames):
                 self.write_to_bag(topic, frame, i, timestamp)
