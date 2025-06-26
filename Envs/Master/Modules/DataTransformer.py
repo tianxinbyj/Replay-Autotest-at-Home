@@ -147,9 +147,9 @@ class DataTransformer:
 
         # 生成H265
         h265_config = {
-            'h265': {}, 'start_time': 0, 'end_time': 0,
+            'h265': {}, 'start_time': 0.0, 'end_time': 0.0,
         }
-        min_ts, max_ts = 9999999999, 0
+        min_ts, max_ts = 9999999999.0, 0.0
         h265_config_path = os.path.join(image_folder, 'h265_config.yaml')
         for topic, info in video_config.items():
             fps = info['fps']
@@ -176,8 +176,8 @@ class DataTransformer:
                 'H265_path': normalized_h265_path,
             }
 
-        h265_config['start_time'] = min_ts
-        h265_config['end_time'] = max_ts
+        h265_config['start_time'] = float(min_ts)
+        h265_config['end_time'] = float(max_ts)
         with open(h265_config_path, 'w', encoding='utf-8') as file:
             yaml.dump(h265_config, file)
 
@@ -456,18 +456,25 @@ class DataTransformer:
             bev_object.extract_frames_from_h265()
 
     def batch_generate_rosbags(self, kunyi_package_folder, install_path=None):
+        """
+        依次读取文件夹kunyi_package_folder内的kunyi_package文件夹，生成rosbag
+
+        参数:
+        kunyi_package_folder: 文件夹内包含多个kunyi_package数据包
+        install_path： install路径
+
+        """
         if not install_path:
             install_path = self.install_path
         if not install_path:
             return
         else:
-            kunyi_packages = get_all_folder_in_target_dir(kunyi_package_folder)
+            kunyi_packages = glob.glob(f"{kunyi_package_folder}/*")
+            kunyi_packages.sort()
             for kunyi_package in kunyi_packages:
-                kunyi_package = '/home/hp/temp/20250529_102834_n000020'
                 folders_in_kunyi_package = glob.glob(f"{kunyi_package}/*")
                 if os.path.join(kunyi_package, 'Config') in folders_in_kunyi_package and os.path.join(kunyi_package, self.can_file_name) in folders_in_kunyi_package and os.path.join(kunyi_package, self.images_file_name) in folders_in_kunyi_package:
-                    # h265_config_path = self.kunyiMkv_to_h265(kunyi_package)
-                    h265_config_path = '/home/hp/temp/20250529_102834_n000020/Images/h265_config.yaml'
+                    h265_config_path = self.kunyiMkv_to_h265(kunyi_package)
                     self.h265_to_db3(h265_config_path, os.path.join(kunyi_package, self.ros2bag_h265_name))
                     self.kunyiCan_to_db3(kunyi_package, install_path)
                     self.combine_Kunyi_db3(kunyi_package)
@@ -479,7 +486,6 @@ class DataTransformer:
                         shutil.rmtree(os.path.join(kunyi_package, self.images_file_name))
                 else:
                     print(f"{kunyi_package}不包含指定文件夹")
-
 
 
 class DataLoggerAnalysis:
@@ -533,14 +539,90 @@ class DataDownloader:
     def __init__(self):
         pass
 
-    def data_download_from_amazon(self, s3_path, local_downlaod_path):
-        if not os.path.exists(local_downlaod_path):
-            os.makedirs(local_downlaod_path)
+    def read_download_info(self, info_path):
+        """
+        从excel中读取所有文件在amazon云盘的路径为一个列表，并返回
+
+        参数:
+        info_path: excel的路径
+
+        返回：
+        download_info： 由多个字典组成的列表，字典为{'package_name': package_name,
+                                  'vin': vin,
+                                  'date': date,
+                                  'video_serial': video_serial}
+        """
+        df = pd.read_excel(info_path)
+        vin = '3D_data_LSJWK4095NS119733'
+        download_info = []
+        for index, row in df.iterrows():
+            package_name = row['包名']
+            date = row['批次']
+            video_serial = row['视频序列']
+            download_info.append({'package_name': package_name,
+                                  'vin': vin,
+                                  'date': date,
+                                  'video_serial': video_serial})
+        return download_info
+
+    def batch_data_download_from_amazon(self, info_path, local_download_path='/home/hp/temp'):
+        """
+        从excel中获取所有文件在amazon云盘的路径，并批量下载至本地
+
+        参数:
+        info_path: excel的路径
+        local_download_path: 下载至本地的路径
+        """
+        download_info = self.read_download_info(info_path)
+        for info in download_info:
+            s3_path = f"backup/data/collect/self/driving/{info['package_name']}/{info['vin']}/{info['date']}/"
+            src_folder = os.path.join(local_download_path, 'download')
+            dst_folder = os.path.join(local_download_path,  f"{info['date']}_{info['video_serial']}")
+            result = self.data_download_from_amazon(s3_path, src_folder, info['video_serial'])
+            if not result:
+                return
+            if os.path.exists(dst_folder):
+                shutil.rmtree(dst_folder)
+            os.makedirs(dst_folder)
+            src_folders = glob.glob(os.path.join(src_folder, '*'))
+            for folder in src_folders:
+                shutil.move(folder, os.path.join(local_download_path, f"{info['date']}_{info['video_serial']}"))
+            dst_folders = glob.glob(os.path.join(dst_folder, '*'))
+            if len(src_folders) == len(dst_folders) and len(glob.glob(os.path.join(src_folder, '*'))) == 0:
+                print(f"{s3_path}内的{info['video_serial']}已下载至{dst_folder}")
+            else:
+                print(f"文件移动至失败{dst_folder}")
+                return
+
+
+
+
+    def data_download_from_amazon(self, s3_path, local_download_path, serial_num=None):
+        """
+        从s3_path中下载文件至本地
+
+        参数:
+        s3_path: 云端路径
+        local_download_path: 下载至本地的路径
+        serial_num： 使用serial_num可以对路径中的文件做筛选，只下载对应序列号的文件
+        """
+        # 保证本地磁盘空间充足
+        # 获取磁盘使用情况
+        disk_usage = psutil.disk_usage('/home/hp/temp')
+
+        # 转换为 GB
+        total_gb = disk_usage.total / (1024 ** 3)
+        free_gb = disk_usage.free / (1024 ** 3)
+        used_gb = disk_usage.used / (1024 ** 3)
+        if free_gb <= 30:
+            print(f"剩余磁盘空间不足30G")
+            return False
+        if not os.path.exists(local_download_path):
+            os.makedirs(local_download_path)
         endpoint_url = 'http://10.192.53.221:8080'  # 你的S3 endpoint
         aws_access_key_id = 'QB1YGVNUKJP2MRK8AK2R' # 替换为你的Access Key
         aws_secret_access_key = 'JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH'  # 替换为你的Secret Key
         bucket_name = 'prod-ac-dmp'
-        # s3_path = 'backup/data/collect/self/driving/20250616_upload_Q3402/'
         tmux_session = 'download_session'
         tmux_window = 'download_session_windows'
         kill_tmux_session_if_exists(tmux_session)
@@ -550,8 +632,12 @@ class DataDownloader:
         py_path = os.path.join(project_path, 'Envs', 'Master', 'Interfaces')
         os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
                   f'"cd {py_path}" C-m')
-        os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
-                  f'"python3 Api_DownloadS3.py -u {endpoint_url} -k {aws_access_key_id} -s {aws_secret_access_key} -n {bucket_name} -p {s3_path} -f {local_downlaod_path} -x .pcap CAM_FRONT_30 CAM_BACK_LEFT CAM_BACK_RIGHT CAM_FRONT_LEFT CAM_FRONT_RIGHT" C-m')
+        if not serial_num:
+            os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
+                      f'"python3 Api_DownloadS3.py -u {endpoint_url} -k {aws_access_key_id} -s {aws_secret_access_key} -n {bucket_name} -p {s3_path} -f {local_download_path} -x .pcap CAM_FRONT_30 CAM_BACK_LEFT CAM_BACK_RIGHT CAM_FRONT_LEFT CAM_FRONT_RIGHT" C-m')
+        else:
+            os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
+                      f'"python3 Api_DownloadS3.py -u {endpoint_url} -k {aws_access_key_id} -s {aws_secret_access_key} -n {bucket_name} -p {s3_path} -f {local_download_path} -i Config {serial_num} -x .pcap CAM_FRONT_30 CAM_BACK_LEFT CAM_BACK_RIGHT CAM_FRONT_LEFT CAM_FRONT_RIGHT" C-m')
         # 判断合并是否完成
         while True:
             time.sleep(1)
@@ -562,6 +648,7 @@ class DataDownloader:
             if not running:
                 kill_tmux_session_if_exists(tmux_session)
                 break
+        return True
 
     def convert_folder_tree(self, src_dir, dst_dir):
         """
@@ -577,7 +664,50 @@ class DataDownloader:
 
 if __name__ == '__main__':
     ddd = DataDownloader()
-    # ddd.data_download_from_amazon('backup/data/collect/self/driving/20250530-20250529-car2-bev-Lidar/3D_data_LSJWK4095NS119733/20250529_102333/', '/home/hp/temp/20250529_102333')
+    install_path = '/home/hp/artifacts/ZPD_AH4EM/3.3.0_RC1/install'
+    qqq = DataTransformer(install_path=install_path)
+    info_path = '/home/hp/temp/77w数据汇总.xlsx'
+    local_download_path = '/home/hp/temp'
+    # download_info = ddd.read_download_info('/home/hp/temp/77w数据汇总.xlsx')
+    # for info in download_info:
+    #     s3_path = f"backup/data/collect/self/driving/{info['package_name']}/{info['vin']}/{info['date']}/"
+    #     src_folder = os.path.join(local_download_path, 'download')
+    #     dst_folder = os.path.join(local_download_path, f"{info['date']}_{info['video_serial']}")
+    #     result = ddd.data_download_from_amazon(s3_path, src_folder, info['video_serial'])
+    #     if not result:
+    #         break
+    #     if os.path.exists(dst_folder):
+    #         shutil.rmtree(dst_folder)
+    #     os.makedirs(dst_folder)
+    #     src_folders = glob.glob(os.path.join(src_folder, '*'))
+    #     for folder in src_folders:
+    #         shutil.move(folder, os.path.join(local_download_path, f"{info['date']}_{info['video_serial']}"))
+    #     dst_folders = glob.glob(os.path.join(dst_folder, '*'))
+    #     if len(src_folders) == len(dst_folders) and len(glob.glob(os.path.join(src_folder, '*'))) == 0:
+    #         print(f"{s3_path}内的{info['video_serial']}已下载至{dst_folder}")
+    #     else:
+    #         print(f"文件移动至失败{dst_folder}")
+    #         break
+    #     folders_in_kunyi_package = glob.glob(f"{dst_folder}/*")
+    #     if os.path.join(dst_folder, 'Config') in folders_in_kunyi_package and os.path.join(dst_folder,
+    #                                                                                           qqq.can_file_name) in folders_in_kunyi_package and os.path.join(
+    #             dst_folder, qqq.images_file_name) in folders_in_kunyi_package:
+    #         h265_config_path = qqq.kunyiMkv_to_h265(dst_folder)
+    #         # h265_config_path = '/home/hp/temp/20250529_102834_n000020/Images/h265_config.yaml'
+    #         qqq.h265_to_db3(h265_config_path, os.path.join(dst_folder, qqq.ros2bag_h265_name))
+    #         qqq.kunyiCan_to_db3(dst_folder, install_path)
+    #         qqq.combine_Kunyi_db3(dst_folder)
+    #         qqq.gen_AVM_from_db3(dst_folder, install_path)
+    #         print(f"{dst_folder}处理完成, 删除原始文件")
+    #         if os.path.exists(os.path.join(dst_folder, qqq.can_file_name)):
+    #             shutil.rmtree(os.path.join(dst_folder, qqq.can_file_name))
+    #         if os.path.exists(os.path.join(dst_folder, qqq.images_file_name)):
+    #             shutil.rmtree(os.path.join(dst_folder, qqq.images_file_name))
+    #     else:
+    #         print(f"{dst_folder}不包含指定文件夹")
+
+
+    # ddd.batch_data_download_from_amazon('/home/hp/temp/77w数据汇总.xlsx')
     # ddd.convert_folder_tree('/home/hp/temp/20250529', '/home/hp/temp')
     install_path = '/home/hp/artifacts/ZPD_AH4EM/3.3.0_RC1/install'
     q_docker_base_path = f'/media/data'
