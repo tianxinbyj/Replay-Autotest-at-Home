@@ -23,7 +23,9 @@ class S3Client:
             region_name='cn-north-1'  # 区域名称，可根据实际情况修改
         )
 
-    def list_objects(self, bucket_name, s3_path, exclude=None):
+    def list_objects(self, bucket_name, s3_path, include=None, exclude=None):
+        if include is None:
+            include = []
         if exclude is None:
             exclude = []
 
@@ -36,13 +38,13 @@ class S3Client:
             if 'Contents' in response:
                 # print(f"在路径 {s3_path} 下找到 {len(response['Contents'])} 个对象：")
                 for obj in response['Contents']:
-                    continue_flag = False
-                    for ex in exclude:
-                        if ex in obj['Key']:
-                            continue_flag = True
-                            break
 
-                    if continue_flag:
+                    # 如果需要包含字符，则至少包含其中一个
+                    if len(include) and (not any([i in obj['Key'] for i in include])):
+                        continue
+
+                    # 如果需要排除字符，则包含一个字符则排除
+                    if len(exclude) and (any([e in obj['Key'] for e in exclude])):
                         continue
 
                     print(f"- {obj['Key']} (大小 {round(obj['Size'] / 1024 / 1024 / 1024, 4)} GB)")
@@ -54,9 +56,12 @@ class S3Client:
         except Exception as e:
             print(f"列出对象时出错: {e}")
 
-    def download_s3_folder(self, bucket_name, s3_path, local_dir, exclude=None):
+    def download_s3_folder(self, bucket_name, s3_path, local_dir, include=None, exclude=None):
+        if include is None:
+            include = []
         if exclude is None:
             exclude = []
+
         if not os.path.exists(local_dir):
             shutil.rmtree(local_dir)
         os.makedirs(local_dir, exist_ok=True)
@@ -71,13 +76,12 @@ class S3Client:
                     if s3_key.endswith('/'):
                         continue
 
-                    continue_flag = False
-                    for ex in exclude:
-                        if ex in s3_key:
-                            continue_flag = True
-                            break
+                    # 如果需要包含字符，则至少包含其中一个
+                    if len(include) and (not any([i in obj['Key'] for i in include])):
+                        continue
 
-                    if continue_flag:
+                    # 如果需要排除字符，则包含一个字符则排除
+                    if len(exclude) and (any([e in obj['Key'] for e in exclude])):
                         continue
 
                     # 构建本地文件路径
@@ -102,6 +106,7 @@ def main():
     parser.add_argument("-n", "--bucket_name", type=str, required=True, help="bucket name")
     parser.add_argument("-p", "--s3_path", type=str, required=True, help="s3 path")
     parser.add_argument("-f", "--local_dir", type=str, required=False, default='n/a', help="local dir")
+    parser.add_argument("-i", "--include", type=str, nargs='*', default=None, required=False, help="必须包含字符串的文件")
     parser.add_argument("-x", "--exclude", type=str, nargs='*', default=None, required=False, help="排除包含字符串的文件")
     args = parser.parse_args()
 
@@ -111,6 +116,7 @@ def main():
     bucket_name = args.bucket_name
     s3_path = args.s3_path
     local_dir = args.local_dir
+    include = args.include
     exclude = args.exclude
 
     if s3_path.startswith('/'):
@@ -118,18 +124,15 @@ def main():
 
     s3_client = S3Client(endpoint_url, aws_access_key_id, aws_secret_access_key)
     if local_dir != 'n/a':
-        s3_client.download_s3_folder(bucket_name, s3_path, local_dir, exclude)
+        s3_client.download_s3_folder(bucket_name, s3_path, local_dir, include, exclude)
     else:
-        s3_client.list_objects(bucket_name, s3_path, exclude)
+        s3_client.list_objects(bucket_name, s3_path, include, exclude)
 
 
 if __name__ == '__main__':
     main()
     cmd = '''
-    /usr/bin/python3 Api_DownloadS3.py -u http://10.192.53.221:8080 -k QB1YGVNUKJP2MRK8AK2R -s JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH -n prod-ac-dmp -p backup/data/collect/self/driving/20250616_upload_Q3402/
-    '''
-    cmd = '''
-    /usr/bin/python3 Api_DownloadS3.py -u http://10.192.53.221:8080 -k QB1YGVNUKJP2MRK8AK2R -s JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH -n prod-ac-dmp -p backup/data/collect/self/driving/20250530-20250529-car2-bev-Lidar/3D_data_LSJWK4095NS119733 -x .pcap
+    /usr/bin/python3 Api_DownloadS3.py -u http://10.192.53.221:8080 -k QB1YGVNUKJP2MRK8AK2R -s JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH -n prod-ac-dmp -p backup/data/collect/self/driving/20250530-20250529-car2-bev-Lidar/3D_data_LSJWK4095NS119733 -i n000001 -x .pcap
     '''
     endpoint_url='http://10.192.53.221:8080',  # 你的S3 endpoint
     aws_access_key_id='QB1YGVNUKJP2MRK8AK2R',  # 替换为你的Access Key
