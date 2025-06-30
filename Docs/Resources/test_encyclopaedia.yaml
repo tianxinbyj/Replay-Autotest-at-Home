@@ -1,8 +1,6 @@
-ES39:
+AH4EM:
   ip:
-    s32g: 172.31.131.34
-    j5a: 172.31.131.35
-    j5b: 172.31.131.36
+    J6e: 172.31.1.40
   enum:
     Lines:
       color:
@@ -60,24 +58,31 @@ ES39:
         3: oblique
   parse_topic:
     pilot:
-    - /PI/EG/EgoMotionInfo
     - /VA/VehicleMotionIpd
-    - /VA/BevObstaclesDet
-    - /VA/Obstacles
-    - /VA/BevLines
-    - /VA/FrontWideObstacles2dDet
-    - /VA/BackViewObstacles2dDet
+    - /VA/QC/BEVObstaclesTracks
+    - /VA/QC/FsObstacles
+    - /VA/QC/Lines
+    - /VA/QC/Pose
     - /SA/INSPVA
-    - /VA/FusObjects
-    - /PK/DR/Result
     parking:
-    - /PI/EG/EgoMotionInfo
+    - /VA/VehicleMotionIpd
     - /PK/DR/Result
-    - /VA/Slots
     - /SA/INSPVA
     - /VA/PK/Obstacles
+    - /VA/PK/BevObstaclesDet
+    - /PK/PER/VisionSlotDecodingList
+    - /VA/PK/Slots
+    - /LP/ParkingOcc
+    - /PK/PER/FSDecodingList
+    - /VA/PK/Freespaces
   record_topic:
     pilot:
+    - /VA/QC/Pose
+    - /VA/QC/Lines
+    - /VA/QC/BEVObstaclesTracks
+    - /VA/QC/MonoObstaclesTracks
+    - /VA/QC/FsObstacles
+    - /VA/QC/Objects
     - /AEB/AEBDebug
     - /AEB/AEBFlag
     - /AEB/EgoMotionInfo
@@ -89,13 +94,6 @@ ES39:
     - /AEB/HorizonObstacles
     - /AEB/RadarObjList
     - /Camera/FrontWide/H265
-    - /Camera/FrontNarrow/H265
-    - /Camera/FrontWide/MutiModelHevc
-    - /Camera/Rear/H265
-    - /Camera/SorroundFront/H265
-    - /Camera/SorroundLeft/H265
-    - /Camera/SorroundRear/H265
-    - /Camera/SorroundRight/H265
     - /COM/CUS/CommonHMI
     - /Diag/DiagServiceHeartbeat
     - /Diag/ItcDataCollection
@@ -118,7 +116,6 @@ ES39:
     - /FM/FctReq
     - /FS/FusionAEBResult
     - /FS/AEBFusionObjDbg
-    - /FS/FusionODResult
     - /FS/FusionRoadEdgeOutInfo
     - /IS/PRO
     - /LP/Freespaces
@@ -282,6 +279,7 @@ ES39:
     - /VA/Freespaces
     - /VA/FusLines
     - /VA/FusObjects
+    - /VA/PK/BevObstaclesDet
     - /VA/Lines
     - /VA/Objects
     - /VA/FrontViewObstacles
@@ -852,7 +850,7 @@ EP39:
   project_id:
   - "ACZPD"
   - "10948"
-EP39AEB:
+AEB:
   ip:
     J6e: 172.31.1.40
   enum:
@@ -935,20 +933,48 @@ EP39AEB:
     - /VA/PK/Freespaces
   record_topic:
     pilot:
-    - /CAL/CamCalibration
-    - /Camera/FrontWide/H265
-#    - /Camera/Rear/H265
-#    - /Camera/SorroundFront/H265
-#    - /Camera/SorroundLeft/H265
-#    - /Camera/SorroundRear/H265
-#    - /Camera/SorroundRight/H265
-    - /Diag/ItcDataCollection
+    - /VA/VehicleMotionIpd
+    - /VA/VehicleStatusIpd
+    - /SASR5RearLeftCornerRadarObject
+    - /SASR5RearRightCornerRadarObject
     - /PI/EG/EgoMotionInfo
-    - /PK/DR/DeltaInfo
-    - /PK/DR/Result
+    - /SASR5RearLeftCornerRadarObject
+    - /SASR5RearRightCornerRadarObject
+    - /SA/INSPVA
     - /SA/IMU
     - /SA/GNSS
-    - /SA/INSPVA
+    - /SAFrontRadarObject
+    - /SAFrontRadarLocation
+    - /VA/QC/Pose
+    - /VA/VehicleHMI
+    - /AEB/AEBDebug
+    - /FS/FusionAEBResult
+    - /AEB/FS/TypeRaCamObjectVcc
+    - /AEB/FS/TypeRaCamRoadVcc
+    - /FS/AEBFusionObjDbg
+    - /VA/QC/BEVObstaclesTracks
+    - /VA/QC/FsObstacles
+    - /VA/QC/Lines
+    - /VA/QC/MonoObstaclesTracks
+    - /VA/QC/Objects
+    - /SOA/PI/NavigationInfoES39
+    - /NavigationInfoLinkListES39
+    - /NavigationInfoGeoPointListES39
+    - /SegmentInfoListES39
+    - /SOA/SDNaviLinkInfo39
+    - /PK/DR/Result
+    - /SA/UpcUssRaw
+    - /PK/USS/Od
+    - /CAL/CamCalibration
+    - /Camera/FrontWide/H265
+    - /Camera/Rear/H265
+    - /Camera/SorroundFront/H265
+    - /Camera/SorroundLeft/H265
+    - /Camera/SorroundRear/H265
+    - /Camera/SorroundRight/H265
+    - /Diag/ItcDataCollection
+    - /PK/DR/DeltaInfo
+    - /PK/DR/Result
     - /PK/CUS/IntelligentSwitch
     - /VA/BackViewObstacles2dDet
     - /VA/BevLaneSeg
@@ -963,29 +989,10 @@ EP39AEB:
     - /VA/FvTlrPostproObjects
     - /VA/Objects
     - /VA/Obstacles
-    - /VA/VehicleHMI
-    - /VA/VehicleMotionIpd
-    - /VA/VehicleStatusIpd
     - /VA/LaneInstance
     - /VA/ImageDiag
     - /FM/FctReq
-    - /FS/FusionAEBResult
-    - /AEB/FS/TypeRaCamObjectVcc
-    - /AEB/FS/TypeRaCamRoadVcc
-    - /FS/AEBFusionObjDbg
     - /SA/RadarFunReq
-    - /SAFrontRadarObject
-    - /SAFrontRadarLocation
-    - /SASR5FrontLeftCornerRadarObject
-    - /SASR5FrontRightCornerRadarObject
-    - /SASR5RearLeftCornerRadarObject
-    - /SASR5RearRightCornerRadarObject
-    - /VA/QC/Pose
-    - /VA/QC/Lines
-    - /VA/QC/BEVObstaclesTracks
-    - /VA/QC/MonoObstaclesTracks
-    - /VA/QC/FsObstacles
-    - /VA/QC/Objects
     - /AEB/AEBOutput
     parking:
     - /AEB/AEBFlag
@@ -993,15 +1000,6 @@ EP39AEB:
     - /AEB/FS/TypeRaCamRoadVcc
     - /AEB/FS/TypeRaCamObjectVcc
     - /CAL/CamCalibration
-#    - /Camera/SorroundFront/H265
-#    - /Camera/SorroundLeft/H265
-#    - /Camera/SorroundRear/H265
-#    - /Camera/SorroundRight/H265
-#    - /Camera/FrontWide/H265
-#    - /Camera/Rear/H265
-#    - /Camera/AVM/H265
-#    - /Camera/FrontWide/H265t
-#    - /Camera/FrontWide/MutiModelHevc
     - /VA/PK/BevObstaclesDet
     - /PK/DR/Result
     - /PK/PER/Parsing
