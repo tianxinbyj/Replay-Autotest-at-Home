@@ -6,6 +6,7 @@
 
 import csv
 import glob
+import json
 import multiprocessing as mp
 import os
 import pickle
@@ -23,816 +24,6 @@ from rosbags.typesys import Stores, get_typestore
 from rosbags.typesys import get_types_from_msg, register_types
 
 warnings.filterwarnings("ignore")
-
-msg_description = {
-    'proto_horizon_msgs/msg/Obstacles':
-        {
-            'ObstacleType':
-                {
-                    0: 'Vehicle',  # Veh_R
-                    1: 'Vehicle',
-                    2: 'Pedestrian',
-                    18: 'Cyclist',
-                },
-            'ObstacleLane':
-                {
-                    -1: 'Rear',
-                    0: 'Unknown',
-                    1: 'LL',
-                    2: 'Left',
-                    3: 'Host',
-                    4: 'Right',
-                    5: 'RR',
-                },
-            'MotionState':
-                {
-                    0: 'Invalid',
-                    1: 'Unknown',
-                    2: 'Moving',
-                    3: 'Stationary',
-                    4: 'Stopped',
-                    5: 'Slowly',
-                },
-            'MotionCategory':
-                {
-                    0: 'Invalid',
-                    1: 'Undefined',
-                    2: 'Passing',
-                    3: 'Passing_In',
-                    4: 'Passing_Out',
-                    5: 'Cut_In',
-                    6: 'Moving_In',
-                    7: 'Moving_Out',
-                    8: 'Crossing',
-                    9: 'Left_Turn',
-                    10: 'Right_Turn',
-                    11: 'Moving',
-                    12: 'Preceding',
-                    13: 'Oncoming',
-                },
-            'MeasurementStatus':
-                {
-                    0: 'Invalid',
-                    1: 'Measured',
-                    2: 'Predicted',
-                },
-            'PropertyCategory':
-                {
-                    0: {
-                        0: {  # 车辆分类
-                            0: 'Bus',
-                            1: 'Small_Medium_Car',
-                            2: 'Truck',
-                            3: 'Tricycle',
-                            4: 'Special',
-                            5: 'Tiny_Car',
-                            6: 'Lorry',
-                        },
-                        2: {  # 车灯分类
-                            0: 'LeftLightOn',
-                            1: 'RightLightOn',
-                            2: 'BrakeLightOn',
-                            3: 'AllLightOff',
-                            4: 'Left+BrakeLightOn',
-                            5: 'Right+BrakeLightOn',
-                            6: 'ClearanceLampOn',
-                        },
-                        9: {  # 车辆遮挡程度
-                            0: 'Full_Visible',
-                            1: 'Occluded',
-                            2: 'Heavily_Occluded',
-                            3: 'Invisible',
-                            4: 'Unknown',
-                        },
-                    },
-                    1: {
-                        0: {  # 行人朝向
-                            0: 'Back',
-                            1: 'Front',
-                            2: 'Left',
-                            3: 'Left_Anterior',
-                            4: 'Left_Back',
-                            5: 'Right',
-                            6: 'Right_Back',
-                            7: 'Right_Front',
-                        },
-                        2: {  # 行人年龄
-                            0: 'Adult',
-                            1: 'Child',
-                        },
-                        3: {  # 行人姿态
-                            0: 'Bended',
-                            1: 'Cyclist',
-                            2: 'Lier',
-                            3: 'Pedestrian',
-                            4: 'Sitter',
-                        },
-                        7: {  # 行人遮挡程度
-                            0: 'Full_visible',
-                            1: 'Occluded',
-                            2: 'Heavily_occluded',
-                            3: 'Invisible',
-                        },
-                    },
-                },
-        },
-
-    'proto_horizon_msgs/msg/Lines':
-        {
-            'LineColor':
-                {
-                    0: (42, 42, 165),  # red
-                    2: (190, 190, 190),  # white
-                    4: (0, 238, 238),  # yellow
-                    8: (0, 165, 255),  # orange
-                    16: (255, 144, 30),  # blue
-                    32: (69, 139, 0),  # green
-                    64: (120, 120, 120),  # grey
-                    128: (107, 183, 189),  # grey yellow
-                    256: (205, 250, 255),  # yellow white
-                },
-            'LinePosition':
-                {
-                    -1: 'Unknown',
-                    0: 'Left',
-                    2: 'Right',
-                    4: 'LL',
-                    8: 'RR',
-                    16: 'LO',
-                    32: 'RO',
-                    64: 'LLL',
-                    128: 'RRR',
-                },
-            'LineType':
-                {
-                    -1: '-1',
-                    0: 'Unknown',
-                    2: 'Lane',
-                    8: 'Center',
-                    64: 'Fence',
-                },
-            'LineMarking':
-                {
-                    0: 'Unknown',
-                    2: 'Solid',
-                    4: 'Dashed',
-                    8: 'S-Dashed',
-                    16: '2-Solid',
-                    32: '2-Dashed',
-                    64: 'L-S,R-D',
-                    128: 'R-S,L-D',
-                    256: 'Shaded',
-                    16384: 'De-Solid',
-                    32784: 'De-Dashed',
-                },
-            'LineSource':
-                {
-                    1: 'Crossing',
-                    4: 'Blocked',
-                    16: 'History',
-                    32: 'Extrapolate',
-                    512: 'Unknown',
-                    1024: 'New',
-                    2048: 'Measured',
-                    4096: 'Predicted',
-                    8192: 'Left',
-                    16384: 'Right',
-                    32768: 'Curb',
-                    65536: 'Guardrail',
-                    131072: 'Barrier',
-                    262144: 'Wall',
-                    524288: 'Canopy',
-                    2097152: 'Cone',
-                    4194304: 'Other',
-                    33554432: 'Stopline',
-                    67108864: 'Separate',
-                },
-        },
-
-    'proto_horizon_msgs/msg/FusLines':
-        {
-            'LineColor':
-                {
-                    0: (42, 42, 165),  # red
-                    2: (190, 190, 190),  # white
-                    4: (0, 238, 238),  # yellow
-                    8: (0, 165, 255),  # orange
-                    16: (255, 144, 30),  # blue
-                    32: (69, 139, 0),  # green
-                    64: (120, 120, 120),  # grey
-                    128: (107, 183, 189),  # grey yellow
-                    256: (205, 250, 255),  # yellow white
-                },
-            'LinePosition':
-                {
-                    -1: 'Unknown',
-                    0: 'Left',
-                    2: 'Right',
-                    4: 'LL',
-                    8: 'RR',
-                    16: 'LO',
-                    32: 'RO',
-                    64: 'LLL',
-                    128: 'RRR',
-                },
-            'LineType':
-                {
-                    -1: '-1',
-                    0: 'Unknown',
-                    2: 'Lane',
-                    8: 'Center',
-                    64: 'Fence',
-                },
-            'LineMarking':
-                {
-                    0: 'Unknown',
-                    2: 'Solid',
-                    4: 'Dashed',
-                    8: 'S-Dashed',
-                    16: '2-Solid',
-                    32: '2-Dashed',
-                    64: 'L-S,R-D',
-                    128: 'R-S,L-D',
-                    256: 'Shaded',
-                    16384: 'De-Solid',
-                    32784: 'De-Dashed',
-                },
-            'LineSource':
-                {
-                    1: 'Crossing',
-                    4: 'Blocked',
-                    16: 'History',
-                    32: 'Extrapolate',
-                    512: 'Unknown',
-                    1024: 'New',
-                    2048: 'Measured',
-                    4096: 'Predicted',
-                    8192: 'Left',
-                    16384: 'Right',
-                    32768: 'Curb',
-                    65536: 'Guardrail',
-                    131072: 'Barrier',
-                    262144: 'Wall',
-                    524288: 'Canopy',
-                    2097152: 'Cone',
-                    4194304: 'Other',
-                    33554432: 'Stopline',
-                    67108864: 'Separate',
-                },
-        },
-
-    'proto_horizon_msgs/msg/Objects':
-        {
-            'ObjectType':
-                {
-                    0: 'Unknown',
-                    1: 'TrafficSign',
-                    2: 'TrafficLight',
-                    3: 'TrafficLightBulb',
-                    4: 'LaneMarking',
-                    5: 'StopLine',
-                    6: 'SpeedBump',
-                    7: 'Pole',
-                    8: 'CrosswalkLine',
-                    9: 'Zone',
-                    10: 'ParkingSlot',
-                    11: 'TrafficCone',
-                    12: 'ParkingLockClose',
-                    13: 'ParkingLockOpen',
-                    14: 'ParkingColumn',
-                    15: 'ParkingFrameSign',
-                    16: 'Junction',
-                    17: 'ParkingLock',
-                },
-            'ObjectSubType':
-                {
-                    1:  # TrafficSignTypeCN
-                        {
-                            0: 'Unknown',  # 未知
-                            109: 'IR_Ramp',  # 匝道
-                            110: 'IR_RampArrow',  # 匝道（箭头）
-                            134: 'IR_Zones',  # 施工区标志
-                            135: 'IR_ZonesII',  # 施工区标志Ⅱ
-                            136: 'I_AllowUturn',  # 允许掉头
-                            137: 'I_Circle',  # 环岛行驶
-                            138: 'I_FastBusLane',  # 快速公交系统专用道
-                            139: 'I_Forward',  # 直行
-                            140: 'I_ForwardLane',  # 直行车道
-                            141: 'I_ForwardLeft',  # 直行和左转
-                            142: 'I_ForwardLeftLane',  # 直⾏和左转合⽤⻋道
-                            144: 'I_ForwardRight',  # 直行和右转
-                            145: 'I_ForwardRightLane',  # 直⾏和右转合⽤⻋道
-                            147: 'I_Honk',  # 鸣喇叭
-                            148: 'I_Left',  # 靠左侧行驶
-                            149: 'I_LeftBusLane',  # 公交线路专⽤⻋道
-                            150: 'I_LeftLine',  # 单⾏路向左
-                            151: 'I_LeftRight',  # 左转和右转
-                            152: 'I_LeftTurn',  # 向左转弯
-                            153: 'I_LeftTurnLane',  # 左转⻋道
-                            154: 'I_MinSpeedLim',  # 最低时速限制
-                            162: 'I_Motors',  # 机动⻋⾏驶
-                            163: 'I_MotorsLane',  # 机动⻋道
-                            164: 'I_MultiOccupantMotorsLane',  # 多乘员⻋辆专⽤⻋道
-                            165: 'I_NonMotors',  # ⾮机动⻋⾏驶
-                            166: 'I_NonMotorsLane',  # ⾮机动⻋⻋道
-                            169: 'I_ParkingSpace',  # 停⻋位
-                            171: 'I_PedestrianCross',  # ⼈⾏横道
-                            172: 'I_PriorityIntereesction',  # 路⼝优先通⾏
-                            173: 'I_Right',  # 靠右侧⾏驶
-                            174: 'I_RightLine',  # 单⾏路向右
-                            175: 'I_RightTurn',  # 向右转弯
-                            176: 'I_RightTurnLane',  # 右转⻋道
-                            177: 'I_SplitDriveLine',  # 分向⾏驶⻋道
-                            178: 'I_StraightLine',  # 单⾏路直⾏
-                            179: 'I_UTurnAndLeftLane',  # 掉头和左转合⽤⻋道
-                            180: 'I_UTurnLane',  # 掉头⻋道
-                            183: 'I_Uturn',  # 掉头
-                            184: 'I_Walk',  # 步⾏
-                            218: 'P_Custom',  # 海关
-                            219: 'P_GiveWay',  # 会⻋让⾏
-                            220: 'P_HeightLim',  # 限⾼
-                            221: 'P_MultiVehicle',  # 多交通⼯具禁⽌
-                            222: 'P_NoAnimalVehicle',  # 禁⽌畜⼒⻋进⼊
-                            223: 'P_NoBikeDownSlope',  # 禁⽌骑⾃⾏⻋下坡
-                            224: 'P_NoBikeUpSlope',  # 禁⽌骑⾃⾏⻋上坡
-                            225: 'P_NoBus',  # 禁⽌客⻋驶⼊
-                            226: 'P_NoCar',  # 禁⽌⼩汽⻋驶⼊
-                            227: 'P_NoCargoTricycle',  # 禁⽌三轮货⻋驶⼊
-                            228: 'P_NoDangerous',  # 禁⽌危险品⻋辆驶⼊
-                            229: 'P_NoEntry',  # 禁⽌驶⼊
-                            230: 'P_NoForward',  # 禁⽌直⾏
-                            231: 'P_NoForwardLeft',  # 禁⽌直⾏和左转
-                            232: 'P_NoForwardRight',  # 禁⽌直⾏和右转
-                            233: 'P_NoHorning',  # 禁鸣喇叭
-                            234: 'P_NoHuman',  # 禁⽌⾏⼈进⼊
-                            235: 'P_NoHumanCargoTriangle',  # 禁⽌⼈⼒载货三轮⻋进⼊
-                            236: 'P_NoHumanPassengerTriangle',  # 禁⽌⼈⼒三轮⻋进⼊
-                            237: 'P_NoHumanVehicle',  # 禁⽌⼈⼒⻋进⼊
-                            238: 'P_NoLeftRightTurn',  # 禁⽌左右转弯
-                            239: 'P_NoLeftTurn',  # 禁⽌左转弯
-                            240: 'P_NoLongParking',  # 禁⽌⻓时停⻋
-                            242: 'P_NoMinibus',  # 禁⽌⼩型客⻋通⾏
-                            244: 'P_NoMotor',  # 禁⽌机动⻋驶⼊
-                            245: 'P_NoMotorcycle',  # 禁⽌摩托⻋驶⼊
-                            246: 'P_NoNonMotor',  # 禁⽌⾮机动⻋进⼊
-                            247: 'P_NoParking',  # 禁⽌停⻋
-                            249: 'P_NoPassing',  # 禁⽌超⻋
-                            250: 'P_NoPassingRev',  # 解除禁⽌超⻋
-                            251: 'P_NoReturn',  # 禁⽌掉头
-                            252: 'P_NoRightTurn',  # 禁⽌右转弯
-                            253: 'P_NoSpecificLeftTurn',  # 禁⽌特定⻋辆左转
-                            254: 'P_NoSpecificRightTurn',  # 禁⽌特定⻋辆右转
-                            255: 'P_NoTractor',  # 禁⽌拖拉机驶⼊
-                            256: 'P_NoTrailer',  # 禁⽌挂⻋驶⼊
-                            257: 'P_NoTricycle',  # 禁⽌电动三轮⻋驶⼊
-                            258: 'P_NoTruck',  # 禁⽌载货汽⻋驶⼊
-                            259: 'P_Noway',  # 禁⽌通⾏
-                            261: 'P_Other_SpeedLimele',  # 电⼦限速其他
-                            262: 'P_ParkingCheck',  # 停⻋检查
-                            263: 'P_SlowFor',  # 减速让⾏
-                            264: 'P_SpeedLim',  # 限速
-                            265: 'P_SpeedLimele',  # 电子限速
-                            300: 'P_SpeedLimRev',  # 解除限速
-                            324: 'P_StopFor',  # 停⻋让⾏
-                            327: 'P_VehicleOther',  # 其他单交通⼯具禁⽌
-                            328: 'P_WeightLim',  # 限重
-                            329: 'P_WeightLimWheel',  # 轮胎限重
-                            330: 'P_WidthLim',  # 限宽
-                            376: 'W_AccidentProne',  # 注意事故易发路段
-                            378: 'W_BadWeather',  # 注意恶劣天⽓
-                            379: 'W_Bump',  # 注意路⾯凸起
-                            380: 'W_Bumpy',  # 注意颠簸路⾯
-                            381: 'W_Children',  # 注意⼉童
-                            382: 'W_Circle',  # 注意环⾏路⼝
-                            383: 'W_ContinuousDown',  # 注意连续下坡
-                            384: 'W_ContinuousTurn',  # 注意连续弯道
-                            385: 'W_Cross',  # 注意⼗字路⼝
-                            386: 'W_CrossIntersection',  # 注意⼗字平⾯交叉
-                            388: 'W_Cycle',  # 注意⾮机动⻋
-                            389: 'W_DamLeft',  # 注意堤坝左侧⽔域
-                            390: 'W_DamRight',  # 注意堤坝右侧⽔域
-                            391: 'W_Danger',  # 注意危险
-                            392: 'W_DetourAround',  # 注意左右侧绕⾏
-                            393: 'W_DetourLeft',  # 注意左侧绕⾏
-                            394: 'W_DetourRight',  # 注意右侧绕⾏
-                            395: 'W_Disabled',  # 注意残疾⼈
-                            397: 'W_Down',  # 注意下坡
-                            399: 'W_Ferry',  # 注意渡⼝
-                            400: 'W_Fog',  # 注意雾天
-                            401: 'W_Ford',  # 注意过⽔路⾯
-                            402: 'W_GuardedRailway',  # 注意铁道⼝
-                            403: 'W_HumpBridge',  # 注意驼峰桥
-                            404: 'W_Ice',  # 注意路⾯结冰
-                            405: 'W_KeepDistance',  # 注意保持⻋距
-                            406: 'W_LRNarrow',  # 注意两侧变窄
-                            407: 'W_LRTurn',  # 注意左边反向弯道
-                            408: 'W_LeftFalling',  # 注意左⽅落⽯
-                            409: 'W_LeftNarrow',  # 注意左侧变窄
-                            410: 'W_LeftTurn',  # 注意左急转弯
-                            411: 'W_LowLying',  # 注意路⾯低洼
-                            412: 'W_MergeLeft',  # 注意左侧合流
-                            413: 'W_MergeRight',  # 注意右侧合流
-                            414: 'W_MountLeft',  # 注意左旁⼭险路
-                            415: 'W_MountRight',  # 注意右旁⼭险路
-                            416: 'W_NarrowBridge',  # 注意窄桥
-                            418: 'W_Pedestrian',  # 注意⾏⼈
-                            419: 'W_RLTurn',  # 注意右边反向弯道
-                            420: 'W_Railway',  # 注意⽆⼈看守铁道⼝
-                            421: 'W_Rain',  # 注意⾬雪
-                            422: 'W_RightFalling',  # 注意右⽅落⽯
-                            423: 'W_RightNarrow',  # 注意右侧变窄
-                            424: 'W_RightTurn',  # 注意右急转弯
-                            425: 'W_SideWind',  # 注意横⻛(警告)
-                            428: 'W_Slip',  # 注意易滑路段
-                            429: 'W_Slow',  # 注意减速慢⾏
-                            430: 'W_SlowDown',  # 建议减速
-                            431: 'W_SplitLeft',  # 注意左侧分流
-                            432: 'W_SplitRight',  # 注意右侧分流
-                            433: 'W_TIntersection',  # 注意T字平⾯交叉
-                            435: 'W_TShapLeft',  # 注意左向丁字路⼝
-                            436: 'W_TShapRight',  # 注意右向丁字路⼝
-                            437: 'W_Tidal',  # 注意潮汐⻋道
-                            438: 'W_TrafficLight',  # 注意信号灯
-                            439: 'W_Tripod',  # 注意故障⻋辆
-                            440: 'W_Tshape',  # 注意丁字路⼝
-                            441: 'W_Tshaps',  # 注意连续丁字路⼝
-                            442: 'W_Tunnel',  # 注意隧道
-                            443: 'W_TunnelHeadlight',  # 注意隧道开⻋灯
-                            444: 'W_TwoWay',  # 注意双向交通
-                            446: 'W_Up',  # 注意上坡
-                            447: 'W_VehicleQueue',  # 注意⻋辆排队
-                            448: 'W_Village',  # 注意村庄
-                            449: 'W_Working',  # 注意施⼯
-                            450: 'W_YBLeft',  # 注意左后⽅叉⼝
-                            451: 'W_YBRight',  # 注意右后⽅叉⼝
-                            454: 'W_YLeft',  # 注意左前⽅叉⼝
-                            455: 'W_YRight',  # 注意右前⽅叉⼝
-                            1501: 'RouteIDSign',  # 公路编号
-                            1502: 'MiscSign',  # 嵌套牌
-                            1503: 'GuideSign',  # 指示牌
-                            1504: 'I_Other',  # 其它
-                        },
-                    2:  # TrafficLightType
-                        {
-                            0: 'Unknown',
-                            1: 'Circle',
-                            2: 'Cross',
-                            3: 'Pedestrian',
-                            4: 'Bicycle',
-                            5: 'Arrow',
-                            6: 'Time',
-                            7: 'Text',
-                            8: 'MultiLen',
-                        },
-                    4:  # LaneMarkingType
-                        {
-                            0: 'Unknown',
-                            1: 'ArrowLeft',
-                            2: 'ArrowForward',
-                            3: 'ArrowRight',
-                            4: 'ArrowL&F',
-                            5: 'ArrowR&F',
-                            6: 'ArrowL&R',
-                            7: 'ArrowTurn',
-                            8: 'ArrowT&F',
-                            9: 'ArrowT&L',
-                            10: 'ArrowMergeL',
-                            11: 'ArrowMergeR',
-                            12: 'CrossNotice',
-                            13: 'SpeedLimitL',
-                            14: 'SpeedLimitH',
-                            15: 'ArrowNoL',
-                            16: 'ArrowNoR',
-                            17: 'ArrowNoT',
-                            18: 'ArrowNoL&R',
-                            19: 'ArrowNoT&L',
-                            20: 'ArrowNoT&R',
-                            21: 'Text',
-                            22: 'Time',
-                            23: 'CheckDist',
-                            24: 'StopGiveWay',
-                            25: 'SlowGiveWay',
-                            26: 'Stop',
-                            27: 'Nets',
-                            28: 'ArrowNoF',
-                            29: 'ArrowNoMergeL',
-                            30: 'ArrowNoMergeR',
-                        },
-                    7:  # PoleType
-                        {
-                            0: 'Unknown',
-                            1: 'Gantry',
-                            2: 'SignPost',
-                            3: 'Signal',
-                            4: 'RoadGate',
-                            5: 'HeightLim',
-                        },
-                    9:  # ZoneType
-                        {
-                            0: 'Unknown',
-                            1: 'Circle',
-                            2: 'DeadCircle',
-                            3: 'Polygon',
-                            4: 'NoStop',
-                            5: 'DriveWay',
-                            6: 'ParkingLot',
-                            7: 'RailCross',
-                            8: 'InterSect',
-                            9: 'ParkingArea',
-                            10: 'Pickup',
-                            11: 'Dropoff',
-                            12: 'RoadWork',
-                            13: 'CrossWalk',
-                        },
-                    11:  # TrafficConeType
-                        {
-                            0: 'Unknown',
-                            1: 'TrafficCone',
-                            2: 'TrafficBollard',
-                            3: 'IsolationBollard',
-                            4: 'OtherBollard',
-                            5: 'CrashBarrel',
-                        },
-                },
-            'TrafficLightBulbType':
-                {
-                    0: 'Unknown',
-                    1: 'Circle',
-                    2: 'Left',
-                    4: 'Right',
-                    8: 'Up',
-                    16: 'Down',
-                    32: 'UTurn',
-                    64: 'F&L',
-                    128: 'F&R',
-                    256: 'Pedestrian',
-                    512: 'NoMotor',
-                    1024: 'Time',
-                    2048: 'L&T',
-                    4096: 'NoDrive',
-                    8192: 'TextPed',
-                    16384: 'SignPed',
-                    32768: 'TextNoPed',
-                    65536: 'SignNoPed',
-                },
-            'TrafficLightBulbColor':
-                {
-                    0: 'Unknown',
-                    1: 'Off',
-                    10: 'Green',
-                    11: 'Yellow',
-                    12: 'Red',
-                },
-            'TrafficLightStructType':
-                {
-                    0: 'Unknown',
-                    1: 'HV1',
-                    2: 'H2',
-                    3: 'V2',
-                    4: 'H3',
-                    5: 'V3',
-                    6: 'H4',
-                    7: 'V4',
-                    8: 'H5',
-                    9: 'V5',
-                },
-            'Orientation':
-                {
-                    0: 'Unknown',
-                    1: 'Back',
-                    2: 'Side',
-                    3: 'Front',
-                },
-            'TrafficLightBulbSpotMode':
-                {
-                    0: 'Unknown',
-                    1: 'On',
-                    2: 'Flash',
-                    3: 'Off',
-                },
-            'ObjectShape':
-                {
-                    0: 'Unknown',
-                    1: 'Rectangle',
-                    2: 'Triangle',
-                    3: 'Round',
-                    4: 'Cylinder',
-                },
-        },
-
-    'per_fusion_msgs/msg/LaneMarkings':
-        {
-            'LineColor':
-                {
-                    0: (42, 42, 165),  # red,should be unknown,
-                    1: (180, 180, 180),  # white
-                    2: (0, 185, 240),  # yellow
-                    3: (80, 127, 255),  # orange
-                    4: (255, 105, 65),  # blue
-                    5: (0, 128, 0),  # green
-                    6: (80, 80, 80),  # gray
-                    7: (107, 183, 189),  # LEFT_GRAY_RIGHT_YELLOW = 7
-                    8: (205, 250, 250),  # LEFT_YELLOW_RIGHT_WHITE = 8
-                },
-            'LinePosition':
-                {
-                    -1: 'Unknown',
-                    0: 'UNSPECIFIED',
-                    1: 'Left',
-                    2: 'Right',
-                    3: 'LL',
-                    4: 'RR',
-                    5: 'LO',
-                    6: 'RO',
-                    7: 'LLL',
-                    8: 'RRR',
-                },
-            'LineType':
-                {
-                    0: 'Unknown',
-                    1: 'Lane',
-                    2: 'Center',
-                    3: 'Fence',
-                },
-            'LineMarking':
-                {
-                    0: 'Unknown',
-                    1: 'Solid',
-                    2: 'Dashed',
-                    3: 'S-Dashed',
-                    4: '2-Solid',
-                    5: '2-Dashed',
-                    6: 'L-S,R-D',
-                    7: 'R-S,L-D',
-                },
-            'LineSource':
-                {
-                    1: 'Crossing',
-                    4: 'Blocked',
-                    16: 'History',
-                    32: 'Extrapolate',
-                    512: 'Unknown',
-                    1024: 'New',
-                    2048: 'Measured',
-                    4096: 'Predicted',
-                    8192: 'Left',
-                    16384: 'Right',
-                    32768: 'Curb',
-                    65536: 'Guardrail',
-                    131072: 'Barrier',
-                    262144: 'Wall',
-                    524288: 'Canopy',
-                    1048576: 'Cone',
-                    2097152: 'Other',
-                    33554432: 'Stopline',
-                    67108864: 'Separate',
-                },
-            'ExtraPoints':
-                {
-                    0: 'Unspecified',
-                    1: 'Unknown',
-                    2: 'Division',
-                    4: 'Merge',
-                    8: 'Change_Start',
-                    16: 'Change_End',
-                    32: 'Uturn',
-                },
-        },
-
-    'per_fusion_msgs/msg/ObjTracks':
-        {
-            'ObstacleType':
-                {
-                    0: 'Unknown',
-                    1: 'Pedestrian',
-                    2: 'Cyclist',
-                    3: 'Passenger_Car',
-                    4: 'Small_Bus',
-                    5: 'Big_bus',
-                    6: 'Light_Truck',
-                    7: 'Heavy_Truck',
-                    8: 'Tricycle',
-                    9: 'Van',
-                    10: 'Other_Vehicle',
-                    11: 'Cone',
-                    12: 'Pole',
-                },
-            'ObstacleLane':
-                {
-                    -1: 'Rear',
-                    0: 'Unknown',
-                    1: 'LL',
-                    2: 'Left',
-                    3: 'Host',
-                    4: 'Right',
-                    5: 'RR',
-                },
-            'MotionModel':
-                {
-                    0: 'Unknown',
-                    1: 'Model_Ca',
-                    2: 'Model_Ctra',
-                },
-            'MotionCategory':
-                {
-                    0: 'Unknown',
-                    1: 'Stationary',
-                    2: 'Driving',
-                    3: 'Oncoming',
-                    4: 'Driving_Stopped',
-                    5: 'Oncoming_Stopped',
-                    6: 'Crossing',
-                },
-            'MeasurementStatus':
-                {
-                    0: 'New',
-                    1: 'Measured',
-                    2: 'Predicted',
-                },
-            'FusionSource':
-                {
-                    0: 'Unknown',
-                    1: 'Vision',
-                    2: 'Radar',
-                    3: 'V+R',
-                },
-            'BrakeLight':
-                {
-                    0: 'Unknown',
-                    1: 'BrakeLightOn',
-                    2: 'BrakeLightOff',
-                },
-            'TurnLight':
-                {
-                    0: 'Unknown',
-                    1: 'LeftLightOn',
-                    2: 'RightLightOn',
-                    3: 'BothLightOn',
-                    4: 'AllLightOff',
-                },
-            'DayNight':
-                {
-                    0: 'Unknown',
-                    1: 'Day',
-                    2: 'Night',
-                },
-        },
-
-    'sensor_abstraction_msgs/msg/RadarObjectArray':
-        {
-            'ObjectType':
-                {
-                    0: 'Unknown',
-                    3: 'Pedestrian',
-                    5: 'Cyclist',
-                    6: 'Motorbike',
-                    7: 'Vehicle',
-                    8: 'Van',
-                    9: 'Truck',
-                    15: 'F_init',
-                },
-        },
-
-    'proto_horizon_msgs/msg/Slots':
-        {
-            'SlotType':
-                {
-                    0: 'unknown',
-                    1: 'vertical',
-                    2: 'parallel',
-                    3: 'oblique',
-                }
-        },
-
-    'proto_horizon_msgs/msg/WorkCondition':
-        {
-            'WorkCondition': {
-                "Weather": 0,
-                "Light": 1
-            },
-            'Weather': {
-                "Sunny": 0,
-                "Cloudy": 1,
-                "Rainy": 2,
-                "Snowy": 3,
-                "HeavyRain": 4,
-                "Other": 5,
-                "Unknown": 255
-            },
-            'Light': {
-                "NatureLight": 0,
-                "LampLight": 1,
-                "HardLight": 2,
-                "LowSun": 3,
-                "Dark": 4,
-                "Other": 5,
-                "Unknown": 255
-            },
-        },
-
-    'proto_horizon_msgs/msg/Freespaces':
-        {}
-}
 
 data_columns = {
     'vehicle_msgs/msg/VehicleMotionIpd':
@@ -1072,6 +263,11 @@ data_columns = {
         [
             'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
             'confidence', 'cam_num', 'cam_id', 'points_num', 'id', 'type', 'x', 'y',
+        ],
+    'qc_perception_msgs/msg/QcObjects':
+        [
+            'local_time', 'time_stamp', 'header_stamp', 'header_seq', 'frame_id',
+            'id', 'type', 'confidence', 'x', 'y', 'z', 'yaw', 'length', 'width', 'height', 'age',
         ]
 }
 
@@ -1261,6 +457,21 @@ class Ros2BagParser:
 
     def getTopics(self, msg):
         return [key for key, value in topic2msg.items() if value == msg]
+
+    def message_to_dict(self, msg):
+        """递归地将ROS消息转换为Python字典（兼容NumPy数组）"""
+        if isinstance(msg, np.ndarray):
+            # 将NumPy数组转换为列表
+            return msg.tolist()
+        elif hasattr(msg, '__dict__'):
+            # 普通Python对象
+            return {k: self.message_to_dict(v) for k, v in msg.__dict__.items()}
+        elif isinstance(msg, list):
+            # 处理列表
+            return [self.message_to_dict(item) for item in msg]
+        else:
+            # 基本类型
+            return msg
 
     def parser(self, timestamp, topic, msg, queue):
         local_time = timestamp / 1e9
@@ -2783,6 +1994,8 @@ class Ros2BagParser:
             frame_id = msg.frame_id
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
+            pkl_folder = os.path.join(self.folder, topic.replace('/', ''))
+            os.makedirs(pkl_folder, exist_ok=True)
 
             if time_stamp != self.last_timestamp[topic]:
                 header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
@@ -2838,12 +2051,19 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
+            msg_dict = self.message_to_dict(msg)
+            with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
+                json.dump(msg_dict, f, indent=2)
+
         elif topic in self.getTopics('qc_perception_msgs/msg/QcPose'):
             header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
             header_seq = msg.header.seq
             time_stamp = header_stamp
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(header_seq)
+            pkl_folder = os.path.join(self.folder, topic.replace('/', ''))
+            os.makedirs(pkl_folder, exist_ok=True)
+
             if time_stamp != self.last_timestamp[topic]:
                 roll = msg.roll
                 pitch = msg.pitch
@@ -2860,12 +2080,20 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
+            msg_dict = self.message_to_dict(msg)
+            with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
+                json.dump(msg_dict, f, indent=2)
+
         elif topic in self.getTopics('qc_perception_msgs/msg/QcLines'):
             header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
             header_seq = msg.header.seq
             time_stamp = header_stamp
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(header_seq)
+
+            pkl_folder = os.path.join(self.folder, topic.replace('/', ''))
+            os.makedirs(pkl_folder, exist_ok=True)
+
             if time_stamp != self.last_timestamp[topic]:
                 vehicle_pose = msg.vehicle_pose
                 pose_x = vehicle_pose.pose_x
@@ -2914,6 +2142,50 @@ class Ros2BagParser:
                     ])
 
                 self.last_timestamp[topic] = time_stamp
+
+            msg_dict = self.message_to_dict(msg)
+            with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
+                json.dump(msg_dict, f, indent=2)
+
+        elif topic in self.getTopics('qc_perception_msgs/msg/QcObjects'):
+            time_stamp = msg.timestamp
+            frame_id = msg.frame_id
+            self.time_saver[topic].append(time_stamp)
+            self.frame_id_saver[topic].append(frame_id)
+            pkl_folder = os.path.join(self.folder, topic.replace('/', ''))
+            os.makedirs(pkl_folder, exist_ok=True)
+
+            if time_stamp != self.last_timestamp[topic]:
+                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+                header_seq = msg.header.seq
+
+                objects_num = msg.objects_num
+                for i in range(objects_num):
+                    objects_data = msg.objects[i]
+                    type_ = objects_data.measurement_type
+                    measurement = objects_data.measurement
+                    object_id = measurement.track_id
+                    x = measurement.pos_x
+                    y = measurement.pos_y
+                    z = measurement.pos_z
+                    yaw = measurement.heading
+                    age = measurement.tracking_period
+                    length = measurement.length
+                    width = measurement.width
+                    height = measurement.height
+                    conf = measurement.existence_confidence
+
+                    queue.put([
+                        local_time, time_stamp, header_stamp, header_seq, frame_id,
+                        object_id, type_, conf,
+                        x, y, z, yaw, length, width, height, age,
+                    ])
+
+                self.last_timestamp[topic] = time_stamp
+
+            msg_dict = self.message_to_dict(msg)
+            with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
+                json.dump(msg_dict, f, indent=2)
 
 
 class MsgSaver:
@@ -3150,28 +2422,27 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/appuser/aeb_replay/test_project/DEBUG/03_Workspace'
+    workspace = '/media/data/Q_DATA/debug_data/COMBINE_BAG/20250614-005-AEB/'
     # ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-05-16-36-22'
     # folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
 
-    ros2bag_path = '/home/appuser/aeb_replay/test_project/DEBUG/01_Prediction/20231130_152434_n000001/20231130_152434_n000001_2025-06-12-15-41-47'
-    folder = '/home/appuser/aeb_replay/test_project/DEBUG/01_Prediction/20231130_152434_n000001/RawData'
+    ros2bag_path = '/media/data/Q_DATA/debug_data/COMBINE_BAG/20250614-005-AEB/2025_06_14-14_47_36=2025_06_14-14_48_31/ROSBAG/COMBINE'
+    folder = '/media/data/Q_DATA/temp'
 
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
         # '/PI/EG/EgoMotionInfo',
-        '/VA/VehicleMotionIpd',
+        # '/VA/VehicleMotionIpd',
         # '/VA/Lines',
         # '/VA/PK/Slots',
-        '/PK/DR/Result',
-        '/SA/INSPVA',
+        # '/PK/DR/Result',
+        # '/SA/INSPVA',
         # '/Camera/FrontWide/H265',
-        '/PK/PER/VisionSlotDecodingList',
+        # '/PK/PER/VisionSlotDecodingList',
         '/VA/QC/BEVObstaclesTracks',
-        '/VA/QC/MonoObstaclesTracks',
         '/VA/QC/FsObstacles',
         '/VA/QC/Lines',
-        # '/VA/QC/Objects',
+        '/VA/QC/Objects',
         '/VA/QC/Pose',
         # '/VA/PK/Slots',
         # '/VA/PK/BevObstaclesDet',
