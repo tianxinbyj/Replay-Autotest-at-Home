@@ -37,3 +37,5 @@ python-can
 cantools
 boto3
 botocore
+fastapi
+uvicorn[standard]

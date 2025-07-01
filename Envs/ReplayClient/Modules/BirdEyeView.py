@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 import yaml
 from scipy.spatial.transform import Rotation
-from Libs import get_project_path
+from Envs.Master.Modules.Libs import get_project_path
 camera_parameter_folder = os.path.join(get_project_path(), 'Docs', 'Resources', 'camera_parameter')
 
 
@@ -1274,6 +1274,6 @@ if __name__ == '__main__':
 
     # transfer_es39_2_2j5(json_folder_es39, json_folder_2j5)
 
-    yaml_folder = '/home/vcar/work/pythonProject/Replay-Autotest-at-Home/Temp/yaml_calib/'
-    json_folder = '/home/vcar/work/pythonProject/Replay-Autotest-at-Home/Temp/es39_json'
+    yaml_folder = '/home/vcar/tmp'
+    json_folder = '/home/vcar/json'
     transfer_1j5_2_es39(yaml_folder, json_folder)

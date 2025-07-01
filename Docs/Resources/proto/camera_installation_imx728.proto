@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+// 外参信息消息类型
+message Extrinsics728 {
+  string calibration_time = 1;       // 校准时间
+  double x = 2;                     // X坐标
+  double y = 3;                     // Y坐标
+  double z = 4;                     // Z坐标
+  double yaw = 5;                   // 偏航角
+  double pitch = 6;                 // 俯仰角
+  double roll = 7;                  // 翻滚角
+  string calibration_engineer = 8;  // 校准工程师
+  string calibration_run = 9;       // 校准运行标识
+}
+
+// 外参信息消息类型
+message CameraExtrinsics728 {
+  string calibration_time = 1;       // 校准时间
+  double x = 2;                     // X坐标
+  double y = 3;                     // Y坐标
+  double z = 4;                     // Z坐标
+  double yaw = 5;                   // 偏航角
+  double pitch = 6;                 // 俯仰角
+  double roll = 7;                  // 翻滚角
+  string calibration_engineer = 8;  // 校准工程师
+  string calibration_mode = 9;       // 校准模式
+}
+
+message VirtualExtrinsics728 {
+  string calibration_time = 1;       // 校准时间
+  string calibration_engineer = 2;  // 校准工程师
+  double yaw = 3;                   // 偏航角
+  double pitch = 4;                 // 俯仰角
+  double roll = 5;                  // 翻滚角
+  string calibration_mode = 6;     // 校准模式
+}
+
+message CameraMatrix728 {
+  double fx = 1;  // 水平焦距
+  double fy = 2;  // 垂直焦距
+  double cx = 3;  // 图像中心x坐标
+  double cy = 4;  // 图像中心y坐标
+}
+
+// 虚拟相机配置消息类型
+message VirtualCamera728 {
+  string camera_id = 1;              // 相机ID（字符串类型）
+  string type = 2;                   // 类型（字符串类型）
+  CameraMatrix728 intrinsics = 3;          // 内参
+  int32 width = 4;                   // 宽度
+  int32 height = 5;                  // 高度
+  int32 pipeline_id = 6;             // 流水线ID
+  VirtualExtrinsics728 extrinsics = 7;         // 外参
+  repeated VirtualExtrinsics728 calib_extrinsics = 8;   // 校准外参
+}
+
+// 相机安装配置消息类型
+message CameraInstallationConfig_imx728 {
+  string camera_id = 1;                           // 相机ID（字符串类型）
+  Extrinsics728 extrinsics = 2;                        // 外参信息
+  string ref_lidar_id = 3;                         // 参考激光雷达ID（字符串类型）
+  string device_path = 4;                           // 设备路径
+  bool hardware_trigger = 5;                        // 硬件触发
+  bool rotate_90_ccw = 6;                           // 逆时针旋转90度
+  bool auto_exposure = 7;                           // 自动曝光
+  int32 expected_fps = 8;                           // 期望帧率
+  bool hardware_encoder = 9;                        // 硬件编码
+  bool flip_x = 10;                                 // X轴翻转
+  string used_run = 11;                             // 使用的运行标识
+  bool full_undistort_fov = 12;                     // 全去畸变视场
+  bool warp_perspective = 13;                       // 透视变换
+  CameraExtrinsics728 camera_to_vehicle_extrinsics = 14;     // 相机到车辆外参
+  string encode_type = 15;                          // 编码类型（字符串类型）
+  int32 pipeline_id = 16;                           // 流水线ID
+  bool set_virtual_camera = 17;                     // 设置虚拟相机
+  repeated VirtualCamera728 virtual_cameras = 18;      // 虚拟相机列表
+  string destination_node_name = 19;                // 目标节点名称
+  bool is_calibration = 20;                         // 是否已校准
+}

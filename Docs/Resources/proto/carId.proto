@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+// 定义车辆硬件类型枚举
+enum HardwareType {
+  HARDWARE_UNKNOWN = 0;
+  HARDWARE_CAMERA = 1;
+  HARDWARE_GNSS = 2;
+  HARDWARE_OMC = 3;
+  HARDWARE_RADAR = 4;
+  HARDWARE_VEHICLE = 5;
+}
+
+// 硬件设备消息类型
+message Hardware {
+  string model = 1;         // 硬件型号
+  string key = 2;           // 硬件唯一标识
+  HardwareType type = 3;    // 硬件类型
+}
+
+// 车辆配置消息类型
+message CarConfig {
+  string car_id = 1;        // 车辆ID
+  repeated Hardware hardwares = 2;  // 硬件设备列表
+}
