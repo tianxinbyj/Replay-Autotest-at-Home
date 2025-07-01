@@ -69,9 +69,12 @@ class ReplayController:
         create_folder(self.gt_raw_folder, False)
 
         # 实例化ssh_client用于控制ReplayClient的Api
-        self.replay_client = SSHClient()
-        if not self.replay_client.check_connection():
+        if not self.replay_action['video_info']:
             self.replay_client = None
+        else:
+            self.replay_client = SSHClient()
+            if not self.replay_client.check_connection():
+                self.replay_client = None
 
         # 实例化录包工具
         self.ros2bag_recorder = Ros2BagRecorder(
