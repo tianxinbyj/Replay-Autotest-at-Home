@@ -60,18 +60,41 @@ class DataTransformer:
             if not h265_path:
                 h265_path = os.path.join(project_path, 'Temp', f'{os.path.basename(video_path).split(".")[0]}.h265')
 
+            # video_convert_command = [
+            #     'ffmpeg',
+            #     '-i', video_path,  # 输入文件
+            #     '-c:v', 'libx265',  # 使用H.265编码
+            #     '-crf', '22',
+            #     '-pix_fmt', 'yuv420p',  # 像素格式为yuv420p
+            #     '-r', f'{target_fps}',  # 输出帧率15Hz
+            #     '-x265-params', f'keyint={target_fps}:min-keyint={target_fps}:bframes=0',  # 每秒一个I帧，无B帧
+            #     '-vcodec', 'hevc',  # 视频编码器
+            #     '-an',  # 去除音频
+            #     '-f', 'hevc',  # 强制输出格式为HEVC
+            #     '-bsf:v', 'hevc_mp4toannexb',  # 比特流过滤器，确保NAL单元分隔符正确
+            #     '-y',  # 覆盖输出文件
+            #     h265_path
+            # ]
+
             video_convert_command = [
                 'ffmpeg',
                 '-i', video_path,  # 输入文件
-                '-c:v', 'libx265',  # 使用H.265编码
-                '-crf', '22',
-                '-pix_fmt', 'yuv420p',  # 像素格式为yuv420p
-                '-r', f'{target_fps}',  # 输出帧率15Hz
-                '-x265-params', f'keyint={target_fps}:min-keyint={target_fps}:bframes=0',  # 每秒一个I帧，无B帧
-                '-vcodec', 'hevc',  # 视频编码器
+                '-c:v', 'libx265',  # 使用H.265编码器
+                '-crf', '22',  # 恒定质量模式（可根据需求调整）
+                '-pix_fmt', 'yuv420p',  # 像素格式
+                '-r', f'{target_fps}',  # 输出帧率
+                # 关键参数：强制每帧都是IDR帧（I帧）
+                '-x265-params', (
+                    f'keyint=1:min-keyint=1:scenecut=0:bframes=0:open_gop=0'
+                    # keyint=1: 最大关键帧间隔为1（每帧都是关键帧）
+                    # min-keyint=1: 最小关键帧间隔为1
+                    # scenecut=0: 关闭场景切换检测（避免自动插入非IDR帧）
+                    # bframes=0: 禁用B帧
+                    # open_gop=0: 关闭开放式GOP（确保IDR帧独立解码）
+                ),
                 '-an',  # 去除音频
-                '-f', 'hevc',  # 强制输出格式为HEVC
-                '-bsf:v', 'hevc_mp4toannexb',  # 比特流过滤器，确保NAL单元分隔符正确
+                '-f', 'hevc',  # 强制输出HEVC原始码流
+                '-bsf:v', 'hevc_mp4toannexb',  # 确保NALU起始码为00 00 00 01
                 '-y',  # 覆盖输出文件
                 h265_path
             ]
@@ -534,6 +557,7 @@ class DataLoggerAnalysis:
             f.write(json_str)
 
         return target_install, ros2bag_info_path
+
 
 class DataDownloader:
     def __init__(self):
