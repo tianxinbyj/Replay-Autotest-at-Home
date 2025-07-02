@@ -62,6 +62,7 @@ AH4EM:
     - /VA/QC/BEVObstaclesTracks
     - /VA/QC/FsObstacles
     - /VA/QC/Lines
+    - /VA/QC/Objects
     - /VA/QC/Pose
     - /SA/INSPVA
     parking:
@@ -488,6 +489,7 @@ EP39:
     - /VA/QC/BEVObstaclesTracks
     - /VA/QC/FsObstacles
     - /VA/QC/Lines
+    - /VA/QC/Objects
     - /VA/QC/Pose
     - /SA/INSPVA
     parking:

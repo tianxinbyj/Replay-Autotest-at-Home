@@ -177,6 +177,7 @@ class ReplayController:
         )
 
     def compress_bag(self, scenario_id):
+        # 压缩ros2bag
         xz_l = glob.glob(os.path.join(self.pred_raw_folder,
                                       scenario_id, f'{scenario_id}*.tar.xz'))
         if len(xz_l):
@@ -196,6 +197,20 @@ class ReplayController:
             p.read()
             send_log(self, '压缩完成 {:s}.tar.xz'.format(os.path.basename(bag_folder)))
             shutil.rmtree(bag_folder)
+
+        # 压缩json文件夹
+        parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
+        for f in os.listdir(parser_folder):
+            if os.path.isdir(os.path.join(parser_folder, f)):
+                json_folder = os.path.join(parser_folder, f)
+                send_log(self, '开始压缩 {:s}'.format(json_folder))
+                cmd = 'cd {:s}; tar -Jcvf {:s}_json.tar.xz {:s}'.format(
+                    os.path.dirname(json_folder), os.path.basename(json_folder), os.path.basename(json_folder)
+                )
+                p = os.popen(cmd)
+                p.read()
+                send_log(self, '压缩完成 {:s}.tar.xz'.format(os.path.basename(json_folder)))
+                shutil.rmtree(json_folder)
 
     def group_scenarios_by_calib(self):
         scenario_groups = {}

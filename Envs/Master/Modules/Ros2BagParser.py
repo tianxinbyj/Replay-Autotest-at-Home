@@ -465,7 +465,7 @@ class Ros2BagParser:
             return msg.tolist()
         elif hasattr(msg, '__dict__'):
             # 普通Python对象
-            return {k: self.message_to_dict(v) for k, v in msg.__dict__.items()}
+            return {k: self.message_to_dict(v) for k, v in msg.__dict__.items() if not any([s in k for s in ['__msgtype__', 'padding_argument']])}
         elif isinstance(msg, list):
             # 处理列表
             return [self.message_to_dict(item) for item in msg]
