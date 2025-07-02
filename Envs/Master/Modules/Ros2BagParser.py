@@ -426,6 +426,7 @@ class Ros2BagParser:
                 local_time_saver[connection.topic].append(timestamp)
                 self.parser(timestamp, connection.topic, msg, queue_by_topic[connection.topic])
 
+        outliers = []
         for topic in msg_saver.keys():
             msg_saver[topic].terminate_save_process()
             # 顺便求出频率
@@ -441,17 +442,32 @@ class Ros2BagParser:
             if len(new_time_df) > 20:
                 new_time_df = new_time_df.drop_duplicates(subset=['time_stamp'], keep='first').iloc[10:]
 
-            print(f'======正在计算{topic}的hz======')
             hz = 0
             if len(local_time_saver[topic]) > 20:
                 if new_time_df['time_stamp'].max() - new_time_df['time_stamp'].min() > 10:
                     hz = (len(new_time_df) - 1) / (new_time_df['time_stamp'].max() - new_time_df['time_stamp'].min())
                 else:
                     hz = (len(time_df) - 1) / (time_df['local_time'].max() - time_df['local_time'].min())
+            print(topic, f'hz = {hz}')
+
+            # 计算离群值
+            new_time_df['time_diff'] = new_time_df['time_stamp'].diff(1)
+            median_value = new_time_df['time_diff'].median()
+            std_value = new_time_df['time_diff'].std()
+            threshold = max(median_value + 5 * std_value, 2 * median_value)
+            outlier_data = new_time_df[new_time_df['time_diff'] > threshold]
+            outlier_timestamp = outlier_data['time_stamp'].tolist()
+            outlier_timediff = outlier_data['time_diff'].tolist()
+            outliers_index = outlier_data.index.tolist()
+            if len(outliers_index):
+                outliers.append([topic, threshold, str(outliers_index), str(outlier_timediff), str(outlier_timestamp)])
 
             time_csv = os.path.join(folder, '{:s}_{:.2f}_hz.csv'.format(topic.replace('/', ''), hz))
             new_time_df.to_csv(time_csv, index=False)
-            print(topic, f'hz = {hz}')
+
+        if len(outliers):
+            (pd.DataFrame(outliers, columns=['topic', 'threshold', 'index', 'time_diff', 'time_stamp'])
+             .to_csv(os.path.join(folder, 'outlier.csv'), index=False))
 
         print(time.time() - t0)
 
