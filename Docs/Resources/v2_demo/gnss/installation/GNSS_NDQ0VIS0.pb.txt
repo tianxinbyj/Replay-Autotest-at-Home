@@ -1,0 +1,46 @@
+antenna_extrinsics {
+  calibration_time: "2020-06-21 13:39 PDT"
+  id: ANT1
+  x: 1.54
+  y: -0.44
+  z: 1.57
+  calibration_engineer: ""
+}
+format: WIBEDA_TEXT
+data_port {
+  udp {
+    address: "192.168.5.111"
+    port: 3003
+    src_port: 7000
+  }
+}
+command_port {
+  udp {
+    address: "192.168.5.111"
+    port: 3004
+    src_port: 7001
+  }
+}
+imu_extrinsics {
+  calibration_time: "2022-05-04 05:00:06"
+  x: 1.457191
+  y: -0.238013
+  z: 0.0676
+  yaw: -0.204993
+  pitch: -0.39037
+  roll: -9.2e-05
+  yaw_sdv: 0
+  pitch_sdv: 0
+  roll_sdv: 0
+  calibration_engineer: "wdq"
+  calibration_run: ""
+}
+gnss_data_rate_hz: 20
+imu_data_rate_hz: 0
+used_run: ""
+ins_rbv {
+  x: 0
+  y: 0
+  z: 0
+}
+destination_node_name: "main_node_1"

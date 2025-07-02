@@ -1,0 +1,266 @@
+front_edge_to_center: 3.93
+back_edge_to_center: 1.122
+left_edge_to_center: 1.023
+right_edge_to_center: 1.023
+length: 5.052
+width: 2.046
+height: 1.76
+min_turn_radius: 5
+wheel_base: 3.005
+control_params {
+  max_steer_angle: 8.55
+  min_steer_angle_rate: 0
+  steer_ratio: 18
+  wheel_drive_mode: FRONT_WHEEL_DRIVE
+  max_steer_angle_rate: 8.72
+  enable_gain_scheduler: true
+  active_controllers: TOB_TSPKMPC_CONTROLLER
+  ts_pkmpc_controller_conf {
+    ts: 0.2
+    t_control_gain_scheduler {
+      scheduler {
+        speed: 4
+        ratio: 1
+      }
+      scheduler {
+        speed: 8
+        ratio: 0.9
+      }
+      scheduler {
+        speed: 12
+        ratio: 0.8
+      }
+      scheduler {
+        speed: 20
+        ratio: 0.7
+      }
+      scheduler {
+        speed: 25
+        ratio: 0.6
+      }
+      scheduler {
+        speed: 35
+        ratio: 0.5
+      }
+    }
+    s_control_gain_scheduler {
+      scheduler {
+        speed: 1
+        ratio: 4
+      }
+      scheduler {
+        speed: 2
+        ratio: 2
+      }
+      scheduler {
+        speed: 4
+        ratio: 1
+      }
+      scheduler {
+        speed: 8
+        ratio: 0.9
+      }
+      scheduler {
+        speed: 12
+        ratio: 0.8
+      }
+      scheduler {
+        speed: 20
+        ratio: 0.7
+      }
+      scheduler {
+        speed: 25
+        ratio: 0.6
+      }
+      scheduler {
+        speed: 35
+        ratio: 0.5
+      }
+    }
+    t_matrix_q: 0.2
+    t_matrix_q: 0.2
+    t_matrix_r: 3
+    t_matrix_n: 10
+    t_matrix_n: 10
+    s_matrix_q: 0.05
+    s_matrix_q: 0.05
+    s_matrix_q: 3
+    s_matrix_r: 20
+    s_matrix_n: 4
+    s_matrix_n: 4
+    s_matrix_n: 4
+    s_matrix_xy: 0.05
+    s_matrix_yaw: 8
+    s_matrix_kappa: 0
+    s_matrix_psi: 8
+    s_matrix_n_xy: 4
+    s_matrix_n_yaw: 3
+    s_matrix_n_kappa: 1
+  }
+  max_acceleration_cmd: 2
+  max_deceleration_cmd: -8.5
+  max_lateral_acceleration: 5
+  full_stop_condition {
+    standstill_acceleration: -0.4
+    abs_planner_speed_upperlimit: 0.1
+    abs_linear_speed_upperlimit: 1
+    brake_integral_ratio: 1
+    lockdown_acceleration: -0.5
+  }
+  enable_speed_mode_manager: false
+  closed_loop_acc_conf {
+    enable_closed_loop_acc: false
+    acc_deque_time: 1
+    throttle_delay_time: 0.4
+    brake_delay_time: 0.4
+    throttle_windup: 100
+    kp_acc: 3
+    ki_acc: 3
+    kd_acc: 0.02
+    max_throttle: 45
+    min_delta_throttle: -1.5
+    max_delta_throttle: 1.5
+    brake_windup: 100
+    kp_dec: 0
+    ki_dec: 0
+    kd_dec: 0
+    max_brake: -35
+    min_delta_brake: -0.5
+    max_delta_brake: 0.05
+    keep_brake_decrease_threshold: 0.001
+  }
+  calibration_table_v2 {
+    idle_v_a_plf {
+      x: -3
+      x: 0
+      x: 0.01
+      x: 35
+      y: 0.05
+      y: 0
+      y: -0.2
+      y: -0.5
+    }
+    a_throttle_plf {
+      x: -5
+      x: 0
+      x: 5
+      y: 40
+      y: 0
+      y: 40
+    }
+    a_brake_plf {
+      x: -4
+      x: 0
+      x: 4
+      y: 35
+      y: 0
+      y: 35
+    }
+  }
+  enable_calibration_v2: true
+  bias_estimation_conf {
+    enable_online_bias_estimation: true
+    weight_on_heading: 0.07
+    heading_err_ub: 0.01
+    lateral_err_ub: 0.5
+    steering_ub: 0.01
+    vel_lb: 3
+    calib_steering0_ub: 0.006
+    use_low_pass_filter_estimation: true
+    enable_compensate_yaw_bias: true
+    lat_acc_threshold: 2
+  }
+  steer_delay_time: 0.37
+  steer_deadzone_adaptor_conf {
+    enable_adapt_deadzone: false
+    steer_straight_th: 0.004
+    steer_turn_th: 0.01
+    steer_straight_delay_time: 0.37
+  }
+  veh_dynamic_model_conf {
+    enable_dynamic_model_compensation: false
+    mass_fl: 625
+    mass_fr: 625
+    mass_rl: 625
+    mass_rr: 625
+    c_fl: 41700
+    c_fr: 41700
+    c_rl: 41700
+    c_rr: 41700
+    wheelbase_f: 1.3
+    wheelbase_r: 1.7
+    iz: 6024
+  }
+  acceleration_interface: CLOSEDLOOP_WITH_PARKING_COMPENSATION
+  throttle_interface: CLOSEDLOOP_ACC
+  brake_interface: CLOSEDLOOP_DEC_WITH_PARKING_COMPENSATION
+  enable_yaw_consider_slip: true
+  enable_dynamic_prediction_pose: true
+  parking_speed_wrt_distance {
+    x: 0
+    x: 2
+    x: 6
+    x: 10
+    y: 0
+    y: 0.5
+    y: 1
+    y: 1.4
+  }
+  parking_speed_wrt_distance_reverse {
+    x: 0
+    x: 2
+    x: 6
+    x: 10
+    y: 0
+    y: 0.3
+    y: 0.8
+    y: 1.2
+  }
+  steer_ratio_wrt_steer_angle {
+    x: -8.55
+    x: -4
+    x: -2
+    x: 2
+    x: 4
+    x: 8.55
+    y: 16.6
+    y: 17
+    y: 18
+    y: 18
+    y: 17
+    y: 16.6
+  }
+}
+lidar_points_ignorance_boxes {
+  x: 2.1
+  y: 1
+  z: 1.25
+  length: 0.5
+  width: 0.5
+  height: 0.5
+}
+lidar_points_ignorance_boxes {
+  x: 2.1
+  y: -1
+  z: 1.25
+  length: 0.5
+  width: 0.5
+  height: 0.5
+}
+lidar_points_ignorance_boxes_usage: FILTER_INSIDE_POINTS
+left_mirror {
+  x: 2.1
+  y: 1
+  z: 1.25
+  length: 0.3
+  width: 0.3
+  height: 0.2
+}
+right_mirror {
+  x: 2.1
+  y: -1
+  z: 1.25
+  length: 0.3
+  width: 0.3
+  height: 0.2
+}

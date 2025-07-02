@@ -1,0 +1,27 @@
+intrinsics {
+  calibration_time: "2025-05-29 07:56:31"
+  distort_coeffs {
+    k1: 0.12158174488164246
+    k2: -0.023256341215801515
+    p1: 0.0
+    p2: 0.0
+    k3: -0.003367758833671794
+    k4: 0.000517284872137092
+    k5: 0.0
+    k6: 0.0
+  }
+  camera_matrix {
+    fx: 509.4020488772842
+    fy: 509.44284785166997
+    cx: 961.5798313084234
+    cy: 769.7564910872335
+  }
+  serial_no: "ISX031_H190_LB2TXNTX"
+  calibration_engineer: "n/a"
+  rms: 0.34
+}
+max_fps: 30
+mid_row_time_since_trigger: 0.043
+rolling_elapse_time: 0.033
+camera_vendor: LIJING
+serial_no: "ISX031_H190_LB2TXNTX"

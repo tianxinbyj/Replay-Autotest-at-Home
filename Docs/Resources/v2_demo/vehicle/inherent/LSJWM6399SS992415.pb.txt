@@ -1,0 +1,3 @@
+wheel_rolling_radius: 0.362
+vin: "VEHICLE_ZONE_ROWEI"
+serial_no: "VEHICLE_ZONE_ROWEI"

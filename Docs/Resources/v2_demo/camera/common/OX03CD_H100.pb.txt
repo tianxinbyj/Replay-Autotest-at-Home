@@ -1,0 +1,15 @@
+width: 1920
+height: 1280
+format {
+  output_format: YUV
+}
+full_fov_width: 2032
+full_fov_height: 1080
+downscale_setting {
+  width: 1152
+  height: 768
+  full_fov_width: 1152
+  full_fov_height: 608
+}
+calibration_full_fov_width: 1792
+calibration_full_fov_height: 952

@@ -1,0 +1,3 @@
+wheel_rolling_radius: 0.3468
+vin: "HACAAPB31R1S00013"
+serial_no: "HACAAPB31R1S00013"

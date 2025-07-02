@@ -1,0 +1,73 @@
+speedometer_params {
+  speed_scale: 0.004991
+}
+control_params {
+  steering_angle_bias: 0
+  enable_speed_mode_manager: true
+  acc2dec_timer: 2
+  dec2acc_timer: 2
+  closed_loop_acc_conf {
+    enable_closed_loop_acc: false
+    acc_deque_time: 1
+    throttle_delay_time: 0.4
+    brake_delay_time: 0.4
+    throttle_windup: 100
+    kp_acc: 3
+    ki_acc: 3
+    kd_acc: 0.02
+    max_throttle: 45
+    min_delta_throttle: -1.5
+    max_delta_throttle: 1.5
+    steer2throttle_ratio: 1
+    brake_windup: 100
+    kp_dec: 0
+    ki_dec: 0
+    kd_dec: 0
+    max_brake: -35
+    min_delta_brake: -0.5
+    max_delta_brake: 0.05
+    keep_brake_decrease_threshold: 0.001
+  }
+  calibration_table_v2 {
+    idle_v_a_plf {
+      x: -3
+      x: 0
+      x: 0.01
+      x: 35
+      y: 0.05
+      y: 0
+      y: -0.1
+      y: -0.3
+    }
+    a_throttle_plf {
+      x: -4
+      x: 0
+      x: 4
+      y: 100
+      y: 0
+      y: 100
+    }
+    a_brake_plf {
+      x: -4
+      x: 0
+      x: 4
+      y: 35
+      y: 0
+      y: 35
+    }
+  }
+  enable_calibration_v2: true
+  bias_estimation_conf {
+    enable_online_bias_estimation: true
+    weight_on_heading: 0.07
+    heading_err_ub: 0.01
+    lateral_err_ub: 0.5
+    steering_ub: 0.04
+    vel_lb: 3
+    calib_steering0_ub: 0.006
+    use_low_pass_filter_estimation: true
+    enable_compensate_yaw_bias: true
+    lat_acc_threshold: 2
+  }
+}
+vehicle_plan: VP_PBQ_V1

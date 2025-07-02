@@ -1,0 +1,13 @@
+radar_id: RAD_REAR_RIGHT
+extrinsics {
+  x: -0.73
+  y: -0.784
+  z: 0.743
+  yaw: -2.269
+  pitch: 0
+  roll: 0
+}
+socket_can_id: 3
+sensor_id: 5
+radar_type: RAD_CONTI_308
+enabled: true

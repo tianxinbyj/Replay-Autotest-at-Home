@@ -1,0 +1,27 @@
+intrinsics {
+  calibration_time: "2025-05-29 08:05:24"
+  distort_coeffs {
+    k1: 0.11950302618776562
+    k2: -0.022881288292834253
+    p1: 0.0
+    p2: 0.0
+    k3: -0.003442674263258772
+    k4: 0.0005289562470173654
+    k5: 0.0
+    k6: 0.0
+  }
+  camera_matrix {
+    fx: 513.0054492810914
+    fy: 512.3877945966491
+    cx: 960.5020319876678
+    cy: 769.0788983452633
+  }
+  serial_no: "ISX031_H190_E47RARRZ"
+  calibration_engineer: "gx"
+  rms: 0.34
+}
+max_fps: 30
+mid_row_time_since_trigger: 0.043
+rolling_elapse_time: 0.033
+camera_vendor: LIJING
+serial_no: "ISX031_H190_E47RARRZ"

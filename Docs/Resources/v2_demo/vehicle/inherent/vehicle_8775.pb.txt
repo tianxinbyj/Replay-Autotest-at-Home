@@ -1,0 +1,3 @@
+wheel_rolling_radius: 0.363
+vin: "vehicle_8775"
+serial_no: "vehicle_8775"

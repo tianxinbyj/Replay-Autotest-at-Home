@@ -1,0 +1,3 @@
+wheel_rolling_radius: 0.368
+vin: "L6T794CD3NN025321HACK"
+serial_no: "L6T794CD3NN025321HACK"

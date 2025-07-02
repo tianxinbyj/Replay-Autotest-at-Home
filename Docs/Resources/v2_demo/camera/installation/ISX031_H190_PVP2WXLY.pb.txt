@@ -1,0 +1,81 @@
+camera_id: CAM_PBQ_LEFT_FISHEYE
+extrinsics {
+  calibration_time: "2025-05-29 08:15:16"
+  calibration_engineer: "gx"
+  x: -1.0632000355648654
+  y: 0.9832000499471902
+  z: -0.8876999965201535
+  yaw: 3.1066022322903906
+  pitch: 0.43304936084052736
+  roll: -0.003989822989881376
+  calibration_run: "20250529_150015_Q3402"
+}
+ref_lidar_id: LDR_FRONT
+device_path: "/dev/video4"
+hardware_trigger: true
+rotate_90_ccw: false
+auto_exposure: true
+expected_fps: 20
+hardware_encoder: true
+flip_x: false
+used_run: ""
+full_undistort_fov: false
+warp_perspective: false
+camera_to_vehicle_extrinsics {
+  calibration_time: "2025-05-29 08:10:16"
+  calibration_engineer: ""
+  x: 2.1244305113668642
+  y: 1.0347739793589013
+  z: 0.7118210834562425
+  yaw: 1.5771212556493726
+  pitch: 0.45310682337385044
+  roll: 0.01865530853879481
+  calibration_mode: kOnline
+}
+encode_type: ENCODE_TYPE_JPEG
+pipeline_id: 2
+set_virtual_camera: true
+virtual_cameras {
+  camera_id: CAM_PBQ_FRONT_LEFT_RESET_OPTICAL_H99
+  type: RESET_OPTICAL
+  intrinsics {
+    fx: 437.3
+    fy: 437.3
+    cx: 512
+    cy: 256
+  }
+  width: 1024
+  height: 512
+  pipeline_id: 3
+  extrinsics {
+    calibration_time: "2025-05-27 18:49:09"
+    yaw: 0.7970321839407569
+    pitch: 0.018020289131013525
+    roll: -0.006383393507672563
+    calibration_engineer: ""
+    calibration_mode: kOnline
+  }
+}
+virtual_cameras {
+  camera_id: CAM_PBQ_REAR_LEFT_RESET_OPTICAL_H99
+  type: RESET_OPTICAL
+  intrinsics {
+    fx: 437.3
+    fy: 437.3
+    cx: 512
+    cy: 256
+  }
+  width: 1024
+  height: 512
+  pipeline_id: 10
+  extrinsics {
+    calibration_time: "2025-05-27 18:49:09"
+    yaw: 2.367943536673684
+    pitch: 0.006382357079248333
+    roll: 0.018020656200580763
+    calibration_engineer: ""
+    calibration_mode: kOnline
+  }
+}
+destination_node_name: "main_node_0"
+is_calibration: true

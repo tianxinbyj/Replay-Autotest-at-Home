@@ -1,0 +1,22 @@
+lidar_id: LDR_FRONT
+extrinsics {
+  x: 1.280765
+  y: 0.0166
+  z: 1.7835
+  roll: 0
+  pitch: 0
+  yaw: 0
+  calibration_time: "2022-05-06 11:26:11"
+  vehicle_name: ""
+  calibration_engineer: "maotao"
+  calibration_run: "20220506_181747_Q2204"
+}
+enabled: true
+hesai_lidar_params {
+  intensity_nonlinear_mapping: false
+}
+valid_point_min_range: 0.8
+port: 2372
+command_port: 0
+ip: "192.168.6.205"
+used_run: ""

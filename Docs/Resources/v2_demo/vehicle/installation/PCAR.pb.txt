@@ -1,0 +1,72 @@
+speedometer_params {
+  speed_scale: 0
+}
+control_params {
+  steering_angle_bias: 0
+  enable_speed_mode_manager: true
+  closed_loop_acc_conf {
+    enable_closed_loop_acc: true
+    acc_deque_time: 1
+    throttle_delay_time: 0.4
+    brake_delay_time: 0.4
+    throttle_windup: 100
+    kp_acc: 3
+    ki_acc: 3
+    kd_acc: 0.02
+    max_throttle: 45
+    min_delta_throttle: -1.5
+    max_delta_throttle: 1.5
+    steer2throttle_ratio: 1
+    brake_windup: 100
+    kp_dec: 0
+    ki_dec: 0
+    kd_dec: 0
+    max_brake: -35
+    min_delta_brake: -0.5
+    max_delta_brake: 0.05
+    keep_brake_decrease_threshold: 0.001
+  }
+  calibration_table_v2 {
+    idle_v_a_plf {
+      x: -3
+      x: 0
+      x: 0.01
+      x: 35
+      y: 0.05
+      y: 0
+      y: -0.1
+      y: -0.2
+    }
+    a_throttle_plf {
+      x: -3
+      x: 0
+      x: 3
+      y: 37
+      y: 0
+      y: 37
+    }
+    a_brake_plf {
+      x: -4
+      x: 0
+      x: 4
+      y: 35
+      y: 0
+      y: 35
+    }
+  }
+  veh_dynamic_model_conf {
+    enable_dynamic_model_compensation: false
+    mass_fl: 518.5
+    mass_fr: 518.5
+    mass_rl: 391.5
+    mass_rr: 391.5
+    c_fl: 40396.5
+    c_fr: 40396.5
+    c_rl: 36342.525
+    c_rr: 36342.525
+    wheelbase_f: 1.15
+    wheelbase_r: 1.65
+    iz: 4661.2
+  }
+}
+vehicle_plan: VP_PBQ_V1

@@ -1,0 +1,126 @@
+camera_id: CAM_PBQ_FRONT_WIDE
+extrinsics {
+  calibration_time: "2025-05-29 08:15:15"
+  calibration_engineer: "gx"
+  x: 0.00469999970366522
+  y: 0.7081999298176591
+  z: -0.5321999305160252
+  yaw: 1.5708295109543016
+  pitch: 0.009567894890932594
+  roll: 0.01419650875587124
+  calibration_run: "20250529_150015_Q3402"
+}
+ref_lidar_id: LDR_FRONT
+device_path: "/dev/video2"
+hardware_trigger: true
+rotate_90_ccw: false
+auto_exposure: true
+expected_fps: 20
+hardware_encoder: true
+flip_x: false
+used_run: ""
+full_undistort_fov: false
+warp_perspective: false
+camera_to_vehicle_extrinsics {
+  calibration_time: "2025-05-29 07:48:57"
+  calibration_engineer: ""
+  x: 2.1709844155325295
+  y: -0.020055726981221825
+  z: 1.069266977158342
+  yaw: 0.008242748625711047
+  pitch: -0.017134409512223447
+  roll: 0.013028673531132745
+  calibration_mode: kOnline
+}
+encode_type: ENCODE_TYPE_JPEG
+pipeline_id: 1
+set_virtual_camera: true
+virtual_cameras {
+  camera_id: CAM_PBQ_FRONT_WIDE_RESET_OPTICAL_H110
+  type: RESET_OPTICAL
+  intrinsics {
+    fx: 358.5
+    fy: 358.5
+    cx: 512
+    cy: 256
+  }
+  width: 1024
+  height: 512
+  pipeline_id: 0
+  extrinsics {
+    calibration_time: "2025-05-27 18:49:09"
+    yaw: 0.013236788101490767
+    pitch: 0.01406213734302264
+    roll: -0.011351745575687655
+    calibration_engineer: ""
+    calibration_mode: kOnline
+  }
+  calib_extrinsics {
+    calibration_time: "2025-05-27 18:49:09"
+    yaw: 0.013236788101490767
+    pitch: 0.01406213734302264
+    roll: -0.011351745575687655
+    calibration_engineer: ""
+    calibration_mode: kOnline
+  }
+}
+virtual_cameras {
+  camera_id: CAM_PBQ_FRONT_WIDE_RESET_OPTICAL_H60
+  type: RESET_OPTICAL
+  intrinsics {
+    fx: 886.8
+    fy: 886.8
+    cx: 512
+    cy: 256
+  }
+  width: 1024
+  height: 512
+  pipeline_id: 1
+  extrinsics {
+    calibration_time: "2025-05-27 18:49:09"
+    yaw: 0.013236788101494312
+    pitch: 0.014062137342989445
+    roll: -0.011351745575666428
+    calibration_engineer: ""
+    calibration_mode: kOnline
+  }
+  calib_extrinsics {
+    calibration_time: "2025-05-27 18:49:09"
+    yaw: 0.013236788101494312
+    pitch: 0.014062137342989445
+    roll: -0.011351745575666428
+    calibration_engineer: ""
+    calibration_mode: kOnline
+  }
+}
+virtual_cameras {
+  camera_id: CAM_PBQ_FRONT_TELE_RESET_OPTICAL_H30
+  type: RESET_OPTICAL
+  intrinsics {
+    fx: 1910.8
+    fy: 1910.8
+    cx: 512
+    cy: 256
+  }
+  width: 1024
+  height: 512
+  pipeline_id: 2
+  extrinsics {
+    calibration_time: "2025-05-27 18:49:09"
+    yaw: 0.011993767409858603
+    pitch: 0.007680170461061279
+    roll: -0.03397593046904543
+    calibration_engineer: ""
+    calibration_mode: kOnline
+  }
+  calib_extrinsics {
+    calibration_time: "2025-05-27 18:49:09"
+    yaw: 0.011993767409858603
+    pitch: 0.007680170461061279
+    roll: -0.03397593046904543
+    calibration_engineer: ""
+    calibration_mode: kOnline
+  }
+}
+destination_node_name: "main_node_0"
+is_calibration: true

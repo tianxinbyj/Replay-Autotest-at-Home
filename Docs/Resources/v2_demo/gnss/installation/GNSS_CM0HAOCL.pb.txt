@@ -1,0 +1,46 @@
+antenna_extrinsics {
+  calibration_time: "2020-06-21 13:39 PDT"
+  id: ANT1
+  x: -0.574097
+  y: 0.353333
+  z: 1.134976
+  calibration_engineer: ""
+}
+format: QUECTEL_TEXT
+data_port {
+  udp {
+    address: "192.168.5.111"
+    port: 3003
+    src_port: 7000
+  }
+}
+command_port {
+  udp {
+    address: "192.168.5.111"
+    port: 3004
+    src_port: 7001
+  }
+}
+imu_extrinsics {
+  calibration_time: "2022-05-04 05:00:06"
+  x: 1.740474
+  y: -0.059058
+  z: 0.079
+  yaw: 0
+  pitch: 0
+  roll: 0
+  yaw_sdv: 0
+  pitch_sdv: 0
+  roll_sdv: 0
+  calibration_engineer: "wdq"
+  calibration_run: ""
+}
+gnss_data_rate_hz: 20
+imu_data_rate_hz: 0
+used_run: ""
+ins_rbv {
+  x: 0
+  y: 0
+  z: 0
+}
+destination_node_name: "main_node_1"

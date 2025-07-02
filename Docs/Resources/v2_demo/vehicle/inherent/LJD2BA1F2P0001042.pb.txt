@@ -1,0 +1,3 @@
+wheel_rolling_radius: 0.363
+vin: "LJD2BA1F2P0001042"
+serial_no: "LJD2BA1F2P0001042"

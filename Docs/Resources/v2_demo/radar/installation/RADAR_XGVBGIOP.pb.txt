@@ -1,0 +1,13 @@
+radar_id: RAD_FRONT
+extrinsics {
+  x: 0
+  y: 0
+  z: 0
+  yaw: 0
+  pitch: 0
+  roll: 0
+}
+socket_can_id: 2
+sensor_id: 0
+radar_type: RAD_CONTI_408
+enabled: true

@@ -1,0 +1,27 @@
+intrinsics {
+  calibration_time: "2025-05-29 07:48:57"
+  distort_coeffs {
+    k1: 2.055406057704677
+    k2: 0.7752245464643409
+    p1: -7.079952860201397e-09
+    p2: 1.5407507713854857e-09
+    k3: 0.022947905898925113
+    k4: 2.3954054925494774
+    k5: 1.4256724754181087
+    k6: 0.15433598735483625
+  }
+  camera_matrix {
+    fx: 1891.3257289770572
+    fy: 1874.7271692330364
+    cx: 1923.241963408035
+    cy: 1073.984319923982
+  }
+  serial_no: "IMX728_H120_BVZ0SP3F"
+  calibration_engineer: "n/a"
+  rms: 0.0348490372
+}
+max_fps: 30
+mid_row_time_since_trigger: 0.043
+rolling_elapse_time: 0.033
+camera_vendor: SENSING
+serial_no: "IMX728_H120_BVZ0SP3F"

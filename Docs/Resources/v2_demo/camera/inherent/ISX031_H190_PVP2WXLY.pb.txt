@@ -1,0 +1,27 @@
+intrinsics {
+  calibration_time: "2025-05-29 08:10:16"
+  distort_coeffs {
+    k1: 0.12192335954618502
+    k2: -0.02349131696431903
+    p1: 0.0
+    p2: 0.0
+    k3: -0.003384672142061077
+    k4: 0.0005258445887607803
+    k5: 0.0
+    k6: 0.0
+  }
+  camera_matrix {
+    fx: 510.1477084484532
+    fy: 509.5002295662224
+    cx: 966.4537229347234
+    cy: 765.6754316735078
+  }
+  serial_no: "ISX031_H190_PVP2WXLY"
+  calibration_engineer: "gx"
+  rms: 0.34
+}
+max_fps: 30
+mid_row_time_since_trigger: 0.043
+rolling_elapse_time: 0.033
+camera_vendor: LIJING
+serial_no: "ISX031_H190_PVP2WXLY"

@@ -1,0 +1,168 @@
+speedometer_params {
+  speed_scale: 0.005909
+}
+control_params {
+  ts_pkmpc_controller_conf {
+    ts: 0.2
+    t_control_gain_scheduler {
+      scheduler {
+        speed: 4
+        ratio: 1
+      }
+      scheduler {
+        speed: 8
+        ratio: 0.9
+      }
+      scheduler {
+        speed: 12
+        ratio: 0.8
+      }
+      scheduler {
+        speed: 20
+        ratio: 0.7
+      }
+      scheduler {
+        speed: 25
+        ratio: 0.6
+      }
+      scheduler {
+        speed: 35
+        ratio: 0.5
+      }
+    }
+    s_control_gain_scheduler {
+      scheduler {
+        speed: 1
+        ratio: 4
+      }
+      scheduler {
+        speed: 2
+        ratio: 2
+      }
+      scheduler {
+        speed: 4
+        ratio: 1
+      }
+      scheduler {
+        speed: 8
+        ratio: 0.9
+      }
+      scheduler {
+        speed: 12
+        ratio: 0.8
+      }
+      scheduler {
+        speed: 20
+        ratio: 0.7
+      }
+      scheduler {
+        speed: 25
+        ratio: 0.6
+      }
+      scheduler {
+        speed: 35
+        ratio: 0.5
+      }
+    }
+    t_matrix_q: 0.2
+    t_matrix_q: 0.2
+    t_matrix_r: 3
+    t_matrix_n: 10
+    t_matrix_n: 10
+    s_matrix_q: 0.05
+    s_matrix_q: 0.05
+    s_matrix_q: 3
+    s_matrix_r: 20
+    s_matrix_n: 4
+    s_matrix_n: 4
+    s_matrix_n: 4
+    s_matrix_xy: 0.05
+    s_matrix_yaw: 8
+    s_matrix_kappa: 0
+    s_matrix_psi: 8
+    s_matrix_n_xy: 4
+    s_matrix_n_yaw: 3
+    s_matrix_n_kappa: 1
+    s_xy_gain_scheduler {
+      scheduler {
+        speed: -0.05
+        ratio: 40
+      }
+      scheduler {
+        speed: 0
+        ratio: 20
+      }
+      scheduler {
+        speed: 1
+        ratio: 8
+      }
+      scheduler {
+        speed: 2.5
+        ratio: 4
+      }
+      scheduler {
+        speed: 3
+        ratio: 1
+      }
+    }
+    s_psi_gain_scheduler {
+      scheduler {
+        speed: -0.05
+        ratio: 0.1
+      }
+      scheduler {
+        speed: 0
+        ratio: 0.6
+      }
+      scheduler {
+        speed: 1
+        ratio: 0.7
+      }
+      scheduler {
+        speed: 1.5
+        ratio: 0.8
+      }
+      scheduler {
+        speed: 2.5
+        ratio: 0.9
+      }
+      scheduler {
+        speed: 3
+        ratio: 1
+      }
+    }
+  }
+  calibration_table_v2 {
+    idle_v_a_plf {
+      x: -3
+      x: 0
+      x: 1
+      x: 1.2
+      x: 35
+      y: 0.05
+      y: 0
+      y: -0.05
+      y: -0.1
+      y: -0.2
+    }
+    a_throttle_plf {
+      x: -3.3
+      x: 0
+      x: 0.8
+      x: 3.3
+      y: 50
+      y: 0
+      y: 12
+      y: 50
+    }
+    a_brake_plf {
+      x: -4
+      x: 0
+      x: 4
+      y: 35
+      y: 0
+      y: 35
+    }
+  }
+}
+vehicle_plan: VP_PBQ_V1

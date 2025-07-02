@@ -1,0 +1,6 @@
+speedometer_params {
+  speed_scale: 0.004574
+}
+control_params {
+}
+vehicle_plan: VP_PBQ_V1

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x19\x63\x61mera_installation.proto\"\x9a\x02\n\nExtrinsics\x12\x18\n\x10\x63\x61libration_time\x18\x01 \x01(\t\x12\x0e\n\x01x\x18\x02 \x01(\x01H\x00\x88\x01\x01\x12\x0e\n\x01y\x18\x03 \x01(\x01H\x01\x88\x01\x01\x12\x0e\n\x01z\x18\x04 \x01(\x01H\x02\x88\x01\x01\x12\x0b\n\x03yaw\x18\x05 \x01(\x01\x12\r\n\x05pitch\x18\x06 \x01(\x01\x12\x0c\n\x04roll\x18\x07 \x01(\x01\x12!\n\x14\x63\x61libration_engineer\x18\x08 \x01(\tH\x03\x88\x01\x01\x12\x1c\n\x0f\x63\x61libration_run\x18\t \x01(\tH\x04\x88\x01\x01\x12\x18\n\x10\x63\x61libration_mode\x18\n \x01(\tB\x04\n\x02_xB\x04\n\x02_yB\x04\n\x02_zB\x17\n\x15_calibration_engineerB\x12\n\x10_calibration_run\"J\n\x18\x43\x61meraMatrixInstallation\x12\n\n\x02\x66x\x18\x01 \x01(\x01\x12\n\n\x02\x66y\x18\x02 \x01(\x01\x12\n\n\x02\x63x\x18\x03 \x01(\x05\x12\n\n\x02\x63y\x18\x04 \x01(\x05\"\xcd\x01\n\x17VirtualCameraExtrinsics\x12\x18\n\x10\x63\x61libration_time\x18\x01 \x01(\t\x12\x0b\n\x03yaw\x18\x02 \x01(\x01\x12\r\n\x05pitch\x18\x03 \x01(\x01\x12\x0c\n\x04roll\x18\x04 \x01(\x01\x12!\n\x14\x63\x61libration_engineer\x18\x05 \x01(\tH\x00\x88\x01\x01\x12\x1d\n\x10\x63\x61libration_mode\x18\x06 \x01(\tH\x01\x88\x01\x01\x42\x17\n\x15_calibration_engineerB\x13\n\x11_calibration_mode\"\x8a\x02\n\rVirtualCamera\x12\x11\n\tcamera_id\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12-\n\nintrinsics\x18\x03 \x01(\x0b\x32\x19.CameraMatrixInstallation\x12\r\n\x05width\x18\x04 \x01(\x05\x12\x0e\n\x06height\x18\x05 \x01(\x05\x12\x18\n\x0bpipeline_id\x18\x06 \x01(\x05H\x00\x88\x01\x01\x12,\n\nextrinsics\x18\x07 \x01(\x0b\x32\x18.VirtualCameraExtrinsics\x12\x32\n\x10\x63\x61lib_extrinsics\x18\x08 \x03(\x0b\x32\x18.VirtualCameraExtrinsicsB\x0e\n\x0c_pipeline_id\"\xc9\x04\n\x18\x43\x61meraInstallationConfig\x12\x11\n\tcamera_id\x18\x01 \x01(\t\x12\x1f\n\nextrinsics\x18\x02 \x01(\x0b\x32\x0b.Extrinsics\x12\x14\n\x0cref_lidar_id\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65vice_path\x18\x04 \x01(\t\x12\x18\n\x10hardware_trigger\x18\x05 \x01(\x08\x12\x15\n\rrotate_90_ccw\x18\x06 \x01(\x08\x12\x15\n\rauto_exposure\x18\x07 \x01(\x08\x12\x14\n\x0c\x65xpected_fps\x18\x08 \x01(\x05\x12\x18\n\x10hardware_encoder\x18\t \x01(\x08\x12\x0e\n\x06\x66lip_x\x18\n \x01(\x08\x12\x15\n\x08used_run\x18\x0b \x01(\tH\x00\x88\x01\x01\x12\x1a\n\x12\x66ull_undistort_fov\x18\x0c \x01(\x08\x12\x18\n\x10warp_perspective\x18\r \x01(\x08\x12\x31\n\x1c\x63\x61mera_to_vehicle_extrinsics\x18\x0e \x01(\x0b\x32\x0b.Extrinsics\x12\x18\n\x0b\x65ncode_type\x18\x0f \x01(\tH\x01\x88\x01\x01\x12\x13\n\x0bpipeline_id\x18\x10 \x01(\x05\x12\x1a\n\x12set_virtual_camera\x18\x11 \x01(\x08\x12\'\n\x0fvirtual_cameras\x18\x12 \x03(\x0b\x32\x0e.VirtualCamera\x12\x1d\n\x15\x64\x65stination_node_name\x18\x13 \x01(\t\x12\x16\n\x0eis_calibration\x18\x14 \x01(\x08\x42\x0b\n\t_used_runB\x0e\n\x0c_encode_typeb\x06proto3'
+  serialized_pb=b'\n\x19\x63\x61mera_installation.proto\"\xb4\x02\n\nExtrinsics\x12\x18\n\x10\x63\x61libration_time\x18\x01 \x01(\t\x12!\n\x14\x63\x61libration_engineer\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x0e\n\x01x\x18\x03 \x01(\x01H\x01\x88\x01\x01\x12\x0e\n\x01y\x18\x04 \x01(\x01H\x02\x88\x01\x01\x12\x0e\n\x01z\x18\x05 \x01(\x01H\x03\x88\x01\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x0c\n\x04roll\x18\x08 \x01(\x01\x12\x1c\n\x0f\x63\x61libration_run\x18\t \x01(\tH\x04\x88\x01\x01\x12\x1d\n\x10\x63\x61libration_mode\x18\n \x01(\tH\x05\x88\x01\x01\x42\x17\n\x15_calibration_engineerB\x04\n\x02_xB\x04\n\x02_yB\x04\n\x02_zB\x12\n\x10_calibration_runB\x13\n\x11_calibration_mode\"J\n\x18\x43\x61meraMatrixInstallation\x12\n\n\x02\x66x\x18\x01 \x01(\x01\x12\n\n\x02\x66y\x18\x02 \x01(\x01\x12\n\n\x02\x63x\x18\x03 \x01(\x05\x12\n\n\x02\x63y\x18\x04 \x01(\x05\"\xcd\x01\n\x17VirtualCameraExtrinsics\x12\x18\n\x10\x63\x61libration_time\x18\x01 \x01(\t\x12\x0b\n\x03yaw\x18\x02 \x01(\x01\x12\r\n\x05pitch\x18\x03 \x01(\x01\x12\x0c\n\x04roll\x18\x04 \x01(\x01\x12!\n\x14\x63\x61libration_engineer\x18\x05 \x01(\tH\x00\x88\x01\x01\x12\x1d\n\x10\x63\x61libration_mode\x18\x06 \x01(\tH\x01\x88\x01\x01\x42\x17\n\x15_calibration_engineerB\x13\n\x11_calibration_mode\"\x8a\x02\n\rVirtualCamera\x12\x11\n\tcamera_id\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12-\n\nintrinsics\x18\x03 \x01(\x0b\x32\x19.CameraMatrixInstallation\x12\r\n\x05width\x18\x04 \x01(\x05\x12\x0e\n\x06height\x18\x05 \x01(\x05\x12\x18\n\x0bpipeline_id\x18\x06 \x01(\x05H\x00\x88\x01\x01\x12,\n\nextrinsics\x18\x07 \x01(\x0b\x32\x18.VirtualCameraExtrinsics\x12\x32\n\x10\x63\x61lib_extrinsics\x18\x08 \x03(\x0b\x32\x18.VirtualCameraExtrinsicsB\x0e\n\x0c_pipeline_id\"\xb7\x04\n\x18\x43\x61meraInstallationConfig\x12\x11\n\tcamera_id\x18\x01 \x01(\t\x12\x1f\n\nextrinsics\x18\x02 \x01(\x0b\x32\x0b.Extrinsics\x12\x14\n\x0cref_lidar_id\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65vice_path\x18\x04 \x01(\t\x12\x18\n\x10hardware_trigger\x18\x05 \x01(\x08\x12\x15\n\rrotate_90_ccw\x18\x06 \x01(\x08\x12\x15\n\rauto_exposure\x18\x07 \x01(\x08\x12\x14\n\x0c\x65xpected_fps\x18\x08 \x01(\x05\x12\x18\n\x10hardware_encoder\x18\t \x01(\x08\x12\x0e\n\x06\x66lip_x\x18\n \x01(\x08\x12\x10\n\x08used_run\x18\x0b \x01(\t\x12\x1a\n\x12\x66ull_undistort_fov\x18\x0c \x01(\x08\x12\x18\n\x10warp_perspective\x18\r \x01(\x08\x12\x31\n\x1c\x63\x61mera_to_vehicle_extrinsics\x18\x0e \x01(\x0b\x32\x0b.Extrinsics\x12\x18\n\x0b\x65ncode_type\x18\x0f \x01(\tH\x00\x88\x01\x01\x12\x13\n\x0bpipeline_id\x18\x10 \x01(\x05\x12\x1a\n\x12set_virtual_camera\x18\x11 \x01(\x08\x12\'\n\x0fvirtual_cameras\x18\x12 \x03(\x0b\x32\x0e.VirtualCamera\x12\x1d\n\x15\x64\x65stination_node_name\x18\x13 \x01(\t\x12\x16\n\x0eis_calibration\x18\x14 \x01(\x08\x42\x0e\n\x0c_encode_typeb\x06proto3'
 )
 
 
@@ -41,51 +41,51 @@ _EXTRINSICS = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='x', full_name='Extrinsics.x', index=1,
-      number=2, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
+      name='calibration_engineer', full_name='Extrinsics.calibration_engineer', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='y', full_name='Extrinsics.y', index=2,
+      name='x', full_name='Extrinsics.x', index=2,
       number=3, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='z', full_name='Extrinsics.z', index=3,
+      name='y', full_name='Extrinsics.y', index=3,
       number=4, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='yaw', full_name='Extrinsics.yaw', index=4,
+      name='z', full_name='Extrinsics.z', index=4,
       number=5, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='pitch', full_name='Extrinsics.pitch', index=5,
+      name='yaw', full_name='Extrinsics.yaw', index=5,
       number=6, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='roll', full_name='Extrinsics.roll', index=6,
+      name='pitch', full_name='Extrinsics.pitch', index=6,
       number=7, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='calibration_engineer', full_name='Extrinsics.calibration_engineer', index=7,
-      number=8, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
+      name='roll', full_name='Extrinsics.roll', index=7,
+      number=8, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -115,22 +115,22 @@ _EXTRINSICS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
     _descriptor.OneofDescriptor(
-      name='_x', full_name='Extrinsics._x',
+      name='_calibration_engineer', full_name='Extrinsics._calibration_engineer',
       index=0, containing_type=None,
       create_key=_descriptor._internal_create_key,
     fields=[]),
     _descriptor.OneofDescriptor(
-      name='_y', full_name='Extrinsics._y',
+      name='_x', full_name='Extrinsics._x',
       index=1, containing_type=None,
       create_key=_descriptor._internal_create_key,
     fields=[]),
     _descriptor.OneofDescriptor(
-      name='_z', full_name='Extrinsics._z',
+      name='_y', full_name='Extrinsics._y',
       index=2, containing_type=None,
       create_key=_descriptor._internal_create_key,
     fields=[]),
     _descriptor.OneofDescriptor(
-      name='_calibration_engineer', full_name='Extrinsics._calibration_engineer',
+      name='_z', full_name='Extrinsics._z',
       index=3, containing_type=None,
       create_key=_descriptor._internal_create_key,
     fields=[]),
@@ -139,9 +139,14 @@ _EXTRINSICS = _descriptor.Descriptor(
       index=4, containing_type=None,
       create_key=_descriptor._internal_create_key,
     fields=[]),
+    _descriptor.OneofDescriptor(
+      name='_calibration_mode', full_name='Extrinsics._calibration_mode',
+      index=5, containing_type=None,
+      create_key=_descriptor._internal_create_key,
+    fields=[]),
   ],
   serialized_start=30,
-  serialized_end=312,
+  serialized_end=338,
 )
 
 
@@ -193,8 +198,8 @@ _CAMERAMATRIXINSTALLATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=314,
-  serialized_end=388,
+  serialized_start=340,
+  serialized_end=414,
 )
 
 
@@ -270,8 +275,8 @@ _VIRTUALCAMERAEXTRINSICS = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=391,
-  serialized_end=596,
+  serialized_start=417,
+  serialized_end=622,
 )
 
 
@@ -356,8 +361,8 @@ _VIRTUALCAMERA = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=599,
-  serialized_end=865,
+  serialized_start=625,
+  serialized_end=891,
 )
 
 
@@ -521,20 +526,18 @@ _CAMERAINSTALLATIONCONFIG = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
     _descriptor.OneofDescriptor(
-      name='_used_run', full_name='CameraInstallationConfig._used_run',
+      name='_encode_type', full_name='CameraInstallationConfig._encode_type',
       index=0, containing_type=None,
       create_key=_descriptor._internal_create_key,
     fields=[]),
-    _descriptor.OneofDescriptor(
-      name='_encode_type', full_name='CameraInstallationConfig._encode_type',
-      index=1, containing_type=None,
-      create_key=_descriptor._internal_create_key,
-    fields=[]),
   ],
-  serialized_start=868,
-  serialized_end=1453,
+  serialized_start=894,
+  serialized_end=1461,
 )
 
+_EXTRINSICS.oneofs_by_name['_calibration_engineer'].fields.append(
+  _EXTRINSICS.fields_by_name['calibration_engineer'])
+_EXTRINSICS.fields_by_name['calibration_engineer'].containing_oneof = _EXTRINSICS.oneofs_by_name['_calibration_engineer']
 _EXTRINSICS.oneofs_by_name['_x'].fields.append(
   _EXTRINSICS.fields_by_name['x'])
 _EXTRINSICS.fields_by_name['x'].containing_oneof = _EXTRINSICS.oneofs_by_name['_x']
@@ -544,12 +547,12 @@ _EXTRINSICS.fields_by_name['y'].containing_oneof = _EXTRINSICS.oneofs_by_name['_
 _EXTRINSICS.oneofs_by_name['_z'].fields.append(
   _EXTRINSICS.fields_by_name['z'])
 _EXTRINSICS.fields_by_name['z'].containing_oneof = _EXTRINSICS.oneofs_by_name['_z']
-_EXTRINSICS.oneofs_by_name['_calibration_engineer'].fields.append(
-  _EXTRINSICS.fields_by_name['calibration_engineer'])
-_EXTRINSICS.fields_by_name['calibration_engineer'].containing_oneof = _EXTRINSICS.oneofs_by_name['_calibration_engineer']
 _EXTRINSICS.oneofs_by_name['_calibration_run'].fields.append(
   _EXTRINSICS.fields_by_name['calibration_run'])
 _EXTRINSICS.fields_by_name['calibration_run'].containing_oneof = _EXTRINSICS.oneofs_by_name['_calibration_run']
+_EXTRINSICS.oneofs_by_name['_calibration_mode'].fields.append(
+  _EXTRINSICS.fields_by_name['calibration_mode'])
+_EXTRINSICS.fields_by_name['calibration_mode'].containing_oneof = _EXTRINSICS.oneofs_by_name['_calibration_mode']
 _VIRTUALCAMERAEXTRINSICS.oneofs_by_name['_calibration_engineer'].fields.append(
   _VIRTUALCAMERAEXTRINSICS.fields_by_name['calibration_engineer'])
 _VIRTUALCAMERAEXTRINSICS.fields_by_name['calibration_engineer'].containing_oneof = _VIRTUALCAMERAEXTRINSICS.oneofs_by_name['_calibration_engineer']
@@ -565,9 +568,6 @@ _VIRTUALCAMERA.fields_by_name['pipeline_id'].containing_oneof = _VIRTUALCAMERA.o
 _CAMERAINSTALLATIONCONFIG.fields_by_name['extrinsics'].message_type = _EXTRINSICS
 _CAMERAINSTALLATIONCONFIG.fields_by_name['camera_to_vehicle_extrinsics'].message_type = _EXTRINSICS
 _CAMERAINSTALLATIONCONFIG.fields_by_name['virtual_cameras'].message_type = _VIRTUALCAMERA
-_CAMERAINSTALLATIONCONFIG.oneofs_by_name['_used_run'].fields.append(
-  _CAMERAINSTALLATIONCONFIG.fields_by_name['used_run'])
-_CAMERAINSTALLATIONCONFIG.fields_by_name['used_run'].containing_oneof = _CAMERAINSTALLATIONCONFIG.oneofs_by_name['_used_run']
 _CAMERAINSTALLATIONCONFIG.oneofs_by_name['_encode_type'].fields.append(
   _CAMERAINSTALLATIONCONFIG.fields_by_name['encode_type'])
 _CAMERAINSTALLATIONCONFIG.fields_by_name['encode_type'].containing_oneof = _CAMERAINSTALLATIONCONFIG.oneofs_by_name['_encode_type']

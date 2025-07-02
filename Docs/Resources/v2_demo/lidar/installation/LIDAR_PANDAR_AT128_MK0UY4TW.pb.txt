@@ -1,0 +1,19 @@
+lidar_id: LDR_FRONT
+extrinsics {
+  x: 1.675
+  y: 0
+  z: 1.583
+  roll: 0
+  pitch: 0
+  yaw: 0
+  calibration_time: "2023-11-05 16:36:48"
+  calibration_engineer: "test"
+  calibration_run: "20231102_154547_Q2481"
+}
+enabled: true
+hesai_lidar_params {
+  intensity_nonlinear_mapping: true
+}
+valid_point_min_range: 0.8
+port: 2372
+ip: "192.168.5.205"

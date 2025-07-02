@@ -1,0 +1,42 @@
+can_params {
+  type: SOCKETCAN
+  kvaser_id: 0
+  bit_rate: 500000
+  socketcan_ifname: "can0"
+  enable: true
+}
+omc_config {
+  gpu_id_to_device_id {
+    gpu_id: GPU_1
+    device_id: 0
+    gpu_type: GT_RTX_A4000
+  }
+  ip_address: "192.168.5.210"
+  main_display: false
+  node_type: SLAVE_NODE_1
+}
+nodes_run_config {
+  nodes_scheme_name: "node_normal_10"
+  nodes {
+    node_name: "main_node_0"
+    name_space: "omc"
+    node_ip: "192.168.5.210"
+    node_port: "50050"
+    lite_launch_config_filename: "launch_j5_main_node_1.pb.txt"
+    timeout: 100
+  }
+}
+radar_udp_stream {
+  udp {
+    address: "192.168.55.16"
+    port: 9024
+    src_port: 9023
+  }
+}
+canbus_udp_stream {
+  udp {
+    address: "192.168.55.16"
+    port: 9021
+    src_port: 9022
+  }
+}

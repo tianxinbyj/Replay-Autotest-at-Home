@@ -1,0 +1,29 @@
+radar_configure {
+  radarcfg_rcs_threshold_valid: RADARCFG_RCS_THRESHOLD_VALID_VALID
+  radarcfg_rcs_threshold: RADARCFG_RCS_THRESHOLD_STANDARD
+  radarcfg_storeinnvm_valid: RADARCFG_STOREINNVM_VALID_VALID
+  radarcfg_sortindex_valid: RADARCFG_SORTINDEX_VALID_VALID
+  radarcfg_sortindex: RADARCFG_SORTINDEX_SORTED_BY_RANGE
+  radarcfg_storeinnvm: RADARCFG_STOREINNVM_ACTIVE
+  radarcfg_sendextinfo_valid: RADARCFG_SENDEXTINFO_VALID_VALID
+  radarcfg_sendextinfo: RADARCFG_SENDEXTINFO_ACTIVE
+  radarcfg_ctrlrelay_valid: RADARCFG_CTRLRELAY_VALID_INVALID
+  radarcfg_ctrlrelay: RADARCFG_CTRLRELAY_INACTIVE
+  radarcfg_sendquality_valid: RADARCFG_SENDQUALITY_VALID_VALID
+  radarcfg_sendquality: RADARCFG_SENDQUALITY_ACTIVE
+  radarcfg_maxdistance_valid: RADARCFG_MAXDISTANCE_VALID_VALID
+  radarcfg_radarpower_valid: RADARCFG_RADARPOWER_VALID_VALID
+  radarcfg_outputtype_valid: RADARCFG_OUTPUTTYPE_VALID_VALID
+  radarcfg_sensorid_valid: RADARCFG_SENSORID_VALID_INVALID
+  radarcfg_maxdistance: 96
+  radarcfg_radarpower: RADARCFG_RADARPOWER_STANDARD
+  radarcfg_outputtype: RADARCFG_OUTPUTTYPE_SENDOBJECTS
+  radarcfg_sensorid: 0
+}
+rms_threshold: 3
+prob_exist: 4
+width_threshold: 0.4
+len_threshold: 0.4
+speed_threshold: 30
+delay_frame: 4
+serial_no: "RADAR_3APBPVXZ"

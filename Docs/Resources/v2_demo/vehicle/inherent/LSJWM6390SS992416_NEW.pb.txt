@@ -1,0 +1,3 @@
+wheel_rolling_radius: 0.362
+vin: "LSJWM6390SS992416_NEW"
+serial_no: "LSJWM6390SS992416_NEW"

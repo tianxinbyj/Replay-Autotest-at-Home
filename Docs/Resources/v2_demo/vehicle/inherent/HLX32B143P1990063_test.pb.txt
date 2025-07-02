@@ -1,0 +1,2 @@
+wheel_rolling_radius: 0.377
+serial_no: "HLX32B143P1990063"

@@ -1,0 +1,3 @@
+wheel_rolling_radius: 0.3468
+vin: "LNAFMAB3XR5S00306"
+serial_no: "LNAFMAB3XR5S00306"

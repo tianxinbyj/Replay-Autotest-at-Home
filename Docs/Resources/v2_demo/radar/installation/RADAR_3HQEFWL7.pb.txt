@@ -1,0 +1,18 @@
+radar_id: RAD_FRONT
+extrinsics {
+  calibration_time: "2021-06-25 06:16:22"
+  description: "Not calibrated yet"
+  x: 3.63
+  y: 0
+  z: 0.44
+  yaw: -0.0095
+  pitch: 0
+  roll: 0
+  calibration_engineer: "zhihui"
+}
+socket_can_id: 2
+sensor_id: 0
+radar_type: RAD_CONTI_408
+used_run: ""
+enabled: true
+destination_node_name: "main_node_0"

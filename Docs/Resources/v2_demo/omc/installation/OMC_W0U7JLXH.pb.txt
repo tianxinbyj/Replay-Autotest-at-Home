@@ -1,0 +1,16 @@
+omc_config {
+  ip_address: "172.16.7.14"
+  main_display: false
+  node_type: MAIN_NODE_1
+}
+nodes_run_config {
+  nodes_scheme_name: "node_normal_10"
+  nodes {
+    node_name: "main_node_1"
+    name_space: "omc"
+    node_ip: "172.16.7.14"
+    node_port: "50050"
+    lite_launch_config_filename: "j6_lc.pb.txt"
+    timeout: 50
+  }
+}

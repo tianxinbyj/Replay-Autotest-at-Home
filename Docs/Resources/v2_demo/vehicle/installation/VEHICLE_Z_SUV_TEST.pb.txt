@@ -1,0 +1,7 @@
+speedometer_params {
+  speed_scale: 0
+}
+control_params {
+  steering_angle_bias: 0
+}
+vehicle_plan: VP_PBQ_V1

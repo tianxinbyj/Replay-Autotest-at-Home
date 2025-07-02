@@ -1,0 +1,9 @@
+gnss_device_parms {
+  horizontal_position_variance: 0.01
+  vertical_position_variance: 0.01
+  heading_variance: 0.000514803
+  theta_xy_variance: 4.87e-05
+  horizontal_velocity_variance: 0.01
+  vertical_velocity_variance: 0.01
+}
+serial_no: "GNSS_BA575VC8"

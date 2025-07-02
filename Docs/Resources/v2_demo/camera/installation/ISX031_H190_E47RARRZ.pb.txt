@@ -1,0 +1,39 @@
+camera_id: CAM_PBQ_FRONT_FISHEYE
+extrinsics {
+  calibration_time: "2025-05-29 08:15:15"
+  calibration_engineer: "gx"
+  x: 0.022099999128444
+  y: 2.6559998434213767
+  z: -1.2782000209415356
+  yaw: 1.58223176080427
+  pitch: 0.2997323945059314
+  roll: 0.0422334780976415
+  calibration_run: "20250529_150015_Q3402"
+}
+ref_lidar_id: LDR_FRONT
+device_path: "/dev/video4"
+hardware_trigger: true
+rotate_90_ccw: false
+auto_exposure: true
+expected_fps: 20
+hardware_encoder: true
+flip_x: false
+used_run: ""
+full_undistort_fov: false
+warp_perspective: false
+camera_to_vehicle_extrinsics {
+  calibration_time: "2025-05-29 08:05:24"
+  calibration_engineer: ""
+  x: 3.8890188539980337
+  y: -0.025548215025205268
+  z: 0.3076022069890404
+  yaw: -0.008186781884196068
+  pitch: 0.1646173327259366
+  roll: 0.014113174876640136
+  calibration_mode: kEndOfLine
+}
+encode_type: ENCODE_TYPE_JPEG
+pipeline_id: 0
+set_virtual_camera: false
+destination_node_name: "main_node_0"
+is_calibration: true

@@ -1,0 +1,13 @@
+omc_config {
+  ip_address: "172.31.30.125"
+  main_display: false
+  node_type: MAIN_NODE
+}
+nodes_run_config {
+  nodes {
+    node_name: "main_node"
+    name_space: "omc"
+    node_ip: "172.31.30.125"
+    node_port: "50050"
+  }
+}

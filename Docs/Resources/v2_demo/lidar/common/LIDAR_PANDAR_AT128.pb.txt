@@ -1,0 +1,15 @@
+type: SPINNING
+spinning_lidar_params {
+  num_beams: 128
+  num_scans_per_spin: 1200
+  azimuth_resolution: 0.1
+}
+max_num_returns: 2
+meters_per_tick: 0.004
+data_packet_params {
+  header_size: 42
+  udp_header_size: 12
+  block_size: 515
+  num_blocks_per_packet: 2
+  info_size: 76
+}

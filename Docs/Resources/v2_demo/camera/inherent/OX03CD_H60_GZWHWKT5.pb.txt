@@ -1,0 +1,27 @@
+intrinsics {
+  calibration_time: "2025-05-29 08:01:05"
+  distort_coeffs {
+    k1: 0.8067391887540529
+    k2: 0.023455376693278476
+    p1: -9.410387143782914e-11
+    p2: -7.134155793974774e-11
+    k3: -6.094914659259417e-06
+    k4: 1.5133702871667127
+    k5: 0.1419657739313305
+    k6: 0.39885888247256296
+  }
+  camera_matrix {
+    fx: 1621.4424578130102
+    fy: 1642.5191157770969
+    cx: 946.1538497938546
+    cy: 635.8428687739611
+  }
+  serial_no: "OX03CD_H60_GZWHWKT5"
+  calibration_engineer: "n/a"
+  rms: 0.0341288366
+}
+max_fps: 30
+mid_row_time_since_trigger: 0.043
+rolling_elapse_time: 0.033
+camera_vendor: SENSING
+serial_no: "OX03CD_H60_GZWHWKT5"

@@ -1,0 +1,18 @@
+omc_config {
+  gpu_id_to_device_id {
+    gpu_id: GPU_0
+    device_id: 1
+    gpu_type: GT_A30
+  }
+}
+nodes_run_config {
+  nodes_scheme_name: "node_normal_5"
+  nodes {
+    node_name: "main_node"
+    name_space: "omc"
+    node_ip: "192.168.5.101"
+    node_port: "50070"
+    lite_launch_config_filename: "launch_run_with_ra_2.pb.txt"
+    timeout: 50
+  }
+}

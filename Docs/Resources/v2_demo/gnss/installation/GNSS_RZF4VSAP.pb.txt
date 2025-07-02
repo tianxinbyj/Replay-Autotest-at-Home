@@ -1,0 +1,40 @@
+antenna_extrinsics {
+  id: ANT1
+  x: 0
+  y: -0.1721
+  z: 1.06
+}
+format: X2C_TEXT
+data_port {
+  udp {
+    address: "192.168.10.111"
+    port: 3003
+    src_port: 7000
+  }
+}
+command_port {
+  udp {
+    address: "192.168.10.111"
+    port: 3004
+    src_port: 7001
+  }
+}
+imu_extrinsics {
+  x: 0
+  y: -0.1721
+  z: -0.305
+  yaw: 0.7661
+  pitch: -0.0014
+  roll: 0.7413
+  yaw_sdv: 0
+  pitch_sdv: 0
+  roll_sdv: 0
+}
+gnss_data_rate_hz: 20
+imu_data_rate_hz: 0
+ins_rbv {
+  x: 0
+  y: 0
+  z: 0
+}
+destination_node_name: "main_node_0"

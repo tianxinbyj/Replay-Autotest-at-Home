@@ -1,0 +1,25 @@
+lidar_id: LDR_FRONT
+extrinsics {
+  x: 1.7401548624038696
+  y: 0.00053102179663255811
+  z: 1.6304116249084473
+  roll: 0.0015087659703567624
+  pitch: -0.00051997258560732007
+  yaw: 0.00029838987393304706
+  calibration_time: "2024-12-25 06:51:14"
+  vehicle_name: ""
+  calibration_engineer: "mingbo"
+  calibration_run: "20241224_153133_Q2804"
+  calibration_mode: kOnline
+}
+enabled: true
+hesai_lidar_params {
+  intensity_nonlinear_mapping: false
+}
+valid_point_min_range: 0
+port: 2368
+command_port: 0
+ip: "192.168.5.201"
+used_run: ""
+destination_node_name: "main_node_0"
+is_calibration: true
