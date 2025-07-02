@@ -454,19 +454,20 @@ class Ros2BagParser:
             new_time_df['time_diff'] = new_time_df['time_stamp'].diff(1)
             median_value = new_time_df['time_diff'].median()
             std_value = new_time_df['time_diff'].std()
-            threshold = max(median_value + 5 * std_value, 2 * median_value)
+            threshold = max(median_value + 5 * std_value, 2.5 * median_value)
             outlier_data = new_time_df[new_time_df['time_diff'] > threshold]
             outlier_timestamp = outlier_data['time_stamp'].tolist()
+            rel_timestamp = [t - new_time_df['time_stamp'].min() for t in outlier_timestamp]
             outlier_timediff = outlier_data['time_diff'].tolist()
             outliers_index = outlier_data.index.tolist()
             if len(outliers_index):
-                outliers.append([topic, threshold, str(outliers_index), str(outlier_timediff), str(outlier_timestamp)])
+                outliers.append([topic, threshold, str(rel_timestamp), str(outliers_index), str(outlier_timediff), str(outlier_timestamp)])
 
             time_csv = os.path.join(folder, '{:s}_{:.2f}_hz.csv'.format(topic.replace('/', ''), hz))
             new_time_df.to_csv(time_csv, index=False)
 
         if len(outliers):
-            (pd.DataFrame(outliers, columns=['topic', 'threshold', 'index', 'time_diff', 'time_stamp'])
+            (pd.DataFrame(outliers, columns=['topic', 'threshold', 'rel_time_stamp', 'index', 'time_diff', 'time_stamp',  ])
              .to_csv(os.path.join(folder, 'outlier.csv'), index=False))
 
         print(time.time() - t0)
@@ -546,100 +547,6 @@ class Ros2BagParser:
                     vy, vy_rel = world_info.vel_abs_world.vy, world_info.vel.vy
 
                     sub_type = obstacle_data.sub_type
-                    type_conf = obstacle_data.type_conf
-                    if type_conf > 1:
-                        type_conf = obstacle_data.type_conf / 100
-                    curr_lane = world_info.curr_lane
-                    age = obstacle_data.age
-                    coverage = world_info.cover_ratio
-                    is_cipv = world_info.is_cipv
-                    is_mcp = world_info.is_mcp
-                    status = world_info.measurement_status
-
-                    queue.put([
-                        local_time, time_stamp, header_stamp, header_seq, frame_id,
-                        obstacle_id, obstacle_type, obstacle_type_text, type_conf, sub_type, curr_lane,
-                        x, y, world_info.position.z, vx, vy, vx_rel, vy_rel, yaw, length, width, height, age, coverage,
-                        is_cipv, is_mcp, status,
-                    ])
-
-                self.last_timestamp[topic] = time_stamp
-
-        elif topic in ['/VA/VehicleResult', '/VA/PedResult']:
-            time_stamp = msg.exposure_time_stamp / 1000
-            frame_id = msg.frame_id
-            self.time_saver[topic].append(time_stamp)
-            self.frame_id_saver[topic].append(frame_id)
-            if time_stamp != self.last_timestamp[topic]:
-                header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
-                header_seq = msg.header.seq
-
-                for obstacle_data in msg.obstacles:
-                    obstacle_id = obstacle_data.obstacle_id
-                    if obstacle_id == 0:
-                        continue
-
-                    obstacle_type = obstacle_data.obstacle_type
-                    world_info = obstacle_data.world_info
-                    point_type = world_info.position_type
-                    a = 0 if point_type in [7, 8, 9, 0] else 1 / 2 if point_type in [4, 5, 6] else -1 / 2
-                    b = 0 if point_type in [0, 2, 5, 9] else 1 / 2 if point_type in [1, 4, 7] else -1 / 2
-
-                    if obstacle_type in [0, 1]:
-                        obstacle_type = 1
-                        obstacle_type_text = 'vehicle'
-                    elif obstacle_type == 2:
-                        obstacle_type_text = 'pedestrian'
-                    else:
-                        obstacle_type_text = 'cyclist'
-
-                    ped_yaws = {
-                        0: np.pi,
-                        1: 0,
-                        2: np.pi / 2,
-                        3: np.pi / 4,
-                        4: np.pi / 4 * 3,
-                        5: -np.pi / 2,
-                        6: -np.pi / 4 * 3,
-                        7: -np.pi / 4
-                    }
-
-                    yaw = world_info.yaw
-                    if obstacle_type_text == 'pedestrian':
-                        for category in obstacle_data.category:
-                            if category.category_property_conf and category.category_property_type == 0:
-                                yaw = ped_yaws[category.category_property]
-                                break
-
-                    sub_type = 0
-                    if obstacle_type in [0, 1]:
-                        for category in obstacle_data.category:
-                            if category.category_property_type == 0:
-                                # property_name = np.array(category.property_name, dtype=np.uint8).tobytes().decode('ascii')
-                                # property_name = ''.join([a for a in property_name if a.isalpha()])
-                                # sub_type = f'{category.category_property}-{property_name}'
-                                if category.category_property in [1, 10, 3]:
-                                    sub_type = 1
-                                elif category.category_property == 0:
-                                    sub_type = 4
-                                elif category.category_property == 2:
-                                    sub_type = 5
-                                elif category.category_property in [11, 7, 8]:
-                                    sub_type = 3
-                                elif category.category_property == 5:
-                                    sub_type = 11
-                                else:
-                                    sub_type = 10
-                                break
-
-                    length = world_info.length
-                    width = world_info.width
-                    height = world_info.height
-                    x = world_info.position.x - a * length * np.cos(yaw) + b * width * np.sin(yaw)
-                    y = world_info.position.y - a * length * np.sin(yaw) - b * width * np.cos(yaw)
-                    vx, vx_rel = world_info.vel_abs_world.vx, world_info.vel.vx
-                    vy, vy_rel = world_info.vel_abs_world.vy, world_info.vel.vy
-
                     type_conf = obstacle_data.type_conf
                     if type_conf > 1:
                         type_conf = obstacle_data.type_conf / 100
@@ -1943,12 +1850,12 @@ class Ros2BagParser:
         elif topic == '/SA/INSPVA':
             time_stamp = msg.time_stamp.time_stamp_ns / 1e9 + msg.time_stamp.time_stamp_s
             frame_id = 0
+            utc_time_stamp = msg.utc_time_us / 1e3
             self.time_saver[topic].append(time_stamp)
             self.frame_id_saver[topic].append(frame_id)
-            if time_stamp != self.last_timestamp[topic]:
+            if utc_time_stamp != self.last_timestamp[topic]:
                 header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
                 header_seq = msg.header.seq
-                utc_time_stamp = msg.utc_time_us / 1e3
                 latitude = msg.latitude
                 longitude = msg.longitude
                 roll = msg.roll
@@ -1961,7 +1868,7 @@ class Ros2BagParser:
                     roll, pitch, yaw
                 ])
 
-                self.last_timestamp[topic] = time_stamp
+                self.last_timestamp[topic] = utc_time_stamp
 
         elif topic == '/VA/VehicleMotionIpd':
             time_stamp = msg.wheel_pulse_ts / 1e6
@@ -1999,7 +1906,7 @@ class Ros2BagParser:
             self.frame_id_saver[topic].append(frame_id)
             if time_stamp != self.last_timestamp[topic]:
                 queue.put([
-                    local_time, time_stamp, frame_id, format_
+                    local_time, time_stamp, msg.data.shape, str(msg.data.tolist()[:100])
                 ])
                 print(f'{time_stamp:03f}', msg.data.shape, msg.data.tolist()[:100])
 
@@ -2438,12 +2345,12 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/media/data/Q_DATA/debug_data/COMBINE_BAG/20250614-005-AEB/'
+    workspace = '/home/zhangliwei01/ZONE/TestProject/DEBUG/03_Workspace'
     # ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-05-16-36-22'
     # folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
 
-    ros2bag_path = '/media/data/Q_DATA/debug_data/COMBINE_BAG/20250614-005-AEB/2025_06_14-14_47_36=2025_06_14-14_48_31/ROSBAG/COMBINE'
-    folder = '/media/data/Q_DATA/temp'
+    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/DEBUG/01_Prediction/20250529_102333_n000003/20250529_102333_n000003_2025-07-02-15-59-41'
+    folder = '/home/zhangliwei01/ZONE/TestProject/temp'
 
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
@@ -2452,14 +2359,14 @@ if __name__ == "__main__":
         # '/VA/Lines',
         # '/VA/PK/Slots',
         # '/PK/DR/Result',
-        # '/SA/INSPVA',
+        '/SA/INSPVA',
         # '/Camera/FrontWide/H265',
         # '/PK/PER/VisionSlotDecodingList',
-        '/VA/QC/BEVObstaclesTracks',
-        '/VA/QC/FsObstacles',
-        '/VA/QC/Lines',
-        '/VA/QC/Objects',
-        '/VA/QC/Pose',
+        # '/VA/QC/BEVObstaclesTracks',
+        # '/VA/QC/FsObstacles',
+        # '/VA/QC/Lines',
+        # '/VA/QC/Objects',
+        # '/VA/QC/Pose',
         # '/VA/PK/Slots',
         # '/VA/PK/BevObstaclesDet',
         # '/VA/PK/Obstacles',
