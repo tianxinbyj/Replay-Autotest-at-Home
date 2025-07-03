@@ -80,7 +80,7 @@ class DataTransformer:
                 'ffmpeg',
                 '-i', video_path,  # 输入文件
                 '-c:v', 'libx265',  # 使用H.265编码器
-                '-crf', '22',  # 恒定质量模式（可根据需求调整）
+                '-crf', '24',  # 恒定质量模式（可根据需求调整）
                 '-pix_fmt', 'yuv420p',  # 像素格式
                 '-r', f'{target_fps}',  # 输出帧率
                 # 关键参数：强制每帧都是IDR帧（I帧）
@@ -688,10 +688,27 @@ class DataDownloader:
 
 if __name__ == '__main__':
     ddd = DataDownloader()
-    install_path = '/home/hp/artifacts/ZPD_AH4EM/3.3.0_RC1/install'
+    install_path = '/home/zhangliwei01/ZONE/TestProject/DEBUG/03_Workspace/install'
     qqq = DataTransformer(install_path=install_path)
-    info_path = '/home/hp/temp/77w数据汇总.xlsx'
-    local_download_path = '/home/hp/temp'
+    kunyi_package_path = '/home/zhangliwei01/ZONE/20250529_102333_n000001'
+    h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
+    # h265_config_path = '/home/hp/temp/20250529_102834_n000020/Images/h265_config.yaml'
+    qqq.h265_to_db3(h265_config_path, os.path.join(kunyi_package_path, qqq.ros2bag_h265_name))
+    qqq.kunyiCan_to_db3(kunyi_package_path)
+    qqq.combine_Kunyi_db3(kunyi_package_path)
+    qqq.gen_AVM_from_db3(kunyi_package_path)
+
+
+    # info_path = '/home/hp/temp/77w数据汇总.xlsx'
+    # local_download_path = '/home/hp/temp'
+    # kunyi_package_path = '/home/zhangliwei01/ZONE/20250529_102333_n000001'
+    # qqq.combine_Kunyi_db3(kunyi_package_path)
+    # h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
+    #
+    # qqq.h265_to_db3(
+    #     h265_config_path = '/home/zhangliwei01/ZONE/20250529_102333_n000001/Images/h265_config.yaml',
+    #     db3_dir='/home/zhangliwei01/ZONE/20250529_102333_n000001/ROSBAG/ROSBAG_H265',
+    # )
     # download_info = ddd.read_download_info('/home/hp/temp/77w数据汇总.xlsx')
     # for info in download_info:
     #     s3_path = f"backup/data/collect/self/driving/{info['package_name']}/{info['vin']}/{info['date']}/"
@@ -733,12 +750,12 @@ if __name__ == '__main__':
 
     # ddd.batch_data_download_from_amazon('/home/hp/temp/77w数据汇总.xlsx')
     # ddd.convert_folder_tree('/home/hp/temp/20250529', '/home/hp/temp')
-    install_path = '/home/hp/artifacts/ZPD_AH4EM/3.3.0_RC1/install'
-    q_docker_base_path = f'/media/data'
-
-    qqq = DataTransformer(install_path=install_path)
-    kunyi_package_path = '/home/hp/temp'
-    qqq.batch_generate_rosbags(kunyi_package_path, install_path)
+    # install_path = '/home/hp/artifacts/ZPD_AH4EM/3.3.0_RC1/install'
+    # q_docker_base_path = f'/media/data'
+    #
+    # qqq = DataTransformer(install_path=install_path)
+    # kunyi_package_path = '/home/hp/temp'
+    # qqq.batch_generate_rosbags(kunyi_package_path, install_path)
     # h265_config_path = '/home/zhangliwei01/ZONE/manual_scenario/20240119_145625_n000001/Images/h265_config.yaml'
     # qqq.h265_to_db3(h265_config_path, os.path.join(kunyi_package_path, qqq.ros2bag_h265_name))
     # qqq.kunyiCan_to_db3(install_path, kunyi_package_path)

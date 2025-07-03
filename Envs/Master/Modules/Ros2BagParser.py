@@ -2349,7 +2349,7 @@ if __name__ == "__main__":
     # ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-05-16-36-22'
     # folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
 
-    ros2bag_path = '/home/zhangliwei01/ZONE/TestProject/DEBUG/01_Prediction/20250529_102333_n000003/20250529_102333_n000003_2025-07-02-15-59-41'
+    ros2bag_path = '/home/zhangliwei01/ZONE/20250529_102333_n000001/ROSBAG/COMBINE'
     folder = '/home/zhangliwei01/ZONE/TestProject/temp'
 
     os.makedirs(folder, exist_ok=True)
@@ -2359,8 +2359,13 @@ if __name__ == "__main__":
         # '/VA/Lines',
         # '/VA/PK/Slots',
         # '/PK/DR/Result',
-        '/SA/INSPVA',
-        # '/Camera/FrontWide/H265',
+        # '/SA/INSPVA',
+        '/Camera/FrontWide/H265',
+        '/Camera/SorroundRight/H265',
+        '/Camera/SorroundLeft/H265',
+        '/Camera/SorroundFront/H265',
+        '/Camera/SorroundRear/H265',
+        '/Camera/Rear/H265',
         # '/PK/PER/VisionSlotDecodingList',
         # '/VA/QC/BEVObstaclesTracks',
         # '/VA/QC/FsObstacles',

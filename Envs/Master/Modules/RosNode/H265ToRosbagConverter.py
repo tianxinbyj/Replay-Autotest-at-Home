@@ -1,6 +1,6 @@
-"""  
+"""
 @Author: BU YUJUN
-@Date: 2025/4/7 14:04  
+@Date: 2025/4/7 14:04
 """
 
 import argparse
@@ -62,28 +62,25 @@ class H265ToRosbagConverter:
             with open(h265_path, 'rb') as f:
                 data = f.read()
 
+            delimiter = b'\x00\x00\x00\x01\x40'
+            positions = []
             start = 0
-            # 查找NAL单元起始码 (0x00000001),
-            # 需要合并非00 00 00 01 02开头的（非关键帧 (P/B 帧)）
-            one_frame = b''
+
+            # 查找所有匹配位置
             while True:
-                # 查找下一个起始码
-                pos = data.find(b'\x00\x00\x00\x01', start + 1)
+                pos = data.find(delimiter, start)
                 if pos == -1:
-                    # 添加最后一帧
-                    one_frame += data[start:]
-                    frames.append(one_frame)
                     break
-                # 添加当前帧
-                f = data[start:pos]
-                if f[4] != 2:
-                    one_frame += f
+                positions.append(pos)
+                start = pos + 1  # 继续从下一个位置查找
+
+            for i, pos in enumerate(positions):
+                if i == len(positions) - 1:
+                    frames.append(data[pos:])
                 else:
-                    if len(one_frame):
-                        frames.append(one_frame)
-                    frames.append(data[start:pos])
-                    one_frame = b''
-                start = pos
+                    frames.append(data[pos:positions[i + 1]])
+
+            return frames
 
         else:
             for h265_file in h265_path:
@@ -101,7 +98,7 @@ class H265ToRosbagConverter:
             msg.header.frame_id = f'frame_{frame_id}'
             msg.format = 'h265'
             msg.data = bytes(nal_data)
-            print(topic, time_stamp, len(msg.data.tolist()), msg.data.tolist()[:30])
+            print(topic, round(time_stamp, 3), len(msg.data.tolist()), msg.data.tolist()[:30])
 
             # 写入数据库
             self.writer.write(

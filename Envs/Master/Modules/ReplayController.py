@@ -355,7 +355,7 @@ class ReplayController:
                 if float(replay_process) > self.replay_end / 100:
                     self.stop_replay_and_record(scenario_id)
                     break
-                time.sleep(8)
+                time.sleep(5)
 
             self.parse_bag(scenario_id)
 
