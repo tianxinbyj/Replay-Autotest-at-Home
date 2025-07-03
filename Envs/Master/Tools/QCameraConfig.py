@@ -1,13 +1,15 @@
+import getpass
 import glob
 import json
 import shutil
 import re
+import subprocess
 
 import yaml
 from google.protobuf import text_format
 import os
 from google.protobuf.json_format import ParseDict
-
+from openpyxl.styles.builtins import output
 
 from Docs.Resources.proto.camera_inherent_pb2 import *
 from Docs.Resources.proto.camera_installation_pb2 import *
@@ -215,7 +217,7 @@ class QCameraConfig:
 
         # 处理camera_id字段（字符串类型）
         camera_config.camera_id = str(installation_dict.get("camera_id", ""))
-        camera_config.encode_type = str(installation_dict.get("encode_type", "ENCODE_TYPE_JPEG"))
+        # camera_config.encode_type = str(installation_dict.get("encode_type", "ENCODE_TYPE_JPEG"))
         self.set_output_value(camera_config, installation_dict,
                          ["ref_lidar_id", 'device_path', 'hardware_trigger', 'rotate_90_ccw', 'auto_exposure',
                           'expected_fps', 'hardware_encoder', 'flip_x', 'used_run', 'full_undistort_fov',
@@ -496,7 +498,7 @@ class QCameraConfig:
             self.generate_installation_pbtext(camera_info['key'], installation, installation_folder)
             print(installation)
 
-    def transform_kunyi_calib(self, kunyi_config_json_path, output_path, target_car_id='ZP01'):
+    def transform_kunyi_calib(self, kunyi_config_json_path, output_path, docker_path, bin_tool_path, target_car_id='ZP01'):
         """
         通过昆易数据中的标定文件生成v2文件中的相机的内外参文件
 
@@ -526,6 +528,8 @@ class QCameraConfig:
         transfer_1j5_2_es39(temp_path, os.path.join(output_path, 'json'))
         if os.path.exists(temp_path):
             shutil.rmtree(temp_path)
+        v2_path = self.generate_bin(output_path, docker_path, bin_tool_path, target_car_id)
+        return v2_path
 
 
     def change_car_id(self, resource_path, car_id):
@@ -554,8 +558,62 @@ class QCameraConfig:
             print(f"修改文件时发生错误：{e}")
             return False
 
+    def generate_bin(self, output_path, docker_path, bin_tool_path, car_id):
+        command = ''
+        timeout = 10
+        try:
+            command = f'{docker_path}'
+            # 使用 subprocess 执行 shell 命令
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                shell=True
+            )
+            current_user = getpass.getuser()
+            inner_command = (
+                f'cd {bin_tool_path} && '
+                f'LD_LIBRARY_PATH="$LD_LIBRARY_PATH:./" ./v2_txt_to_bin '
+                f'--vehicle_param_dir={output_path} --only_car={car_id}  2>&1'
+            )
+
+            # 第三步：构建 docker exec 命令
+            docker_command = [
+                'docker', 'exec',
+                '-e', f'LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{bin_tool_path}',  # 直接设置环境变量
+                f'snoah_dev_{current_user}',  # 使用 Python 获取的用户名
+                'bash', '-c',  # 在容器内执行 bash 命令
+                inner_command  # 要在容器内执行的完整命令
+            ]            # 使用 subprocess 执行 shell 命令
+            result = subprocess.run(
+                docker_command,  # 注意：这里传递的是列表，而不是字符串
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False
+            )
+            pattern = r'vehicle_param_dir:\s*([^\s]+)'
+            match = re.search(pattern, result.stdout)
+            if match:
+                return match.group(1)  # 返回捕获的路径部分
+            else:
+                return None
+
+        except subprocess.TimeoutExpired:
+            print(f"错误: 命令执行超时（{timeout}秒）: {command}", file=sys.stderr)
+            return None
+        except Exception as e:
+            print(f"错误: 执行命令时发生异常: {command}", file=sys.stderr)
+            return None
+
+
 if __name__ == '__main__':
     camera_config = QCameraConfig()
     kunyi_config_json_path = '/home/hp/TESTDATA/20241227_174535_n000009/Config/20241227_174535_calibration.json'
-    kunyi_folder = '/home/hp/config'
-    camera_config.transform_kunyi_calib(kunyi_config_json_path, kunyi_folder)
+    output_folder = '/home/hp/config'
+    docker_path = '/home/hp/ZONE/tools/start_docker.sh'
+    bin_tool_path = '/home/hp/ZONE/tools/v2_txt_to_bin_tools'
+    v2_path = camera_config.transform_kunyi_calib(kunyi_config_json_path, output_folder, docker_path, bin_tool_path)
+    print(v2_path)
