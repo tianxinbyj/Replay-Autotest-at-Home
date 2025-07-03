@@ -1149,9 +1149,7 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
     将 生成出的1j5 格式的yaml 文件生成 用于es39软件(ES37 2J5 板子) 回灌使用的参数格式
     """
     mapping = {
-
         'rear': 'camera_2',
-
         'front': 'camera_5',
         'front_30fov': 'camera_6',
         'fisheye_front': 'camera_7',
@@ -1177,9 +1175,7 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
             "need_calibration_flag": False,
             "vendor": "",
             "version": 1,
-
         }
-
 
         with open(os.path.join(yaml_folder, f'{yaml_camera_num}.yaml'), 'r') as camera_yaml:
 
@@ -1187,10 +1183,8 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
             camera_num = 'cam_' + yaml_camera_num.split('_')[-1] + '_'
 
             if 'fisheye' in pos_camera_name:
-                #             "vin": "unknown",  "type": 1,
                 json_camera_dict['type'] = 1
                 json_camera_dict['vin'] = 'unknown'
-
                 json_camera_dict['camera_x'] = camera_yaml_data[camera_num + 'pos_x']
                 json_camera_dict['camera_y'] = camera_yaml_data[camera_num + 'pos_y']
                 json_camera_dict['camera_z'] = camera_yaml_data[camera_num + 'pos_z']
@@ -1198,26 +1192,23 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
                 json_camera_dict['center_v'] = camera_yaml_data[camera_num + 'center_v']
                 json_camera_dict['focal_u'] = camera_yaml_data[camera_num + 'focal_x']
                 json_camera_dict['focal_v'] = camera_yaml_data[camera_num + 'focal_y']
-
                 json_camera_dict['fov'] = fov_dict[pos_camera_name]
-
                 json_camera_dict['image_height'] = camera_yaml_data[camera_num + 'image_height']
                 json_camera_dict['image_width'] = camera_yaml_data[camera_num + 'image_width']
                 json_camera_dict['pitch'] = camera_yaml_data[camera_num + 'pitch']
                 json_camera_dict['roll'] = camera_yaml_data[camera_num + 'roll']
                 json_camera_dict['yaw'] = camera_yaml_data[camera_num + 'yaw']
-                json_camera_dict['distort'] = [ camera_yaml_data[camera_num + 'distort_k1'],
-                                                camera_yaml_data[camera_num + 'distort_k2'],
-                                                camera_yaml_data[camera_num + 'distort_k3'],
-                                                camera_yaml_data[camera_num + 'distort_k4']
-                                               ]
-                # "valid_height"
+                json_camera_dict['distort'] = [
+                    camera_yaml_data[camera_num + 'distort_k1'],
+                    camera_yaml_data[camera_num + 'distort_k2'],
+                    camera_yaml_data[camera_num + 'distort_k3'],
+                    camera_yaml_data[camera_num + 'distort_k4']
+                ]
                 json_camera_dict['valid_height'] = [1280, 1280] # 所有鱼眼相机都是 [1280, 1280]
+
             else:
-                #             "vin": "",  "type": 0,
                 json_camera_dict['type'] = 0
                 json_camera_dict['vin'] = ''
-
                 json_camera_dict['camera_x'] = camera_yaml_data[camera_num + 'pos_x']
                 json_camera_dict['camera_y'] = camera_yaml_data[camera_num + 'pos_y']
                 json_camera_dict['camera_z'] = camera_yaml_data[camera_num + 'pos_z']
@@ -1225,24 +1216,22 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
                 json_camera_dict['center_v'] = camera_yaml_data[camera_num + 'center_v']
                 json_camera_dict['focal_u'] = camera_yaml_data[camera_num + 'focal_x']
                 json_camera_dict['focal_v'] = camera_yaml_data[camera_num + 'focal_y']
-
                 json_camera_dict['fov'] = fov_dict[pos_camera_name]
-
                 json_camera_dict['image_height'] = camera_yaml_data[camera_num + 'image_height']
                 json_camera_dict['image_width'] = camera_yaml_data[camera_num + 'image_width']
                 json_camera_dict['pitch'] = camera_yaml_data[camera_num + 'pitch']
                 json_camera_dict['roll'] = camera_yaml_data[camera_num + 'roll']
                 json_camera_dict['yaw'] = camera_yaml_data[camera_num + 'yaw']
-                json_camera_dict['distort'] = [ camera_yaml_data[camera_num + 'distort_k1'],
-                                                camera_yaml_data[camera_num + 'distort_k2'],
-                                                camera_yaml_data[camera_num + 'distort_p1'],
-                                                camera_yaml_data[camera_num + 'distort_p1'],
-                                                camera_yaml_data[camera_num + 'distort_k3'],
-                                                camera_yaml_data[camera_num + 'distort_k4'],
-                                                camera_yaml_data[camera_num + 'distort_k5'],
-                                                camera_yaml_data[camera_num + 'distort_k6'],
-                                               ]
-                # valid_height
+                json_camera_dict['distort'] = [
+                    camera_yaml_data[camera_num + 'distort_k1'],
+                    camera_yaml_data[camera_num + 'distort_k2'],
+                    camera_yaml_data[camera_num + 'distort_p1'],
+                    camera_yaml_data[camera_num + 'distort_p2'],
+                    camera_yaml_data[camera_num + 'distort_k3'],
+                    camera_yaml_data[camera_num + 'distort_k4'],
+                    camera_yaml_data[camera_num + 'distort_k5'],
+                    camera_yaml_data[camera_num + 'distort_k6']
+                ]
                 if pos_camera_name == 'front':
                     json_camera_dict['valid_height'] = [2160, 2160]
                 elif pos_camera_name == 'rear':
@@ -1253,6 +1242,110 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
         with open(os.path.join(json_folder, f'{pos_camera_name}.json'), 'w+') as camera_json:
             json.dump(json_camera_dict, camera_json, indent=2)
 
+
+def transfer_q_2_es39(q_config_path, json_folder):
+    """
+    将 生成出的q格式的json 文件生成 用于es39软件(ES37 2J5 板子) 回灌使用的参数格式
+    """
+    mapping = {
+        'rear': 'CAM_PBQ_REAR',
+        'front': 'CAM_PBQ_FRONT_WIDE',
+        'fisheye_front': 'CAM_PBQ_FRONT_FISHEYE',
+        'fisheye_right': 'CAM_PBQ_RIGHT_FISHEYE',
+        'fisheye_rear': 'CAM_PBQ_REAR_FISHEYE',
+        'fisheye_left': 'CAM_PBQ_LEFT_FISHEYE',
+    }
+
+    fov_dict = {
+        'rear': 60.0,
+        'front': 120.0,
+        'fisheye_front': 196.0,
+        'fisheye_right': 196.0,
+        'fisheye_rear': 196.0,
+        'fisheye_left': 196.0,
+    }
+
+    with open(q_config_path, 'r', encoding='utf-8') as file:
+        q_config = json.load(file)
+    q_cameras = q_config['carInfo']['runParams']['v2VehicleParams']['cameras']
+
+    for z_camera_name, q_camera_name in mapping.items(): # front : camera_5
+
+        json_camera_dict = {
+            "calib_src": 1,
+            "camera_intrinsic_changed": 0,
+            "need_calibration_flag": False,
+            "vendor": "",
+            "version": 1,
+        }
+
+        q_camera = None
+        for q_camera in q_cameras:
+            if q_camera['installation']['cameraId'] == q_camera_name:
+                break
+
+        if q_camera is None:
+            continue
+
+        if 'fisheye' in z_camera_name:
+            json_camera_dict['type'] = 1
+            json_camera_dict['vin'] = 'unknown'
+            json_camera_dict['camera_x'] = q_camera['installation']['extrinsics']['x']
+            json_camera_dict['camera_y'] = q_camera['installation']['extrinsics']['y']
+            json_camera_dict['camera_z'] = q_camera['installation']['extrinsics']['z']
+            json_camera_dict['center_u'] = q_camera['inherent']['intrinsics']['cameraMatrix']['cx']
+            json_camera_dict['center_v'] = q_camera['inherent']['intrinsics']['cameraMatrix']['cy']
+            json_camera_dict['focal_u'] = q_camera['inherent']['intrinsics']['cameraMatrix']['fx']
+            json_camera_dict['focal_v'] = q_camera['inherent']['intrinsics']['cameraMatrix']['fy']
+            json_camera_dict['fov'] = fov_dict[z_camera_name]
+            json_camera_dict['image_height'] = q_camera['common']['height']
+            json_camera_dict['image_width'] = q_camera['common']['width']
+            json_camera_dict['pitch'] = q_camera['installation']['extrinsics']['pitch']
+            json_camera_dict['roll'] = q_camera['installation']['extrinsics']['roll']
+            json_camera_dict['yaw'] = q_camera['installation']['extrinsics']['yaw']
+            json_camera_dict['distort'] = [
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k1'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k2'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k3'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k4'],
+            ]
+            json_camera_dict['valid_height'] = [1280, 1280] # 所有鱼眼相机都是 [1280, 1280]
+
+        else:
+            json_camera_dict['type'] = 0
+            json_camera_dict['vin'] = ''
+            json_camera_dict['camera_x'] = q_camera['installation']['extrinsics']['x']
+            json_camera_dict['camera_y'] = q_camera['installation']['extrinsics']['y']
+            json_camera_dict['camera_z'] = q_camera['installation']['extrinsics']['z']
+            json_camera_dict['center_u'] = q_camera['inherent']['intrinsics']['cameraMatrix']['cx']
+            json_camera_dict['center_v'] = q_camera['inherent']['intrinsics']['cameraMatrix']['cy']
+            json_camera_dict['focal_u'] = q_camera['inherent']['intrinsics']['cameraMatrix']['fx']
+            json_camera_dict['focal_v'] = q_camera['inherent']['intrinsics']['cameraMatrix']['fy']
+            json_camera_dict['fov'] = fov_dict[z_camera_name]
+            json_camera_dict['image_height'] = q_camera['common']['height']
+            json_camera_dict['image_width'] = q_camera['common']['width']
+            json_camera_dict['pitch'] = q_camera['installation']['extrinsics']['pitch']
+            json_camera_dict['roll'] = q_camera['installation']['extrinsics']['roll']
+            json_camera_dict['yaw'] = q_camera['installation']['extrinsics']['yaw']
+            json_camera_dict['distort'] = [
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k1'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k2'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['p1'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['p2'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k3'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k4'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k5'],
+                q_camera['inherent']['intrinsics']['distortCoeffs']['k6'],
+            ]
+            if z_camera_name == 'front':
+                json_camera_dict['valid_height'] = [2160, 2160]
+            elif z_camera_name == 'rear':
+                json_camera_dict['valid_height'] = [1280, 1280]
+            elif z_camera_name == 'front_30fov':
+                json_camera_dict['valid_height'] = [2160, 2160]
+
+        with open(os.path.join(json_folder, f'{z_camera_name}.json'), 'w+') as camera_json:
+            json.dump(json_camera_dict, camera_json, indent=2)
 
 
 if __name__ == '__main__':
@@ -1274,6 +1367,6 @@ if __name__ == '__main__':
 
     # transfer_es39_2_2j5(json_folder_es39, json_folder_2j5)
 
-    yaml_folder = '/home/vcar/tmp'
-    json_folder = '/home/vcar/json'
-    transfer_1j5_2_es39(yaml_folder, json_folder)
+    json_folder = '/home/vcar/ZONE/temp'
+    q_config_path = '/media/data/Q_DATA/debug_data/run_info.json'
+    transfer_q_2_es39(q_config_path, json_folder)

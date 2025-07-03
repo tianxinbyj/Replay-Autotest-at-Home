@@ -1,22 +1,21 @@
 import getpass
 import glob
 import json
-import shutil
+import os
 import re
+import shutil
 import subprocess
 
 import yaml
 from google.protobuf import text_format
-import os
 from google.protobuf.json_format import ParseDict
-from openpyxl.styles.builtins import output
 
 from Docs.Resources.proto.camera_inherent_pb2 import *
+from Docs.Resources.proto.camera_installation_imx728_pb2 import *
 from Docs.Resources.proto.camera_installation_pb2 import *
 from Docs.Resources.proto.carId_pb2 import *
-from Docs.Resources.proto.camera_installation_imx728_pb2 import *
 from Envs.Master.Modules.Libs import get_project_path
-from Envs.ReplayClient.Modules.BirdEyeView import ConvertJsonFile, transfer_2j5_2_1j5, transfer_1j5_2_es39
+from Envs.ReplayClient.Modules.BirdEyeView import ConvertJsonFile, transfer_2j5_2_1j5, transfer_1j5_2_es39, transfer_q_2_es39
 
 
 class QCameraConfig:
@@ -430,7 +429,6 @@ class QCameraConfig:
         if not os.path.exists(v2_folder):
             os.makedirs(v2_folder)
 
-
         with open(config_json_path, 'r', encoding='utf-8') as file:
             camera_config = json.load(file)
 
@@ -531,6 +529,37 @@ class QCameraConfig:
         v2_path = self.generate_bin(output_path, docker_path, bin_tool_path, target_car_id)
         return v2_path
 
+    def gen_v2(self, config_path, output_path, docker_path, bin_tool_path, source='qcraft', target_car_id='ZP01'):
+
+        if os.path.exists(output_path):
+            shutil.rmtree(output_path)
+        temp_path = os.path.join(output_path, 'temp')
+        os.makedirs(temp_path)
+        shutil.copytree(self.demo_v2_path, os.path.join(output_path, 'v2'))
+        shutil.rmtree(os.path.join(output_path, 'v2', 'camera', 'installation'))
+        shutil.rmtree(os.path.join(output_path, 'v2', 'camera', 'inherent'))
+        os.makedirs(os.path.join(output_path, 'json'))
+
+        if source == 'kunyi':
+            ConvertJsonFile(config_path, temp_path)
+            transfer_2j5_2_1j5(temp_path, temp_path)
+            transfer_1j5_2_es39(temp_path, os.path.join(output_path, 'json'))
+            config_path = self.kunyi_to_q_calib(temp_path)
+        else:
+            transfer_q_2_es39(config_path, os.path.join(output_path, 'json'))
+
+        self.transform_q_calib(config_path, temp_path)
+        shutil.copytree(os.path.join(temp_path, 'camera', 'installation'),
+                        os.path.join(output_path, 'v2', 'camera', 'installation'))
+        shutil.copytree(os.path.join(temp_path, 'camera', 'inherent'),
+                        os.path.join(output_path, 'v2', 'camera', 'inherent'))
+        self.change_car_id(temp_path, target_car_id)
+        shutil.copyfile(os.path.join(temp_path, f'{target_car_id}.pb.txt'), os.path.join(output_path, 'v2', f'{target_car_id}.pb.txt'))
+
+        if os.path.exists(temp_path):
+            shutil.rmtree(temp_path)
+
+        return self.generate_bin(output_path, docker_path, bin_tool_path, target_car_id)
 
     def change_car_id(self, resource_path, car_id):
         try:
@@ -611,9 +640,11 @@ class QCameraConfig:
 
 if __name__ == '__main__':
     camera_config = QCameraConfig()
-    kunyi_config_json_path = '/home/hp/TESTDATA/20241227_174535_n000009/Config/20241227_174535_calibration.json'
-    output_folder = '/home/hp/config'
-    docker_path = '/home/hp/ZONE/tools/start_docker.sh'
-    bin_tool_path = '/home/hp/ZONE/tools/v2_txt_to_bin_tools'
-    v2_path = camera_config.transform_kunyi_calib(kunyi_config_json_path, output_folder, docker_path, bin_tool_path)
+    kunyi_config_path = '/media/data/kunyi_driving_data/20240119_145625_n000001/Config/20240119_145625_calibration.json'
+    q_config_path = '/media/data/Q_DATA/debug_data/run_info.json'
+    output_folder = '/home/vcar/ZONE/temp'
+    docker_path = '/home/vcar/Downloads/start_docker.sh'
+    bin_tool_path = '/home/vcar/ZONE/Tools/v2_txt_to_bin_tools'
+    # v2_path = camera_config.transform_kunyi_calib(kunyi_config_json_path, output_folder, docker_path, bin_tool_path)
+    v2_path = camera_config.gen_v2(q_config_path, output_folder, docker_path, bin_tool_path, 'kuny2i')
     print(v2_path)
