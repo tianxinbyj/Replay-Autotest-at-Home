@@ -173,7 +173,8 @@ class ReplayController:
             bag_path=bag_folder,
             topic_list=self.parse_topic,
             folder=parser_folder,
-            tag=scenario_id
+            tag=scenario_id,
+            ros2json_flag=self.replay_action.get('ros2json', False),
         )
 
     def compress_bag(self, scenario_id):

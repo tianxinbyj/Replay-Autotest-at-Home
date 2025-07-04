@@ -339,6 +339,7 @@ class Ros2BagParser:
         self.install_folder = os.path.join(workspace, 'install')
         self.typestore = get_typestore(Stores.LATEST)
         self.folder = ''
+        self.ros2json_flag = False
         msg_list = []
         for root, dirs, files in os.walk(self.install_folder):
             for f in files:
@@ -376,8 +377,9 @@ class Ros2BagParser:
             name = name.parent / 'msg' / name.name
         return str(name)
 
-    def getMsgInfo(self, bag_path, topic_list, folder, tag):
+    def getMsgInfo(self, bag_path, topic_list, folder, tag, ros2json_flag=False):
         self.folder = folder
+        self.ros2json_flag = ros2json_flag
         TestTopicInfo = {
             'topics_for_parser': topic_list
         }
@@ -1974,9 +1976,10 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-            msg_dict = self.message_to_dict(msg)
-            with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
-                json.dump(msg_dict, f, indent=2)
+            if self.ros2json_flag:
+                msg_dict = self.message_to_dict(msg)
+                with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
+                    json.dump(msg_dict, f, indent=2)
 
         elif topic in self.getTopics('qc_perception_msgs/msg/QcPose'):
             header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
@@ -2003,9 +2006,10 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-            msg_dict = self.message_to_dict(msg)
-            with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
-                json.dump(msg_dict, f, indent=2)
+            if self.ros2json_flag:
+                msg_dict = self.message_to_dict(msg)
+                with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
+                    json.dump(msg_dict, f, indent=2)
 
         elif topic in self.getTopics('qc_perception_msgs/msg/QcLines'):
             header_stamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
@@ -2066,9 +2070,10 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-            msg_dict = self.message_to_dict(msg)
-            with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
-                json.dump(msg_dict, f, indent=2)
+            if self.ros2json_flag:
+                msg_dict = self.message_to_dict(msg)
+                with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
+                    json.dump(msg_dict, f, indent=2)
 
         elif topic in self.getTopics('qc_perception_msgs/msg/QcObjects'):
             time_stamp = msg.timestamp
@@ -2106,9 +2111,10 @@ class Ros2BagParser:
 
                 self.last_timestamp[topic] = time_stamp
 
-            msg_dict = self.message_to_dict(msg)
-            with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
-                json.dump(msg_dict, f, indent=2)
+            if self.ros2json_flag:
+                msg_dict = self.message_to_dict(msg)
+                with open(os.path.join(pkl_folder, f'{time_stamp}.json'), 'w') as f:
+                    json.dump(msg_dict, f, indent=2)
 
 
 class MsgSaver:
