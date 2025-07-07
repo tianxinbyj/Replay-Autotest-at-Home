@@ -1236,7 +1236,7 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
                 json_camera_dict['distort'] = [ camera_yaml_data[camera_num + 'distort_k1'],
                                                 camera_yaml_data[camera_num + 'distort_k2'],
                                                 camera_yaml_data[camera_num + 'distort_p1'],
-                                                camera_yaml_data[camera_num + 'distort_p1'],
+                                                camera_yaml_data[camera_num + 'distort_p2'],
                                                 camera_yaml_data[camera_num + 'distort_k3'],
                                                 camera_yaml_data[camera_num + 'distort_k4'],
                                                 camera_yaml_data[camera_num + 'distort_k5'],
