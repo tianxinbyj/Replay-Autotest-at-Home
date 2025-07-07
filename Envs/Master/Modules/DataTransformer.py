@@ -95,7 +95,7 @@ class DataTransformer:
                 shutil.rmtree(h265_folder)
             os.makedirs(h265_folder)
             t0 = time.time()
-            cmd = 'cd {:s}; python3 Api_Mkv2h265.py -i {:s} -o {:s} --crf 32 --ratio 3'.format(
+            cmd = 'cd {:s}; python3 Api_Mkv2h265.py -i {:s} -o {:s} --crf 28 --ratio 3'.format(
                 os.path.join(project_path, 'Envs', 'Master', 'Interfaces'),
                 video_path, h265_folder,
             )
