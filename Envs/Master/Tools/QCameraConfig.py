@@ -521,7 +521,7 @@ class QCameraConfig:
         shutil.copytree(os.path.join(temp_path, 'camera', 'inherent'),
                         os.path.join(output_path, 'v2', 'camera', 'inherent'))
         self.change_car_id(temp_path, target_car_id)
-        shutil.copyfile(os.path.join(temp_path, f'{target_car_id}.pb.txt'), os.path.join(output_path, 'v2', 'camera', f'{target_car_id}.pb.txt'))
+        shutil.copyfile(os.path.join(temp_path, f'{target_car_id}.pb.txt'), os.path.join(output_path, 'v2', f'{target_car_id}.pb.txt'))
         os.makedirs(os.path.join(output_path, 'json'))
         transfer_1j5_2_es39(temp_path, os.path.join(output_path, 'json'))
         if os.path.exists(temp_path):
@@ -602,6 +602,17 @@ class QCameraConfig:
                 shell=True
             )
             current_user = getpass.getuser()
+            command = f'docker start snoah_dev_{current_user}'
+            # 使用 subprocess 执行 shell 命令
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                shell=True
+            )
+
             inner_command = (
                 f'cd {bin_tool_path} && '
                 f'LD_LIBRARY_PATH="$LD_LIBRARY_PATH:./" ./v2_txt_to_bin '

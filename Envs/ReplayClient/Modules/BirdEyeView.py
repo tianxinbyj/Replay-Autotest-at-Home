@@ -1367,6 +1367,6 @@ if __name__ == '__main__':
 
     # transfer_es39_2_2j5(json_folder_es39, json_folder_2j5)
 
-    json_folder = '/home/vcar/ZONE/temp'
-    q_config_path = '/media/data/Q_DATA/debug_data/run_info.json'
-    transfer_q_2_es39(q_config_path, json_folder)
+    yaml_folder = '/home/vcar/tmp'
+    json_folder = '/home/vcar/json'
+    transfer_1j5_2_es39(yaml_folder, json_folder)
