@@ -31,7 +31,6 @@ class Ros2BagRecorder:
             t0 = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
             bag_name = f'{scenario_id}_{t0}'
 
-        print(f'录制的topic为{topic_str}')
         kill_tmux_session_if_exists(self.tmux_session)
 
         work_folder = os.path.join(folder, scenario_id)

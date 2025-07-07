@@ -8,7 +8,7 @@ from Libs import get_project_path
 
 sys.path.append(get_project_path())
 from Utils.Libs import kill_tmux_session_if_exists, check_tmux_session_exists, bench_config
-from Utils.Libs import variables, ros_docker_path
+from Utils.Libs import variables, ros_docker_path, kill_process_by_keyword
 
 
 class Ros2BagPlayer:
@@ -30,11 +30,16 @@ class Ros2BagPlayer:
         """
 
         if not play_topic_list:
+            # play_topic_list = ['/Camera/Rear/H265', '/Camera/FrontWide/H265',
+            #               '/Camera/SorroundRear/H265' ,'/Camera/SorroundFront/H265',
+            #               '/Camera/SorroundRight/H265' ,'/Camera/SorroundLeft/H265',
+            #               '/FM/FctReq' ,'/SA/INSPVA','/SA/IMU','/PK/DR/Result',
+            #               '/VA/VehicleStatusIpd' ,'/VA/VehicleMotionIpd', '/PI/EG/EgoMotionInfo']
             play_topic_list = ['/Camera/Rear/H265', '/Camera/FrontWide/H265',
-                          '/Camera/SorroundRear/H265' ,'/Camera/SorroundFront/H265',
-                          '/Camera/SorroundRight/H265' ,'/Camera/SorroundLeft/H265',
-                          '/FM/FctReq' ,'/SA/INSPVA','/SA/IMU','/PK/DR/Result',
-                          '/VA/VehicleStatusIpd' ,'/VA/VehicleMotionIpd', '/PI/EG/EgoMotionInfo']
+                               '/Camera/SorroundRear/H265', '/Camera/SorroundFront/H265',
+                               '/Camera/SorroundRight/H265', '/Camera/SorroundLeft/H265',
+                               '/SA/INSPVA', '/SA/IMU', '/SA/GNSS',
+                               '/VA/VehicleStatusIpd', '/VA/VehicleMotionIpd']
 
         # 打开sil转发节点
         self.run_sil_pkg()
@@ -126,6 +131,7 @@ class Ros2BagPlayer:
 
         kill_tmux_session_if_exists(self.play_tmux_session)
         kill_tmux_session_if_exists(self.sil_tmux_session)
+        kill_process_by_keyword('sil_node')
         time.sleep(1)
 
 
