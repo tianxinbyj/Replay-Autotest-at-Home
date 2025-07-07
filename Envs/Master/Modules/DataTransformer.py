@@ -23,7 +23,6 @@ from Libs import get_project_path
 sys.path.append(get_project_path())
 from Envs.Master.Modules.Can2Ros.arxml_asc_parser import asc_parser
 from Envs.Master.Modules.Ros2Bag2BirdView import Ros2Bag2BirdView
-from Utils.VideoProcess import normalize_h265_startcodes
 from Utils.Libs import ros_docker_path, variables, kill_tmux_session_if_exists, project_path, get_folder_size, \
     force_delete_folder
 from Utils.Libs import topic2camera, bench_id, bench_config
@@ -55,94 +54,6 @@ class DataTransformer:
         self.q_docker_base_path = q_docker_base_path
 
     def kunyiMkv_to_h265(self, kunyi_package_path):
-
-        def convert_video_h265(video_path, target_fps, h265_path=None):
-            if not h265_path:
-                h265_path = os.path.join(project_path, 'Temp', f'{os.path.basename(video_path).split(".")[0]}.h265')
-
-            # video_convert_command = [
-            #     'ffmpeg',
-            #     '-i', video_path,  # 输入文件
-            #     '-c:v', 'libx265',  # 使用H.265编码
-            #     '-crf', '22',
-            #     '-pix_fmt', 'yuv420p',  # 像素格式为yuv420p
-            #     '-r', f'{target_fps}',  # 输出帧率15Hz
-            #     '-x265-params', f'keyint={target_fps}:min-keyint={target_fps}:bframes=0',  # 每秒一个I帧，无B帧
-            #     '-vcodec', 'hevc',  # 视频编码器
-            #     '-an',  # 去除音频
-            #     '-f', 'hevc',  # 强制输出格式为HEVC
-            #     '-bsf:v', 'hevc_mp4toannexb',  # 比特流过滤器，确保NAL单元分隔符正确
-            #     '-y',  # 覆盖输出文件
-            #     h265_path
-            # ]
-
-            video_convert_command = [
-                'ffmpeg',
-                '-i', video_path,  # 输入文件
-                '-c:v', 'libx265',  # 使用H.265编码器
-                '-crf', '24',  # 恒定质量模式（可根据需求调整）
-                '-pix_fmt', 'yuv420p',  # 像素格式
-                '-r', f'{target_fps}',  # 输出帧率
-                # 关键参数：强制每帧都是IDR帧（I帧）
-                '-x265-params', (
-                    f'keyint=1:min-keyint=1:scenecut=0:bframes=0:open_gop=0'
-                    # keyint=1: 最大关键帧间隔为1（每帧都是关键帧）
-                    # min-keyint=1: 最小关键帧间隔为1
-                    # scenecut=0: 关闭场景切换检测（避免自动插入非IDR帧）
-                    # bframes=0: 禁用B帧
-                    # open_gop=0: 关闭开放式GOP（确保IDR帧独立解码）
-                ),
-                '-an',  # 去除音频
-                '-f', 'hevc',  # 强制输出HEVC原始码流
-                '-bsf:v', 'hevc_mp4toannexb',  # 确保NALU起始码为00 00 00 01
-                '-y',  # 覆盖输出文件
-                h265_path
-            ]
-
-            try:
-                subprocess.run(video_convert_command, check=True)
-                print(f"{video_path} conversion completed successfully.")
-                return h265_path
-            except subprocess.CalledProcessError as e:
-                print(f"{video_path} conversion failed: {e}")
-                return None
-
-        def gen_h265_timestamp(h265_path, start_time, timestamp_path=None):
-            if not timestamp_path:
-                timestamp_path = os.path.join(project_path, 'Temp', f'{os.path.basename(h265_path).split(".")[0]}.csv')
-
-            cmd = [
-                "ffmpeg",
-                "-i", h265_path,
-                "-vf", "showinfo",
-                "-f", "null",
-                "-"
-            ]
-            process = subprocess.Popen(
-                cmd,
-                stderr=subprocess.PIPE,  # FFmpeg 输出到 stderr
-                universal_newlines=True  # 确保文本模式
-            )
-
-            # 优化后的正则表达式（精确匹配实际输出格式）
-            pattern = re.compile(
-                r"n:\s*(\d+).*?pts_time:([0-9.e+-]+).*?type:([IBP])\b"
-            )
-
-            col = ['frame_index', 'time_stamp', 'frame_type']
-            rows = []
-            for line in process.stderr:
-                match = pattern.search(line)
-                if match:
-                    frame_index = int(match.group(1))
-                    pts_time = float(match.group(2)) + float(start_time)
-                    frame_type = match.group(3)
-                    rows.append([frame_index, pts_time, frame_type])
-
-            timestamp_data = pd.DataFrame(rows, columns=col)
-            timestamp_data.to_csv(timestamp_path, index=False)
-            return timestamp_data
-
         image_folder = os.path.join(kunyi_package_path, 'Images')
         if not os.path.exists(image_folder):
             print(f'{kunyi_package_path} <UNK>')
@@ -177,9 +88,23 @@ class DataTransformer:
         for topic, info in video_config.items():
             fps = info['fps']
             video_path = info['path']
-            h265_path = os.path.join(image_folder, f"{topic.replace('/', '')}.h265")
-            timestamp_path = os.path.join(image_folder, f"{topic.replace('/', '')}.csv")
-            normalized_h265_path = os.path.join(image_folder, f"{topic.replace('/', '')}_norm.h265")
+
+            # 获得h265文件夹
+            h265_folder = os.path.join(image_folder, topic.replace('/', ''))
+            if os.path.exists(h265_folder):
+                shutil.rmtree(h265_folder)
+            os.makedirs(h265_folder)
+            t0 = time.time()
+            cmd = 'cd {:s}; python3 Api_Mkv2h265.py -i {:s} -o {:s} --crf 32 --ratio 3'.format(
+                os.path.join(project_path, 'Envs', 'Master', 'Interfaces'),
+                video_path, h265_folder,
+            )
+            print(cmd)
+            p = os.popen(cmd)
+            p.read()
+            h265_file_list = sorted(glob.glob(os.path.join(h265_folder, '*.h265')))
+
+            # 获得时间戳文件
             time_str = os.path.basename(video_path).split('_')[1]
             parts = time_str.rsplit('-', 1)
             datetime_part = parts[0]
@@ -187,17 +112,21 @@ class DataTransformer:
             dt = datetime.strptime(datetime_part, "%Y-%m-%d-%H-%M-%S")
             dt = dt.replace(microsecond=int(millisecond_part) * 1000)
             start_time = dt.timestamp()
-            convert_video_h265(video_path, fps, h265_path)
-            timestamp_data = gen_h265_timestamp(h265_path, start_time, timestamp_path)
+            raw_timestamp_path = os.path.join(h265_folder, 'frame_timestamps.txt')
+            timestamp_data = pd.read_csv(raw_timestamp_path, header=None,
+                             names=['frame_index', 'xxxx', 'time_stamp'],
+                             sep=' ', engine='python')[['frame_index', 'time_stamp']]
+            timestamp_data['time_stamp'] += start_time
+            timestamp_path = os.path.join(image_folder, f"{topic.replace('/', '')}.csv")
+            timestamp_data.to_csv(timestamp_path, index=False)
             min_ts = min(min_ts, timestamp_data['time_stamp'].min())
             max_ts = max(max_ts, timestamp_data['time_stamp'].max())
-            normalize_h265_startcodes(h265_path, normalized_h265_path)
-            os.remove(h265_path)
 
             h265_config['h265'][topic] = {
                 'timestamp_path': timestamp_path,
-                'H265_path': normalized_h265_path,
+                'H265_path': h265_file_list,
             }
+            print(f'{topic} 转h265 用时 {time.time() - t0} s')
 
         h265_config['start_time'] = float(min_ts)
         h265_config['end_time'] = float(max_ts)
@@ -361,7 +290,7 @@ class DataTransformer:
                     os.remove(h265_config['h265'][topic]['timestamp_path'])
             else:
                 for topic in h265_config['h265']:
-                    os.remove(h265_config['h265'][topic]['H265_path'])
+                    shutil.rmtree(h265_config['h265'][topic]['H265_path'])
                     os.remove(h265_config['h265'][topic]['timestamp_path'])
 
         return ros2bag_path
@@ -687,6 +616,7 @@ class DataDownloader:
 
 
 if __name__ == '__main__':
+    t0 = time.time()
     ddd = DataDownloader()
     install_path = '/home/zhangliwei01/ZONE/TestProject/DEBUG/03_Workspace/install'
     qqq = DataTransformer(install_path=install_path)
@@ -697,7 +627,7 @@ if __name__ == '__main__':
     qqq.kunyiCan_to_db3(kunyi_package_path)
     qqq.combine_Kunyi_db3(kunyi_package_path)
     qqq.gen_AVM_from_db3(kunyi_package_path)
-
+    print(time.time() - t0)
 
     # info_path = '/home/hp/temp/77w数据汇总.xlsx'
     # local_download_path = '/home/hp/temp'

@@ -202,15 +202,16 @@ class ReplayController:
         # 压缩json文件夹
         parser_folder = os.path.join(self.pred_raw_folder, scenario_id, 'RawData')
         for f in os.listdir(parser_folder):
-            if os.path.isdir(os.path.join(parser_folder, f)):
-                json_folder = os.path.join(parser_folder, f)
-                send_log(self, '开始压缩 {:s}'.format(json_folder))
-                cmd = 'cd {:s}; tar -Jcvf {:s}_json.tar.xz {:s}'.format(
-                    os.path.dirname(json_folder), os.path.basename(json_folder), os.path.basename(json_folder)
-                )
-                p = os.popen(cmd)
-                p.read()
-                send_log(self, '压缩完成 {:s}.tar.xz'.format(os.path.basename(json_folder)))
+            json_folder = os.path.join(parser_folder, f)
+            if os.path.isdir(json_folder):
+                if self.replay_action.get('ros2json', False):
+                    send_log(self, '开始压缩 {:s}'.format(json_folder))
+                    cmd = 'cd {:s}; tar -Jcvf {:s}_json.tar.xz {:s}'.format(
+                        os.path.dirname(json_folder), os.path.basename(json_folder), os.path.basename(json_folder)
+                    )
+                    p = os.popen(cmd)
+                    p.read()
+                    send_log(self, '压缩完成 {:s}.tar.xz'.format(os.path.basename(json_folder)))
                 shutil.rmtree(json_folder)
 
     def group_scenarios_by_calib(self):
