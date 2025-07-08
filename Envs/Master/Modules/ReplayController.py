@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 import yaml
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from Libs import get_project_path, draw_map
@@ -362,6 +364,34 @@ class ReplayController:
             camera_fps = dict(sorted(camera_fps.items(), key=lambda item: int(item[0].split('_')[1])))
             return timestamp, *camera_fps.values()
 
+        def plot_log():
+            # 将同步后的自车速度可视化
+            fig = plt.figure(figsize=(10, 5.625))
+            fig.tight_layout()
+            plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+            grid = plt.GridSpec(1, 1, wspace=0.2, hspace=0.25)
+            ax = fig.add_subplot(grid[0, 0])
+
+            for col in sensor_center_log.columns:
+                if col == 'time_stamp':
+                    continue
+                ax.plot(sensor_center_log['time_stamp'],
+                        sensor_center_log[col],
+                        linestyle='dashed', linewidth=2,
+                        label=f'camera {col}')
+
+            ax.set_title('sensor_center_log')
+            ax.set_xlabel('time[second]')
+            ax.set_ylabel('camera fps')
+            ax.grid('--', color='gainsboro')
+            ax.legend(loc=0)
+
+            path = os.path.join(self.pred_raw_folder, scenario_id, 'SensorCenterLog.png')
+            canvas = FigureCanvas(fig)
+            canvas.print_figure(path, facecolor='white', dpi=100)
+            fig.clf()
+            plt.close()
+
         # 有的时候部分topic的计数会小于目标数量，尝试3次
         try_count = 0
         while True:
@@ -421,7 +451,7 @@ class ReplayController:
                 sep=',\s*',  # 分隔符为逗号+任意空格（处理数据中的空格）
                 engine='python'  # 使用Python解析器处理复杂分隔符
             )
-            t_min, t_max = df['t1'].min(), df['t1'].max()
+            t_min, t_max = df['t1'].min() / 1e9, df['t1'].max() / 1e9
 
         # 将最新的sensor_center日志文件复制到本地
         for f in glob.glob(os.path.join(self.pred_raw_folder, scenario_id, '*.log')):
@@ -446,6 +476,7 @@ class ReplayController:
             sensor_center_log = pd.DataFrame(sensor_center_log_lines, columns=['time_stamp', '4', '5', '6', '7', '8', '9']).sort_values('time_stamp')
             sensor_center_log = sensor_center_log[(sensor_center_log['time_stamp'] >= t_min) & (sensor_center_log['time_stamp'] <= t_max)]
             sensor_center_log.to_csv(sensor_center_log_csv_path, index=False)
+            plot_log()
 
         send_log(self, f'复制sensor_center日志文件{sensor_center_log_csv_path}')
 
