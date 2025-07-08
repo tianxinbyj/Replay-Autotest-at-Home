@@ -382,6 +382,16 @@ class ReplayController:
         time2time_path = glob.glob(os.path.join('/home', '*', '*H265.txt'))
         for f in time2time_path:
             shutil.copy2(f, os.path.join(self.pred_raw_folder, scenario_id))
+            send_log(self, f'复制时间戳对照文件{time2time_path}')
+
+        # 将最新的sensor_center日志文件复制到本地
+        cmd = 'cd {:s}; ./fetch_latest_logs.sh {:s}'.format(
+            os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces'),
+            os.path.join(self.pred_raw_folder, scenario_id)
+        )
+        p = os.popen(cmd)
+        p.read()
+        send_log(self, f'复制sensor_center日志文件')
 
     def start(self):
 

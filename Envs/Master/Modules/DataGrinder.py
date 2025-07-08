@@ -357,7 +357,7 @@ class DataGrinderOneCase:
                 engine='python'  # 使用Python解析器处理复杂分隔符
             )
             df['t_delta'] = df['t0'] - df['t1']
-            self.test_result['General']['logsim_time_gap'] = float(df['t_delta'].mean())
+            self.test_result['General']['logsim_time_gap'] = float(df['t_delta'].mean()) / 1e9
 
     def check_pred_data(self):
         self.load_pred_data()
