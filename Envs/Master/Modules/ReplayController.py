@@ -6,10 +6,12 @@ Created on 2024/6/28.
 import copy
 import glob
 import os
+import re
 import shutil
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -335,6 +337,31 @@ class ReplayController:
         self.replay_client.flash_camera_config(ecu_type=self.product)
 
     def replay_one_scenario(self, calib_checksum, scenario_id):
+
+        def parse_log_line(log_line):
+            # 正则表达式提取时间和相机信息
+            time_pattern = r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d+)\]'
+            camera_pattern = r'\[camera_(\d+)\]: (\d+\.\d+)'
+
+            # 解析时间（强制按 UTC 处理）
+            time_match = re.search(time_pattern, log_line)
+            if not time_match:
+                return None, None
+            time_str = time_match.group(1)
+            # 关键：指定 timezone=timezone.utc，避免本地时区影响
+            dt = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=timezone.utc)
+            timestamp = dt.timestamp()  # 此时为 UTC 时间戳
+
+            # 解析相机帧率
+            camera_fps = {}
+            for match in re.finditer(camera_pattern, log_line):
+                camera_id = match.group(1)
+                fps = float(match.group(2))
+                camera_fps[f'camera_{camera_id}'] = fps
+
+            camera_fps = dict(sorted(camera_fps.items(), key=lambda item: int(item[0].split('_')[1])))
+            return timestamp, *camera_fps.values()
+
         # 有的时候部分topic的计数会小于目标数量，尝试3次
         try_count = 0
         while True:
@@ -384,14 +411,43 @@ class ReplayController:
             shutil.copy2(f, os.path.join(self.pred_raw_folder, scenario_id))
             send_log(self, f'复制时间戳对照文件{time2time_path}')
 
+        t_min, t_max = -1, 1e11
+        logsim_txt_list = glob.glob(os.path.join(self.pred_raw_folder, 'CameraFrontWideH265.txt'))
+        if len(logsim_txt_list):
+            df = pd.read_csv(
+                logsim_txt_list[0],
+                header=None,  # 无表头行
+                names=['t0', 't1'],  # 指定列名为t0和t1
+                sep=',\s*',  # 分隔符为逗号+任意空格（处理数据中的空格）
+                engine='python'  # 使用Python解析器处理复杂分隔符
+            )
+            t_min, t_max = df['t1'].min(), df['t1'].max()
+
         # 将最新的sensor_center日志文件复制到本地
-        cmd = 'cd {:s}; ./fetch_latest_logs.sh {:s}'.format(
+        for f in glob.glob(os.path.join(self.pred_raw_folder, scenario_id, '*.log')):
+            os.remove(f)
+        cmd = 'cd {:s}; ./fetch_latest_logs.sh {:s} 5'.format(
             os.path.join(get_project_path(), 'Envs', 'Master', 'Interfaces'),
             os.path.join(self.pred_raw_folder, scenario_id)
         )
         p = os.popen(cmd)
         p.read()
-        send_log(self, f'复制sensor_center日志文件')
+
+        sensor_center_log_lines = []
+        for f in glob.glob(os.path.join(self.pred_raw_folder, scenario_id, '*.log')):
+            with open(f, 'r') as file:
+                lines = file.readlines()
+                for line in lines:
+                    if 'sensor send msg fps' in line:
+                        sensor_center_log_lines.append(parse_log_line(line.strip()))
+
+        if len(sensor_center_log_lines):
+            sensor_center_log_csv_path = os.path.join(self.pred_raw_folder, scenario_id, 'sensor_center_log.csv')
+            sensor_center_log = pd.DataFrame(sensor_center_log_lines, columns=['time_stamp', '4', '5', '6', '7', '8', '9']).sort_values('time_stamp')
+            sensor_center_log = sensor_center_log[(sensor_center_log['time_stamp'] >= t_min) & (sensor_center_log['time_stamp'] <= t_max)]
+            sensor_center_log.to_csv(sensor_center_log_csv_path, index=False)
+
+        send_log(self, f'复制sensor_center日志文件{sensor_center_log_csv_path}')
 
     def start(self):
 

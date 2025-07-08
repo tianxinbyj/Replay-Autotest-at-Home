@@ -6,6 +6,13 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
+# 检查是否传入了文件数量参数，如果没有则默认为 3
+if [ -z "$2" ]; then
+    FILE_COUNT=3
+else
+    FILE_COUNT="$2"
+fi
+
 # 远程服务器信息
 REMOTE_IP="172.31.1.40"
 REMOTE_USER="root"
@@ -33,9 +40,9 @@ SORTED_FILES=$(echo "$ALL_LOG_FILES" | while read -r file; do
     num=$(basename "$file" .log | cut -d_ -f2)
     # 输出数字和文件名，用空格分隔
     echo "$num $file"
-done | sort -n -k1 | tail -n 5 | cut -d' ' -f2)
+done | sort -n -k1 | tail -n "$FILE_COUNT" | cut -d' ' -f2)
 
-echo "找到以下最新的3个文件："
+echo "找到以下最新的 $FILE_COUNT 个文件："
 echo "$SORTED_FILES"
 
 # 复制文件
