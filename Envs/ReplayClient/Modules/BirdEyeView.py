@@ -188,16 +188,25 @@ class ConvertJsonFile:
                 'xi': xi,
                 'fov_range': fov_range,
             }
+            print(intrinsic)
+            if camera_model != target_model:
+                distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
+                objectPoints, imagePoints = distort_camera.getProjectPoints()
 
-            distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
-            objectPoints, imagePoints = distort_camera.getProjectPoints()
-
-            error, CameraMatrix, distort = distort_camera.calibrateCamera(objectPoints, imagePoints,
-                                                                          target_model=target_model)
-            if 'eye' not in camera_name.lower():
-                distort = list(distort.reshape(1, -1)[0])[:8]
+                error, CameraMatrix, distort = distort_camera.calibrateCamera(objectPoints, imagePoints,
+                                                                              target_model=target_model)
+                distort = list(distort.reshape(1, -1)[0])
             else:
-                distort = list(distort.reshape(1, -1)[0])[:4]
+                error = 0
+                distort = camera_par['distort'].tolist() + [0] * 10
+                CameraMatrix = intrinsic[:, 0: 3]
+
+            print(camera_name, error, camera_model, target_model, camera_par['distort'], distort)
+            print(intrinsic, CameraMatrix)
+            if 'eye' not in camera_name.lower():
+                distort = distort[:8]
+            else:
+                distort = distort[:4]
 
             center_u = CameraMatrix[0][2]
             center_v = CameraMatrix[1][2]
@@ -1353,9 +1362,9 @@ if __name__ == '__main__':
     # yaml_folder = '/home/caobingqi/下载/1J5'
     # transfer_2j5_2_1j5(json_folder, yaml_folder)
     #
-    # calibration_json = '/home/caobingqi/ZONE/20231130_152434_calibration.json'
-    # output_folder = '/home/caobingqi/下载/2J5'
-    # CJ = ConvertJsonFile(calibration_json, output_folder)
+    calibration_json = '/home/zhangliwei01/ZONE/20250529_102333_n000001/Config/20250529_102333_calibration.json'
+    output_folder = '/home/zhangliwei01/ZONE/20250529_102333_n000001/Config'
+    CJ = ConvertJsonFile(calibration_json, output_folder)
 
     # json_folder = '/home/zhangliwei01/ZONE/123'
     # yaml_folder = '/home/zhangliwei01/ZONE/456'
@@ -1367,6 +1376,6 @@ if __name__ == '__main__':
 
     # transfer_es39_2_2j5(json_folder_es39, json_folder_2j5)
 
-    yaml_folder = '/home/vcar/tmp'
-    json_folder = '/home/vcar/json'
-    transfer_1j5_2_es39(yaml_folder, json_folder)
+    # yaml_folder = '/home/vcar/tmp'
+    # json_folder = '/home/vcar/json'
+    # transfer_1j5_2_es39(yaml_folder, json_folder)
