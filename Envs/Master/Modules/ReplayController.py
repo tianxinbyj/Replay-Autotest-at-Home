@@ -381,15 +381,15 @@ class ReplayController:
                         label=f'camera {col}')
 
             ax.plot([t_min - 5, t_max + 5], [10, 10], linestyle='dashed', linewidth=1)
-            ax.set_title('sensor_center_log')
-            ax.set_xlim(t_min - 5, t_max + 5)
+            ax.set_title(f'{scenario_id}-SensorCenterLog')
+            ax.set_xlim(t_min - 1, t_max + 1)
             ax.set_ylim(0, 12)
             ax.set_xlabel('time[second]')
             ax.set_ylabel('camera fps')
             ax.grid('--', color='gainsboro')
             ax.legend(loc=0)
 
-            path = os.path.join(self.pred_raw_folder, scenario_id, 'SensorCenterLog.png')
+            path = os.path.join(self.pred_raw_folder, scenario_id, f'{scenario_id}-SensorCenterLog.png')
             canvas = FigureCanvas(fig)
             canvas.print_figure(path, facecolor='white', dpi=100)
             fig.clf()
@@ -455,7 +455,6 @@ class ReplayController:
                 engine='python'  # 使用Python解析器处理复杂分隔符
             )
             t_min, t_max = df['t1'].min() / 1e9, df['t1'].max() / 1e9
-        print(t_min, t_max)
 
         # 将最新的sensor_center日志文件复制到本地
         for f in glob.glob(os.path.join(self.pred_raw_folder, scenario_id, '*.log')):
