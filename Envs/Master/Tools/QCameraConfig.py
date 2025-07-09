@@ -234,7 +234,7 @@ class QCameraConfig:
         # 处理camera_to_vehicle_extrinsics嵌套字段
         if "camera_to_vehicle_extrinsics" in installation_dict:
             installation_dict["camera_to_vehicle_extrinsics"]['z'] = installation_dict["camera_to_vehicle_extrinsics"][
-                                                                         'z'] - 0.366
+                                                                         'z'] - 0.336
             veh_extrinsics = installation_dict["camera_to_vehicle_extrinsics"]
             pb_veh_extrinsics = camera_config.camera_to_vehicle_extrinsics
             self.set_output_value(pb_veh_extrinsics, veh_extrinsics,
@@ -651,11 +651,11 @@ class QCameraConfig:
 
 if __name__ == '__main__':
     camera_config = QCameraConfig()
-    kunyi_config_path = '/media/data/kunyi_driving_data/20240119_145625_n000001/Config/20240119_145625_calibration.json'
-    q_config_path = '/media/data/Q_DATA/debug_data/run_info.json'
-    output_folder = '/home/vcar/ZONE/temp'
-    docker_path = '/home/vcar/Downloads/start_docker.sh'
-    bin_tool_path = '/home/vcar/ZONE/Tools/v2_txt_to_bin_tools'
+    kunyi_config_path = '/home/hp/TESTDATA/20250529_102834_n000003/Config/20250529_102333_calibration.json'
+    q_config_path = '/home/hp/Replay-Autotest-at-Home/Docs/Resources/q_info_json/run_info.json'
+    output_folder = '/home/hp/config'
+    docker_path = '/home/hp/ZONE/tools/start_docker.sh'
+    bin_tool_path = '/home/hp/ZONE/tools/v2_txt_to_bin_tools'
     # v2_path = camera_config.transform_kunyi_calib(kunyi_config_json_path, output_folder, docker_path, bin_tool_path)
-    v2_path = camera_config.gen_v2(q_config_path, output_folder, docker_path, bin_tool_path, 'kuny2i')
+    v2_path = camera_config.gen_v2(kunyi_config_path, output_folder, docker_path, bin_tool_path, 'kunyi')
     print(v2_path)
