@@ -382,7 +382,7 @@ class ReplayController:
 
             ax.plot([t_min - 5, t_max + 5], [10, 10], linestyle='dashed', linewidth=1)
             ax.set_title(f'{scenario_id}-SensorCenterLog')
-            ax.set_xlim(t_min - 5, t_max + 5)
+            ax.set_xlim(t_min - 1, t_max + 1)
             ax.set_ylim(0, 12)
             ax.set_xlabel('time[second]')
             ax.set_ylabel('camera fps')
