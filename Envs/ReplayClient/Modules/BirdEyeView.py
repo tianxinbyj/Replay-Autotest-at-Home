@@ -188,7 +188,7 @@ class ConvertJsonFile:
                 'xi': xi,
                 'fov_range': fov_range,
             }
-            print(intrinsic)
+
             if camera_model != target_model:
                 distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
                 objectPoints, imagePoints = distort_camera.getProjectPoints()
@@ -201,8 +201,6 @@ class ConvertJsonFile:
                 distort = camera_par['distort'].tolist() + [0] * 10
                 CameraMatrix = intrinsic[:, 0: 3]
 
-            print(camera_name, error, camera_model, target_model, camera_par['distort'], distort)
-            print(intrinsic, CameraMatrix)
             if 'eye' not in camera_name.lower():
                 distort = distort[:8]
             else:
