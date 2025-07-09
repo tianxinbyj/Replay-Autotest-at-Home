@@ -380,7 +380,10 @@ class ReplayController:
                         linestyle='dashed', linewidth=2,
                         label=f'camera {col}')
 
+            ax.plot([t_min - 5, t_max + 5], [10, 10], linestyle='dashed', linewidth=1)
             ax.set_title('sensor_center_log')
+            ax.set_xlim(t_min - 5, t_max + 5)
+            ax.set_ylim(0, 12)
             ax.set_xlabel('time[second]')
             ax.set_ylabel('camera fps')
             ax.grid('--', color='gainsboro')
@@ -442,7 +445,7 @@ class ReplayController:
             send_log(self, f'复制时间戳对照文件{time2time_path}')
 
         t_min, t_max = -1, 1e11
-        logsim_txt_list = glob.glob(os.path.join(self.pred_raw_folder, 'CameraFrontWideH265.txt'))
+        logsim_txt_list = glob.glob(os.path.join(self.pred_raw_folder, scenario_id, 'CameraFrontWideH265.txt'))
         if len(logsim_txt_list):
             df = pd.read_csv(
                 logsim_txt_list[0],
@@ -452,6 +455,7 @@ class ReplayController:
                 engine='python'  # 使用Python解析器处理复杂分隔符
             )
             t_min, t_max = df['t1'].min() / 1e9, df['t1'].max() / 1e9
+        print(t_min, t_max)
 
         # 将最新的sensor_center日志文件复制到本地
         for f in glob.glob(os.path.join(self.pred_raw_folder, scenario_id, '*.log')):
@@ -464,7 +468,7 @@ class ReplayController:
         p.read()
 
         sensor_center_log_lines = []
-        for f in glob.glob(os.path.join(self.pred_raw_folder, scenario_id, '*.log')):
+        for f in sorted(glob.glob(os.path.join(self.pred_raw_folder, scenario_id, '*.log'))):
             with open(f, 'r') as file:
                 lines = file.readlines()
                 for line in lines:
@@ -473,12 +477,18 @@ class ReplayController:
 
         if len(sensor_center_log_lines):
             sensor_center_log_csv_path = os.path.join(self.pred_raw_folder, scenario_id, 'sensor_center_log.csv')
-            sensor_center_log = pd.DataFrame(sensor_center_log_lines, columns=['time_stamp', '4', '5', '6', '7', '8', '9']).sort_values('time_stamp')
+            sensor_center_log = pd.DataFrame(sensor_center_log_lines, columns=['time_stamp', '4', '5', '6', '7', '8', '9']).reset_index(drop=True)
+            # 找最后一段时间升序的区间
+            sensor_center_log['time_diff'] = sensor_center_log['time_stamp'].diff(1)
+            idx = sensor_center_log[sensor_center_log['time_diff'] <= 0].index
+            if len(idx):
+                sensor_center_log = sensor_center_log[sensor_center_log.index > idx[-1]]
+            sensor_center_log = sensor_center_log.drop('time_diff', axis=1)
             sensor_center_log = sensor_center_log[(sensor_center_log['time_stamp'] >= t_min) & (sensor_center_log['time_stamp'] <= t_max)]
             sensor_center_log.to_csv(sensor_center_log_csv_path, index=False)
             plot_log()
 
-        send_log(self, f'复制sensor_center日志文件{sensor_center_log_csv_path}')
+        send_log(self, f'复制sensor_center日志文件')
 
     def start(self):
 
