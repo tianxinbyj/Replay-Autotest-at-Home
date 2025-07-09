@@ -455,7 +455,6 @@ class ReplayController:
                 engine='python'  # 使用Python解析器处理复杂分隔符
             )
             t_min, t_max = df['t1'].min() / 1e9, df['t1'].max() / 1e9
-        print(t_min, t_max)
 
         # 将最新的sensor_center日志文件复制到本地
         for f in glob.glob(os.path.join(self.pred_raw_folder, scenario_id, '*.log')):
