@@ -22,7 +22,7 @@ from scipy.spatial.transform import Rotation
 
 class Ros2Bag2BirdView:
 
-    def __init__(self, workspace, filepath):
+    def __init__(self, workspace, filepath, camera_config_path):
         self.timestamp_topic = '/Camera/FrontWide/H265'
         self.skip_frames = {
             'SorroundFront': 0,
@@ -62,8 +62,15 @@ class Ros2Bag2BirdView:
         self.rosbag_path = os.path.join(self.file_path, 'ROSBAG', 'COMBINE')
         self.bev_path = os.path.join(self.file_path, 'PICTURE', 'BIRD_VIEW')
         self.jpg_path = os.path.join(self.file_path, 'PICTURE', 'FRAME')
-        self.calibration_json = glob.glob(os.path.join(self.file_path, 'Config', '*calibration.json'))[0]
-        self.bev_obj = self.getBevObj()
+        if len(glob.glob(os.path.join(camera_config_path, '*calibration.json'))) != 0:
+            self.calibration_json = glob.glob(os.path.join(camera_config_path, '*calibration.json'))[0]
+        else:
+            self.calibration_json = None
+        if len(glob.glob(os.path.join(camera_config_path, 'front.json'))) != 0:
+            self.camera_json_path = camera_config_path
+        else:
+            self.camera_json_path = None
+        self.bev_obj = self.getBevObj(self.calibration_json, self.camera_json_path)
         if not os.path.exists(self.rosbag_path):
             raise FileNotFoundError(f"{self.rosbag_path}不存在")
         self.h265_path = os.path.join(self.file_path, 'ROSBAG', 'H265')
@@ -110,71 +117,84 @@ class Ros2Bag2BirdView:
             name = name.parent / 'msg' / name.name
         return str(name)
 
-    def getBevObj(self):
+    def getBevObj(self, calibration_json, camera_json_path):
         camera_parameter_folder = os.path.join(get_project_path(), 'Docs', 'Resources', 'camera_parameter')
         bird_json_file = os.path.join(camera_parameter_folder, 'bird_virtual', 'bird.json')
-
-        camera_vs = {
-            'CAM_FRONT_120': ['front', 100],
-            'CAM_BACK': ['rear', 101],
-            'CAM_FISHEYE_FRONT': ['fisheye_front', 101],
-            'CAM_FISHEYE_BACK': ['fisheye_rear', 101],
-            'CAM_FISHEYE_LEFT': ['fisheye_left', 101],
-            'CAM_FISHEYE_RIGHT': ['fisheye_right', 101],
-        }
-
-        G = np.eye(4)
-        G[0:3, 0:3] = Rotation.from_euler('zyx', [0, -np.pi / 2, 0]).as_matrix() @ \
-                      Rotation.from_euler('zyx', [0, 0, np.pi / 2]).as_matrix()  # pitch为90度，避免万向节锁，分两次转
-
-        with open(self.calibration_json, 'r') as f:
-            cameras = json.load(f)['camera']
-        for origin_camera in cameras:
-            # 拿6路相机参数，如果cameras里面的文件包含不止六路参数需要做判断再拿
-            if origin_camera['name'] not in camera_vs:
-                continue
-            camera_name = camera_vs[origin_camera['name']][0]
-            template_json = os.path.join(camera_parameter_folder, 'json_calib', f'{camera_name}.json')
-            with open(template_json, 'r') as f:
-                temp_camera = json.load(f)
-
-            # 相机标定坐标系认为是固定参数，从4号车读取
-            # 求外参数
-            world2calib = euler2matrix(*temp_camera['vcs']['rotation'],
-                                       *temp_camera['vcs']['translation'])
-            calib2camera = np.linalg.inv(world2calib) @ vector2matrix(origin_camera['extrinsic_param']['rotation'],
-                                                                      origin_camera['extrinsic_param']['translation'])
-            roll, pitch, yaw, camera_x, camera_y, camera_z = matrix2euler(calib2camera @ G)
-
-            # 求内参
-            intrinsic_param = origin_camera['intrinsic_param']
-            camera_model = intrinsic_param['camera_model']
-            size = (intrinsic_param['camera_width'], intrinsic_param['camera_height'])
-            extrinsic = np.linalg.inv(vector2matrix(origin_camera['extrinsic_param']['rotation'],
-                                                    origin_camera['extrinsic_param']['translation']))
-            intrinsic = np.zeros((3, 4))
-            intrinsic[:, 0:3] = np.array(intrinsic_param['camera_matrix'])
-            distort = np.array(intrinsic_param['distortion_coeffcients'])
-            if camera_model == 'opencv_omni':
-                xi = np.array([float(intrinsic_param['xi'])])
-            else:
-                xi = 0
-            fov_range = [temp_camera['vcs']['rotation'][2] + yaw - np.deg2rad(temp_camera['fov']) / 2,
-                         temp_camera['vcs']['rotation'][2] + yaw + np.deg2rad(temp_camera['fov']) / 2]
-            camera_par = {
-                'size': size,
-                'extrinsic': extrinsic,
-                'intrinsic': intrinsic,
-                'distort': distort,
-                'xi': xi,
-                'fov_range': fov_range,
+        if camera_json_path is None:
+            camera_vs = {
+                'CAM_FRONT_120': ['front', 100],
+                'CAM_BACK': ['rear', 101],
+                'CAM_FISHEYE_FRONT': ['fisheye_front', 101],
+                'CAM_FISHEYE_BACK': ['fisheye_rear', 101],
+                'CAM_FISHEYE_LEFT': ['fisheye_left', 101],
+                'CAM_FISHEYE_RIGHT': ['fisheye_right', 101],
             }
-            distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
-            self.distort_camera_dict[origin_camera['name']] = distort_camera
 
-        BEV = BirdEyeView(bird_json_file=bird_json_file,
-                          distort_camera_dict=self.distort_camera_dict,
-                          bev_type='6_camera')
+            G = np.eye(4)
+            G[0:3, 0:3] = Rotation.from_euler('zyx', [0, -np.pi / 2, 0]).as_matrix() @ \
+                          Rotation.from_euler('zyx', [0, 0, np.pi / 2]).as_matrix()  # pitch为90度，避免万向节锁，分两次转
+
+            with open(calibration_json, 'r') as f:
+                cameras = json.load(f)['camera']
+            for origin_camera in cameras:
+                # 拿6路相机参数，如果cameras里面的文件包含不止六路参数需要做判断再拿
+                if origin_camera['name'] not in camera_vs:
+                    continue
+                camera_name = camera_vs[origin_camera['name']][0]
+                template_json = os.path.join(camera_parameter_folder, 'json_calib', f'{camera_name}.json')
+                with open(template_json, 'r') as f:
+                    temp_camera = json.load(f)
+
+                # 相机标定坐标系认为是固定参数，从4号车读取
+                # 求外参数
+                world2calib = euler2matrix(*temp_camera['vcs']['rotation'],
+                                           *temp_camera['vcs']['translation'])
+                calib2camera = np.linalg.inv(world2calib) @ vector2matrix(origin_camera['extrinsic_param']['rotation'],
+                                                                          origin_camera['extrinsic_param']['translation'])
+                roll, pitch, yaw, camera_x, camera_y, camera_z = matrix2euler(calib2camera @ G)
+
+                # 求内参
+                intrinsic_param = origin_camera['intrinsic_param']
+                camera_model = intrinsic_param['camera_model']
+                size = (intrinsic_param['camera_width'], intrinsic_param['camera_height'])
+                extrinsic = np.linalg.inv(vector2matrix(origin_camera['extrinsic_param']['rotation'],
+                                                        origin_camera['extrinsic_param']['translation']))
+                intrinsic = np.zeros((3, 4))
+                intrinsic[:, 0:3] = np.array(intrinsic_param['camera_matrix'])
+                distort = np.array(intrinsic_param['distortion_coeffcients'])
+                if camera_model == 'opencv_omni':
+                    xi = np.array([float(intrinsic_param['xi'])])
+                else:
+                    xi = 0
+                fov_range = [temp_camera['vcs']['rotation'][2] + yaw - np.deg2rad(temp_camera['fov']) / 2,
+                             temp_camera['vcs']['rotation'][2] + yaw + np.deg2rad(temp_camera['fov']) / 2]
+                camera_par = {
+                    'size': size,
+                    'extrinsic': extrinsic,
+                    'intrinsic': intrinsic,
+                    'distort': distort,
+                    'xi': xi,
+                    'fov_range': fov_range,
+                }
+                distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
+                self.distort_camera_dict[origin_camera['name']] = distort_camera
+
+            BEV = BirdEyeView(bird_json_file=bird_json_file,
+                              distort_camera_dict=self.distort_camera_dict,
+                              bev_type='6_camera')
+        else:
+            camera_json_files = {
+                'CAM_FRONT_120': [os.path.join(camera_json_path, 'front.json'), 'opencv_pinhole'],
+                'CAM_BACK': [os.path.join(camera_json_path, 'rear.json'), 'opencv_pinhole'],
+                'CAM_FISHEYE_FRONT': [os.path.join(camera_json_path, 'fisheye_front.json'), 'opencv_fisheye'],
+                'CAM_FISHEYE_BACK': [os.path.join(camera_json_path, 'fisheye_rear.json'), 'opencv_fisheye'],
+                'CAM_FISHEYE_LEFT': [os.path.join(camera_json_path, 'fisheye_left.json'), 'opencv_fisheye'],
+                'CAM_FISHEYE_RIGHT': [os.path.join(camera_json_path, 'fisheye_right.json'), 'opencv_fisheye'],
+            }
+            BEV = BirdEyeView(bird_json_file=bird_json_file,
+                              camera_json_files=camera_json_files,
+                              bev_type='6_camera')
+
         return BEV
 
     def extract_h265_raw_streams(self):
@@ -304,7 +324,7 @@ class Ros2Bag2BirdView:
         if os.path.exists(bev_folder):
             shutil.rmtree(bev_folder)
         os.makedirs(bev_folder)
-        for i in range(min(self.total_frames.values())):
+        for i in range(200):
             if os.path.exists(self.jpg_path):
                 shutil.rmtree(self.jpg_path)
             os.makedirs(self.jpg_path)
@@ -446,11 +466,11 @@ class Ros2Bag2BirdView:
 if __name__ == '__main__':
     file_path_list = ['/home/hp/temp/20240123_145155_n000003']
     for file_path in file_path_list:
-        # file_path = '/home/hp/temp/20250324_144918_n000001/'
+        file_path = '/home/hp/TESTDATA/20250529_102834_n000003'
         install_path = '/home/hp/artifacts/ZPD_EP39/4.3.0_RC11/install'
         # bev_folder = os.path.join(file_path, 'PICTURE', 'BIRD_VIEW')
         # bev_file_num = len(glob.glob(os.path.join(bev_folder, "*.jpg")) + glob.glob(os.path.join(bev_folder, "*.JPG")))
-        r = Ros2Bag2BirdView(install_path, file_path)
+        r = Ros2Bag2BirdView(install_path, file_path, '/home/hp/config/json')
         r.extract_h265_raw_streams()
         # print(len(r.timestamp))
         # r.extract_h265_raw_stream('/home/hp/temp/20250324_144918_n000001/ROSBAG/COMBINE', '/home/hp/ZHX/read_can_signal/h265', '/Camera/FrontWide/H265')

@@ -269,17 +269,22 @@ class CameraObject:
             with open(json_file, 'r', encoding='utf8') as fp:
                 self.json_data = json.load(fp)
             self.size = (self.json_data['image_width'], self.json_data['image_height'])
-            self.extrinsic = camera_rotation @ self.cal_RTMatrix_horizon()
+            if 'vcs' in self.json_data:
+                self.extrinsic = camera_rotation @ self.cal_RTMatrix_horizon()
+                camera_orientation = self.json_data['vcs']['rotation'][2] + self.json_data['yaw']
+            else:
+                self.extrinsic = camera_rotation @ self.cal_RTMatrix_json()
+                camera_orientation = self.json_data['yaw']
             self.intrinsic = np.array([
                 [self.json_data['focal_u'], 0, self.json_data['center_u'], 0],
                 [0, self.json_data['focal_v'], self.json_data['center_v'], 0],
                 [0, 0, 1, 0]])
             self.distort = np.array(self.json_data['distort'])
-            camera_orientation = self.json_data['vcs']['rotation'][2] + self.json_data['yaw']
             self.fov_range = [
                 camera_orientation - np.deg2rad(self.json_data['fov'] / 2),
                 camera_orientation + np.deg2rad(self.json_data['fov'] / 2),
             ]
+            print(f"+++++++++{json_file}: {self.fov_range}+++++++++")
             self.xi = 0
         elif yaml_file:
             with open(yaml_file, 'r', encoding='utf8') as fp:
@@ -304,6 +309,7 @@ class CameraObject:
             self.distort = distort  # 1 X n
             self.xi = xi
             self.fov_range = fov_range
+            print(f"+++++++++{self.fov_range}+++++++++")
         self.fov = self.fov_range[-1] - self.fov_range[0]
         self.camera_location = np.linalg.inv(self.extrinsic)[0:3, 3]
 
@@ -325,6 +331,18 @@ class CameraObject:
         )
 
         return np.linalg.inv(world2calib @ calib2camera)
+
+    def cal_RTMatrix_json(self):
+        world2camera = euler2matrix(
+            self.json_data['roll'],
+            self.json_data['pitch'],
+            self.json_data['yaw'],
+            self.json_data['camera_x'],
+            self.json_data['camera_y'],
+            self.json_data['camera_z'],
+            seq='ZYX',
+        )
+        return np.linalg.inv(world2camera)
 
     def cal_RTMatrix(self):
         world2camera = euler2matrix(
@@ -691,10 +709,10 @@ class BirdEyeView:
             self.weight_matrix += self.del_matrix_dic[camera]
         for row_index, row in enumerate(self.weight_matrix):
             for col_index, col in enumerate(row):
-                if col == 2:
-                    self.weight_matrix[row_index][col_index] = 1 / 2
-                if col == 3:
-                    self.weight_matrix[row_index][col_index] = 1 / 3
+                if col != 0:
+                    self.weight_matrix[row_index][col_index] = 1 / col
+
+        print(self.weight_matrix.max())
 
     # 获取修正后的删除矩阵（原删除矩阵为1 而此像素无图 则置0）
     def correct_matrix(self, camera, del_matrix, bird_image):
@@ -717,7 +735,7 @@ class BirdEyeView:
         for camera, image in images.items():
             de_image, w, h = self.origin_camera[camera].de_distort(image)
             # 去畸变结果
-            # cv2.imwrite(os.path.join(folder, f'De-distort_{camera}_{w}x{h}.jpg'), de_image)
+            cv2.imwrite(os.path.join(folder, f'De-distort_{camera}_{w}x{h}.jpg'), de_image)
             ori_pts, bev_pts = [], []
             for pt in self.calibration_pts:
                 ori_pts.append(self.origin_camera[camera].world2camera(*pt, 0))
@@ -746,7 +764,7 @@ class BirdEyeView:
             r = bird_image[:, :, 2] * self.del_matrix_dic[camera]
             bird_image = cv2.merge((b, g, r))
             # BEV结果（单重)
-            # cv2.imwrite(os.path.join(folder, f'BEV_{camera}_clear.jpg'), bird_image)
+            cv2.imwrite(os.path.join(folder, f'BEV_{camera}_clear.jpg'), bird_image)
 
             bird_image_merge += bird_image
             # add weight
@@ -1169,10 +1187,10 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
         'rear': 60.0,
         'front': 120.0,
         'front_30fov': 30.0,
-        'fisheye_front': 196.0,
-        'fisheye_right': 196.0,
-        'fisheye_rear': 196.0,
-        'fisheye_left': 196.0,
+        'fisheye_front': 190.0,
+        'fisheye_right': 190.0,
+        'fisheye_rear': 190.0,
+        'fisheye_left': 190.0,
     }
     for pos_camera_name , yaml_camera_num in mapping.items(): # front : camera_5
         print('pos_camera_name , yaml_camera_num' ,pos_camera_name , yaml_camera_num)

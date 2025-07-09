@@ -397,13 +397,13 @@ class DataTransformer:
             else:
                 print("失败")
 
-    def gen_AVM_from_db3(self, kunyi_package_path, install_path=None):
+    def gen_AVM_from_db3(self, kunyi_package_path, config_path, install_path=None):
         if not install_path:
             install_path = self.install_path
         if not install_path:
             return
         else:
-            bev_object = Ros2Bag2BirdView(install_path, kunyi_package_path)
+            bev_object = Ros2Bag2BirdView(install_path, kunyi_package_path, config_path)
             bev_object.extract_h265_raw_streams()
             bev_object.extract_frames_from_h265()
 
@@ -430,7 +430,7 @@ class DataTransformer:
                     self.h265_to_db3(h265_config_path, os.path.join(kunyi_package, self.ros2bag_h265_name))
                     self.kunyiCan_to_db3(kunyi_package, install_path)
                     self.combine_Kunyi_db3(kunyi_package)
-                    self.gen_AVM_from_db3(kunyi_package, install_path)
+                    self.gen_AVM_from_db3(kunyi_package, os.path.join(kunyi_package, 'Config'), install_path)
                     print(f"{kunyi_package}处理完成, 删除原始文件")
                     if os.path.exists(os.path.join(kunyi_package, self.can_file_name)):
                         shutil.rmtree(os.path.join(kunyi_package, self.can_file_name))
@@ -620,7 +620,7 @@ if __name__ == '__main__':
     ddd = DataDownloader()
     install_path = '/home/zhangliwei01/ZONE/TestProject/DEBUG/03_Workspace/install'
     qqq = DataTransformer(install_path=install_path)
-    kunyi_package_path = '/home/zhangliwei01/ZONE/20250529_102333_n000001'
+    kunyi_package_path = '/home/hp/temp/20241227_174535_n000009'
     h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
     # h265_config_path = '/home/hp/temp/20250529_102834_n000020/Images/h265_config.yaml'
     qqq.h265_to_db3(h265_config_path, os.path.join(kunyi_package_path, qqq.ros2bag_h265_name))
