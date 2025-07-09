@@ -381,7 +381,7 @@ class ReplayController:
                         label=f'camera {col}')
 
             ax.plot([t_min - 5, t_max + 5], [10, 10], linestyle='dashed', linewidth=1)
-            ax.set_title('sensor_center_log')
+            ax.set_title(f'{scenario_id}-SensorCenterLog')
             ax.set_xlim(t_min - 5, t_max + 5)
             ax.set_ylim(0, 12)
             ax.set_xlabel('time[second]')
@@ -389,7 +389,7 @@ class ReplayController:
             ax.grid('--', color='gainsboro')
             ax.legend(loc=0)
 
-            path = os.path.join(self.pred_raw_folder, scenario_id, 'SensorCenterLog.png')
+            path = os.path.join(self.pred_raw_folder, scenario_id, f'{scenario_id}-SensorCenterLog.png')
             canvas = FigureCanvas(fig)
             canvas.print_figure(path, facecolor='white', dpi=100)
             fig.clf()
