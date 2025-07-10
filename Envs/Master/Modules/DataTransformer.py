@@ -209,6 +209,8 @@ class DataTransformer:
         h265_config_path = os.path.join(data_storage_folder, 'h265_config.yaml')
         timestamp_col = ['frame_index', 'time_stamp', 'frame_type']
         for q_camera_name in os.listdir(full_folder_path):
+            if not os.path.isdir(os.path.join(full_folder_path, q_camera_name)):
+                continue
             z_camera_name = camera2camera[q_camera_name]
             topic = camera2topic[z_camera_name]
             timestamp_path = os.path.join(data_storage_folder, f"{topic.replace('/', '')}.csv")
