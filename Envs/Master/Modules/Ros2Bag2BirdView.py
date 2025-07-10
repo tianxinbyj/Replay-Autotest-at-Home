@@ -23,40 +23,19 @@ from scipy.spatial.transform import Rotation
 class Ros2Bag2BirdView:
 
     def __init__(self, workspace, filepath, camera_config_path):
-        self.timestamp_topic = '/Camera/FrontWide/H265'
-        self.skip_frames = {
-            'SorroundFront': 0,
-            'SorroundRear': 0,
-            'SorroundLeft': 0,
-            'SorroundRight': 0,
-            'Rear': 0,
-            'FrontWide': 2
+        self.timestamp_topic = '/Camera/SorroundFront/H265'
+        self.topic_info ={
+            '/Camera/FrontWide/H265':  'sensor_msgs/msg/CompressedImage',
+            '/Camera/SorroundRight/H265': 'sensor_msgs/msg/CompressedImage',
+            '/Camera/SorroundLeft/H265': 'sensor_msgs/msg/CompressedImage',
+            '/Camera/SorroundFront/H265': 'sensor_msgs/msg/CompressedImage',
+            '/Camera/SorroundRear/H265': 'sensor_msgs/msg/CompressedImage',
+            '/Camera/Rear/H265': 'sensor_msgs/msg/CompressedImage'
         }
-        # self.skip_frames = {
-        #     'SorroundFront': 7,
-        #     'SorroundRear': 7,
-        #     'SorroundLeft': 7,
-        #     'SorroundRight': 7,
-        #     'Rear': 4
-        # }
-        # self.skip_frames = {
-        #     'SorroundFront': 0,
-        #     'SorroundRear': 0,
-        #     'SorroundLeft': 0,
-        #     'SorroundRight': 0,
-        #     'Rear': 0,
-        #     'FrontWide': 0
-        # }
-        self.total_frames = {
-            'SorroundFront': 0,
-            'SorroundRear': 0,
-            'SorroundLeft': 0,
-            'SorroundRight': 0,
-            'Rear': 0,
-            'FrontWide': 2
-        }
+        self.cameras = []
+        self.skip_frames = {key.split('/')[2]: 0 for key, value in self.topic_info.items()}
+        self.total_frames = {key.split('/')[2]: 0 for key, value in self.topic_info.items()}
         self.timestamp = []
-        self.distort_camera_dict = {}
         self.image_count = 0
         self.file_path = filepath
         self.rosbag_path = os.path.join(self.file_path, 'ROSBAG', 'COMBINE')
@@ -76,14 +55,6 @@ class Ros2Bag2BirdView:
         self.h265_path = os.path.join(self.file_path, 'ROSBAG', 'H265')
         self.picture_path = os.path.join(self.file_path, 'PICTURE')
         self.struct_dict = None
-        self.topic_info ={
-            '/Camera/FrontWide/H265':  'sensor_msgs/msg/CompressedImage',
-            '/Camera/SorroundRight/H265': 'sensor_msgs/msg/CompressedImage',
-            '/Camera/SorroundLeft/H265': 'sensor_msgs/msg/CompressedImage',
-            '/Camera/SorroundFront/H265': 'sensor_msgs/msg/CompressedImage',
-            '/Camera/SorroundRear/H265': 'sensor_msgs/msg/CompressedImage',
-            '/Camera/Rear/H265': 'sensor_msgs/msg/CompressedImage'
-        }
         self.last_timestamp = None
         self.frame_id_saver = None
         self.time_saver = None
@@ -121,6 +92,7 @@ class Ros2Bag2BirdView:
         camera_parameter_folder = os.path.join(get_project_path(), 'Docs', 'Resources', 'camera_parameter')
         bird_json_file = os.path.join(camera_parameter_folder, 'bird_virtual', 'bird.json')
         if camera_json_path is None:
+            distort_camera_dict = {}
             camera_vs = {
                 'CAM_FRONT_120': ['front', 100],
                 'CAM_BACK': ['rear', 101],
@@ -177,11 +149,12 @@ class Ros2Bag2BirdView:
                     'fov_range': fov_range,
                 }
                 distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
-                self.distort_camera_dict[origin_camera['name']] = distort_camera
+                distort_camera_dict[origin_camera['name']] = distort_camera
 
             BEV = BirdEyeView(bird_json_file=bird_json_file,
-                              distort_camera_dict=self.distort_camera_dict,
+                              distort_camera_dict=distort_camera_dict,
                               bev_type='6_camera')
+            self.cameras = list(distort_camera_dict.keys())
         else:
             camera_json_files = {
                 'CAM_FRONT_120': [os.path.join(camera_json_path, 'front.json'), 'opencv_pinhole'],
@@ -194,6 +167,7 @@ class Ros2Bag2BirdView:
             BEV = BirdEyeView(bird_json_file=bird_json_file,
                               camera_json_files=camera_json_files,
                               bev_type='6_camera')
+            self.cameras = list(camera_json_files.keys())
 
         return BEV
 
@@ -204,7 +178,7 @@ class Ros2Bag2BirdView:
         for topic in self.topic_info.keys():
             h265_name = topic.split('/')[2]
             self.extract_h265_raw_stream(self.rosbag_path, os.path.join(self.h265_path, f'{h265_name}.h265'), topic)
-            if topic == '/Camera/FrontWide/H265':
+            if topic == self.timestamp_topic:
                 self.gen_timestamp(self.rosbag_path, topic)
         self.cal_frame_skip(self.rosbag_path, self.topic_info.keys())
 
@@ -222,7 +196,7 @@ class Ros2Bag2BirdView:
                 # 构建文件的绝对路径
                 file_path = os.path.join(root, filename)
                 file_paths.append(file_path)
-        if len(file_paths) != 6:
+        if len(file_paths) != len(self.topic_info):
             raise FileNotFoundError(f"{self.h265_path}内仅有{len(file_paths)}个文件")
         self.extract_frames(file_paths, self.picture_path)
         # self.test_extract_frames(file_paths, self.picture_path)
@@ -328,7 +302,7 @@ class Ros2Bag2BirdView:
             if os.path.exists(self.jpg_path):
                 shutil.rmtree(self.jpg_path)
             os.makedirs(self.jpg_path)
-            images = {camera: None for camera in self.distort_camera_dict.keys()}
+            images = {camera: None for camera in self.cameras}
             for name, cap in caps.items():
                 skipped= self.skip_initial_frames(cap, name, frame_count)
                 # skipped = False
@@ -446,7 +420,7 @@ class Ros2Bag2BirdView:
                 if len(file_num) == 6:
                     # 拼图
                     images = {}
-                    for camera in self.distort_camera_dict.keys():
+                    for camera in self.cameras:
                         images[camera] = os.path.join(self.jpg_path, time_stamp, f'{camera}.jpg')
                     bev_jpg_path = self.bev_obj.getBev(images, os.path.join(self.jpg_path, time_stamp), rect_pts=None)
                     # os.rename(bev_jpg_path, os.path.join(os.path.dirname(bev_jpg_path), f'{self.timestamp[str(frame_count)]:.0f}_BEV.jpg'))

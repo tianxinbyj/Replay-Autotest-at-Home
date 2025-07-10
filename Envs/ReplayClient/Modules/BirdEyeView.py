@@ -842,8 +842,6 @@ class BirdEyeView:
                 if col != 0:
                     self.weight_matrix[row_index][col_index] = 1 / col
 
-        print(self.weight_matrix.max())
-
     # 获取修正后的删除矩阵（原删除矩阵为1 而此像素无图 则置0）
     def correct_matrix(self, camera, del_matrix, bird_image):
         print("正在修正{:s}的删除矩阵".format(camera))
