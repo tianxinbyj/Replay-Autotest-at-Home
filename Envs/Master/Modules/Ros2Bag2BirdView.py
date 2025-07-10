@@ -324,7 +324,7 @@ class Ros2Bag2BirdView:
         if os.path.exists(bev_folder):
             shutil.rmtree(bev_folder)
         os.makedirs(bev_folder)
-        for i in range(200):
+        for i in range(len(self.timestamp)):
             if os.path.exists(self.jpg_path):
                 shutil.rmtree(self.jpg_path)
             os.makedirs(self.jpg_path)
