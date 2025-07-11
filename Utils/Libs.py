@@ -6,9 +6,11 @@ import glob
 import hashlib
 import os
 import platform
+import random
 import re
 import shutil
 import signal
+import string
 import subprocess
 import sys
 import time
@@ -46,6 +48,12 @@ def sync_test_result(method):
 
 def generate_unique_id(info):
     return hashlib.sha256(info.encode()).hexdigest()[:8]
+
+
+def generate_random_string(length=8):
+    """生成包含大小写字母和数字的随机字符串"""
+    characters = string.ascii_letters + string.digits  # 包含所有字母和数字
+    return ''.join(random.choice(characters) for _ in range(length))
 
 
 def contains_chinese(s):
@@ -289,8 +297,8 @@ def force_delete_folder(folder_path):
         print(f'不存在{folder_path}, 不需要删除')
         return None
 
-    tmux_session = 'temp_session'
-    tmux_window = 'temp_windows'
+    tmux_session = generate_random_string()
+    tmux_window = generate_random_string()
     password = parse_bench_config()['Master']['password']
 
     kill_tmux_session_if_exists(tmux_session)

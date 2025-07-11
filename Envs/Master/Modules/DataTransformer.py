@@ -148,7 +148,6 @@ class DataTransformer:
         password = bench_config['Master']['password']
 
         # 解析q文件为h265
-        # '''
         tmux_session = variables['tmux_node']['q_parse'][0]
         tmux_window = variables['tmux_node']['q_parse'][1]
         kill_tmux_session_if_exists(tmux_session)
@@ -208,9 +207,11 @@ class DataTransformer:
         os.makedirs(data_storage_folder)
         h265_config_path = os.path.join(data_storage_folder, 'h265_config.yaml')
         timestamp_col = ['frame_index', 'time_stamp', 'frame_type']
+
         for q_camera_name in os.listdir(full_folder_path):
             if not os.path.isdir(os.path.join(full_folder_path, q_camera_name)):
                 continue
+
             z_camera_name = camera2camera[q_camera_name]
             topic = camera2topic[z_camera_name]
             timestamp_path = os.path.join(data_storage_folder, f"{topic.replace('/', '')}.csv")
@@ -235,7 +236,7 @@ class DataTransformer:
         with open(h265_config_path, 'w', encoding='utf-8') as file:
             yaml.dump(h265_config, file)
 
-        return h265_config_path, config_json_path
+        return h265_config_path, config_json_path, full_folder_path
 
     def h265_to_db3(self, h265_config_path, db3_dir, delete_raw_h265=False):
         tmux_session = variables['tmux_node']['h265_gen'][0]

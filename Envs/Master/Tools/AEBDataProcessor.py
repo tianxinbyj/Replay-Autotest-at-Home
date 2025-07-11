@@ -14,7 +14,7 @@ import yaml
 
 from Envs.Master.Modules.DataTransformer import DataTransformer, DataLoggerAnalysis
 from Envs.Master.Tools.QCameraConfig import QCameraConfig
-from Utils.Libs import ros_docker_path, kill_tmux_session_if_exists, create_folder
+from Utils.Libs import ros_docker_path, kill_tmux_session_if_exists, create_folder, force_delete_folder
 
 vehicle_id = {
     '005': 'Q3402',
@@ -103,8 +103,7 @@ class AEBDataProcessor:
 
                 print(f'===========正在解析 {qcraft_package_id} ===========')
                 qcraft_package_path = qcraft_package_path[len(data_transformer.q_docker_base_path):]
-                h265_config_path, config_json_path = data_transformer.qStf_to_h265(qcraft_package_path)
-                # h265_config_path = '/home/vcar/ZONE/temp/h265_config.yaml'
+                h265_config_path, config_json_path, h265_temp_folder = data_transformer.qStf_to_h265(qcraft_package_path)
                 with open(h265_config_path, 'r', encoding='utf-8') as file:
                     h265_config = yaml.safe_load(file)
 
@@ -210,6 +209,10 @@ class AEBDataProcessor:
                         t.start()
                         self.thread_list.append(t)
 
+                # 删除生成的临时H265文件
+                force_delete_folder(h265_temp_folder)
+
+                # 无重叠场景加入列表
                 if not q_package_has_overlay and qcraft_package_id not in self.invalid_q_package:
                     self.invalid_q_package.append(qcraft_package_id)
                     with open(self.invalid_q_package_path, "w") as f:
@@ -219,6 +222,7 @@ class AEBDataProcessor:
         for t in self.thread_list:
             t.join()
         self.thread_list.clear()
+
 
 if __name__ == '__main__':
     folder = '/media/data/Q_DATA/debug_data'
