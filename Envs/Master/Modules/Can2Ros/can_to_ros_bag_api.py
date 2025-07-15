@@ -62,6 +62,7 @@ def main():
     parser.add_argument("-m", "--mapping",  required=True, help="can to ros2 mapping csv file config")
     parser.add_argument("-d", "--data", required=True, help="can data file")
     parser.add_argument("-n", "--name", required=True, help="ros bag name")
+    parser.add_argument("-r", "--docker", required=True, help="ros docker path")
     args = parser.parse_args()
 
     tmux_session = 'write_ros2_bag'
@@ -86,7 +87,7 @@ def main():
         print(f"窗口 '{tmux_window}' 已存在于会话 '{tmux_session}' 中")
 
 
-    os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "~/docker_rolling.sh" C-m')
+    os.system(f'tmux send-keys -t {tmux_session}:{tmux_window}  "bash {args.docker}" C-m')
     time.sleep(2)
     os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "source {args.install_path}/setup.bash" C-m')
     script_path = os.path.dirname(os.path.abspath(__file__))

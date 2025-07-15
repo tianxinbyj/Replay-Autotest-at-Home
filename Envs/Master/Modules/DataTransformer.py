@@ -316,7 +316,7 @@ class DataTransformer:
             asc_data_path = asc_parser(dirpath, csv_path, arxml_path)
             script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Can2Ros')
             os.system(
-                f'cd {script_path}; python3 can_to_ros_bag_api.py -i {install_path} -m {mapping_path} -d {asc_data_path} -n {ros2_bag_name}')
+                f'{ros_docker_path}; sleep 2; cd {script_path}; python3 can_to_ros_bag_api.py -i {install_path} -m {mapping_path} -d {asc_data_path} -n {ros2_bag_name} -r {ros_docker_path}')
             time.sleep(2)
         if not install_path:
             install_path = self.install_path
@@ -621,15 +621,16 @@ class DataDownloader:
 if __name__ == '__main__':
     t0 = time.time()
     ddd = DataDownloader()
-    install_path = '/home/zhangliwei01/ZONE/TestProject/DEBUG/03_Workspace/install'
+    install_path = '/home/vcar/ZONE/manual_test_0709_5094/03_Workspace/install'
     qqq = DataTransformer(install_path=install_path)
-    kunyi_package_path = '/home/hp/temp/20241227_174535_n000009'
-    h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
-    # h265_config_path = '/home/hp/temp/20250529_102834_n000020/Images/h265_config.yaml'
+    kunyi_package_path = '/home/vcar/ZONE/20250102_172710_n000011'
+    config_path = '/home/vcar/ZONE/20250102_172710_n000011/Config'
+    # h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
+    h265_config_path = '/home/vcar/ZONE/20250102_172710_n000011/Images/h265_config.yaml'
     qqq.h265_to_db3(h265_config_path, os.path.join(kunyi_package_path, qqq.ros2bag_h265_name))
     qqq.kunyiCan_to_db3(kunyi_package_path)
     qqq.combine_Kunyi_db3(kunyi_package_path)
-    qqq.gen_AVM_from_db3(kunyi_package_path)
+    qqq.gen_AVM_from_db3(kunyi_package_path, config_path)
     print(time.time() - t0)
 
     # info_path = '/home/hp/temp/77w数据汇总.xlsx'
