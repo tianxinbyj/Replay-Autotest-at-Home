@@ -651,11 +651,11 @@ class QCameraConfig:
 
 if __name__ == '__main__':
     camera_config = QCameraConfig()
-    kunyi_config_path = '/home/hp/TESTDATA/20250529_102834_n000003/Config/20250529_102333_calibration.json'
-    q_config_path = '/home/hp/Replay-Autotest-at-Home/Docs/Resources/q_info_json/run_info.json'
-    output_folder = '/home/hp/config'
-    docker_path = '/home/hp/ZONE/tools/start_docker.sh'
-    bin_tool_path = '/home/hp/ZONE/tools/v2_txt_to_bin_tools'
+    kunyi_config_path = '/home/vcar/ZONE/20250102_172710_n000011/Config/20250102_172710_calibration.json'
+    q_config_path = '/home/vcar/Replay-Autotest-at-Home/Docs/Resources/q_info_json/run_info.json'
+    output_folder = '/home/vcar/ZONE/0715_v2'
+    docker_path = '/home/vcar/ZONE/Tools/start_docker.sh'
+    bin_tool_path = '/home/vcar/ZONE/Tools/v2_txt_to_bin_tools'
     # v2_path = camera_config.transform_kunyi_calib(kunyi_config_json_path, output_folder, docker_path, bin_tool_path)
     v2_path = camera_config.gen_v2(kunyi_config_path, output_folder, docker_path, bin_tool_path, 'kunyi')
     print(v2_path)

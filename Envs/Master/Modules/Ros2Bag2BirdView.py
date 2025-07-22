@@ -94,12 +94,12 @@ class Ros2Bag2BirdView:
         if camera_json_path is None:
             distort_camera_dict = {}
             camera_vs = {
-                'CAM_FRONT_120': ['front', 100],
-                'CAM_BACK': ['rear', 101],
-                'CAM_FISHEYE_FRONT': ['fisheye_front', 101],
-                'CAM_FISHEYE_BACK': ['fisheye_rear', 101],
-                'CAM_FISHEYE_LEFT': ['fisheye_left', 101],
-                'CAM_FISHEYE_RIGHT': ['fisheye_right', 101],
+                'CAM_FRONT_120': ['front', 'opencv_pinhole', 120, [3840, 2160], [2160, 2160]],
+                'CAM_BACK': ['rear', 'opencv_pinhole', 60, [1920, 1280], [1280, 1280]],
+                'CAM_FISHEYE_FRONT': ['fisheye_front', 'opencv_fisheye', 196, [1920, 1536], [1280, 1280]],
+                'CAM_FISHEYE_BACK': ['fisheye_rear', 'opencv_fisheye', 196, [1920, 1536], [1280, 1280]],
+                'CAM_FISHEYE_LEFT': ['fisheye_left', 'opencv_fisheye', 196, [1920, 1536], [1280, 1280]],
+                'CAM_FISHEYE_RIGHT': ['fisheye_right', 'opencv_fisheye', 196, [1920, 1536], [1280, 1280]],
             }
 
             G = np.eye(4)
@@ -108,38 +108,35 @@ class Ros2Bag2BirdView:
 
             with open(calibration_json, 'r') as f:
                 cameras = json.load(f)['camera']
+
             for origin_camera in cameras:
                 # 拿6路相机参数，如果cameras里面的文件包含不止六路参数需要做判断再拿
                 if origin_camera['name'] not in camera_vs:
                     continue
+
                 camera_name = camera_vs[origin_camera['name']][0]
-                template_json = os.path.join(camera_parameter_folder, 'json_calib', f'{camera_name}.json')
-                with open(template_json, 'r') as f:
-                    temp_camera = json.load(f)
+                fov = camera_vs[origin_camera['name']][2]
 
-                # 相机标定坐标系认为是固定参数，从4号车读取
                 # 求外参数
-                world2calib = euler2matrix(*temp_camera['vcs']['rotation'],
-                                           *temp_camera['vcs']['translation'])
-                calib2camera = np.linalg.inv(world2calib) @ vector2matrix(origin_camera['extrinsic_param']['rotation'],
-                                                                          origin_camera['extrinsic_param']['translation'])
-                roll, pitch, yaw, camera_x, camera_y, camera_z = matrix2euler(calib2camera @ G)
+                calib2camera = vector2matrix(origin_camera['extrinsic_param']['rotation'],
+                                             origin_camera['extrinsic_param']['translation'])
 
-                # 求内参
+                roll, pitch, yaw, camera_x, camera_y, camera_z = matrix2euler(calib2camera @ G, seq='ZYX')
+
+                # 求内参和畸变
                 intrinsic_param = origin_camera['intrinsic_param']
                 camera_model = intrinsic_param['camera_model']
                 size = (intrinsic_param['camera_width'], intrinsic_param['camera_height'])
                 extrinsic = np.linalg.inv(vector2matrix(origin_camera['extrinsic_param']['rotation'],
                                                         origin_camera['extrinsic_param']['translation']))
                 intrinsic = np.zeros((3, 4))
-                intrinsic[:, 0:3] = np.array(intrinsic_param['camera_matrix'])
+                intrinsic[:, 0: 3] = np.array(intrinsic_param['camera_matrix'])
                 distort = np.array(intrinsic_param['distortion_coeffcients'])
                 if camera_model == 'opencv_omni':
-                    xi = np.array([float(intrinsic_param['xi'])])
+                    xi = np.array([np.float32(intrinsic_param['xi'])])
                 else:
                     xi = 0
-                fov_range = [temp_camera['vcs']['rotation'][2] + yaw - np.deg2rad(temp_camera['fov']) / 2,
-                             temp_camera['vcs']['rotation'][2] + yaw + np.deg2rad(temp_camera['fov']) / 2]
+                fov_range = [yaw - np.deg2rad(fov) / 2, yaw + np.deg2rad(fov) / 2]
                 camera_par = {
                     'size': size,
                     'extrinsic': extrinsic,
@@ -148,6 +145,7 @@ class Ros2Bag2BirdView:
                     'xi': xi,
                     'fov_range': fov_range,
                 }
+                print(camera_name, camera_model, '相机模型生成')
                 distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
                 distort_camera_dict[origin_camera['name']] = distort_camera
 
@@ -182,8 +180,6 @@ class Ros2Bag2BirdView:
                 self.gen_timestamp(self.rosbag_path, topic)
         self.cal_frame_skip(self.rosbag_path, self.topic_info.keys())
 
-
-
     def extract_frames_from_h265(self):
         if os.path.exists(self.picture_path):
             shutil.rmtree(self.picture_path)
@@ -203,7 +199,6 @@ class Ros2Bag2BirdView:
         if os.path.exists(self.h265_path):
             shutil.rmtree(self.h265_path)
 
-
     def gen_timestamp(self, bag_path, image_topic):
         """从ROS2的.db3文件中提取CompressedImage消息并保存为H.265裸流文件"""
         with Reader(bag_path) as reader:
@@ -211,7 +206,6 @@ class Ros2Bag2BirdView:
                 if connection.topic == image_topic:
                     msg = self.typestore.deserialize_cdr(rawdata, connection.msgtype)
                     self.timestamp.append(msg.header.stamp.sec * 1e9+ msg.header.stamp.nanosec)
-
 
     def cal_frame_skip(self, bag_path, topic_list):
         topic_start_time = self.skip_frames
@@ -230,8 +224,6 @@ class Ros2Bag2BirdView:
             self.skip_frames[key] = int((max_start_time - value) / 1e8)
         if self.timestamp_topic.split('/')[2] in self.skip_frames and self.skip_frames[self.timestamp_topic.split('/')[2]] != 0:
             self.timestamp = self.timestamp[self.skip_frames[self.timestamp_topic.split('/')[2]]:]
-
-
 
     def extract_h265_raw_stream(self, bag_path, output_h265_path, image_topic):
         """从ROS2的.db3文件中提取CompressedImage消息并保存为H.265裸流文件"""
@@ -318,6 +310,7 @@ class Ros2Bag2BirdView:
                 # 拼图
                 bev_jpg_path = self.bev_obj.getBev(images, bev_folder, rect_pts=None)
                 os.rename(bev_jpg_path, os.path.join(os.path.dirname(bev_jpg_path), f'{self.timestamp[frame_count-skip_frame_max-1]:.0f}_BEV.jpg'))
+
             shutil.rmtree(self.jpg_path)
             # 显示进度
             if (frame_count-skip_frame_max-1) % 100 == 0:

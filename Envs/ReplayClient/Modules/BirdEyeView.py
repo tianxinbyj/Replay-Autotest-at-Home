@@ -12,6 +12,8 @@ import cv2
 import numpy as np
 import yaml
 from scipy.spatial.transform import Rotation
+from scipy import stats
+
 from Envs.Master.Modules.Libs import get_project_path
 camera_parameter_folder = os.path.join(get_project_path(), 'Docs', 'Resources', 'camera_parameter')
 
@@ -92,32 +94,6 @@ def matrix2euler(R, seq='XYZ'):
     y_index = seq.lower().index('y')
     z_index = seq.lower().index('z')
     return eulers[x_index], eulers[y_index], eulers[z_index], x, y, z
-
-
-def rotationMatrixToEulerAngles(R):
-    def isRotationMatrix(R):
-        Rt = np.transpose(R)
-        shouldBeIdentity = np.dot(Rt, R)
-        I = np.identity(3, dtype=R.dtype)
-        n = np.linalg.norm(I - shouldBeIdentity)
-        return n < 1e-6
-
-    assert (isRotationMatrix(R))
-
-    sy = np.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
-
-    singular = sy < 1e-6
-
-    if not singular:
-        x = np.arctan2(R[2, 1], R[2, 2])
-        y = np.arctan2(-R[2, 0], sy)
-        z = np.arctan2(R[1, 0], R[0, 0])
-    else:
-        x = np.arctan2(-R[1, 2], R[1, 1])
-        y = np.arctan2(-R[2, 0], sy)
-        z = 0
-
-    return np.array([x, y, z])
 
 
 class ConvertJsonFile:
@@ -257,134 +233,120 @@ class ConvertJsonFile:
                 json.dump(new_camera, f, indent=2)
 
 
-class ConvertJsonFile2:
+class ConvertKunyi2EP39:
 
-    def __init__(self, calibration_json, output_folder):
-        self.j5A_folder = os.path.join(output_folder, '100')
-        if not os.path.exists(self.j5A_folder):
-            os.mkdir(self.j5A_folder)
-        self.j5B_folder = os.path.join(output_folder, '101')
-        if not os.path.exists(self.j5B_folder):
-            os.mkdir(self.j5B_folder)
-
+    def __init__(self, calibration_json, ep39_json_folder):
         camera_vs = {
-            'CAM_FRONT_120': ['front','opencv_pinhole'],
-            'CAM_BACK': ['rear', 'opencv_pinhole'],
-            'CAM_FISHEYE_FRONT': ['fisheye_front', 'opencv_fisheye'],
-            'CAM_FISHEYE_BACK': ['fisheye_rear', 'opencv_fisheye'],
-            'CAM_FISHEYE_LEFT': ['fisheye_left', 'opencv_fisheye'],
-            'CAM_FISHEYE_RIGHT': ['fisheye_right', 'opencv_fisheye'],
+            'CAM_FRONT_120': ['front','opencv_pinhole', 120, [3840, 2160], [2160, 2160]],
+            'CAM_BACK': ['rear', 'opencv_pinhole', 60, [1920, 1280], [1280, 1280]],
+            'CAM_FISHEYE_FRONT': ['fisheye_front', 'opencv_fisheye', 196, [1920, 1536], [1280, 1280]],
+            'CAM_FISHEYE_BACK': ['fisheye_rear', 'opencv_fisheye', 196, [1920, 1536], [1280, 1280]],
+            'CAM_FISHEYE_LEFT': ['fisheye_left', 'opencv_fisheye', 196, [1920, 1536], [1280, 1280]],
+            'CAM_FISHEYE_RIGHT': ['fisheye_right', 'opencv_fisheye', 196, [1920, 1536], [1280, 1280]],
         }
 
         G = np.eye(4)
         G[0:3, 0:3] = Rotation.from_euler('zyx', [0, -np.pi / 2, 0]).as_matrix() @ \
                       Rotation.from_euler('zyx', [0, 0, np.pi / 2]).as_matrix()  # pitch为90度，避免万向节锁，分两次转
+
         with open(calibration_json, 'r') as f:
             cameras = json.load(f)['camera']
+
         for origin_camera in cameras:
             if origin_camera['name'] not in camera_vs:
                 continue
-            camera_name = camera_vs[origin_camera['name']][0]
 
-            # 相机标定坐标系认为是固定参数，从4号车读取
+            camera_name = camera_vs[origin_camera['name']][0]
+            target_model = camera_vs[origin_camera['name']][1]
+            fov = camera_vs[origin_camera['name']][2]
+            image_height = camera_vs[origin_camera['name']][3][1]
+            image_width = camera_vs[origin_camera['name']][3][0]
+            valid_height = camera_vs[origin_camera['name']][4]
+
             # 求外参数
             calib2camera = vector2matrix(origin_camera['extrinsic_param']['rotation'],
                                          origin_camera['extrinsic_param']['translation'])
 
             roll, pitch, yaw, camera_x, camera_y, camera_z = matrix2euler(calib2camera @ G, seq='ZYX')
-            print(camera_name, roll, pitch, yaw, camera_x, camera_y, camera_z)
 
-            # # 求内参和畸变
-            # target_model = camera_vs[origin_camera['name']][-1]
-            # intrinsic_param = origin_camera['intrinsic_param']
-            # camera_model = intrinsic_param['camera_model']
-            # size = (intrinsic_param['camera_width'], intrinsic_param['camera_height'])
-            # extrinsic = np.linalg.inv(vector2matrix(origin_camera['extrinsic_param']['rotation'],
-            #                                         origin_camera['extrinsic_param']['translation']))
-            # intrinsic = np.zeros((3, 4))
-            # intrinsic[:, 0: 3] = np.array(intrinsic_param['camera_matrix'])
-            # distort = np.array(intrinsic_param['distortion_coeffcients'])
-            # if camera_model == 'opencv_omni':
-            #     xi = np.array([np.float32(intrinsic_param['xi'])])
-            # else:
-            #     xi = 0
-            # fov_range = [temp_camera['vcs']['rotation'][2] + yaw - np.deg2rad(temp_camera['fov']) / 2,
-            #              temp_camera['vcs']['rotation'][2] + yaw + np.deg2rad(temp_camera['fov']) / 2]
-            # camera_par = {
-            #     'size': size,
-            #     'extrinsic': extrinsic,
-            #     'intrinsic': intrinsic,
-            #     'distort': distort,
-            #     'xi': xi,
-            #     'fov_range': fov_range,
-            # }
-            #
-            # if camera_model != target_model:
-            #     distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
-            #     objectPoints, imagePoints = distort_camera.getProjectPoints()
-            #
-            #     error, CameraMatrix, distort = distort_camera.calibrateCamera(objectPoints, imagePoints,
-            #                                                                   target_model=target_model)
-            #     distort = list(distort.reshape(1, -1)[0])
-            # else:
-            #     error = 0
-            #     distort = camera_par['distort'].tolist() + [0] * 10
-            #     CameraMatrix = intrinsic[:, 0: 3]
-            #
-            # if 'eye' not in camera_name.lower():
-            #     distort = distort[:8]
-            # else:
-            #     distort = distort[:4]
-            #
-            # center_u = CameraMatrix[0][2]
-            # center_v = CameraMatrix[1][2]
-            # focal_u = CameraMatrix[0][0]
-            # focal_v = CameraMatrix[1][1]
-            #
-            # fov = temp_camera['fov']
-            # image_height = temp_camera['image_height']
-            # image_width = temp_camera['image_width']
-            # type_ = temp_camera['type']
-            # valid_height = temp_camera['valid_height']
-            # vendor = temp_camera['vendor']
-            # version = temp_camera['version']
-            # vcs = temp_camera['vcs']
-            #
-            # new_camera = {
-            #     'camera_x': camera_x,
-            #     'camera_y': camera_y,
-            #     'camera_z': camera_z,
-            #     'center_u': center_u,
-            #     'center_v': center_v,
-            #     'distort': distort,
-            #     'focal_u': focal_u,
-            #     'focal_v': focal_v,
-            #     'fov': fov,
-            # }
-            #
-            # if __name__ == '__main__':
-            #     print(origin_camera['name'], round(error, 6))
-            #
-            # if 'eye' not in camera_name.lower():
-            #     new_camera['intern'] = temp_camera['intern']
-            #     new_camera['loc'] = temp_camera['loc']
-            #     new_camera['mask'] = temp_camera['mask']
-            #
-            # new_camera['image_height'] = image_height
-            # new_camera['image_width'] = image_width
-            # new_camera['pitch'] = pitch
-            # new_camera['roll'] = roll
-            # new_camera['type'] = type_
-            # new_camera['valid_height'] = valid_height
-            # new_camera['vcs'] = vcs
-            # new_camera['vendor'] = vendor
-            # new_camera['version'] = version
-            # new_camera['yaw'] = yaw
-            #
-            # path = os.path.join(output_folder, str(camera_vs[origin_camera['name']][1]),
-            #                     '{:s}.json'.format(camera_name))
-            # with open(path, 'w+') as f:
-            #     json.dump(new_camera, f, indent=2)
+            # 求内参和畸变
+            intrinsic_param = origin_camera['intrinsic_param']
+            camera_model = intrinsic_param['camera_model']
+            size = (intrinsic_param['camera_width'], intrinsic_param['camera_height'])
+            extrinsic = np.linalg.inv(vector2matrix(origin_camera['extrinsic_param']['rotation'],
+                                                    origin_camera['extrinsic_param']['translation']))
+            intrinsic = np.zeros((3, 4))
+            intrinsic[:, 0: 3] = np.array(intrinsic_param['camera_matrix'])
+            distort = np.array(intrinsic_param['distortion_coeffcients'])
+            if camera_model == 'opencv_omni':
+                xi = np.array([np.float32(intrinsic_param['xi'])])
+            else:
+                xi = 0
+            fov_range = [yaw - np.deg2rad(fov) / 2, yaw + np.deg2rad(fov) / 2]
+            camera_par = {
+                'size': size,
+                'extrinsic': extrinsic,
+                'intrinsic': intrinsic,
+                'distort': distort,
+                'xi': xi,
+                'fov_range': fov_range,
+            }
+
+            if camera_model != target_model:
+                distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
+                objectPoints, imagePoints = distort_camera.getProjectPoints()
+                error, CameraMatrix, distort = distort_camera.calibrateCamera(objectPoints, imagePoints,
+                                                                              target_model=target_model)
+                distort = list(distort.reshape(1, -1)[0])
+            else:
+                error = 0
+                distort = camera_par['distort'].tolist() + [0] * 10
+                CameraMatrix = intrinsic[:, 0: 3]
+
+            print(camera_name, roll, pitch, yaw, camera_x, camera_y, camera_z, error)
+            if 'eye' not in camera_name.lower():
+                distort = distort[:8]
+            else:
+                distort = distort[:4]
+
+            center_u = CameraMatrix[0][2]
+            center_v = CameraMatrix[1][2]
+            focal_u = CameraMatrix[0][0]
+            focal_v = CameraMatrix[1][1]
+
+            json_camera_dict = {
+                "calib_src": 1,
+                "camera_intrinsic_changed": 0,
+                "need_calibration_flag": False,
+                "vendor": "",
+                "version": 1,
+            }
+
+            if 'eye' in camera_name.lower():
+                json_camera_dict['type'] = 1
+                json_camera_dict['vin'] = 'unknown'
+            else:
+                json_camera_dict['type'] = 0
+                json_camera_dict['vin'] = ''
+
+            json_camera_dict['camera_x'] = camera_x
+            json_camera_dict['camera_y'] = camera_y
+            json_camera_dict['camera_z'] = camera_z
+            json_camera_dict['center_u'] = center_u
+            json_camera_dict['center_v'] = center_v
+            json_camera_dict['focal_u'] = focal_u
+            json_camera_dict['focal_v'] = focal_v
+            json_camera_dict['fov'] = fov
+            json_camera_dict['image_height'] = image_height
+            json_camera_dict['image_width'] = image_width
+            json_camera_dict['pitch'] = pitch
+            json_camera_dict['roll'] = roll
+            json_camera_dict['yaw'] = yaw
+            json_camera_dict['distort'] = distort
+            json_camera_dict['valid_height'] = valid_height
+
+            with open(os.path.join(ep39_json_folder, f'{camera_name}.json'), 'w+') as camera_json:
+                json.dump(json_camera_dict, camera_json, indent=2)
 
 
 class CameraObject:
@@ -403,7 +365,7 @@ class CameraObject:
                 self.extrinsic = camera_rotation @ self.cal_RTMatrix_horizon()
                 camera_orientation = self.json_data['vcs']['rotation'][2] + self.json_data['yaw']
             else:
-                self.extrinsic = camera_rotation @ self.cal_RTMatrix_json()
+                self.extrinsic = camera_rotation @ self.cal_RTMatrix(self.json_data)
                 camera_orientation = self.json_data['yaw']
             self.intrinsic = np.array([
                 [self.json_data['focal_u'], 0, self.json_data['center_u'], 0],
@@ -414,13 +376,12 @@ class CameraObject:
                 camera_orientation - np.deg2rad(self.json_data['fov'] / 2),
                 camera_orientation + np.deg2rad(self.json_data['fov'] / 2),
             ]
-            print(f"+++++++++{json_file}: {self.fov_range}+++++++++")
             self.xi = 0
         elif yaml_file:
             with open(yaml_file, 'r', encoding='utf8') as fp:
                 self.yaml_data = yaml.safe_load(fp)
             self.size = (self.yaml_data['image_width'], self.yaml_data['image_height'])
-            self.extrinsic = camera_rotation @ self.cal_RTMatrix()
+            self.extrinsic = camera_rotation @ self.cal_RTMatrix(self.yaml_data)
             self.intrinsic = np.array([
                 [self.yaml_data['focal_x'], 0, self.yaml_data['center_u'], 0],
                 [0, self.yaml_data['focal_y'], self.yaml_data['center_v'], 0],
@@ -439,7 +400,6 @@ class CameraObject:
             self.distort = distort  # 1 X n
             self.xi = xi
             self.fov_range = fov_range
-            print(f"+++++++++{self.fov_range}+++++++++")
         self.fov = self.fov_range[-1] - self.fov_range[0]
         self.camera_location = np.linalg.inv(self.extrinsic)[0:3, 3]
 
@@ -462,33 +422,34 @@ class CameraObject:
 
         return np.linalg.inv(world2calib @ calib2camera)
 
-    def cal_RTMatrix_json(self):
+    def cal_RTMatrix(self, data):
         world2camera = euler2matrix(
-            self.json_data['roll'],
-            self.json_data['pitch'],
-            self.json_data['yaw'],
-            self.json_data['camera_x'],
-            self.json_data['camera_y'],
-            self.json_data['camera_z'],
+            data['roll'],
+            data['pitch'],
+            data['yaw'],
+            data['camera_x'],
+            data['camera_y'],
+            data['camera_z'],
             seq='ZYX',
         )
         return np.linalg.inv(world2camera)
 
-    def cal_RTMatrix(self):
-        world2camera = euler2matrix(
-            self.yaml_data['roll'],
-            self.yaml_data['pitch'],
-            self.yaml_data['yaw'],
-            self.yaml_data['pos_x'],
-            self.yaml_data['pos_y'],
-            self.yaml_data['pos_z'],
-            seq='ZYX'
+    def world2camera(self, x, y, z):
+        tvec = self.extrinsic[0:3, 3]
+        rvec = cv2.Rodrigues(self.extrinsic[0:3, 0:3])[0]
+        pts = [x, y, z]
+        objectPoints = np.array([[pts]], dtype=np.float32)
+        imagePoints, _ = cv2.projectPoints(
+            objectPoints=objectPoints,
+            rvec=rvec,
+            tvec=tvec,
+            cameraMatrix=np.array(self.intrinsic[:, :3], dtype=float),
+            distCoeffs=np.zeros((1, 4), dtype=np.float64),
         )
 
-        return np.linalg.inv(world2camera)
+        return imagePoints[0][0][0], imagePoints[0][0][1]
 
-    def world2camera(self, x, y, z):
-        return world2camera(self.intrinsic, self.extrinsic, x, y, z)
+        # return world2camera(self.intrinsic, self.extrinsic, x, y, z)
 
 
 class DistortCameraObject:
@@ -505,31 +466,35 @@ class DistortCameraObject:
             self.camera_object = CameraObject(**camera_par)
 
         self.camera_model = camera_model
-        size = self.camera_object.size
+        self.size = self.camera_object.size
+        newCameraMatrix = np.eye(3)
+        self.roi = [0, 0, self.size[0], self.size[1]]
         if camera_model == 'opencv_fisheye':
-            newCameraMatrix = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
-                K=self.camera_object.intrinsic[:, :3],
-                D=self.camera_object.distort,
-                image_size=size,
-                R=np.eye(3),
-                balance=0,
-                new_size=size
-            )
+            # newCameraMatrix = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
+            #     K=self.camera_object.intrinsic[:, :3],
+            #     D=np.array(self.camera_object.distort, dtype=np.float64).reshape((1, 4)),
+            #     image_size=self.size,
+            #     R=np.eye(3),
+            #     balance=0,
+            #     new_size=self.size
+            # )
+            newCameraMatrix = self.camera_object.intrinsic[:, :3]
             self.mapX, self.mapY = cv2.fisheye.initUndistortRectifyMap(
                 K=self.camera_object.intrinsic[:, :3],
-                D=self.camera_object.distort,
+                D=np.array(self.camera_object.distort, dtype=np.float64).reshape((1, 4)),
                 R=np.eye(3),
                 P=newCameraMatrix,
-                size=size,
+                size=self.size,
                 m1type=cv2.CV_16SC2
             )
+
         elif camera_model == 'opencv_pinhole':
             newCameraMatrix, self.roi = cv2.getOptimalNewCameraMatrix(
                 cameraMatrix=self.camera_object.intrinsic[:, :3],
                 distCoeffs=self.camera_object.distort,
-                imageSize=size,
+                imageSize=self.size,
                 alpha=1,
-                newImgSize=size,
+                newImgSize=self.size,
                 centerPrincipalPoint=False
             )
             self.mapX, self.mapY = cv2.initUndistortRectifyMap(
@@ -537,15 +502,16 @@ class DistortCameraObject:
                 distCoeffs=self.camera_object.distort,
                 R=np.eye(3),
                 newCameraMatrix=newCameraMatrix,
-                size=size,
+                size=self.size,
                 m1type=cv2.CV_16SC2
             )
             newCameraMatrix[0][-1] = newCameraMatrix[0][-1] - self.roi[0]
             newCameraMatrix[1][-1] = newCameraMatrix[1][-1] - self.roi[1]
-        else:
-            # opencv_omni
-            newCameraMatrix = np.array([[size[0] / 4, 0, size[0] / 2],
-                                        [0, size[0] / 4, size[0] / 2],
+            self.size = [self.roi[2], self.roi[3]]
+
+        elif camera_model == 'opencv_omni':
+            newCameraMatrix = np.array([[self.size[0] / 5, 0, self.size[0] / 2],
+                                        [0, self.size[0] / 5, self.size[0] / 2],
                                         [0, 0, 1]])
             try:
                 self.mapX, self.mapY = cv2.omnidir.initUndistortRectifyMap(
@@ -554,7 +520,7 @@ class DistortCameraObject:
                     xi=self.camera_object.xi,
                     R=np.eye(3),
                     P=newCameraMatrix,
-                    size=size,
+                    size=self.size,
                     mltype=cv2.CV_16SC2,
                     flags=cv2.omnidir.RECTIFY_PERSPECTIVE
                 )
@@ -565,10 +531,13 @@ class DistortCameraObject:
                     xi=self.camera_object.xi,
                     R=np.eye(3),
                     P=newCameraMatrix,
-                    size=size,
+                    size=self.size,
                     m1type=cv2.CV_16SC2,
                     flags=cv2.omnidir.RECTIFY_PERSPECTIVE
                 )
+            newCameraMatrix[0][-1] = newCameraMatrix[0][-1] - self.roi[0]
+            newCameraMatrix[1][-1] = newCameraMatrix[1][-1] - self.roi[1]
+            self.size = [self.roi[2], self.roi[3]]
 
         self.new_intrinsic = np.zeros((3, 4))
         self.new_intrinsic[:, 0: 3] = newCameraMatrix
@@ -702,13 +671,30 @@ class DistortCameraObject:
             image = image_path
         image = cv2.remap(image, self.mapX, self.mapY, cv2.INTER_LINEAR)
         w, h = self.camera_object.size
-        if self.camera_model == 'opencv_pinhole':
+        if self.camera_model in ['opencv_pinhole', 'opencv_omni']:
             x, y, w, h = self.roi
             image = image[y: y + h, x: x + w]
+
         return image, w, h
 
     def world2camera(self, x, y, z):
         return world2camera(self.new_intrinsic, self.camera_object.extrinsic, x, y, z)
+
+    def world2camera_without_distort(self, x, y, z, cut_flag=True):
+        extrinsic = self.camera_object.extrinsic
+        tvec = extrinsic[0:3, 3]
+        rvec = cv2.Rodrigues(extrinsic[0:3, 0:3])[0]
+        pts = [x, y, z]
+        objectPoints = np.array([[pts]], dtype=np.float32)
+
+        imagePoints, _ = cv2.projectPoints(
+            objectPoints=objectPoints,
+            rvec=rvec,
+            tvec=tvec,
+            cameraMatrix=self.new_intrinsic[:, :3],
+            distCoeffs=np.zeros((1, 4), dtype=np.float64),
+        )
+        return imagePoints[0][0][0], imagePoints[0][0][1]
 
     def world2camera_with_distort(self, x, y, z, cut_flag=True):
         extrinsic = self.camera_object.extrinsic
@@ -761,6 +747,38 @@ class DistortCameraObject:
         else:
             return u, v
 
+    def get_vanish_line(self):
+        r = 20
+        w, h = self.size
+        u_list, v_list = [], []
+        for alpha in np.arange(0, 2 * np.pi, 0.02):
+            x = r * np.cos(alpha)
+            y = r * np.sin(alpha)
+            u, v = self.world2camera_without_distort(x, y, 0)
+            if 0 < u < w and 0 < v < h:
+                u_list.append(u)
+                v_list.append(v)
+
+        # 按u_list排序，同时保持元素的对应关系
+        sorted_pairs = sorted(zip(u_list, v_list), key=lambda x: x[0])
+        u_list = [pair[0] for pair in sorted_pairs]
+        v_list = [pair[1] for pair in sorted_pairs]
+
+        slope, intercept, r_value, p_value, std_err = stats.linregress(u_list, v_list)
+        print(f"类型: {self.camera_model}, 斜率: {slope:.4f}, 截距: {intercept:.4f}, 相关系数: {r_value:.4f}, 标准误差: {std_err:.4f}")
+        return slope, intercept
+
+    def get_bev_mask(self):
+        w, h = self.size
+        mask_matrix = np.zeros((h, w, 3))
+        slope, intercept = self.get_vanish_line()
+        for i in range(h):
+            for j in range(w):
+                if i > slope * j + intercept:
+                    mask_matrix[i, j] = np.array([1, 1, 1])
+
+        return mask_matrix
+
 
 class BirdEyeView:
 
@@ -773,83 +791,16 @@ class BirdEyeView:
                                   for camera, json_file in camera_json_files.items()}
             cameras = camera_json_files.keys()
         else:
-            self.origin_camera = {camera: distort_camera
-                                  for camera, distort_camera in distort_camera_dict.items()}
+            self.origin_camera = distort_camera_dict
             cameras = distort_camera_dict.keys()
         self.bev_type = bev_type
+        self.bev_masks = {camera: self.origin_camera[camera].get_bev_mask() for camera in cameras}
 
         self.calibration_pts = [[10, 10], [10, -10], [-10, -10], [-10, 10]]
         self.weight_flag = False
-        self.del_matrix_dic = {}
         bev_height = self.bev_camera.size[1]
         bev_width = self.bev_camera.size[0]
         self.weight_matrix = np.zeros((bev_height, bev_width))
-
-        for camera in cameras:
-            fov_1, fov_2 = self.origin_camera[camera].camera_object.fov_range
-            del_matrix = np.zeros((bev_height, bev_width))
-            print("正在计算{:s}的删除矩阵".format(camera))
-            # camera in bev
-            camera_in_bev = self.bev_camera.world2camera(*self.origin_camera[camera].camera_object.camera_location)
-            print('bev中，相机位置在', camera, camera_in_bev)
-
-            for row_index, row in enumerate(del_matrix):
-                for col_index, col in enumerate(row):
-                    pos = self.uv2pos(bev_height, bev_width, row_index, col_index, *camera_in_bev)
-                    if fov_1 < pos < fov_2:
-                        del_matrix[row_index][col_index] = 1
-                    elif fov_1 - 2 * np.pi < pos < fov_2 - 2 * np.pi:
-                        del_matrix[row_index][col_index] = 1
-                    elif fov_1 + 2 * np.pi < pos < fov_2 + 2 * np.pi:
-                        del_matrix[row_index][col_index] = 1
-                    else:
-                        del_matrix[row_index][col_index] = 0
-            self.del_matrix_dic[camera] = del_matrix
-
-    # 像素坐标转矩阵内角度坐标
-    def uv2pos(self, bh, bw, v, u, camera_u, camera_v):
-        point_x = u - bw / 2
-        point_y = bh / 2 - v
-        camera_x = camera_u - bw / 2
-        camera_y = bh / 2 - camera_v
-        point_x = point_x - camera_x
-        point_y = point_y - camera_y
-        pos = 100
-        # 第一象限
-        if point_x >= 0 and point_y > 0:
-            pos = -np.arctan(point_x / point_y)
-        # 第二象限
-        if point_x < 0 < point_y:
-            pos = -np.arctan(point_x / point_y)
-        # 第三象限
-        if point_x < 0 and point_y < 0:
-            pos = np.pi - np.arctan(point_x / point_y)
-        # 第四象限
-        if point_x >= 0 > point_y:
-            pos = np.pi - np.arctan(point_x / point_y)
-        if point_x > 0 and point_y == 0:
-            pos = - np.pi / 2
-        if point_x < 0 and point_y == 0:
-            pos = np.pi / 2
-        return pos
-
-    # 图片融合矩阵获取（二图重叠则 0.5 三图则0.33）
-    def get_weight_matrix(self):
-        for camera in self.origin_camera.keys():
-            self.weight_matrix += self.del_matrix_dic[camera]
-        for row_index, row in enumerate(self.weight_matrix):
-            for col_index, col in enumerate(row):
-                if col != 0:
-                    self.weight_matrix[row_index][col_index] = 1 / col
-
-    # 获取修正后的删除矩阵（原删除矩阵为1 而此像素无图 则置0）
-    def correct_matrix(self, camera, del_matrix, bird_image):
-        print("正在修正{:s}的删除矩阵".format(camera))
-        for row_index, row in enumerate(del_matrix):
-            for col_index, col in enumerate(row):
-                if col == 1:
-                    if bird_image[row_index][col_index][0] == 0:
-                        self.del_matrix_dic[camera][row_index][col_index] = 0
 
     def getBev(self, images, folder, rect_pts=None):
         if rect_pts is None:
@@ -858,11 +809,10 @@ class BirdEyeView:
         bev_width = self.bev_camera.size[0]
         bird_image_merge = np.zeros((bev_height, bev_width, 3))
         bird_image_merge_addweight = np.zeros((bev_height, bev_width, 3))
-        bird_image_dic = {}
-
+        bird_image_dict = {}
         for camera, image in images.items():
-            de_image, w, h = self.origin_camera[camera].de_distort(image)
             # 去畸变结果
+            de_image, w, h = self.origin_camera[camera].de_distort(image)
             cv2.imwrite(os.path.join(folder, f'De-distort_{camera}_{w}x{h}.jpg'), de_image)
             ori_pts, bev_pts = [], []
             for pt in self.calibration_pts:
@@ -871,25 +821,29 @@ class BirdEyeView:
 
             ori_pts = np.array(ori_pts, dtype=np.float32)
             bev_pts = np.array(bev_pts, dtype=np.float32)
+            de_image_half = de_image * self.bev_masks[camera]
             M = cv2.getPerspectiveTransform(ori_pts, bev_pts)
-            bird_image = cv2.warpPerspective(de_image, M, (self.bev_camera.size[0], self.bev_camera.size[1]),
+            bird_image = cv2.warpPerspective(de_image_half, M, (self.bev_camera.size[0], self.bev_camera.size[1]),
                                              cv2.INTER_LINEAR)
-            # BEV结果（双重)
-            # cv2.imwrite(os.path.join(folder, f'BEV_{camera}_raw.jpg'), bird_image)
-
-            # 第一次运行时先求得各个相机修正后的删除矩阵和图像融合矩阵
-            if not self.weight_flag:
-                self.correct_matrix(camera, self.del_matrix_dic[camera], bird_image)
-            bird_image_dic[camera] = bird_image
+            bird_image_dict[camera] = bird_image
 
         if not self.weight_flag:
             self.weight_flag = True
-            self.get_weight_matrix()
+            w, h = self.bev_camera.size[0], self.bev_camera.size[1]
+            for camera, bird_image in bird_image_dict.items():
+                for i in range(h):
+                    for j in range(w):
+                        if np.sum(bird_image[i, j]) > 50:
+                            self.weight_matrix[i, j] += 1
 
-        for camera, bird_image in bird_image_dic.items():
-            b = bird_image[:, :, 0] * self.del_matrix_dic[camera]
-            g = bird_image[:, :, 1] * self.del_matrix_dic[camera]
-            r = bird_image[:, :, 2] * self.del_matrix_dic[camera]
+            zero_mask = (self.weight_matrix == 0)
+            self.weight_matrix = 1 / self.weight_matrix
+            self.weight_matrix[zero_mask] = 1
+
+        for camera, bird_image in bird_image_dict.items():
+            b = bird_image[:, :, 0]
+            g = bird_image[:, :, 1]
+            r = bird_image[:, :, 2]
             bird_image = cv2.merge((b, g, r))
             # BEV结果（单重)
             cv2.imwrite(os.path.join(folder, f'BEV_{camera}_clear.jpg'), bird_image)
@@ -910,149 +864,10 @@ class BirdEyeView:
             cv2.polylines(bird_image_merge_addweight, [uvps], True, (48, 48, 255), 3)
 
         # 最终的融合图片
-        cv2.imwrite(os.path.join(folder, f'BEV_{self.bev_type}.jpg'), bird_image_merge_addweight)
-        # cv2.imwrite(os.path.join(folder, f'BEV_ALL.jpg'), bird_image_merge)
-        return os.path.join(folder, f'BEV_{self.bev_type}.jpg')
+        bev_path = os.path.join(folder, f'BEV_{self.bev_type}.jpg')
+        cv2.imwrite(bev_path, bird_image_merge_addweight)
 
-
-def kunyi_bev(folder, calibration_json, bev_type='fisheye', rect_pts=None):
-    bird_json_file = os.path.join(camera_parameter_folder, 'bird_virtual', 'bird.json')
-    distort_camera_dict = {}
-
-    camera_vs = {
-        'CAM_FRONT_120': ['front', 100],
-        'CAM_FRONT_LEFT': ['frontleft', 100],
-        'CAM_FRONT_RIGHT': ['frontright', 100],
-        'CAM_BACK_LEFT': ['rearleft', 100],
-        'CAM_BACK_RIGHT': ['rearright', 100],
-        'CAM_FRONT_30': ['front_30fov', 101],
-        'CAM_BACK': ['rear', 101],
-        'CAM_FISHEYE_FRONT': ['fisheye_front', 101],
-        'CAM_FISHEYE_BACK': ['fisheye_rear', 101],
-        'CAM_FISHEYE_LEFT': ['fisheye_left', 101],
-        'CAM_FISHEYE_RIGHT': ['fisheye_right', 101],
-    }
-
-    G = np.eye(4)
-    G[0:3, 0:3] = Rotation.from_euler('zyx', [0, -np.pi / 2, 0]).as_matrix() @ \
-                  Rotation.from_euler('zyx', [0, 0, np.pi / 2]).as_matrix()  # pitch为90度，避免万向节锁，分两次转
-
-    with open(calibration_json, 'r') as f:
-        cameras = json.load(f)['camera']
-    for origin_camera in cameras:
-        if bev_type == 'fisheye':
-            if 'eye' not in origin_camera['name'].lower() or '30' in origin_camera['name'].lower():
-                continue
-        else:
-            if 'eye' in origin_camera['name'].lower() or '30' in origin_camera['name'].lower():
-                continue
-        camera_name = camera_vs[origin_camera['name']][0]
-        template_json = os.path.join(camera_parameter_folder, 'json_calib', f'{camera_name}.json')
-        with open(template_json, 'r') as f:
-            temp_camera = json.load(f)
-
-        # 相机标定坐标系认为是固定参数，从4号车读取
-        # 求外参数
-        world2calib = euler2matrix(*temp_camera['vcs']['rotation'],
-                                   *temp_camera['vcs']['translation'])
-        calib2camera = np.linalg.inv(world2calib) @ vector2matrix(origin_camera['extrinsic_param']['rotation'],
-                                                                  origin_camera['extrinsic_param']['translation'])
-        roll, pitch, yaw, camera_x, camera_y, camera_z = matrix2euler(calib2camera @ G)
-
-        # 求内参
-        intrinsic_param = origin_camera['intrinsic_param']
-        camera_model = intrinsic_param['camera_model']
-        size = (intrinsic_param['camera_width'], intrinsic_param['camera_height'])
-        extrinsic = np.linalg.inv(vector2matrix(origin_camera['extrinsic_param']['rotation'],
-                                                origin_camera['extrinsic_param']['translation']))
-        intrinsic = np.zeros((3, 4))
-        intrinsic[:, 0:3] = np.array(intrinsic_param['camera_matrix'])
-        distort = np.array(intrinsic_param['distortion_coeffcients'])
-        if camera_model == 'opencv_omni':
-            xi = np.array([float(intrinsic_param['xi'])])
-        else:
-            xi = 0
-        fov_range = [temp_camera['vcs']['rotation'][2] + yaw - np.deg2rad(temp_camera['fov']) / 2,
-                     temp_camera['vcs']['rotation'][2] + yaw + np.deg2rad(temp_camera['fov']) / 2]
-        camera_par = {
-            'size': size,
-            'extrinsic': extrinsic,
-            'intrinsic': intrinsic,
-            'distort': distort,
-            'xi': xi,
-            'fov_range': fov_range,
-        }
-        distort_camera = DistortCameraObject(camera_par=camera_par, camera_model=camera_model)
-        distort_camera_dict[origin_camera['name']] = distort_camera
-
-    BEV = BirdEyeView(bird_json_file=bird_json_file,
-                      distort_camera_dict=distort_camera_dict,
-                      bev_type=bev_type)
-    images = {}
-    for camera in distort_camera_dict.keys():
-        if bev_type == 'fisheye':
-            if 'eye' in camera.lower() and '30' not in camera.lower():
-                images[camera] = os.path.join(folder, f'{camera}.jpg')
-        else:
-            if 'eye' not in camera.lower() and '30' not in camera.lower():
-                images[camera] = os.path.join(folder, f'{camera}.jpg')
-
-    bev_folder = os.path.join(folder, 'Kunyi', bev_type)
-    if os.path.exists(bev_folder):
-        shutil.rmtree(bev_folder)
-    os.makedirs(bev_folder)
-
-    BEV.getBev(images, bev_folder, rect_pts)
-
-
-def horizon_bev(folder, bev_type='fisheye'):
-    bird_json_file = os.path.join(camera_parameter_folder, 'bird_virtual', 'bird.json')
-
-    camera_json_files = {
-        'CAM_FRONT_120': ['../Config/Camera/replay/2J5/100/front.json', 'opencv_pinhole'],
-        'CAM_FRONT_LEFT': ['../Config/Camera/replay/2J5/100/frontleft.json', 'opencv_pinhole'],
-        'CAM_FRONT_RIGHT': ['../Config/Camera/replay/2J5/100/frontright.json', 'opencv_pinhole'],
-        'CAM_BACK_LEFT': ['../Config/Camera/replay/2J5/100/rearleft.json', 'opencv_pinhole'],
-        'CAM_BACK_RIGHT': ['../Config/Camera/replay/2J5/100/rearright.json', 'opencv_pinhole'],
-        'CAM_BACK': ['../Config/Camera/replay/2J5/101/rear.json', 'opencv_pinhole'],
-        'CAM_FISHEYE_FRONT': ['../Config/Camera/replay/2J5/101/fisheye_front.json', 'opencv_fisheye'],
-        'CAM_FISHEYE_BACK': ['../Config/Camera/replay/2J5/101/fisheye_rear.json', 'opencv_fisheye'],
-        'CAM_FISHEYE_LEFT': ['../Config/Camera/replay/2J5/101/fisheye_left.json', 'opencv_fisheye'],
-        'CAM_FISHEYE_RIGHT': ['../Config/Camera/replay/2J5/101/fisheye_right.json', 'opencv_fisheye'],
-    }
-
-    images = {
-        'CAM_FRONT_120': '/home/buyujun/ZONE/Data/BEV/CAM_FRONT_120.jpg',
-        'CAM_FRONT_LEFT': '/home/buyujun/ZONE/Data/BEV/CAM_FRONT_LEFT.jpg',
-        'CAM_FRONT_RIGHT': '/home/buyujun/ZONE/Data/BEV/CAM_FRONT_RIGHT.jpg',
-        'CAM_BACK_LEFT': '/home/buyujun/ZONE/Data/BEV/CAM_BACK_LEFT.jpg',
-        'CAM_BACK_RIGHT': '/home/buyujun/ZONE/Data/BEV/CAM_BACK_RIGHT.jpg',
-        'CAM_BACK': '/home/buyujun/ZONE/Data/BEV/CAM_BACK.jpg',
-        'CAM_FISHEYE_FRONT': '/home/buyujun/ZONE/Data/BEV/CAM_FISHEYE_FRONT.jpg',
-        'CAM_FISHEYE_BACK': '/home/buyujun/ZONE/Data/BEV/CAM_FISHEYE_BACK.jpg',
-        'CAM_FISHEYE_LEFT': '/home/buyujun/ZONE/Data/BEV/CAM_FISHEYE_LEFT.jpg',
-        'CAM_FISHEYE_RIGHT': '/home/buyujun/ZONE/Data/BEV/CAM_FISHEYE_RIGHT.jpg',
-    }
-
-    if bev_type == 'fisheye':
-        new_camera_json_files = {camera: value for camera, value in camera_json_files.items() if
-                                 'eye' in camera.lower()}
-        new_images = {camera: value for camera, value in images.items() if 'eye' in camera.lower()}
-    else:
-        new_camera_json_files = {camera: value for camera, value in camera_json_files.items() if
-                                 'eye' not in camera.lower()}
-        new_images = {camera: value for camera, value in images.items() if 'eye' not in camera.lower()}
-
-    BEV = BirdEyeView(bird_json_file=bird_json_file,
-                      camera_json_files=new_camera_json_files,
-                      bev_type=bev_type)
-
-    bev_folder = os.path.join(folder, 'Horizon', bev_type)
-    if os.path.exists(bev_folder):
-        shutil.rmtree(bev_folder)
-    os.makedirs(bev_folder)
-
-    BEV.getBev(new_images, bev_folder)
+        return bev_path
 
 
 def transfer_2j5_2_1j5(json_folder, yaml_folder):
@@ -1502,14 +1317,13 @@ def transfer_q_2_es39(q_config_path, json_folder):
 
 
 if __name__ == '__main__':
-    pass
     # json_folder = '/home/caobingqi/下载/2J5'
     # yaml_folder = '/home/caobingqi/下载/1J5'
     # transfer_2j5_2_1j5(json_folder, yaml_folder)
     #
     # calibration_json = '/media/data/kunyi_driving_data/20240119_143055_n000003/Config/20240119_143055_calibration.json'
     # output_folder = '/media/data/kunyi_driving_data/20240119_143055_n000003/Config/456'
-    # CJ = ConvertJsonFile2(calibration_json, output_folder)
+    # CJ = ConvertKunyi2EP39(calibration_json, output_folder)
     #
     # JJ_folder = '/media/data/kunyi_driving_data/20240119_143055_n000003/Config/456'
     # yaml_folder = '/media/data/kunyi_driving_data/20240119_143055_n000003/Config/789'
@@ -1529,3 +1343,63 @@ if __name__ == '__main__':
     # yaml_folder = '/home/vcar/tmp'
     # json_folder = '/home/vcar/json'
     # transfer_1j5_2_es39(yaml_folder, json_folder)
+
+    import glob
+    bird_json_file = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Docs/Resources/camera_parameter/bird_virtual/bird.json'
+    bev_camera = CameraObject(bird_json_file)
+    calibration_pts = [[20, 20], [20, -20], [-20, -20], [-20, 20]]
+    jpg_folder = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests/jpeg'
+    de_distort_folder = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests/jpeg_distort'
+    config_folder = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests/config'
+    pro_jpg_folder = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests/ProjectJPG'
+    single_bird_folder = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests/single_bird'
+    for camera_name in os.listdir('/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests/jpeg'):
+        json_file = os.path.join(config_folder, f'{camera_name}.json')
+        if 'eye' in camera_name:
+            camera_model = 'opencv_fisheye'
+        else:
+            camera_model = 'opencv_pinhole'
+
+        dc = DistortCameraObject(json_file=json_file, camera_model=camera_model)
+        bev_mask = dc.get_bev_mask()
+
+        jpg_path = os.path.join(jpg_folder, camera_name)
+        de_jpg_path = os.path.join(de_distort_folder, camera_name)
+        single_bird_path = os.path.join(single_bird_folder, camera_name)
+        os.makedirs(de_jpg_path, exist_ok=True)
+        os.makedirs(single_bird_path, exist_ok=True)
+
+        for image_path in glob.glob(os.path.join(jpg_path, '*jpg')):
+            image, w, h = dc.de_distort(image_path)
+            image = image * bev_mask
+            de_image_path = os.path.join(de_jpg_path, f'De_{os.path.basename(image_path)}')
+            cv2.imwrite(de_image_path, image)
+
+            ori_pts, bev_pts = [], []
+            for pt in calibration_pts:
+                ori_pts.append(dc.world2camera_without_distort(*pt, 0))
+                bev_pts.append(bev_camera.world2camera(*pt, 0))
+
+            ori_pts = np.array(ori_pts, dtype=np.float32)
+            bev_pts = np.array(bev_pts, dtype=np.float32)
+            M = cv2.getPerspectiveTransform(ori_pts, bev_pts)
+            bird_image = cv2.warpPerspective(image, M, (bev_camera.size[0], bev_camera.size[1]),
+                                             cv2.INTER_LINEAR)
+            bird_image_path = os.path.join(single_bird_path, f'Bird_{os.path.basename(image_path)}')
+            cv2.imwrite(bird_image_path, bird_image)
+
+    # for x in np.arange(10, 5, -0.3):
+    #     y, z = 5, 0
+    #     print(x, y, z)
+    #     u0, v0 = dc.world2camera(x, y, z)
+    #     u1, v1 = dc.world2camera_without_distort(x, y, z)
+    #     print(u0, u1, u0-u1)
+    #     print(v0, v1, v0-v1)
+    #
+    #
+    # pic_folder = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests/jpeg'
+    # depic_folder = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests/jpeg_distort'
+    # for image_path in glob.glob(os.path.join(pic_folder, '*jpg')):
+    #     image, w, h = dc.de_distort(image_path)
+    #     de_image_path = os.path.join(depic_folder, f'De_{os.path.basename(image_path)}')
+    #     cv2.imwrite(de_image_path, image)
