@@ -19,6 +19,7 @@ from Utils.Libs import ros_docker_path, kill_tmux_session_if_exists, create_fold
 vehicle_id = {
     '005': 'Q3402',
     '006': 'Q3401',
+    '001': 'Z0001'
 }
 
 

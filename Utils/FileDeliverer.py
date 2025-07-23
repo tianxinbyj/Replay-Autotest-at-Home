@@ -195,7 +195,7 @@ def verify_transfer(sftp, local_folder, remote_folder):
         try:
             with sftp.file(stats_file_path, 'w') as f:
                 f.write(f"transfer_{'OK' if verification_result else 'NOK'}\n")
-                f.write(f"验证时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"transfer_date: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(status_message)
             print(f"状态文件已创建: {stats_file_path}")
         except Exception as e:
@@ -209,7 +209,7 @@ def verify_transfer(sftp, local_folder, remote_folder):
         try:
             with sftp.file(stats_file_path, 'w') as f:
                 f.write(f"transfer_NOK\n")
-                f.write(f"验证时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"transfer_date: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"错误信息: {str(e)}")
             print(f"错误状态文件已创建: {stats_file_path}")
         except Exception as inner_e:
@@ -315,7 +315,7 @@ if __name__ == "__main__":
         "host": "10.192.68.107",
         "username": "zhangliwei01",
         "password": "Pass1234",
-        "local_folder": "/media/data/Q_DATA/debug_data/COMBINE_BAG/20250614-005-AEB/2025_06_14-14_47_36=2025_06_14-14_48_31",
+        "local_folder": "/media/data/Q_DATA/debug_data/COMBINE_BAG/20250616-005-AEB/2025_06_16-09_06_16=2025_06_16-09_09_16/ROSBAG",
         "remote_base_dir": "/home/zhangliwei01/ZONE"  # 远程文件夹路径
     }
 
