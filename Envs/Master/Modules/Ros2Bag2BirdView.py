@@ -4,10 +4,12 @@ import json
 import os
 
 import shutil
+import subprocess
 
 from pathlib import Path
 
 import cv2
+from moviepy.video.io.VideoFileClip import VideoFileClip
 from pandas.io.common import file_path_to_url
 from rosbags.rosbag2 import Reader, Writer
 from rosbags.typesys import Stores, get_typestore
@@ -23,7 +25,7 @@ from scipy.spatial.transform import Rotation
 class Ros2Bag2BirdView:
 
     def __init__(self, workspace, filepath, camera_config_path):
-        self.timestamp_topic = '/Camera/SorroundFront/H265'
+        self.timestamp_topic = '/Camera/FrontWide/H265'
         self.topic_info ={
             '/Camera/FrontWide/H265':  'sensor_msgs/msg/CompressedImage',
             '/Camera/SorroundRight/H265': 'sensor_msgs/msg/CompressedImage',
@@ -54,6 +56,7 @@ class Ros2Bag2BirdView:
             raise FileNotFoundError(f"{self.rosbag_path}不存在")
         self.h265_path = os.path.join(self.file_path, 'ROSBAG', 'H265')
         self.picture_path = os.path.join(self.file_path, 'PICTURE')
+        self.mkv_path = os.path.join(self.file_path, 'VIDEO')
         self.struct_dict = None
         self.last_timestamp = None
         self.frame_id_saver = None
@@ -179,6 +182,44 @@ class Ros2Bag2BirdView:
             if topic == self.timestamp_topic:
                 self.gen_timestamp(self.rosbag_path, topic)
         self.cal_frame_skip(self.rosbag_path, self.topic_info.keys())
+
+    def convert_h265_to_mkv(self):
+        if os.path.exists(self.mkv_path):
+            shutil.rmtree(self.mkv_path)
+        os.makedirs(self.mkv_path)
+        for root, directories, files in os.walk(self.h265_path):
+            for filename in files:
+                mkv_name = filename.replace('.h265', '.mkv')
+                try:
+                    # 构建FFmpeg命令
+                    cmd = ['ffmpeg', '-i', os.path.join(self.h265_path, filename), '-c:v', 'copy', '-c:a', 'copy',
+                           '-strict', 'experimental', '-y', os.path.join(self.mkv_path, mkv_name)]
+
+                    # 添加输出文件
+
+                    # 执行命令
+                    print(f"正在将 {filename} 转换为 {mkv_name}...")
+                    result = subprocess.run(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+
+                    # 检查命令执行状态
+                    if result.returncode != 0:
+                        print(f"转换失败: {result.stderr}")
+                        return False
+
+                    print("转换成功!")
+
+                except Exception as e:
+                    print(f"发生错误: {e}")
+                    return False
+        return True
+
+
+
 
     def extract_frames_from_h265(self):
         if os.path.exists(self.picture_path):
