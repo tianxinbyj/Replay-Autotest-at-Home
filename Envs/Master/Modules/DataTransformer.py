@@ -95,7 +95,7 @@ class DataTransformer:
                 shutil.rmtree(h265_folder)
             os.makedirs(h265_folder)
             t0 = time.time()
-            cmd = 'cd {:s}; python3 Api_Mkv2h265.py -i {:s} -o {:s} --crf 28 --ratio 3'.format(
+            cmd = 'cd {:s}; python3 Api_Mkv2h265.py -i {:s} -o {:s} --crf 26 --ratio 3'.format(
                 os.path.join(project_path, 'Envs', 'Master', 'Interfaces'),
                 video_path, h265_folder,
             )
@@ -492,6 +492,7 @@ class DataLoggerAnalysis:
 
 
 class DataDownloader:
+
     def __init__(self):
         pass
 
@@ -549,9 +550,6 @@ class DataDownloader:
             else:
                 print(f"文件移动至失败{dst_folder}")
                 return
-
-
-
 
     def data_download_from_amazon(self, s3_path, local_download_path, serial_num=None):
         """
@@ -617,19 +615,17 @@ class DataDownloader:
         reverse_data_folder(src_dir, dst_dir)
 
 
-
 if __name__ == '__main__':
     t0 = time.time()
     ddd = DataDownloader()
     install_path = '/home/vcar/ZONE/manual_test_0709_5094/03_Workspace/install'
     qqq = DataTransformer(install_path=install_path)
-    kunyi_package_path = '/home/vcar/ZONE/20250102_172710_n000011'
-    config_path = '/home/vcar/ZONE/20250102_172710_n000011/Config'
+    kunyi_package_path = '/media/data/kunyi_driving_data/20240118_133925_n000002'
+    config_path = '/media/data/kunyi_driving_data/20240118_133925_n000002/Config'
     # h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
-    h265_config_path = '/home/vcar/ZONE/20250102_172710_n000011/Images/h265_config.yaml'
-    qqq.h265_to_db3(h265_config_path, os.path.join(kunyi_package_path, qqq.ros2bag_h265_name))
-    qqq.kunyiCan_to_db3(kunyi_package_path)
-    qqq.combine_Kunyi_db3(kunyi_package_path)
+    # qqq.h265_to_db3(h265_config_path, os.path.join(kunyi_package_path, qqq.ros2bag_h265_name))
+    # qqq.kunyiCan_to_db3(kunyi_package_path)
+    # qqq.combine_Kunyi_db3(kunyi_package_path)
     qqq.gen_AVM_from_db3(kunyi_package_path, config_path)
     print(time.time() - t0)
 

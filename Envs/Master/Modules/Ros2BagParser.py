@@ -2351,12 +2351,9 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/zhangliwei01/ZONE/TestProject/DEBUG/03_Workspace'
-    # ros2bag_path = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/20250324_144918_n000001_2025-06-05-16-36-22'
-    # folder = '/home/byj/ZONE/TestProject/parking_debug/01_Prediction/20250324_144918_n000001/RawData'
-
-    ros2bag_path = '/home/zhangliwei01/ZONE/20250529_102333_n000001/ROSBAG/COMBINE'
-    folder = '/home/zhangliwei01/ZONE/TestProject/temp'
+    workspace = '/home/vcar/ZONE/install_34'
+    ros2bag_path = '/home/vcar/ZONE/AEB_ros2bag_from_car/34'
+    folder = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests'
 
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
@@ -2387,6 +2384,4 @@ if __name__ == "__main__":
     ]
 
     RBP = Ros2BagParser(workspace)
-    # RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20250324_144918_n000001')
-
-    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, '20231130_152434_n000001')
+    RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, 'xxxxxx')
