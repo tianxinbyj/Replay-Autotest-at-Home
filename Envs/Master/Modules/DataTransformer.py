@@ -5,9 +5,7 @@
 import glob
 import json
 import os
-import re
 import shutil
-import subprocess
 import sys
 import time
 from datetime import datetime
@@ -622,13 +620,13 @@ if __name__ == '__main__':
     ddd = DataDownloader()
     install_path = '/home/vcar/ZONE/manual_test_0709_5094/03_Workspace/install'
     qqq = DataTransformer(install_path=install_path)
-    kunyi_package_path = '/home/vcar/ZONE/20250102_172710_n000011'
-    config_path = '/home/vcar/ZONE/20250102_172710_n000011/Config'
-    # h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
-    h265_config_path = '/home/vcar/ZONE/20250102_172710_n000011/Images/h265_config.yaml'
-    qqq.h265_to_db3(h265_config_path, os.path.join(kunyi_package_path, qqq.ros2bag_h265_name))
-    qqq.kunyiCan_to_db3(kunyi_package_path)
-    qqq.combine_Kunyi_db3(kunyi_package_path)
+    kunyi_package_path = '/home/vcar/ZONE/2025_06_14-14_47_36=2025_06_14-14_48_31'
+    config_path = '/media/data/kunyi_driving_data/20231130_152434_n000001/Config'
+    # # h265_config_path = qqq.kunyiMkv_to_h265(kunyi_package_path)
+    # h265_config_path = '/home/vcar/ZONE/20250102_172710_n000011/Images/h265_config.yaml'
+    # qqq.h265_to_db3(h265_config_path, os.path.join(kunyi_package_path, qqq.ros2bag_h265_name))
+    # qqq.kunyiCan_to_db3(kunyi_package_path)
+    # qqq.combine_Kunyi_db3(kunyi_package_path)
     qqq.gen_AVM_from_db3(kunyi_package_path, config_path)
     print(time.time() - t0)
 
