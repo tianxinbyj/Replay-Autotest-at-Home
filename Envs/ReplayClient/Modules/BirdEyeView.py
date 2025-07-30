@@ -1135,11 +1135,12 @@ def transfer_1j5_2_es39(yaml_folder, json_folder):
         'fisheye_rear': 190.0,
         'fisheye_left': 190.0,
     }
-    for pos_camera_name , yaml_camera_num in mapping.items(): # front : camera_5
-        print('pos_camera_name , yaml_camera_num' ,pos_camera_name , yaml_camera_num)
+
+    for pos_camera_name , yaml_camera_num in mapping.items():
         json_camera_dict = {
             "calib_src": 1,
             "camera_intrinsic_changed": 0,
+            'camera_name': yaml_camera_num,
             "need_calibration_flag": False,
             "vendor": "",
             "version": 1,
