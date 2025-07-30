@@ -4,10 +4,13 @@
 """
 
 import argparse
+import json
 import os
 import shutil
 import boto3
 from botocore.client import Config
+
+from Envs.Master.Modules.Libs import get_project_path
 
 
 class S3Client:
@@ -28,31 +31,65 @@ class S3Client:
             include = []
         if exclude is None:
             exclude = []
+        path_dict = {}
 
         try:
-            response = self.s3_client.list_objects_v2(
-                Bucket=bucket_name,
-                Prefix=s3_path  # 过滤指定路径下的对象
-            )
             total_size = 0
-            if 'Contents' in response:
-                # print(f"在路径 {s3_path} 下找到 {len(response['Contents'])} 个对象：")
-                for obj in response['Contents']:
+            total_objects = 0
+            filtered_objects = 0
+            continuation_token = None
 
-                    # 如果需要包含字符，则至少包含其中一个
-                    if len(include) and (not any([i in obj['Key'] for i in include])):
-                        continue
+            # 循环处理分页，直到获取所有对象
+            while True:
+                # 准备请求参数
+                params = {
+                    'Bucket': bucket_name,
+                    'Prefix': s3_path
+                }
+                # 如果有续传令牌，添加到请求参数中
+                if continuation_token:
+                    params['ContinuationToken'] = continuation_token
 
-                    # 如果需要排除字符，则包含一个字符则排除
-                    if len(exclude) and (any([e in obj['Key'] for e in exclude])):
-                        continue
+                # 调用API获取对象列表
+                response = self.s3_client.list_objects_v2(**params)
 
-                    print(f"- {obj['Key']} (大小 {round(obj['Size'] / 1024 / 1024 / 1024, 4)} GB)")
-                    total_size += obj['Size']
-                print(
-                    f"在路径 {s3_path} 下找到 {len(response['Contents'])} 个对象, 大小 {round(total_size / 1024 / 1024 / 1024, 4)} GB")
-            else:
-                print(f"路径 {s3_path} 下没有找到对象。")
+                # 处理当前页的对象
+                if 'Contents' in response:
+                    page_objects = len(response['Contents'])
+                    total_objects += page_objects
+
+                    for obj in response['Contents']:
+                        # 应用包含过滤条件
+                        if len(include) and (not any([i in obj['Key'] for i in include])):
+                            continue
+
+                        # 应用排除过滤条件
+                        if len(exclude) and (any([e in obj['Key'] for e in exclude])):
+                            continue
+
+                        # 显示符合条件的对象
+                        print(f"- {obj['Key']} (大小 {round(obj['Size'] / 1024 / 1024, 4)} MB)")
+                        total_size += obj['Size']
+                        filtered_objects += 1
+                        path_dict[obj['Key']] = obj['Size'] / 1024 / 1024
+
+                # 检查是否还有更多对象
+                if not response.get('IsTruncated', False):
+                    break
+
+                # 更新续传令牌，用于获取下一页
+                continuation_token = response.get('NextContinuationToken')
+
+            # 输出汇总信息
+            print(f"在路径 {s3_path} 下共找到 {total_objects} 个对象，"
+                  f"符合条件的有 {filtered_objects} 个，"
+                  f"总大小 {round(total_size / 1024 / 1024 / 1024, 4)} GB")
+
+            AEB_data_path = os.path.join(get_project_path(), 'Temp', 'AEB_data_path.json')
+            with open(AEB_data_path, 'w', encoding='utf-8') as f:
+                json.dump(path_dict, f, ensure_ascii=False, indent=4)
+            return AEB_data_path
+
         except Exception as e:
             print(f"列出对象时出错: {e}")
 
@@ -62,11 +99,13 @@ class S3Client:
         if exclude is None:
             exclude = []
 
-        if not os.path.exists(local_dir):
-            shutil.rmtree(local_dir)
         os.makedirs(local_dir, exist_ok=True)
 
         """递归下载S3路径下的所有文件"""
+        total_downloaded = 0
+        total_size = 0
+
+        # 使用分页器处理超过1000个对象的情况
         paginator = self.s3_client.get_paginator('list_objects_v2')
         for page in paginator.paginate(Bucket=bucket_name, Prefix=s3_path):
             if 'Contents' in page:
@@ -92,10 +131,50 @@ class S3Client:
                     os.makedirs(local_path, exist_ok=True)
 
                     # 下载文件
-                    print(f"下载: {s3_key} -> {local_file}")
+                    print(f"下载: {s3_key} -> {local_file}, 大小 {round(obj['Size'] / 1024 / 1024, 4)} MB")
                     self.s3_client.download_file(bucket_name, s3_key, local_file)
 
-        print(f"下载完成，文件保存在: {os.path.abspath(local_dir)}")
+                    total_downloaded += 1
+                    total_size += obj['Size']
+
+        # 输出更详细的下载统计信息
+        print(f"下载完成，共下载 {total_downloaded} 个文件，"
+              f"总大小 {round(total_size / 1024 / 1024, 2)} MB，"
+              f"文件保存在: {os.path.abspath(local_dir)}")
+
+    def upload_directory(self, bucket_name, local_dir, s3_path):
+        if not os.path.isdir(local_dir):
+            print(f"错误：{local_dir} 不是一个有效的目录")
+            return False
+
+        total_uploaded = 0
+        total_size = 0
+
+        # 遍历本地目录
+        for root, dirs, files in os.walk(local_dir):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+
+                # 获取相对路径，用于保持目录结构
+                relative_path = os.path.relpath(local_file_path, local_dir)
+                s3_key = os.path.join(s3_path, relative_path).replace(os.sep, '/')
+
+                # 上传文件
+                file_size = os.path.getsize(local_file_path)
+                try:
+                    print(f"上传: {local_file_path} -> {s3_key} "
+                          f"(大小: {round(file_size / 1024 / 1024, 2)} MB)")
+
+                    self.s3_client.upload_file(local_file_path, bucket_name, s3_key)
+                    total_uploaded += 1
+                    total_size += file_size
+                except Exception as e:
+                    print(f"上传失败 {local_file_path}: {e}")
+
+        # 输出上传统计信息
+        print(f"上传完成，共上传 {total_uploaded} 个文件，"
+              f"总大小 {round(total_size / 1024 / 1024, 2)} MB")
+        return True
 
 
 def main():
@@ -130,13 +209,20 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
     cmd = '''
     /usr/bin/python3 Api_DownloadS3.py -u http://10.192.53.221:8080 -k QB1YGVNUKJP2MRK8AK2R -s JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH -n prod-ac-dmp -p backup/data/collect/self/driving/20250530-20250529-car2-bev-Lidar/3D_data_LSJWK4095NS119733 -i n000001 -x .pcap
     '''
-    endpoint_url='http://10.192.53.221:8080',  # 你的S3 endpoint
-    aws_access_key_id='QB1YGVNUKJP2MRK8AK2R',  # 替换为你的Access Key
-    aws_secret_access_key='JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH',  # 替换为你的Secret Key
-    bucket_name = 'prod-ac-dmp'
-    s3_path = 'backup/data/collect/self/driving/20250616_upload_Q3402/'
+    endpoint_url='http://10.192.53.221:8080'  # 你的S3 endpoint
+    aws_access_key_id='44JAMVA71J5L90D9DK77'  # 替换为你的Access Key
+    aws_secret_access_key='h1cY4WzpNxmQCpsXlXFpO4nWjNp3pbH0ZuBsuGmu'  # 替换为你的Secret Key
+    # bucket_name = 'prod-ac-dmp'
+    bucket_name = 'aeb'
+    s3_path = 'ALL/'
     local_dir = '/media/data/Q_DATA/debug_data'
+    include = ['EP39-PP001/202507/20250714/params']
+    exclude = ['CAN']
+    local_dir = '/media/data/Q_DATA/AebRawData'
+    s3_client = S3Client(endpoint_url, aws_access_key_id, aws_secret_access_key)
+    # s3_client.list_objects(bucket_name, s3_path, include=include, exclude=exclude)
+    s3_client.download_s3_folder(bucket_name, s3_path, local_dir, include, exclude)
