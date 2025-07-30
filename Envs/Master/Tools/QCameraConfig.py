@@ -24,7 +24,6 @@ class QCameraConfig:
         self.quotes_data = self.check_pb_text_demo_with_double_quotes()
         self.q_info_json = os.path.join(get_project_path(), 'Docs', 'Resources', 'q_info_json', 'run_info.json')
 
-
     def check_pb_text_demo_with_double_quotes(self):
         """解析protobuf格式的文件并转换为字典"""
         data = {}
@@ -301,12 +300,10 @@ class QCameraConfig:
 
         # 处理所有字段
         for field_descriptor in message.DESCRIPTOR.fields:
-            # print(field_descriptor.type)
             field_name = field_descriptor.name
             field_value = getattr(message, field_name)
             try:
                 if not field_descriptor.type == field_descriptor.TYPE_MESSAGE and not message.HasField(field_name):
-                    print(field_name)
                     continue
             except Exception as e:
                 pass
@@ -379,7 +376,6 @@ class QCameraConfig:
         q_cameras_config = q_config['carInfo']['runParams']['v2VehicleParams']['cameras']
         for q_camera_config in q_cameras_config:
             if q_camera_config['installation']['cameraId'] in cameras_config.keys():
-                print(q_camera_config['installation']['cameraId'])
                 camera_name = q_camera_config['installation']['cameraId']
                 q_camera_config['common']['width'] = cameras_config[camera_name]['image_width']
                 q_camera_config['common']['height'] = cameras_config[camera_name]['image_height']
@@ -424,6 +420,65 @@ class QCameraConfig:
         with open(os.path.join(kunyi_folder, 'q_info.json'), 'w', encoding='utf-8') as file:
             json.dump(q_config, file, indent=2)
         return os.path.join(kunyi_folder, 'q_info.json')
+
+    def zone_to_q_calib(self, zone_folder):
+        convert_camera_name = {
+            'CAM_PBQ_REAR': 'rear',
+            'CAM_PBQ_FRONT_WIDE': 'front',
+            'CAM_PBQ_FRONT_FISHEYE': 'fisheye_front',
+            'CAM_PBQ_RIGHT_FISHEYE': 'fisheye_right',
+            'CAM_PBQ_REAR_FISHEYE': 'fisheye_rear',
+            'CAM_PBQ_LEFT_FISHEYE': 'fisheye_left',
+        }
+
+        with open(self.q_info_json, 'r', encoding='utf-8') as file:
+            q_config = json.load(file)
+
+        q_cameras_config = q_config['carInfo']['runParams']['v2VehicleParams']['cameras']
+        for q_camera_config in q_cameras_config:
+            if q_camera_config['installation']['cameraId'] in convert_camera_name.keys():
+                camera_name = convert_camera_name[q_camera_config['installation']['cameraId']]
+                with open(os.path.join(zone_folder, f'{camera_name}.json'), 'r', encoding='utf-8') as file:
+                    zone_camera_config = json.load(file)
+
+                q_camera_config['common']['width'] = zone_camera_config['image_width']
+                q_camera_config['common']['height'] = zone_camera_config['image_height']
+
+                q_camera_inherent_config = q_camera_config['inherent']
+                q_camera_inherent_config['intrinsics']['calibrationTime'] = zone_camera_config.get(
+                    'calibration_time', "2025-05-23 02:09:20")
+                if 'fisheye' in camera_name:
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k1'] = zone_camera_config['distort'][0]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k2'] = zone_camera_config['distort'][1]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['p1'] = 0.0
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['p2'] = 0.0
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k3'] = zone_camera_config['distort'][2]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k4'] = zone_camera_config['distort'][3]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k5'] = 0.0
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k6'] = 0.0
+                else:
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k1'] = zone_camera_config['distort'][0]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k2'] = zone_camera_config['distort'][1]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['p1'] = zone_camera_config['distort'][2]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['p2'] = zone_camera_config['distort'][3]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k3'] = zone_camera_config['distort'][4]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k4'] = zone_camera_config['distort'][5]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k5'] = zone_camera_config['distort'][6]
+                    q_camera_inherent_config['intrinsics']['distortCoeffs']['k6'] = zone_camera_config['distort'][7]
+
+                q_camera_installation_config = q_camera_config['installation']
+                q_camera_installation_config['cameraToVehicleExtrinsics']['calibrationTime'] = zone_camera_config.get(
+                    'calibration_time', "2025-05-23 02:09:20")
+                q_camera_installation_config['cameraToVehicleExtrinsics']['x'] = zone_camera_config['camera_x']
+                q_camera_installation_config['cameraToVehicleExtrinsics']['y'] = zone_camera_config['camera_y']
+                q_camera_installation_config['cameraToVehicleExtrinsics']['z'] = zone_camera_config['camera_z']
+                q_camera_installation_config['cameraToVehicleExtrinsics']['yaw'] = zone_camera_config['yaw']
+                q_camera_installation_config['cameraToVehicleExtrinsics']['pitch'] = zone_camera_config['pitch']
+                q_camera_installation_config['cameraToVehicleExtrinsics']['roll'] = zone_camera_config['roll']
+
+        with open(os.path.join(zone_folder, 'q_info.json'), 'w', encoding='utf-8') as file:
+            json.dump(q_config, file, indent=2)
+        return os.path.join(zone_folder, 'q_info.json')
 
     def transform_q_calib(self, config_json_path, v2_folder):
         if not os.path.exists(v2_folder):
@@ -484,7 +539,6 @@ class QCameraConfig:
         for camera_info in camera_config['carInfo']['runParams']['v2VehicleParams']['cameras']:
             inherent = camera_info['inherent']
             inherent = self.convert_dict_keys(inherent)
-            print(inherent)
             self.generate_inherent_pbtext(camera_info['key'], inherent, inherent_folder)
 
         # 生成installation
@@ -494,7 +548,6 @@ class QCameraConfig:
             installation = camera_info['installation']
             installation = self.convert_dict_keys(installation)
             self.generate_installation_pbtext(camera_info['key'], installation, installation_folder)
-            print(installation)
 
     def transform_kunyi_calib(self, kunyi_config_json_path, output_path, docker_path, bin_tool_path, target_car_id='ZP01'):
         """
@@ -545,6 +598,12 @@ class QCameraConfig:
             transfer_2j5_2_1j5(temp_path, temp_path)
             transfer_1j5_2_es39(temp_path, os.path.join(output_path, 'json'))
             config_path = self.kunyi_to_q_calib(temp_path)
+
+        elif source == 'zone':
+            for f in glob.glob(os.path.join(config_path, '*json')):
+                shutil.copy(f, os.path.join(output_path, 'json'))
+            config_path = self.zone_to_q_calib(config_path)
+
         else:
             transfer_q_2_es39(config_path, os.path.join(output_path, 'json'))
 
@@ -651,11 +710,13 @@ class QCameraConfig:
 
 if __name__ == '__main__':
     camera_config = QCameraConfig()
-    kunyi_config_path = '/home/vcar/ZONE/20250102_172710_n000011/Config/20250102_172710_calibration.json'
-    q_config_path = '/home/vcar/Replay-Autotest-at-Home/Docs/Resources/q_info_json/run_info.json'
-    output_folder = '/home/vcar/ZONE/0715_v2'
+    kunyi_config_path = '/media/data/kunyi_driving_data/20231130_152434_n000001/Config/20231130_152434_calibration.json'
+    zone_config_path = '/media/data/Q_DATA/AebRawData/EP39-PP001/202507/20250714/params/J6/camera'
+    # q_config_path = '/home/vcar/Replay-Autotest-at-Home/Docs/Resources/q_info_json/run_info.json'
+    output_folder = '/home/vcar/ZONE/temp/1234'
     docker_path = '/home/vcar/ZONE/Tools/start_docker.sh'
     bin_tool_path = '/home/vcar/ZONE/Tools/v2_txt_to_bin_tools'
     # v2_path = camera_config.transform_kunyi_calib(kunyi_config_json_path, output_folder, docker_path, bin_tool_path)
-    v2_path = camera_config.gen_v2(kunyi_config_path, output_folder, docker_path, bin_tool_path, 'kunyi')
+    v2_path = camera_config.gen_v2(zone_config_path, output_folder, docker_path, bin_tool_path, 'zone')
+    # v2_path = camera_config.gen_v2(kunyi_config_path, output_folder, docker_path, bin_tool_path, 'kunyi')
     print(v2_path)
