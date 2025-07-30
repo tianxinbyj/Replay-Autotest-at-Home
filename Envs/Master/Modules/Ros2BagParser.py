@@ -414,8 +414,8 @@ class Ros2BagParser:
         connections = []
         with Reader(bag_path) as reader:
             for x in reader.connections:
-                print(x.topic)
                 if x.topic in topic_list:
+                    print(x.topic)
                     connections.append(x)
                     if x.topic in ['/LP/ParkingOcc']:
                         single_folder = os.path.join(folder, x.topic.replace('/', ''))
@@ -2351,9 +2351,10 @@ class Ros2BagClip:
 
 
 if __name__ == "__main__":
-    workspace = '/home/vcar/ZONE/install_34'
-    ros2bag_path = '/home/vcar/ZONE/AEB_ros2bag_from_car/34'
-    folder = '/home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home/Tests'
+    # workspace = '/home/vcar/ZONE/install_34'
+    workspace = '/media/data/Q_DATA/debug_data/20250714-001-AEB/rosbag/install'
+    ros2bag_path = '/media/data/Q_DATA/debug_data/20250714-001-AEB/rosbag/rosbag/rosbag2_2025_07_14-13_55_29/2025_07_14-13_58_33_new-single'
+    folder = '/home/vcar/ZONE/temp/orin_bag'
 
     os.makedirs(folder, exist_ok=True)
     ES39_topic_list = [
@@ -2363,12 +2364,12 @@ if __name__ == "__main__":
         # '/VA/PK/Slots',
         # '/PK/DR/Result',
         # '/SA/INSPVA',
-        '/Camera/FrontWide/H265',
-        '/Camera/SorroundRight/H265',
-        '/Camera/SorroundLeft/H265',
-        '/Camera/SorroundFront/H265',
-        '/Camera/SorroundRear/H265',
-        '/Camera/Rear/H265',
+        # '/Camera/FrontWide/H265',
+        # '/Camera/SorroundRight/H265',
+        # '/Camera/SorroundLeft/H265',
+        # '/Camera/SorroundFront/H265',
+        # '/Camera/SorroundRear/H265',
+        # '/Camera/Rear/H265',
         # '/PK/PER/VisionSlotDecodingList',
         # '/VA/QC/BEVObstaclesTracks',
         # '/VA/QC/FsObstacles',
@@ -2381,7 +2382,10 @@ if __name__ == "__main__":
         # '/LP/ParkingOcc',
         # '/PK/PER/FSDecodingList',
         # '/VA/PK/Freespaces',
-    ]
+        '/SAFrontRadarObject',
+        '/SASR5RearLeftCornerRadarObject',
+        '/SASR5RearRightCornerRadarObject',
+        ]
 
     RBP = Ros2BagParser(workspace)
     RBP.getMsgInfo(ros2bag_path, ES39_topic_list, folder, 'xxxxxx')
