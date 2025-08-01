@@ -219,9 +219,8 @@ if __name__ == '__main__':
     # bucket_name = 'prod-ac-dmp'
     bucket_name = 'aeb'
     s3_path = 'ALL/'
-    local_dir = '/media/data/Q_DATA/debug_data'
-    include = ['EP39-PP001/202507/20250714/params']
-    exclude = ['CAN']
+    include = ['AH4EM-SIMU182/202507/20250713']
+    exclude = ['canlog']
     local_dir = '/media/data/Q_DATA/AebRawData'
     s3_client = S3Client(endpoint_url, aws_access_key_id, aws_secret_access_key)
     # s3_client.list_objects(bucket_name, s3_path, include=include, exclude=exclude)

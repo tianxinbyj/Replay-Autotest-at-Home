@@ -601,6 +601,7 @@ class QCameraConfig:
 
         elif source == 'zone':
             for f in glob.glob(os.path.join(config_path, '*json')):
+                print(f)
                 shutil.copy(f, os.path.join(output_path, 'json'))
             config_path = self.zone_to_q_calib(config_path)
 

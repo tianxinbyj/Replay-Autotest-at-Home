@@ -9,8 +9,6 @@ import subprocess
 from pathlib import Path
 
 import cv2
-from moviepy.video.io.VideoFileClip import VideoFileClip
-from pandas.io.common import file_path_to_url
 from rosbags.rosbag2 import Reader, Writer
 from rosbags.typesys import Stores, get_typestore
 from rosbags.typesys import get_types_from_msg
@@ -218,9 +216,6 @@ class Ros2Bag2BirdView:
                     return False
         return True
 
-
-
-
     def extract_frames_from_h265(self):
         if os.path.exists(self.picture_path):
             shutil.rmtree(self.picture_path)
@@ -374,7 +369,6 @@ class Ros2Bag2BirdView:
             return True  # 返回True表示跳过了帧
 
         return False  # 返回False表示没有跳过帧
-
 
     def test_extract_frames(self, video_name_list, output_dir, prefix="frame", format="jpg", quality=95):
         """

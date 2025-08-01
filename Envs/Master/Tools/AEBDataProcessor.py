@@ -5,17 +5,22 @@
 import json
 import os
 import shutil
+import sys
 import threading
 import time
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import yaml
 
 from Envs.Master.Modules.DataTransformer import DataTransformer, DataLoggerAnalysis
 from Envs.Master.Tools.QCameraConfig import QCameraConfig
-from Utils.Libs import ros_docker_path, kill_tmux_session_if_exists, create_folder, force_delete_folder
+from Utils.Libs import ros_docker_path, kill_tmux_session_if_exists, create_folder, force_delete_folder, \
+    generate_unique_id, ThreadManager
 
+AEBRawDataPath = '/media/data/Q_DATA/AebRawData'
+AEBReplayDataPath = '/media/data/Q_DATA/AebReplayData'
 vehicle_id = {
     '005': 'Q3402',
     '006': 'Q3401',
@@ -23,7 +28,132 @@ vehicle_id = {
 }
 
 
+def reindex(install_path, bag_folder):
+    tmux_session = generate_unique_id(str(time.time())) + '_reindex_ses'
+    tmux_window = generate_unique_id(str(time.time())) + '_reindex_win'
+    os.system(f'tmux new-session -s {tmux_session} -n {tmux_window} -d')
+    time.sleep(0.1)
+    os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "bash {ros_docker_path}" C-m')
+    time.sleep(3)
+    os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} '
+              f'"source {install_path}/setup.bash" C-m')
+    time.sleep(1)
+    os.system(f'tmux send-keys -t {tmux_session}:{tmux_window} "ros2 bag reindex -s sqlite3 {bag_folder}" C-m')
+
+    while not os.path.exists(os.path.join(bag_folder, 'metadata.yaml')):
+        time.sleep(1)
+    kill_tmux_session_if_exists(tmux_session)
+
+
 class AEBDataProcessor:
+
+    def __init__(self, aeb_data_package):
+        """
+        # data group的架构
+        20250614-005-AEB
+        -- ZoneRos
+        ---- rosbag2_2025_06_14-14_45_27
+        ---- rosbag2_2025_06_14-15_19_47
+        -- Qcraft
+        ---- 20250614_105002_Q3402
+        ---- 20250614_113118_Q3402
+        ---- 20250614_122620_Q3402
+        ---- 20250614_125956_Q3402
+        ---- 20250614_133921_Q3402
+        ---- 20250614_144736_Q3402
+        """
+
+        package_path = Path(aeb_data_package)
+
+        install_gz = package_path / 'install' / 'install.tar.gz'
+        if not install_gz.exists():
+            print('未找到install文件')
+            sys.exit(1)
+
+        parameter_folder = package_path / 'params' / 'J6' / 'camera'
+        if not parameter_folder.exists():
+            print('未找到camera参数文件')
+            sys.exit(1)
+
+        # 在AEBReplayDataPath生成新文件夹
+        self.replay_package_path = AEBReplayDataPath / package_path.relative_to(AEBRawDataPath)
+        v2_folder = self.replay_package_path / 'parameter'
+        if v2_folder.exists():
+            shutil.rmtree(v2_folder)
+        os.makedirs(v2_folder, exist_ok=True)
+
+        # 生成install文件
+        cmd = f'tar -xzvf {install_gz} -C {self.replay_package_path}'
+        p = os.popen(cmd)
+        p.read()
+
+        # 生成相机车参文件
+        camera_config = QCameraConfig()
+        docker_path = '/home/vcar/Downloads/start_docker.sh'
+        bin_tool_path = '/home/vcar/ZONE/Tools/v2_txt_to_bin_tools'
+        camera_config.gen_v2(parameter_folder, v2_folder, docker_path, bin_tool_path, 'zone')
+
+        # 组织数据
+        self.data_group = {
+            'Rosbag': {}, 'Qdata': {}
+        }
+        for dir_path in sorted(package_path.rglob("*")):
+            if dir_path.is_dir() and "rosbag2" in dir_path.name:
+                t0 = datetime.strptime(dir_path.name[8:], "%Y_%m_%d-%H_%M_%S").timestamp()
+                for file in sorted(dir_path.rglob("*.gz")):
+                    t1 = datetime.strptime(file.name.split('.')[0], "%Y_%m_%d-%H_%M_%S").timestamp()
+                    if t1 - t0 < 30:
+                        continue
+
+                    formatted_t0 = datetime.fromtimestamp(t0).strftime("%Y_%m_%d_%H_%M_%S")
+                    formatted_t1 = datetime.fromtimestamp(t1).strftime("%Y_%m_%d_%H_%M_%S")
+                    key = f'{formatted_t0}-{formatted_t1}'
+                    self.data_group['Rosbag'][key] = {
+                        'path': str(file.absolute()), 'start_time': t0, 'end_time': t1,
+                    }
+                    t0 = t1
+
+        if self.data_group['Qdata']:
+            print('数据需要处理Q图像数据')
+            self.run_with_Q()
+        else:
+            print('数据不需要处理Q图像数据')
+            self.run_without_Q()
+
+    def run_with_Q(self):
+        pass
+
+    def run_without_Q(self):
+        task_manager = ThreadManager(max_threads=3)
+        install_path = self.replay_package_path / 'install'
+        data_transformer = DataTransformer(install_path)
+        i = 0
+        for rosbag_key, rosbag_info in self.data_group['Rosbag'].items():
+            ros2bag_path = self.replay_package_path / 'rosbag' / rosbag_key / 'ROSBAG' / 'COMBINE'
+            # if ros2bag_path.exists():
+            #     shutil.rmtree(ros2bag_path)
+            # os.makedirs(ros2bag_path)
+            #
+            # cmd = f'tar -xzvf {rosbag_info["path"]} -C {ros2bag_path}'
+            # p = os.popen(cmd)
+            # p.read()
+            # reindex(install_path, ros2bag_path)
+            print(f'{rosbag_key} 包生成完成')
+
+            # 生成AVM图片
+            json_config_path = self.replay_package_path / 'parameter' / 'json'
+            task_manager.add_task(data_transformer.gen_AVM_from_db3, ros2bag_path.parent.parent, json_config_path)
+
+            i += 1
+            if i == 3:
+                break
+
+        print('等待所有线程都结束')
+        task_manager.stop()
+        print("所有任务已完成，程序退出")
+
+
+class AEBDataProcessor2:
 
     def __init__(self, folder):
         self.data_group = {}
@@ -226,5 +356,8 @@ class AEBDataProcessor:
 
 
 if __name__ == '__main__':
-    folder = '/media/data/Q_DATA/debug_data'
-    AEBDataProcessor(folder).run()
+    # folder = '/media/data/Q_DATA/debug_data'
+    # AEBDataProcessor2(folder).run()
+    # time.sleep(3600*6)
+    folder = '/media/data/Q_DATA/AebRawData/AH4EM-SIMU182/202507/20250713'
+    AEBDataProcessor(folder)

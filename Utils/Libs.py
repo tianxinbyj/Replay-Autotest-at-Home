@@ -13,7 +13,9 @@ import signal
 import string
 import subprocess
 import sys
+import threading
 import time
+from queue import Queue
 import yaml
 
 
@@ -30,6 +32,46 @@ def get_project_path():
         if parent_folder == folder:
             raise Exception("未找到项目路径")
         folder = parent_folder
+
+
+class ThreadManager:
+    def __init__(self, max_threads=5):
+        self.max_threads = max_threads
+        self.semaphore = threading.Semaphore(max_threads)
+        self.task_queue = Queue()
+        self.running = True
+        # 启动一个线程来处理任务队列
+        self.worker = threading.Thread(target=self.process_tasks)
+        self.worker.start()
+
+    def process_tasks(self):
+        """处理任务队列中的任务"""
+        while self.running or not self.task_queue.empty():
+            if not self.task_queue.empty():
+                task, args = self.task_queue.get()
+                self.semaphore.acquire()  # 获取信号量，控制并发数量
+                thread = threading.Thread(target=self.run_task, args=(task, args))
+                thread.start()
+            else:
+                time.sleep(0.1)  # 短暂休眠，减少CPU占用
+
+    def run_task(self, task, args):
+        """执行具体任务，并在完成后释放信号量"""
+        try:
+            task(*args)
+        finally:
+            self.semaphore.release()  # 释放信号量，允许新线程启动
+            self.task_queue.task_done()
+
+    def add_task(self, task, *args):
+        """添加新任务到队列"""
+        self.task_queue.put((task, args))
+
+    def stop(self):
+        """停止任务管理器"""
+        self.running = False
+        self.worker.join()  # 等待工作线程结束
+        self.task_queue.join()  # 等待所有任务完成
 
 
 def sync_test_result(method):
@@ -395,3 +437,7 @@ topic2camera = {
     '/Camera/SorroundRear/H265': 'CAM_FISHEYE_BACK',
     '/Camera/Rear/H265': 'CAM_BACK',
 }
+
+if __name__ == '__main__':
+    f = '/media/data/Q_DATA/debug_data/json'
+    force_delete_folder(f)

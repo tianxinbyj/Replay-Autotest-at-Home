@@ -363,19 +363,13 @@ class CameraObject:
             self.size = (self.json_data['image_width'], self.json_data['image_height'])
             if 'vcs' in self.json_data:
                 self.extrinsic = camera_rotation @ self.cal_RTMatrix_horizon()
-                camera_orientation = self.json_data['vcs']['rotation'][2] + self.json_data['yaw']
             else:
                 self.extrinsic = camera_rotation @ self.cal_RTMatrix(self.json_data)
-                camera_orientation = self.json_data['yaw']
             self.intrinsic = np.array([
                 [self.json_data['focal_u'], 0, self.json_data['center_u'], 0],
                 [0, self.json_data['focal_v'], self.json_data['center_v'], 0],
                 [0, 0, 1, 0]])
             self.distort = np.array(self.json_data['distort'])
-            self.fov_range = [
-                camera_orientation - np.deg2rad(self.json_data['fov'] / 2),
-                camera_orientation + np.deg2rad(self.json_data['fov'] / 2),
-            ]
             self.xi = 0
         elif yaml_file:
             with open(yaml_file, 'r', encoding='utf8') as fp:
@@ -387,11 +381,6 @@ class CameraObject:
                 [0, self.yaml_data['focal_y'], self.yaml_data['center_v'], 0],
                 [0, 0, 1, 0]])
             self.distort = np.array(self.yaml_data['distort'])
-            camera_orientation = self.yaml_data['yaw']
-            self.fov_range = [
-                camera_orientation - np.deg2rad(self.yaml_data['fov'] / 2),
-                camera_orientation + np.deg2rad(self.yaml_data['fov'] / 2),
-            ]
             self.xi = 0
         else:
             self.size = size
@@ -399,8 +388,6 @@ class CameraObject:
             self.intrinsic = intrinsic  # 3 x 4
             self.distort = distort  # 1 X n
             self.xi = xi
-            self.fov_range = fov_range
-        self.fov = self.fov_range[-1] - self.fov_range[0]
         self.camera_location = np.linalg.inv(self.extrinsic)[0:3, 3]
 
     def cal_RTMatrix_horizon(self):
