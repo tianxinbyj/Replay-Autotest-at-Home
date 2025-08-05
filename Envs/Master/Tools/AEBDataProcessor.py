@@ -11,20 +11,24 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+import paramiko
 import yaml
 
 from Envs.Master.Modules.DataTransformer import DataTransformer, DataLoggerAnalysis
 from Envs.Master.Tools.QCameraConfig import QCameraConfig
 from Utils.Libs import ros_docker_path, kill_tmux_session_if_exists, create_folder, force_delete_folder, \
     generate_unique_id, ThreadManager
+from Utils.FileDeliverer import calculate_local_folder_size, deliver_file, create_remote_folder
 
 AEBRawDataPath = '/media/data/Q_DATA/AebRawData'
 AEBReplayDataPath = '/media/data/Q_DATA/AebReplayData'
 vehicle_id = {
     '005': 'Q3402',
     '006': 'Q3401',
-    '001': 'Z0001'
+    '001': 'Z0001',
+    '194': 'Q0194'
 }
 
 
@@ -43,6 +47,114 @@ def reindex(install_path, bag_folder):
     while not os.path.exists(os.path.join(bag_folder, 'metadata.yaml')):
         time.sleep(1)
     kill_tmux_session_if_exists(tmux_session)
+
+
+class AEBDataManager:
+
+    def __init__(self):
+        repository_path = Path(AEBReplayDataPath)
+        self.aeb_data_package_list = {}
+        self.package_status_path = repository_path / 'AEBPackageStatus.json'
+        self.package_status = self.load_package_status()
+
+        for aeb_install in sorted(repository_path.rglob("*install")):
+            aeb_data_package = aeb_install.parent
+            rosbag_path = aeb_data_package / 'rosbag'
+
+            k = str(aeb_data_package.relative_to(AEBReplayDataPath)).replace('/', '|')
+            prepared_size, transferred_size, replayed_size = 0, 0, 0
+            prepared_num, transferred_num, replayed_num = 0, 0, 0
+            if rosbag_path.exists():
+                for f in rosbag_path.glob('*'):
+                    if str(f.name) not in self.package_status:
+                        self.package_status[str(f.name)] = {
+                            'path': str(f),
+                            'status': 'prepared',
+                            'size': calculate_local_folder_size(f)/ (1024 ** 3),
+                        }
+                        self.save_package_status()
+
+                    package_status = self.package_status[str(f.name)]
+                    if package_status['status'] == 'prepared':
+                        prepared_size += package_status['size']
+                        prepared_num += 1
+                    elif package_status['status'] == 'transferred':
+                        transferred_size += package_status['size']
+                        transferred_num += 1
+                    elif package_status['status'] == 'replayed':
+                        replayed_size += package_status['size']
+                        replayed_num += 1
+
+                    self.aeb_data_package_list[k] = {
+                        'path': str(aeb_data_package),
+                        'prepared_size': round(prepared_size, 1),
+                        'prepared_num': prepared_num,
+                        'transferred_size': round(transferred_size, 1),
+                        'transferred_num': transferred_num,
+                        'replayed_size': round(replayed_size, 1),
+                        'replayed_num': replayed_num,
+                    }
+
+    def transfer_data(self, host, username, password, data_label, remote_base_dir):
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(
+            host,
+            port=22,
+            username=username,
+            password=password,
+        )
+        for dir in data_label.split('|'):
+            remote_base_dir = create_remote_folder(ssh, remote_base_dir, dir)
+            if not remote_base_dir:
+                print(0)
+                return
+
+        package_path = Path(self.aeb_data_package_list[data_label]['path'])
+        install_path = Path(package_path) / 'install'
+        parameter_path = Path(package_path) / 'parameter'
+        if not deliver_file(
+                host=host, username=username, password=password,
+                local_folder=install_path, remote_base_dir=remote_base_dir
+        ):
+            print(0)
+            return
+
+        if not deliver_file(
+                host=host, username=username, password=password,
+                local_folder=parameter_path, remote_base_dir=remote_base_dir
+        ):
+            print(0)
+            return
+
+        remote_rosbag_path = create_remote_folder(ssh, remote_base_dir, 'rosbag')
+        if not remote_rosbag_path:
+            print(0)
+            return
+
+        for rosbag_path in sorted((package_path / 'rosbag').glob('*')):
+            if str(rosbag_path.name) not in self.package_status:
+                print(f'{rosbag_path.name}是一个未知数据')
+                continue
+            elif self.package_status[str(rosbag_path.name)]['status'] == 'prepared':
+                if deliver_file(
+                        host=host, username=username, password=password,
+                        local_folder=rosbag_path, remote_base_dir=remote_rosbag_path,
+                        backup_space=20,
+                ):
+                    self.package_status[str(rosbag_path.name)]['status'] = 'transferred'
+                    self.save_package_status()
+
+    def save_package_status(self):
+        with open(self.package_status_path, 'w', encoding='utf-8') as f:
+            json.dump(self.package_status, f, ensure_ascii=False, indent=4)
+
+    def load_package_status(self):
+        if not self.package_status_path.exists():
+            return {}
+
+        with open(self.package_status_path, 'r', encoding='utf-8') as file:
+            return json.load(file)
 
 
 class AEBDataProcessor:
@@ -120,33 +232,38 @@ class AEBDataProcessor:
             print('数据不需要处理Q图像数据')
             self.run_without_Q()
 
-    def run_with_Q(self):
+    def run_with_Q(self, render=False):
         pass
 
-    def run_without_Q(self):
+    def run_without_Q(self, update=False, render=False):
         task_manager = ThreadManager(max_threads=3)
         install_path = self.replay_package_path / 'install'
         data_transformer = DataTransformer(install_path)
-        i = 0
+        render_i = 0
         for rosbag_key, rosbag_info in self.data_group['Rosbag'].items():
             ros2bag_path = self.replay_package_path / 'rosbag' / rosbag_key / 'ROSBAG' / 'COMBINE'
-            # if ros2bag_path.exists():
-            #     shutil.rmtree(ros2bag_path)
-            # os.makedirs(ros2bag_path)
-            #
-            # cmd = f'tar -xzvf {rosbag_info["path"]} -C {ros2bag_path}'
-            # p = os.popen(cmd)
-            # p.read()
-            # reindex(install_path, ros2bag_path)
+            meta_path = ros2bag_path / 'metadata.yaml'
+
+            if not update and meta_path.exists():
+                print(f'{rosbag_key} 包已存在')
+                continue
+            else:
+                if ros2bag_path.exists():
+                    shutil.rmtree(ros2bag_path)
+                os.makedirs(ros2bag_path)
+
+            cmd = f'tar -xzvf {rosbag_info["path"]} -C {ros2bag_path}'
+            p = os.popen(cmd)
+            p.read()
+            reindex(install_path, ros2bag_path)
             print(f'{rosbag_key} 包生成完成')
 
-            # 生成AVM图片
-            json_config_path = self.replay_package_path / 'parameter' / 'json'
-            task_manager.add_task(data_transformer.gen_AVM_from_db3, ros2bag_path.parent.parent, json_config_path)
+            # 生成AVM图片,如果render不激活，只会渲染前3个
+            if render or render_i < 3:
+                json_config_path = self.replay_package_path / 'parameter' / 'json'
+                task_manager.add_task(data_transformer.gen_AVM_from_db3, ros2bag_path.parent.parent, json_config_path)
 
-            i += 1
-            if i == 3:
-                break
+            render_i += 1
 
         print('等待所有线程都结束')
         task_manager.stop()
@@ -357,7 +474,17 @@ class AEBDataProcessor2:
 
 if __name__ == '__main__':
     # folder = '/media/data/Q_DATA/debug_data'
+    # folder = '/media/data/Q_DATA/debug_data2'
     # AEBDataProcessor2(folder).run()
     # time.sleep(3600*6)
-    folder = '/media/data/Q_DATA/AebRawData/AH4EM-SIMU182/202507/20250713'
-    AEBDataProcessor(folder)
+    # folder = '/media/data/Q_DATA/AebRawData/AH4EM-SIMU023/202507/20250708'
+    # AEBDataProcessor(folder)
+    a = AEBDataManager()
+    config = {
+        "host": "10.192.68.107",
+        "username": "zhangliwei01",
+        "password": "Pass1234",
+        "data_label": "AH4EM-SIMU023|202507|20250708",
+        "remote_base_dir": "/home/zhangliwei01/ZONE/AEBReplayData"  # 远程文件夹路径
+    }
+    a.transfer_data(**config)

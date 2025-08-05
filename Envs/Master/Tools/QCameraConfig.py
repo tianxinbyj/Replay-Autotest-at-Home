@@ -601,7 +601,6 @@ class QCameraConfig:
 
         elif source == 'zone':
             for f in glob.glob(os.path.join(config_path, '*json')):
-                print(f)
                 shutil.copy(f, os.path.join(output_path, 'json'))
             config_path = self.zone_to_q_calib(config_path)
 
@@ -712,9 +711,12 @@ class QCameraConfig:
 if __name__ == '__main__':
     camera_config = QCameraConfig()
     kunyi_config_path = '/media/data/kunyi_driving_data/20231130_152434_n000001/Config/20231130_152434_calibration.json'
-    zone_config_path = '/media/data/Q_DATA/AebRawData/EP39-PP001/202507/20250714/params/J6/camera'
+    # zone_config_path = '/media/data/Q_DATA/AebRawData/EP39-PP001/202507/20250714/params/J6/camera'
+
+    zone_config_path = '/home/vcar/ZONE/camera'
+
     # q_config_path = '/home/vcar/Replay-Autotest-at-Home/Docs/Resources/q_info_json/run_info.json'
-    output_folder = '/home/vcar/ZONE/temp/1234'
+    output_folder = '/home/vcar/ZONE/temp/NOA'
     docker_path = '/home/vcar/ZONE/Tools/start_docker.sh'
     bin_tool_path = '/home/vcar/ZONE/Tools/v2_txt_to_bin_tools'
     # v2_path = camera_config.transform_kunyi_calib(kunyi_config_json_path, output_folder, docker_path, bin_tool_path)
