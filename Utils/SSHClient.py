@@ -6,6 +6,7 @@ import os
 import subprocess
 import time
 
+import pandas as pd
 import paramiko
 from scp import SCPClient
 
@@ -296,15 +297,51 @@ class SSHClient:
         except:
             return False
 
-    def get_aeb_replay_data(self, action, data_label='', remote_base_dir='', host=None, username=None, password=None):
-        if action == 'ls':
-            command = f'cd {self.interface_path} && python3 Api_GetReplayData.py -a {action}'
+    def get_aeb_replay_data(self, action='ls', data_label='', data_base_dir=None, host=None, username=None, password=None):
+        command = f'cd {self.interface_path} && python3 Api_GetReplayData.py'
+        res = self.send_cmd(command)
+        try:
+            res = res.strip().split('\n')
+            col = res[0].split(' | ')
+            rows = [r.split(' ') for r in res[1:]]
+            replay_list = pd.DataFrame(rows, columns=col)
+        except:
+            return None
 
+        if action == 'ls':
+            print(command)
+            return replay_list
+
+        elif action == 'dd':
+            if not data_base_dir:
+                return None
+
+            if not os.path.exists(data_base_dir):
+                os.makedirs(data_base_dir)
+
+            if data_label not in replay_list['id'].values:
+                return None
+
+            # 默认使用Master(自己)作为目标
+            if not host:
+                host = bench_config['Master']['ip']
+            if not username:
+                username = bench_config['Master']['username']
+            if not password:
+                password = str(bench_config['Master']['password'])
+
+            command = f'cd {self.interface_path} && python3 Api_GetReplayData.py -a {action} -l {data_label} -r {data_base_dir} -i {host} -u {username} -p {password}'
+
+            print(command)
             res = self.send_cmd(command)
-            print(res)
-            try:
-                r = eval(res.strip().split('\n')[-1])
-                return r
-            except:
-                return 0
-        return None
+            return res
+
+
+if __name__ == '__main__':
+    action = 'ls'
+    ssh = SSHClient()
+    r = ssh.get_aeb_replay_data()
+    data_label = 'AH4EM-SIMU023|202507|20250708'
+    data_base_dir = '/home/zhangliwei01/ZONE/AEBReplayData'
+    r = ssh.get_aeb_replay_data(action='dd', data_label=data_label, data_base_dir=data_base_dir)
+    print(r)

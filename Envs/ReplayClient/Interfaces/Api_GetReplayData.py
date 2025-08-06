@@ -28,10 +28,10 @@ def transfer_data(host, username, password, data_label, remote_base_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="get replay data")
-    parser.add_argument("-a", "--action", type=str, required=True, help="what do you want?")
+    parser.add_argument("-a", "--action", type=str, default='ls', help="what do you want?")
     parser.add_argument("-l", "--data_label", type=str, default='abc', help="data label")
     parser.add_argument("-r", "--remote_base_dir", type=str, default='abc', help="remote base dir")
-    parser.add_argument("-h", "--host", type=str, default='abc', help="host")
+    parser.add_argument("-i", "--host", type=str, default='abc', help="host")
     parser.add_argument("-u", "--username", type=str, default='abc', help="username")
     parser.add_argument("-p", "--password", type=str, default='abc', help="password")
 
