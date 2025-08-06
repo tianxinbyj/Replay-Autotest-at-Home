@@ -2,7 +2,7 @@ Replay04:
   Master:
     ip: localhost
     username: appuser
-    password: Zone,456
+    password: Zone,123
     py_path: /home/appuser/PycharmProjects/Replay-Autotest-at-Home
     sys_interpreter: /home/appuser/PycharmProjects/Replay-Autotest-at-Home/.venv/bin/python3
     sil_pkg_path: /home/appuser/aeb_replay/sil
@@ -41,7 +41,7 @@ Replay02:
     ip: 10.192.68.71
     username: vcar
     password: 123456
-    py_path: /home/vcar/work/PythonProject
+    py_path: /home/vcar/ZONE/PythonProject/Replay-Autotest-at-Home
     sys_interpreter: /usr/bin/python3
 Replay01:
   Master:
