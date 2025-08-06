@@ -295,3 +295,16 @@ class SSHClient:
             return r
         except:
             return False
+
+    def get_aeb_replay_data(self, action, data_label='', remote_base_dir='', host=None, username=None, password=None):
+        if action == 'ls':
+            command = f'cd {self.interface_path} && python3 Api_GetReplayData.py -a {action}'
+
+            res = self.send_cmd(command)
+            print(res)
+            try:
+                r = eval(res.strip().split('\n')[-1])
+                return r
+            except:
+                return 0
+        return None

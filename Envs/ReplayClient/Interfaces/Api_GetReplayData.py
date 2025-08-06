@@ -4,12 +4,8 @@
 """
 import argparse
 import sys
-from pathlib import Path
-
-import paramiko
 
 from Libs import get_project_path
-from Utils.FileDeliverer import deliver_file
 
 sys.path.append(get_project_path())
 
@@ -17,6 +13,7 @@ from Envs.Master.Tools.AEBDataProcessor import AEBDataManager
 
 
 def get_replay_list():
+    print('id | path | prepared_size | prepared_num | transferred_size | transferred_num | replayed_size | replayed_num')
     aeb_data_manager = AEBDataManager()
     for k, v in aeb_data_manager.aeb_data_package_list.items():
         print(k, v['path'],

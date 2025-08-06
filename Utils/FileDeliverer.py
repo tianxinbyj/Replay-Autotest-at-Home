@@ -219,12 +219,13 @@ def verify_transfer(sftp, local_folder, remote_folder):
 
 def deliver_file(host, username, password, local_folder, remote_base_dir, backup_space=10):
     # 配置信息 - 请根据实际情况修改
+    print(f'======开始传输{local_folder}======')
     config = {
         "host": host,
         'port': 22,  # SSH端口
         "username": username,
         "password": password,  # 密码，如使用密钥认证则设为None
-        "local_folder": local_folder,  # 本地文件夹路径older",  # 本地文件夹路径
+        "local_folder": local_folder,  # 本地文件夹路径
         "remote_base_dir": remote_base_dir,  # 远程文件夹路径
     }
 
