@@ -61,7 +61,7 @@ class AEBDataManager:
             aeb_data_package = aeb_install.parent
             rosbag_path = aeb_data_package / 'rosbag'
 
-            k = str(aeb_data_package.relative_to(AEBReplayDataPath)).replace('/', '|')
+            k = str(aeb_data_package.relative_to(AEBReplayDataPath)).replace('/', '*')
             prepared_size, transferred_size, replayed_size = 0, 0, 0
             prepared_num, transferred_num, replayed_num = 0, 0, 0
             if rosbag_path.exists():
@@ -104,7 +104,7 @@ class AEBDataManager:
             username=username,
             password=password,
         )
-        for dir in data_label.split('|'):
+        for dir in data_label.split('*'):
             remote_base_dir = create_remote_folder(ssh, remote_base_dir, dir)
             if not remote_base_dir:
                 print(0)
