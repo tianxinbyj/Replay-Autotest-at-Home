@@ -1,0 +1,136 @@
+product: AH4EM
+version: AH4EM_AD_3.4.0_RC3_ENG
+kpi_date_label: 20250228
+test_topic: Obstacles
+replay_mode: Ethernet
+feature_group: pilot
+test_date: 2025-07-11 15:15:15
+pred_folder: /home/appuser/aeb_replay/test_project/DEBUG/01_Prediction
+gt_folder: /home/appuser/aeb_replay/test_project/DEBUG/02_GroundTruth
+version_comparison: null
+test_action:
+  ros2bag:
+    calib: 0
+    record: 1
+    truth: 0
+    truth_source: robosense
+    video_info: 0
+    bag_update: 1
+    replay_end: 98
+    retest: 1
+  scenario_unit:
+    check: /VA/QC/FsObstacles
+    scenario_update: 0
+    preprocess: 0
+    match: 0
+    metric: 0
+    bug: 0
+    bug_characteristic:
+    - is_keyObj
+    bug_count: 5
+    render: 0
+    render_topic:
+    - /VA/QC/FsObstacles
+  tag_combination: 0
+  statistics: 0
+  visualization: 0
+  output_characteristic:
+  - is_keyObj
+  - is_coverageValid
+  gen_report: 0
+gt_id_flag: 1
+topic_with_id:
+- /VA/QC/FsObstacles
+- /VA/QC/BEVObstaclesTracks
+test_item:
+  /VA/QC/BEVObstaclesTracks:
+  - recall_precision
+  - x_error
+  - y_error
+  - vx_error
+  - vy_error
+  - yaw_error
+  - length_error
+  - width_error
+  /VA/QC/FsObstacles:
+  - recall_precision
+  - x_error
+  - y_error
+  - vx_error
+  - vy_error
+  - yaw_error
+  - length_error
+  - width_error
+target_characteristic:
+- is_coverageValid
+- is_cipv
+- is_keyObj
+scenario_tag:
+- tag:
+    LightingCondition: 混合时间
+    WeatherCondition: 混合天气
+    RoadTypeCondition: 混合道路
+  scenario_id:
+    20250729_100000_n000005: /home/appuser/ZONE/ROSBAG_2025_06_14-14_48_31=2025_06_14-14_51_31_jihuo/COMBINE/
+    20250729_155555_n000005: /home/appuser/aeb_replay/aeb_replay_rosbag/20250715_NOA/rosbag
+detected_ROI:
+  /VA/QC/BEVObstaclesTracks:
+    x:
+    - -80
+    - 120
+    y:
+    - -24
+    - 24
+  /VA/QC/FsObstacles:
+    x:
+    - -80
+    - 120
+    y:
+    - -24
+    - 24
+coverage_reference_point:
+- 2
+- 0
+- 1
+timestamp_matching_tolerance: 0.5
+coverage_threshold: 0.6
+object_matching_tolerance:
+  x:
+  - 6
+  - 0.3
+  y:
+  - 2
+  - 0.1
+region_division:
+  DRU:
+  - x:
+    - 100
+    - 150
+    y:
+    - -8
+    - 8
+  VRU:
+  - x:
+    - -100
+    - -50
+    y:
+    - -8
+    - 8
+  - x:
+    - -50
+    - 0
+    y:
+    - -8
+    - 8
+  - x:
+    - 0
+    - 50
+    y:
+    - -8
+    - 8
+  - x:
+    - 50
+    - 100
+    y:
+    - -8
+    - 8

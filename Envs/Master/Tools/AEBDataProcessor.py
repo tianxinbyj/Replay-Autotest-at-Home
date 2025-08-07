@@ -18,10 +18,11 @@ import paramiko
 import yaml
 
 from Envs.Master.Modules.DataTransformer import DataTransformer, DataLoggerAnalysis
+from Envs.Master.Tools.DataReplayTest import DataReplayTest
 from Envs.Master.Tools.QCameraConfig import QCameraConfig
 from Utils.FileDeliverer import calculate_local_folder_size, deliver_file, create_remote_folder
 from Utils.Libs import ros_docker_path, kill_tmux_session_if_exists, create_folder, force_delete_folder, \
-    generate_unique_id, ThreadManager
+    generate_unique_id, ThreadManager, project_path
 
 
 # Replay0Z上的
@@ -56,48 +57,9 @@ def reindex(install_path, bag_folder):
 class AEBDataManager:
 
     def __init__(self):
-        repository_path = Path(AEBReplayDataPath)
         self.aeb_data_package_list = {}
-        self.package_status_path = repository_path / 'AEBPackageStatus.json'
-        self.package_status = self.load_package_status()
-
-        for aeb_install in sorted(repository_path.rglob("*install")):
-            aeb_data_package = aeb_install.parent
-            rosbag_path = aeb_data_package / 'rosbag'
-
-            k = str(aeb_data_package.relative_to(AEBReplayDataPath)).replace('/', '*')
-            prepared_size, transferred_size, replayed_size = 0, 0, 0
-            prepared_num, transferred_num, replayed_num = 0, 0, 0
-            if rosbag_path.exists():
-                for f in rosbag_path.glob('*'):
-                    if str(f.name) not in self.package_status:
-                        self.package_status[str(f.name)] = {
-                            'path': str(f),
-                            'status': 'prepared',
-                            'size': calculate_local_folder_size(f)/ (1024 ** 3),
-                        }
-                        self.save_package_status()
-
-                    package_status = self.package_status[str(f.name)]
-                    if package_status['status'] == 'prepared':
-                        prepared_size += package_status['size']
-                        prepared_num += 1
-                    elif package_status['status'] == 'transferred':
-                        transferred_size += package_status['size']
-                        transferred_num += 1
-                    elif package_status['status'] == 'replayed':
-                        replayed_size += package_status['size']
-                        replayed_num += 1
-
-                    self.aeb_data_package_list[k] = {
-                        'path': str(aeb_data_package),
-                        'prepared_size': round(prepared_size, 1),
-                        'prepared_num': prepared_num,
-                        'transferred_size': round(transferred_size, 1),
-                        'transferred_num': transferred_num,
-                        'replayed_size': round(replayed_size, 1),
-                        'replayed_num': replayed_num,
-                    }
+        self.package_status_path = Path(AEBReplayDataPath) / 'AEBPackageStatus.json'
+        self.update_summary()
 
     def transfer_data(self, host, username, password, data_label, remote_base_dir):
         ssh = paramiko.SSHClient()
@@ -154,11 +116,56 @@ class AEBDataManager:
                     else:
                         self.package_status[str(rosbag_path.name)]['status'] = 'prepared'
                         self.save_package_status()
+                        print('停止传输数据')
+                        break
 
                 except Exception as e:
                     print(e)
                     self.package_status[str(rosbag_path.name)]['status'] = 'prepared'
                     self.save_package_status()
+                    print('停止传输数据')
+                    break
+
+    def update_summary(self):
+        self.package_status = self.load_package_status()
+
+        for aeb_install in sorted(Path(AEBReplayDataPath).rglob("*install")):
+            aeb_data_package = aeb_install.parent
+            rosbag_path = aeb_data_package / 'rosbag'
+
+            k = str(aeb_data_package.relative_to(AEBReplayDataPath)).replace('/', '*')
+            prepared_size, transferred_size, replayed_size = 0, 0, 0
+            prepared_num, transferred_num, replayed_num = 0, 0, 0
+            if rosbag_path.exists():
+                for f in rosbag_path.glob('*'):
+                    if str(f.name) not in self.package_status:
+                        self.package_status[str(f.name)] = {
+                            'path': str(f),
+                            'status': 'prepared',
+                            'size': calculate_local_folder_size(f)/ (1024 ** 3),
+                        }
+                        self.save_package_status()
+
+                    package_status = self.package_status[str(f.name)]
+                    if package_status['status'] == 'prepared':
+                        prepared_size += package_status['size']
+                        prepared_num += 1
+                    elif package_status['status'] == 'transferred':
+                        transferred_size += package_status['size']
+                        transferred_num += 1
+                    elif package_status['status'] == 'replayed':
+                        replayed_size += package_status['size']
+                        replayed_num += 1
+
+                    self.aeb_data_package_list[k] = {
+                        'path': str(aeb_data_package),
+                        'prepared_size': round(prepared_size, 1),
+                        'prepared_num': prepared_num,
+                        'transferred_size': round(transferred_size, 1),
+                        'transferred_num': transferred_num,
+                        'replayed_size': round(replayed_size, 1),
+                        'replayed_num': replayed_num,
+                    }
 
     def save_package_status(self):
         with open(self.package_status_path, 'w', encoding='utf-8') as f:
@@ -454,6 +461,9 @@ class AEBDataReplay:
     def __init__(self, replay_data_path):
         self.replay_config = None
         self.replay_data_path = Path(replay_data_path)
+        self.workspace_path = self.replay_data_path / 'ReplayWorkspace'
+
+    def create_replay_config(self):
         for rosbag_dir in self.replay_data_path.rglob('rosbag'):
             replay_config = {
                 'install': str(rosbag_dir.parent / 'install'),
@@ -477,21 +487,53 @@ class AEBDataReplay:
                 self.replay_config = replay_config
                 break
 
-    def create_workspace(self):
         if self.replay_config is None:
-            print('没有找到可用的replay_config')
-            return
+            return None
 
-        workspace_path = self.replay_data_path / 'ReplayWorkspace'
-        if workspace_path.exists():
-            shutil.rmtree(workspace_path)
+        test_config_path = Path(project_path) / 'Envs' / 'Master' / 'Tools' / 'TestConfig.yaml'
+        with open(test_config_path, 'r') as f:
+            test_config = yaml.load(f, Loader=yaml.FullLoader)
 
-        os.makedirs(workspace_path / '01_Prediction', exist_ok=True)
-        os.makedirs(workspace_path / '02_GroundTruth', exist_ok=True)
-        os.makedirs(workspace_path / '03_Workspace', exist_ok=True)
-        os.makedirs(workspace_path / '04_TestData' / '1-Obstacles', exist_ok=True)
-        shutil.copytree(self.replay_config['install'], workspace_path / '03_Workspace' / 'install')
+        test_config['test_date'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        test_config['pred_folder'] = str(self.workspace_path / '01_Prediction')
+        test_config['gt_folder'] = str(self.workspace_path / '02_GroundTruth')
+        test_config['scenario_tag'][0]['scenario_id'] = self.replay_config['rosbag']
+        print(f'测试场景包含{list(self.replay_config["rosbag"].keys())}')
 
+        return test_config
+
+    def create_workspace(self):
+        test_config = self.create_replay_config()
+        if test_config is None:
+            print('没有找到可用的test_config')
+            return None
+
+        if self.workspace_path.exists():
+            shutil.rmtree(self.workspace_path)
+
+        os.makedirs(self.workspace_path / '01_Prediction', exist_ok=True)
+        os.makedirs(self.workspace_path / '02_GroundTruth', exist_ok=True)
+        os.makedirs(self.workspace_path / '03_Workspace', exist_ok=True)
+        os.makedirs(self.workspace_path / '04_TestData' / '1-Obstacles', exist_ok=True)
+        shutil.copytree(self.replay_config['install'], self.workspace_path / '03_Workspace' / 'install')
+        test_config_path = self.workspace_path / '04_TestData' / '1-Obstacles' / 'TestConfig.yaml'
+        with open(test_config_path, 'w') as f:
+            yaml.dump(test_config, f, sort_keys=False)
+
+        return True
+
+    def monitor_replay_status(self):
+        for scenario_id,  rosbag_path in self.replay_config['rosbag'].items():
+            pred_raw_folder = self.workspace_path / '01_Prediction' / scenario_id
+
+
+    def run_aeb_replay(self):
+        if not self.create_workspace():
+            print('未创建工作空间')
+            return False
+
+        ddd = DataReplayTest(self.workspace_path)
+        ddd.start()
 
 class AEBDataProcessor2:
 
