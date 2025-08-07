@@ -310,7 +310,7 @@ class AEBDataCloud:
             include = []
         if exclude is None:
             exclude = []
-        path_dict = {}
+
 
         try:
             total_size = 0
@@ -350,7 +350,6 @@ class AEBDataCloud:
                         print(f"- {obj['Key']} (大小 {round(obj['Size'] / 1024 / 1024, 4)} MB)")
                         total_size += obj['Size']
                         filtered_objects += 1
-                        path_dict[obj['Key']] = obj['Size'] / 1024 / 1024
 
                 # 检查是否还有更多对象
                 if not response.get('IsTruncated', False):
@@ -364,11 +363,6 @@ class AEBDataCloud:
                   f"符合条件的有 {filtered_objects} 个，"
                   f"总大小 {round(total_size / 1024 / 1024 / 1024, 4)} GB")
 
-            AEB_data_path = Path(AEBRawDataPath) / 'AEB_data_path.json'
-            with open(AEB_data_path, 'w', encoding='utf-8') as f:
-                json.dump(path_dict, f, ensure_ascii=False, indent=4)
-            return AEB_data_path
-
         except Exception as e:
             print(f"列出对象时出错: {e}")
 
@@ -377,7 +371,7 @@ class AEBDataCloud:
             include = []
         if exclude is None:
             exclude = []
-
+        path_dict = {}
         os.makedirs(local_dir, exist_ok=True)
 
         """递归下载S3路径下的所有文件"""
@@ -412,6 +406,11 @@ class AEBDataCloud:
                     # 下载文件
                     print(f"下载: {s3_key} -> {local_file}, 大小 {round(obj['Size'] / 1024 / 1024, 4)} MB")
                     self.s3_client.download_file(bucket_name, s3_key, local_file)
+                    path_dict[obj['Key']] = obj['Size'] / 1024 / 1024
+
+                    AEB_data_path = Path(AEBRawDataPath) / 'AEB_data_path.json'
+                    with open(AEB_data_path, 'w', encoding='utf-8') as f:
+                        json.dump(path_dict, f, ensure_ascii=False, indent=4)
 
                     total_downloaded += 1
                     total_size += obj['Size']
@@ -534,6 +533,7 @@ class AEBDataReplay:
 
         ddd = DataReplayTest(self.workspace_path)
         ddd.start()
+
 
 class AEBDataProcessor2:
 
