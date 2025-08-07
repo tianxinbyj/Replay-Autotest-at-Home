@@ -30,7 +30,7 @@ Replay03:
     sys_interpreter: /usr/bin/python3
 Replay02:
   Master:
-    ip: 172.31.1.253
+    ip: 10.192.68.107
     username: zhangliwei01
     password: Pass1234
     py_path: /home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home

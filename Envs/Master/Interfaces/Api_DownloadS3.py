@@ -6,7 +6,7 @@
 import argparse
 import json
 import os
-import shutil
+
 import boto3
 from botocore.client import Config
 
