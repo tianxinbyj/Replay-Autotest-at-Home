@@ -85,13 +85,18 @@ def get_folder_size(path):
             fp = os.path.join(dirpath, f)
             # 跳过符号链接以避免循环
             if not os.path.islink(fp):
-                total_size += os.path.getsize(fp)
+                try:
+                    total_size += os.path.getsize(fp)
+                except:
+                    pass
+
     return total_size
 
 
 class AEBDataManager:
 
     def __init__(self):
+        self.package_status = None
         self.aeb_data_package_list = {}
         self.package_status_path = Path(AEBReplayDataPath) / 'AEBPackageStatus.json'
         self.update_summary()
@@ -113,7 +118,7 @@ class AEBDataManager:
 
         package_path = Path(self.aeb_data_package_list[data_label]['path'])
         install_path = Path(package_path) / 'install'
-        parameter_path = Path(package_path) / 'parameter'
+        parameter_path = Path(package_path) / 'params'
         if not deliver_file(
                 host=host, username=username, password=password,
                 local_folder=install_path, remote_base_dir=remote_base_dir
@@ -216,89 +221,108 @@ class AEBDataManager:
 
 class AEBDataProcessor:
 
-    def __init__(self, aeb_data_package):
-        """
-        # data group的架构
-        20250614-005-AEB
-        -- ZoneRos
-        ---- rosbag2_2025_06_14-14_45_27
-        ---- rosbag2_2025_06_14-15_19_47
-        -- Qcraft
-        ---- 20250614_105002_Q3402
-        ---- 20250614_113118_Q3402
-        ---- 20250614_122620_Q3402
-        ---- 20250614_125956_Q3402
-        ---- 20250614_133921_Q3402
-        ---- 20250614_144736_Q3402
-        """
+    def __init__(self):
+        self.aeb_raw_data_path = Path(AEBRawDataPath)
+        self.aeb_replay_data_path = Path(AEBReplayDataPath)
+        for f in self.aeb_raw_data_path.rglob('*rosbag'):
+            raw_package_path = f.parent
 
-        package_path = Path(aeb_data_package)
+            # 在AEBReplayDataPath生成新文件夹,确认是否生成过
+            replay_package_path = self.aeb_replay_data_path / raw_package_path.relative_to(self.aeb_raw_data_path)
+            if (replay_package_path / 'stats.txt').exists():
+                print(f'{str(raw_package_path)}有转化记录, 跳过')
+                continue
 
-        install_gz = package_path / 'install' / 'install.tar.gz'
-        if not install_gz.exists():
-            print('未找到install文件')
-            sys.exit(1)
+            # check 文件夹是否还在运动
+            continue_flag = False
+            f_size = get_folder_size(raw_package_path)
+            print(f'正在检查{str(raw_package_path)}')
+            for _ in range(3):
+                time.sleep(5)
+                if f_size != get_folder_size(raw_package_path):
+                    continue_flag = True
+                    break
+            if continue_flag:
+                print(f'{str(raw_package_path)}没有固定，跳过')
+                continue
 
-        parameter_folder = package_path / 'params' / 'J6' / 'camera'
-        if not parameter_folder.exists():
-            print('未找到camera参数文件')
-            sys.exit(1)
+            install_gz = raw_package_path / 'install' / 'install.tar.gz'
+            if not install_gz.exists():
+                print(f'{str(raw_package_path)}未找到install文件, 跳过')
+                continue
 
-        # 在AEBReplayDataPath生成新文件夹
-        self.replay_package_path = AEBReplayDataPath / package_path.relative_to(AEBRawDataPath)
-        v2_folder = self.replay_package_path / 'parameter'
-        if v2_folder.exists():
-            shutil.rmtree(v2_folder)
-        os.makedirs(v2_folder, exist_ok=True)
+            parameter_folder = raw_package_path / 'params' / 'J6' / 'camera'
+            if not parameter_folder.exists():
+                print(f'{str(raw_package_path)}未找到camera参数文件, 跳过')
+                continue
 
-        # 生成install文件
-        cmd = f'tar -xzvf {install_gz} -C {self.replay_package_path}'
-        p = os.popen(cmd)
-        p.read()
+            print(f'{str(raw_package_path)}已经固定，且没有转化记录, 开始转化')
+            v2_folder = replay_package_path / 'params'
+            if v2_folder.exists():
+                shutil.rmtree(v2_folder)
+            os.makedirs(v2_folder, exist_ok=True)
 
-        # 生成相机车参文件
-        camera_config = QCameraConfig()
-        docker_path = '/home/vcar/Downloads/start_docker.sh'
-        bin_tool_path = '/home/vcar/ZONE/Tools/v2_txt_to_bin_tools'
-        camera_config.gen_v2(parameter_folder, v2_folder, docker_path, bin_tool_path, 'zone')
+            # 生成install文件
+            cmd = f'tar -xzvf {install_gz} -C {replay_package_path}'
+            p = os.popen(cmd)
+            p.read()
 
-        # 组织数据
-        self.data_group = {
-            'Rosbag': {}, 'Qdata': {}
-        }
-        for dir_path in sorted(package_path.rglob("*")):
-            if dir_path.is_dir() and "rosbag2" in dir_path.name:
-                t0 = datetime.strptime(dir_path.name[8:], "%Y_%m_%d-%H_%M_%S").timestamp()
-                for file in sorted(dir_path.rglob("*.gz")):
-                    t1 = datetime.strptime(file.name.split('.')[0], "%Y_%m_%d-%H_%M_%S").timestamp()
-                    if t1 - t0 < 30:
-                        continue
+            # 生成相机车参文件
+            camera_config = QCameraConfig()
+            docker_path = '/home/vcar/Downloads/start_docker.sh'
+            bin_tool_path = '/home/vcar/ZONE/Tools/v2_txt_to_bin_tools'
+            camera_config.gen_v2(parameter_folder, v2_folder, docker_path, bin_tool_path, 'zone')
 
-                    formatted_t0 = datetime.fromtimestamp(t0).strftime("%Y_%m_%d_%H_%M_%S")
-                    formatted_t1 = datetime.fromtimestamp(t1).strftime("%Y_%m_%d_%H_%M_%S")
-                    key = f'{formatted_t0}-{formatted_t1}'
-                    self.data_group['Rosbag'][key] = {
-                        'path': str(file.absolute()), 'start_time': t0, 'end_time': t1,
-                    }
-                    t0 = t1
+            # 组织数据
+            data_group = {
+                'Rosbag': {}, 'Qdata': {}
+            }
+            for dir_path in sorted(raw_package_path.rglob("*")):
+                if dir_path.is_dir() and "rosbag2" in dir_path.name:
+                    t0 = datetime.strptime(dir_path.name[8:], "%Y_%m_%d-%H_%M_%S").timestamp()
+                    for file in sorted(dir_path.rglob("*.gz")):
+                        t1 = datetime.strptime(file.name.split('.')[0], "%Y_%m_%d-%H_%M_%S").timestamp()
+                        if t1 - t0 < 30:
+                            continue
 
-        if self.data_group['Qdata']:
-            print('数据需要处理Q图像数据')
-            self.run_with_Q()
-        else:
-            print('数据不需要处理Q图像数据')
-            self.run_without_Q()
+                        formatted_t0 = datetime.fromtimestamp(t0).strftime("%Y_%m_%d_%H_%M_%S")
+                        formatted_t1 = datetime.fromtimestamp(t1).strftime("%Y_%m_%d_%H_%M_%S")
+                        key = f'{formatted_t0}-{formatted_t1}'
+                        data_group['Rosbag'][key] = {
+                            'path': str(file.absolute()), 'start_time': t0, 'end_time': t1,
+                        }
+                        t0 = t1
 
-    def run_with_Q(self, render=False):
+            if data_group['Qdata']:
+                print('数据需要处理Q图像数据')
+                self.run_with_Q(data_group, replay_package_path)
+            else:
+                print('数据不需要处理Q图像数据')
+                self.run_without_Q(data_group, replay_package_path)
+
+    def run_with_Q(self, data_group, replay_package_path, update=False, render=False):
         pass
 
-    def run_without_Q(self, update=False, render=False):
+    def run_without_Q(self, data_group, replay_package_path, update=False, delete=True, render=False):
         task_manager = ThreadManager(max_threads=3)
-        install_path = self.replay_package_path / 'install'
+        install_path = replay_package_path / 'install'
         data_transformer = DataTransformer(install_path)
         render_i = 0
-        for rosbag_key, rosbag_info in self.data_group['Rosbag'].items():
-            ros2bag_path = self.replay_package_path / 'rosbag' / rosbag_key / 'ROSBAG' / 'COMBINE'
+        for rosbag_key, rosbag_info in data_group['Rosbag'].items():
+
+            # 确认磁盘空间
+            free, used, total = check_folder_space(replay_package_path)
+            left = 20
+            print('------------------------------------------------------------------')
+            print(f"可用 / 已用 / 总共: >>>> {round(free / 1024 ** 3, 2)} GB <<<< / {round(used / 1024 ** 3, 2)} GB / {round(total / 1024 ** 3, 2)} GB")
+            print(f"{str(AEBRawDataPath)} 占用 >>>> {round(get_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
+                  f"{str(AEBReplayDataPath)} 占用 >>>> {round(get_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
+
+            if free < left * 1024 ** 3:
+                print(f"预留空间不足{left} GB, 停止转化")
+                sys.exit(1)
+
+            ros2bag_path = replay_package_path / 'rosbag' / rosbag_key / 'ROSBAG' / 'COMBINE'
             meta_path = ros2bag_path / 'metadata.yaml'
 
             if not update and meta_path.exists():
@@ -317,14 +341,21 @@ class AEBDataProcessor:
 
             # 生成AVM图片,如果render不激活，只会渲染前3个
             if render or render_i < 3:
-                json_config_path = self.replay_package_path / 'parameter' / 'json'
+                json_config_path = replay_package_path / 'params' / 'json'
                 task_manager.add_task(data_transformer.gen_AVM_from_db3, ros2bag_path.parent.parent, json_config_path)
+            if delete:
+                os.remove(rosbag_info["path"])
+                print(f'{rosbag_info["path"]} 已删除')
 
             render_i += 1
 
         print('等待所有线程都结束')
         task_manager.stop()
-        print("所有任务已完成，程序退出")
+        with open(replay_package_path / 'stats.txt', 'w') as file:
+            file.write('process_ok')
+        raw_package_path = self.aeb_raw_data_path / replay_package_path.relative_to(self.aeb_replay_data_path)
+        shutil.rmtree(raw_package_path)
+        print(f"所有任务已完成, 程序退出, 删除{raw_package_path}")
 
 
 class AEBDataCloud:
@@ -461,7 +492,7 @@ class AEBDataCloud:
                           f"警戒水位 >>>> {round(aeb_raw_data_size * ratio / 1024 ** 3, 3)} GB <<<<, "
                           f"预计可下载 >>>> {round((free - aeb_raw_data_size) / (1 + ratio) / 1024 ** 3, 3)} GB <<<<")
                     if 'install' not in s3_key and 'params' not in s3_key and free < aeb_raw_data_size * ratio:
-                        print(f"预留空间不足{ratio}倍, 停止下载")
+                        print(f"预留空间不足, 停止下载")
                         break_flag = True
                         break
 
@@ -542,7 +573,7 @@ class AEBDataReplay:
         for rosbag_dir in self.replay_data_path.rglob('rosbag'):
             replay_config = {
                 'install': str(rosbag_dir.parent / 'install'),
-                'parameter': str(rosbag_dir.parent / 'parameter'),
+                'params': str(rosbag_dir.parent / 'params'),
                 'rosbag': {},
             }
             scenario_count = 0

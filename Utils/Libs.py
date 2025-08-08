@@ -16,6 +16,8 @@ import sys
 import threading
 import time
 from queue import Queue
+
+import psutil
 import yaml
 
 
@@ -361,6 +363,36 @@ def force_delete_folder(folder_path):
     print(f'{folder_path} 删除成功')
 
 
+def is_python_file_running(file_name):
+    """
+    检查指定的Python文件是否正在运行
+
+    参数:
+        file_name: 要检查的Python文件名（如 "my_script.py"）
+
+    返回:
+        布尔值: 如果文件正在运行则返回True，否则返回False
+        列表: 正在运行的进程ID列表
+    """
+    running_pids = []
+
+    # 遍历所有正在运行的进程
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            # 检查是否是Python进程
+            if proc.info['name'].lower().startswith(('python', 'python3')):
+                cmdline = proc.info['cmdline']
+                if cmdline:
+                    # 检查命令行参数中是否包含目标文件名
+                    for arg in cmdline:
+                        if arg.endswith(file_name):
+                            running_pids.append(proc.info['pid'])
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+
+    return len(running_pids) > 0, running_pids
+
+
 def find_file(filename, directory):
     """
     在指定目录及其子目录中递归查找特定文件名的文件。
@@ -438,6 +470,7 @@ topic2camera = {
     '/Camera/Rear/H265': 'CAM_BACK',
 }
 
+
 if __name__ == '__main__':
-    f = '/media/data/Q_DATA/debug_data/json'
-    force_delete_folder(f)
+    python_file = 'run_aeb_process.py'
+    print(is_python_file_running(python_file))
