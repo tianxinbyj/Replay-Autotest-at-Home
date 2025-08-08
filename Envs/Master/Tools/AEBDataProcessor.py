@@ -224,7 +224,8 @@ class AEBDataProcessor:
     def __init__(self):
         self.aeb_raw_data_path = Path(AEBRawDataPath)
         self.aeb_replay_data_path = Path(AEBReplayDataPath)
-        for f in self.aeb_raw_data_path.rglob('*rosbag'):
+        aeb_raw_data_path_list = self.aeb_raw_data_path.rglob('*rosbag')
+        for f in sorted(aeb_raw_data_path_list):
             raw_package_path = f.parent
 
             # 在AEBReplayDataPath生成新文件夹,确认是否生成过
@@ -244,6 +245,9 @@ class AEBDataProcessor:
                     break
             if continue_flag:
                 print(f'{str(raw_package_path)}没有固定，跳过')
+                print(
+                    f"{str(AEBRawDataPath)} 占用 >>>> {round(get_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
+                    f"{str(AEBReplayDataPath)} 占用 >>>> {round(get_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
                 continue
 
             install_gz = raw_package_path / 'install' / 'install.tar.gz'
@@ -374,7 +378,7 @@ class AEBDataCloud:
         self.download_record_path = Path(AEBRawDataPath) / 'AEBDownloadRecord.json'
         self.download_record = self.load_download_status()
 
-    def list_objects(self, bucket_name, s3_path, include=None, exclude=None):
+    def list_objects(self, bucket_name, s3_path, version='', include=None, exclude=None):
         if include is None:
             include = []
         if exclude is None:
@@ -406,19 +410,24 @@ class AEBDataCloud:
                     total_objects += page_objects
 
                     for obj in response['Contents']:
+                        s3_key = obj['Key']
+
+                        if version in self.download_record and s3_key in self.download_record[version]:
+                            continue
+
                         # 应用包含过滤条件
-                        if len(include) and (not any([i in obj['Key'] for i in include])):
+                        if len(include) and (not any([i in s3_key for i in include])):
                             continue
 
                         # 应用排除过滤条件
-                        if len(exclude) and (any([e in obj['Key'] for e in exclude])):
+                        if len(exclude) and (any([e in s3_key for e in exclude])):
                             continue
 
                         # 显示符合条件的对象
                         total_size += obj['Size']
                         filtered_objects += 1
 
-                        print(f"- {obj['Key']} (大小 {round(obj['Size'] / 1024 ** 2, 2)} MB / {round(total_size / 1024 ** 2, 2)} MB) - {filtered_objects}个")
+                        print(f"- {s3_key} (大小 {round(obj['Size'] / 1024 ** 2, 2)} MB / {round(total_size / 1024 ** 2, 2)} MB) - {filtered_objects}个")
 
                 # 检查是否还有更多对象
                 if not response.get('IsTruncated', False):
@@ -432,10 +441,13 @@ class AEBDataCloud:
                   f"符合条件的有 {filtered_objects} 个，"
                   f"总大小 {round(total_size / 1024 ** 3, 2)} GB")
 
+            return filtered_objects, total_size
+
         except Exception as e:
             print(f"列出对象时出错: {e}")
+            return None
 
-    def download_s3_folder(self, bucket_name, s3_path, version='', include=None, exclude=None):
+    def download_s3_folder(self, bucket_name, s3_path, version='', include=None, exclude=None, target_num=None, target_size=None):
         if include is None:
             include = []
         if exclude is None:
@@ -469,11 +481,11 @@ class AEBDataCloud:
                         continue
 
                     # 如果需要包含字符，则至少包含其中一个
-                    if len(include) and (not any([i in obj['Key'] for i in include])):
+                    if len(include) and (not any([i in s3_key for i in include])):
                         continue
 
                     # 如果需要排除字符，则包含一个字符则排除
-                    if len(exclude) and (any([e in obj['Key'] for e in exclude])):
+                    if len(exclude) and (any([e in s3_key for e in exclude])):
                         continue
 
                     # 构建本地文件路径
@@ -505,6 +517,8 @@ class AEBDataCloud:
                     total_size += obj['Size']
                     print(f"下载: {s3_key} -> {local_file}, "
                           f"大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
+                    if target_num and target_size:
+                        print(f'个数{total_downloaded} / {target_num} 完成, {round(total_size / 1024 ** 3, 2)} GB / {round(target_size / 1024 ** 3, 2)} GB 完成, {total_size / target_size:.2%} 完成')
                     print(f"共计 {round(total_size / 1024 ** 2, 2)} MB, {round(time.time() - t0)} 秒, {total_downloaded} 个, "
                           f"平均速度 >>>> {round(total_size/(time.time() - t0) / 1024 ** 2)} MB/s <<<<")
 
@@ -845,18 +859,39 @@ class AEBDataProcessor2:
 
 
 if __name__ == '__main__':
-    # folder = '/media/data/Q_DATA/debug_data'
-    # folder = '/media/data/Q_DATA/debug_data2'
-    # AEBDataProcessor2(folder).run()
-    # time.sleep(3600*6)
-    # folder = '/media/data/Q_DATA/AebRawData/AH4EM-SIMU023/202507/20250708'
-    # AEBDataProcessor(folder)
-    a = AEBDataManager()
-    config = {
-        "host": "10.192.68.107",
-        "username": "zhangliwei01",
-        "password": "Pass1234",
-        "data_label": "AH4EM-SIMU023|202507|20250708",
-        "remote_base_dir": "/home/zhangliwei01/ZONE/AEBReplayData"  # 远程文件夹路径
-    }
-    a.transfer_data(**config)
+    endpoint_url='http://10.192.53.221:8080'  # 你的S3 endpoint
+    aws_access_key_id='44JAMVA71J5L90D9DK77'  # 替换为你的Access Key
+    aws_secret_access_key='h1cY4WzpNxmQCpsXlXFpO4nWjNp3pbH0ZuBsuGmu'  # 替换为你的Secret Key
+    bucket_name = 'aeb'
+    s3_path = 'ALL/'
+    # 如果需要包含字符，则至少包含其中一个
+    # include = [
+    #     'AH4EM-SIMU182/',
+    #     'AH4EM-SIMU182-NEW/',
+    #     'AH4EM-HNV032/',
+    #     'AH4EM-HNV033/',
+    #     'AH4EM-HNV036/',
+    #     'EP39-PPV001',
+    #     'EP39-PPV005',
+    #     'EP39-PPV008',
+    #     'EP39-PP001',
+    #     'EP39-SNV001',
+    # ]
+    include = ['AH4EM-SIMU182/']
+    # 如果需要排除字符，则包含一个字符则排除
+    exclude = ['canlog', 'CAN']
+    version = 'AH4EM_AD_3.4.0_RC5_ENG'
+
+    aeb_downloader = AEBDataCloud(endpoint_url, aws_access_key_id, aws_secret_access_key)
+    filtered_objects, total_size = aeb_downloader.list_objects(bucket_name, s3_path, version, include=include, exclude=exclude)
+    print(filtered_objects, total_size)
+    # aeb_downloader.download_s3_folder(bucket_name, s3_path, version, include, exclude)
+    # a = AEBDataManager()
+    # config = {
+    #     "host": "10.192.68.107",
+    #     "username": "zhangliwei01",
+    #     "password": "Pass1234",
+    #     "data_label": "AH4EM-SIMU023|202507|20250708",
+    #     "remote_base_dir": "/home/zhangliwei01/ZONE/AEBReplayData"  # 远程文件夹路径
+    # }
+    # a.transfer_data(**config)
