@@ -54,6 +54,41 @@ def reindex(install_path, bag_folder):
     kill_tmux_session_if_exists(tmux_session)
 
 
+def check_folder_space(path):
+    if not os.path.exists(path):
+        print(f"错误: 路径 '{path}' 不存在")
+        return
+
+    if not os.path.isdir(path):
+        print(f"错误: '{path}' 不是一个文件夹")
+        return
+
+    try:
+        # 使用shutil获取磁盘总空间、已用空间和可用空间
+        disk_usage = shutil.disk_usage(path)
+        return disk_usage.free, disk_usage.used, disk_usage.total
+
+    except PermissionError:
+        print(f"错误: 没有权限访问 '{path}'")
+        return
+
+    except Exception as e:
+        print(f"发生错误: {str(e)}")
+        return
+
+
+def get_folder_size(path):
+    """计算文件夹的总大小（字节）"""
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # 跳过符号链接以避免循环
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+    return total_size
+
+
 class AEBDataManager:
 
     def __init__(self):
@@ -305,12 +340,14 @@ class AEBDataCloud:
             region_name='cn-north-1'  # 区域名称，可根据实际情况修改
         )
 
+        self.download_record_path = Path(AEBRawDataPath) / 'AEBDownloadRecord.json'
+        self.download_record = self.load_download_status()
+
     def list_objects(self, bucket_name, s3_path, include=None, exclude=None):
         if include is None:
             include = []
         if exclude is None:
             exclude = []
-
 
         try:
             total_size = 0
@@ -347,9 +384,10 @@ class AEBDataCloud:
                             continue
 
                         # 显示符合条件的对象
-                        print(f"- {obj['Key']} (大小 {round(obj['Size'] / 1024 / 1024, 4)} MB)")
                         total_size += obj['Size']
                         filtered_objects += 1
+
+                        print(f"- {obj['Key']} (大小 {round(obj['Size'] / 1024 ** 2, 2)} MB / {round(total_size / 1024 ** 2, 2)} MB) - {filtered_objects}个")
 
                 # 检查是否还有更多对象
                 if not response.get('IsTruncated', False):
@@ -361,22 +399,25 @@ class AEBDataCloud:
             # 输出汇总信息
             print(f"在路径 {s3_path} 下共找到 {total_objects} 个对象，"
                   f"符合条件的有 {filtered_objects} 个，"
-                  f"总大小 {round(total_size / 1024 / 1024 / 1024, 4)} GB")
+                  f"总大小 {round(total_size / 1024 ** 3, 2)} GB")
 
         except Exception as e:
             print(f"列出对象时出错: {e}")
 
-    def download_s3_folder(self, bucket_name, s3_path, local_dir, include=None, exclude=None):
+    def download_s3_folder(self, bucket_name, s3_path, version='', include=None, exclude=None):
         if include is None:
             include = []
         if exclude is None:
             exclude = []
-        path_dict = {}
+
+        t0 = time.time()
+        local_dir = AEBRawDataPath
         os.makedirs(local_dir, exist_ok=True)
 
         """递归下载S3路径下的所有文件"""
         total_downloaded = 0
         total_size = 0
+        break_flag = False
 
         # 使用分页器处理超过1000个对象的情况
         paginator = self.s3_client.get_paginator('list_objects_v2')
@@ -386,6 +427,14 @@ class AEBDataCloud:
                     s3_key = obj['Key']
                     # 跳过目录（S3中没有真正的目录，只有以/结尾的键）
                     if s3_key.endswith('/'):
+                        continue
+
+                    if version not in self.download_record:
+                        self.download_record[version] = {}
+
+                    # 非install和parameter的会看是否已经下载过
+                    if s3_key in self.download_record[version]:
+                        print(f'{version}:{s3_key}已下载过，跳过')
                         continue
 
                     # 如果需要包含字符，则至少包含其中一个
@@ -399,25 +448,41 @@ class AEBDataCloud:
                     # 构建本地文件路径
                     local_file = os.path.join(local_dir, os.path.relpath(s3_key, s3_path))
                     local_path = os.path.dirname(local_file)
-
-                    # 创建本地目录结构
                     os.makedirs(local_path, exist_ok=True)
 
                     # 下载文件
-                    print(f"下载: {s3_key} -> {local_file}, 大小 {round(obj['Size'] / 1024 / 1024, 4)} MB")
-                    self.s3_client.download_file(bucket_name, s3_key, local_file)
-                    path_dict[obj['Key']] = obj['Size'] / 1024 / 1024
+                    free, used, total = check_folder_space(local_dir)
+                    ratio = 1.5
+                    print('------------------------------------------------------------------')
+                    print(f"{local_dir}可用 / 已用 / 总共: >>>> {round(free / 1024 ** 3, 2)} GB <<<< / {round(used / 1024 ** 3, 2)} GB / {round(total / 1024 ** 3, 2)} GB")
+                    print(f"目标文件{s3_key}大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
+                    aeb_raw_data_size = get_folder_size(local_dir)
+                    print(f"AEBRawData占用空间 >>>> {round(aeb_raw_data_size / 1024 ** 3, 3)} GB <<<<, "
+                          f"警戒水位 >>>> {round(aeb_raw_data_size * ratio / 1024 ** 3, 3)} GB <<<<, "
+                          f"预计可下载 >>>> {round((free - aeb_raw_data_size) / (1 + ratio) / 1024 ** 3, 3)} GB <<<<")
+                    if 'install' not in s3_key and 'params' not in s3_key and free < aeb_raw_data_size * ratio:
+                        print(f"预留空间不足{ratio}倍, 停止下载")
+                        break_flag = True
+                        break
 
-                    AEB_data_path = Path(AEBRawDataPath) / 'AEB_data_path.json'
-                    with open(AEB_data_path, 'w', encoding='utf-8') as f:
-                        json.dump(path_dict, f, ensure_ascii=False, indent=4)
+                    self.s3_client.download_file(bucket_name, s3_key, local_file)
+                    if 'install' not in s3_key and 'params' not in s3_key:
+                        self.download_record[version][s3_key] = obj['Size'] / 1024 ** 2
+                        self.save_download_status()
 
                     total_downloaded += 1
                     total_size += obj['Size']
+                    print(f"下载: {s3_key} -> {local_file}, "
+                          f"大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
+                    print(f"共计 {round(total_size / 1024 ** 2, 2)} MB, {round(time.time() - t0)} 秒, {total_downloaded} 个, "
+                          f"平均速度 >>>> {round(total_size/(time.time() - t0) / 1024 ** 2)} MB/s <<<<")
+
+            if break_flag:
+                break
 
         # 输出更详细的下载统计信息
         print(f"下载完成，共下载 {total_downloaded} 个文件，"
-              f"总大小 {round(total_size / 1024 / 1024, 2)} MB，"
+              f"总大小 {round(total_size / 1024 ** 2, 2)} MB，"
               f"文件保存在: {os.path.abspath(local_dir)}")
 
     def upload_directory(self, bucket_name, local_dir, s3_path):
@@ -441,7 +506,7 @@ class AEBDataCloud:
                 file_size = os.path.getsize(local_file_path)
                 try:
                     print(f"上传: {local_file_path} -> {s3_key} "
-                          f"(大小: {round(file_size / 1024 / 1024, 2)} MB)")
+                          f"(大小: {round(file_size / 1024 ** 2, 2)} MB)")
 
                     self.s3_client.upload_file(local_file_path, bucket_name, s3_key)
                     total_uploaded += 1
@@ -451,8 +516,19 @@ class AEBDataCloud:
 
         # 输出上传统计信息
         print(f"上传完成，共上传 {total_uploaded} 个文件，"
-              f"总大小 {round(total_size / 1024 / 1024, 2)} MB")
+              f"总大小 {round(total_size / 1024 ** 2, 2)} MB")
         return True
+
+    def save_download_status(self):
+        with open(self.download_record_path, 'w', encoding='utf-8') as f:
+            json.dump(self.download_record, f, ensure_ascii=False, indent=4)
+
+    def load_download_status(self):
+        if not self.download_record_path.exists():
+            return {}
+
+        with open(self.download_record_path, 'r', encoding='utf-8') as file:
+            return json.load(file)
 
 
 class AEBDataReplay:
