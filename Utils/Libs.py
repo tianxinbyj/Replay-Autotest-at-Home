@@ -336,6 +336,29 @@ def get_folder_size(folder_path: str) -> int:
     return total_size
 
 
+def check_folder_space(path):
+    if not os.path.exists(path):
+        print(f"错误: 路径 '{path}' 不存在")
+        return
+
+    if not os.path.isdir(path):
+        print(f"错误: '{path}' 不是一个文件夹")
+        return
+
+    try:
+        # 使用shutil获取磁盘总空间、已用空间和可用空间
+        disk_usage = shutil.disk_usage(path)
+        return disk_usage.free, disk_usage.used, disk_usage.total
+
+    except PermissionError:
+        print(f"错误: 没有权限访问 '{path}'")
+        return
+
+    except Exception as e:
+        print(f"发生错误: {str(e)}")
+        return
+
+
 def force_delete_folder(folder_path):
     if not os.path.exists(folder_path):
         print(f'不存在{folder_path}, 不需要删除')

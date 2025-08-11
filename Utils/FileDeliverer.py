@@ -24,6 +24,7 @@ def get_remote_disk_space(ssh, remote_path):
             raise Exception(f"获取远程磁盘空间失败: {error}")
 
         return int(output)
+
     except Exception as e:
         print(f"获取远程磁盘空间时出错: {str(e)}")
         return -1
@@ -37,14 +38,15 @@ def calculate_local_folder_size(local_folder):
             fp = os.path.join(dirpath, f)
             try:
                 total_size += os.path.getsize(fp)
-            except OSError:
+            except:
                 print(f"无法获取文件 {fp} 的大小")
+
     return total_size
 
 
 def create_remote_folder(ssh, remote_base_dir, folder_name, rm_flag=0):
     """
-    在远程服务器上创建同名文件夹，如果已存在则删除重建
+    在远程服务器上创建同名文件夹, 如果已存在则删除重建
 
     参数:
     ssh: SSH客户端连接
@@ -53,7 +55,7 @@ def create_remote_folder(ssh, remote_base_dir, folder_name, rm_flag=0):
     """
     remote_folder_path = os.path.join(remote_base_dir, folder_name)
     try:
-        # 检查目录是否存在，存在则删除
+        # 检查目录是否存在, 存在则删除
         if rm_flag:
             stdin, stdout, stderr = ssh.exec_command(
                 f"if [ -d '{remote_folder_path}' ]; then rm -rf '{remote_folder_path}'; fi")
@@ -124,7 +126,7 @@ def transfer_files(sftp, local_folder, remote_folder):
 
 def verify_transfer(sftp, local_folder, remote_folder):
     """
-    验证本地和远程文件夹内容是否一致，并创建状态文件
+    验证本地和远程文件夹内容是否一致, 并创建状态文件
 
     参数:
     sftp: SFTP客户端连接
@@ -224,7 +226,7 @@ def deliver_file(host, username, password, local_folder, remote_base_dir, backup
         "host": host,
         'port': 22,  # SSH端口
         "username": username,
-        "password": password,  # 密码，如使用密钥认证则设为None
+        "password": password,  # 密码, 如使用密钥认证则设为None
         "local_folder": local_folder,  # 本地文件夹路径
         "remote_base_dir": remote_base_dir,  # 远程文件夹路径
     }
@@ -264,9 +266,9 @@ def deliver_file(host, username, password, local_folder, remote_base_dir, backup
 
         # 检查远程磁盘空间
         print("正在检查远程磁盘可用空间...")
-        remote_available_space = get_remote_disk_space(ssh, config['remote_base_dir']) - 1e9 * backup_space
+        remote_available_space = get_remote_disk_space(ssh, config['remote_base_dir']) - backup_space * 1024 ** 3
         if remote_available_space < 0:
-            print("无法获取远程磁盘空间信息，程序退出")
+            print("无法获取远程磁盘空间信息, 程序退出")
             ssh.close()
             return False
 
@@ -275,17 +277,17 @@ def deliver_file(host, username, password, local_folder, remote_base_dir, backup
         # 比较可用空间和所需空间
         if remote_available_space < required_space:
             space_shortage = required_space - remote_available_space
-            print(f"❌ 错误: 远程磁盘空间不足，缺少 {space_shortage / (1024 ** 3):.2f} GB")
+            print(f"❌ 错误: 远程磁盘空间不足, 缺少 {space_shortage / (1024 ** 3):.2f} GB")
             ssh.close()
             return False
         else:
             print(
-                f"✅ 远程磁盘空间充足，可用空间比所需空间多 {(remote_available_space - required_space) / (1024 ** 3):.2f} GB")
+                f"✅ 远程磁盘空间充足, 可用空间比所需空间多 {(remote_available_space - required_space) / (1024 ** 3):.2f} GB")
 
         # 创建远程文件夹（如果已存在则删除重建）
         remote_folder = create_remote_folder(ssh, config['remote_base_dir'], folder_name, 1)
         if not remote_folder:
-            print("无法创建远程文件夹，程序退出")
+            print("无法创建远程文件夹, 程序退出")
             ssh.close()
             return False
 

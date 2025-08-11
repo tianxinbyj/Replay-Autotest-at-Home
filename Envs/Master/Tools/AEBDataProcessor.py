@@ -20,9 +20,9 @@ import yaml
 from Envs.Master.Modules.DataTransformer import DataTransformer, DataLoggerAnalysis
 from Envs.Master.Tools.DataReplayTest import DataReplayTest
 from Envs.Master.Tools.QCameraConfig import QCameraConfig
-from Utils.FileDeliverer import calculate_local_folder_size, deliver_file, create_remote_folder
+from Utils.FileDeliverer import calculate_local_folder_size, deliver_file, create_remote_folder, get_remote_disk_space
 from Utils.Libs import ros_docker_path, kill_tmux_session_if_exists, create_folder, force_delete_folder, \
-    generate_unique_id, ThreadManager, project_path
+    generate_unique_id, ThreadManager, project_path, check_folder_space
 
 
 # Replay0Z上的
@@ -54,54 +54,56 @@ def reindex(install_path, bag_folder):
     kill_tmux_session_if_exists(tmux_session)
 
 
-def check_folder_space(path):
-    if not os.path.exists(path):
-        print(f"错误: 路径 '{path}' 不存在")
-        return
-
-    if not os.path.isdir(path):
-        print(f"错误: '{path}' 不是一个文件夹")
-        return
-
-    try:
-        # 使用shutil获取磁盘总空间、已用空间和可用空间
-        disk_usage = shutil.disk_usage(path)
-        return disk_usage.free, disk_usage.used, disk_usage.total
-
-    except PermissionError:
-        print(f"错误: 没有权限访问 '{path}'")
-        return
-
-    except Exception as e:
-        print(f"发生错误: {str(e)}")
-        return
-
-
-def get_folder_size(path):
-    """计算文件夹的总大小（字节）"""
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            # 跳过符号链接以避免循环
-            if not os.path.islink(fp):
-                try:
-                    total_size += os.path.getsize(fp)
-                except:
-                    pass
-
-    return total_size
-
-
-class AEBDataManager:
+class AEBDataTransfer:
 
     def __init__(self):
+        self.aeb_replay_data_path = Path(AEBReplayDataPath)
         self.package_status = None
         self.aeb_data_package_list = {}
         self.package_status_path = Path(AEBReplayDataPath) / 'AEBPackageStatus.json'
-        self.update_summary()
+        self.list_packages()
 
-    def transfer_data(self, host, username, password, data_label, remote_base_dir):
+    def list_packages(self):
+        for rosbag_dir in self.aeb_replay_data_path.rglob('*rosbag'):
+            replay_package_path = rosbag_dir.parent
+            if (replay_package_path / 'stats.txt').exists():
+                data_label = str(replay_package_path.relative_to(self.aeb_replay_data_path)).replace('/', '*')
+                prepared_size, transferred_size = 0, 0
+                prepared_num, transferred_num = 0, 0
+                for rosbag_path in rosbag_dir.glob('*'):
+                    if rosbag_path.is_dir() and str(rosbag_path.name) not in self.package_status:
+                        self.package_status[str(rosbag_path.name)] = {
+                            'path': str(rosbag_path),
+                            'status': 'prepared',
+                            'size': calculate_local_folder_size(rosbag_path),
+                        }
+                        self.save_package_status()
+
+                    package_status = self.package_status[str(rosbag_path.name)]
+                    if package_status['status'] == 'prepared':
+                        prepared_size += package_status['size']
+                        prepared_num += 1
+                    elif package_status['status'] == 'transferred':
+                        transferred_size += package_status['size']
+                        transferred_num += 1
+
+                    self.aeb_data_package_list[data_label] = {
+                        'path': str(replay_package_path),
+                        'prepared_size': prepared_size,
+                        'prepared_num': prepared_num,
+                        'transferred_size': transferred_size,
+                        'transferred_num': transferred_num,
+                    }
+
+        for k, v in self.aeb_data_package_list.items():
+            print(k, v['path'],
+                  round(v['prepared_size'] / 1024 ** 3, 1), v['prepared_num'],
+                  round(v['transferred_size'] / 1024 ** 3, 1), v['transferred_num'])
+
+        return self.aeb_data_package_list
+
+
+    def transfer_data(self, host, username, password, data_label, remote_base_dir, check_flag=False):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(
@@ -110,6 +112,28 @@ class AEBDataManager:
             username=username,
             password=password,
         )
+
+        # 确认远程空间
+        data_size = self.aeb_data_package_list[data_label]['prepared_size']
+        remote_space = get_remote_disk_space(ssh, remote_base_dir)
+        print(f"{data_label}数据大小 >>>> {round(data_size / 1024 ** 3, 1)} GB <<<<")
+        print(f"{host} {remote_base_dir}远程空间大小 >>>> {round(remote_space / 1024 ** 3, 1)} GB <<<<")
+        if remote_space < data_size + 20 * 1024 ** 3:
+            print('远程空间大小可能不足!')
+            if check_flag:
+                print('是否继续传送数据 y:是, n:否')
+                while True:
+                    user_input = input("> ").strip().lower()
+                    if user_input == "y":
+                        print("继续传送数据")
+                        break
+                    elif user_input == "n":
+                        print("停止传送数据")
+                        return
+                    else:
+                        print("输入无效，请输入 'y' 或者 ‘n’ 以继续...")
+
+        # 建立远程文件夹
         for dir in data_label.split('*'):
             remote_base_dir = create_remote_folder(ssh, remote_base_dir, dir)
             if not remote_base_dir:
@@ -166,47 +190,6 @@ class AEBDataManager:
                     print('停止传输数据')
                     break
 
-    def update_summary(self):
-        self.package_status = self.load_package_status()
-
-        for aeb_install in sorted(Path(AEBReplayDataPath).rglob("*install")):
-            aeb_data_package = aeb_install.parent
-            rosbag_path = aeb_data_package / 'rosbag'
-
-            k = str(aeb_data_package.relative_to(AEBReplayDataPath)).replace('/', '*')
-            prepared_size, transferred_size, replayed_size = 0, 0, 0
-            prepared_num, transferred_num, replayed_num = 0, 0, 0
-            if rosbag_path.exists():
-                for f in rosbag_path.glob('*'):
-                    if str(f.name) not in self.package_status:
-                        self.package_status[str(f.name)] = {
-                            'path': str(f),
-                            'status': 'prepared',
-                            'size': calculate_local_folder_size(f)/ (1024 ** 3),
-                        }
-                        self.save_package_status()
-
-                    package_status = self.package_status[str(f.name)]
-                    if package_status['status'] == 'prepared':
-                        prepared_size += package_status['size']
-                        prepared_num += 1
-                    elif package_status['status'] == 'transferred':
-                        transferred_size += package_status['size']
-                        transferred_num += 1
-                    elif package_status['status'] == 'replayed':
-                        replayed_size += package_status['size']
-                        replayed_num += 1
-
-                    self.aeb_data_package_list[k] = {
-                        'path': str(aeb_data_package),
-                        'prepared_size': round(prepared_size, 1),
-                        'prepared_num': prepared_num,
-                        'transferred_size': round(transferred_size, 1),
-                        'transferred_num': transferred_num,
-                        'replayed_size': round(replayed_size, 1),
-                        'replayed_num': replayed_num,
-                    }
-
     def save_package_status(self):
         with open(self.package_status_path, 'w', encoding='utf-8') as f:
             json.dump(self.package_status, f, ensure_ascii=False, indent=4)
@@ -236,18 +219,18 @@ class AEBDataProcessor:
 
             # check 文件夹是否还在运动
             continue_flag = False
-            f_size = get_folder_size(raw_package_path)
+            f_size = calculate_local_folder_size(raw_package_path)
             print(f'正在检查{str(raw_package_path)}')
             for _ in range(3):
                 time.sleep(5)
-                if f_size != get_folder_size(raw_package_path):
+                if f_size != calculate_local_folder_size(raw_package_path):
                     continue_flag = True
                     break
             if continue_flag:
-                print(f'{str(raw_package_path)}没有固定，跳过')
+                print(f'{str(raw_package_path)}没有固定, 跳过')
                 print(
-                    f"{str(AEBRawDataPath)} 占用 >>>> {round(get_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
-                    f"{str(AEBReplayDataPath)} 占用 >>>> {round(get_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
+                    f"{str(AEBRawDataPath)} 占用 >>>> {round(calculate_local_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
+                    f"{str(AEBReplayDataPath)} 占用 >>>> {round(calculate_local_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
                 continue
 
             install_gz = raw_package_path / 'install' / 'install.tar.gz'
@@ -260,7 +243,7 @@ class AEBDataProcessor:
                 print(f'{str(raw_package_path)}未找到camera参数文件, 跳过')
                 continue
 
-            print(f'{str(raw_package_path)}已经固定，且没有转化记录, 开始转化')
+            print(f'{str(raw_package_path)}已经固定, 且没有转化记录, 开始转化')
             v2_folder = replay_package_path / 'params'
             if v2_folder.exists():
                 shutil.rmtree(v2_folder)
@@ -312,15 +295,19 @@ class AEBDataProcessor:
         install_path = replay_package_path / 'install'
         data_transformer = DataTransformer(install_path)
         render_i = 0
+        stats_file = replay_package_path / 'stats.txt'
         for rosbag_key, rosbag_info in data_group['Rosbag'].items():
+
+            # 正在工作时, 删除stats.txt文件
+            stats_file.unlink(missing_ok=True)
 
             # 确认磁盘空间
             free, used, total = check_folder_space(replay_package_path)
             left = 20
             print('------------------------------------------------------------------')
             print(f"可用 / 已用 / 总共: >>>> {round(free / 1024 ** 3, 2)} GB <<<< / {round(used / 1024 ** 3, 2)} GB / {round(total / 1024 ** 3, 2)} GB")
-            print(f"{str(AEBRawDataPath)} 占用 >>>> {round(get_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
-                  f"{str(AEBReplayDataPath)} 占用 >>>> {round(get_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
+            print(f"{str(AEBRawDataPath)} 占用 >>>> {round(calculate_local_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
+                  f"{str(AEBReplayDataPath)} 占用 >>>> {round(calculate_local_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
 
             if free < left * 1024 ** 3:
                 print(f"预留空间不足{left} GB, 停止转化")
@@ -343,7 +330,7 @@ class AEBDataProcessor:
             reindex(install_path, ros2bag_path)
             print(f'{rosbag_key} 包生成完成')
 
-            # 生成AVM图片,如果render不激活，只会渲染前3个
+            # 生成AVM图片,如果render不激活, 只会渲染前3个
             if render or render_i < 3:
                 json_config_path = replay_package_path / 'params' / 'json'
                 task_manager.add_task(data_transformer.gen_AVM_from_db3, ros2bag_path.parent.parent, json_config_path)
@@ -355,7 +342,7 @@ class AEBDataProcessor:
 
         print('等待所有线程都结束')
         task_manager.stop()
-        with open(replay_package_path / 'stats.txt', 'w') as file:
+        with open(stats_file, 'w') as file:
             file.write('process_ok')
         raw_package_path = self.aeb_raw_data_path / replay_package_path.relative_to(self.aeb_replay_data_path)
         shutil.rmtree(raw_package_path)
@@ -372,32 +359,33 @@ class AEBDataCloud:
             aws_access_key_id=aws_access_key_id,  # 替换为你的Access Key
             aws_secret_access_key=aws_secret_access_key,  # 替换为你的Secret Key
             config=Config(signature_version='s3v4'),
-            region_name='cn-north-1'  # 区域名称，可根据实际情况修改
+            region_name='cn-north-1'  # 区域名称, 可根据实际情况修改
         )
 
         self.download_record_path = Path(AEBRawDataPath) / 'AEBDownloadRecord.json'
         self.download_record = self.load_download_status()
 
-    def list_objects(self, bucket_name, s3_path, version='', include=None, exclude=None):
+    def list_objects(self, bucket_name, s3_path, version='', include=None, exclude=None, local_dir=None):
         if include is None:
             include = []
         if exclude is None:
             exclude = []
 
         try:
+            object_list = {}
             total_size = 0
             total_objects = 0
             filtered_objects = 0
             continuation_token = None
 
-            # 循环处理分页，直到获取所有对象
+            # 循环处理分页, 直到获取所有对象
             while True:
                 # 准备请求参数
                 params = {
                     'Bucket': bucket_name,
                     'Prefix': s3_path
                 }
-                # 如果有续传令牌，添加到请求参数中
+                # 如果有续传令牌, 添加到请求参数中
                 if continuation_token:
                     params['ContinuationToken'] = continuation_token
 
@@ -426,6 +414,7 @@ class AEBDataCloud:
                         # 显示符合条件的对象
                         total_size += obj['Size']
                         filtered_objects += 1
+                        object_list[s3_key] = obj['Size']
 
                         print(f"- {s3_key} (大小 {round(obj['Size'] / 1024 ** 2, 2)} MB / {round(total_size / 1024 ** 2, 2)} MB) - {filtered_objects}个")
 
@@ -433,21 +422,52 @@ class AEBDataCloud:
                 if not response.get('IsTruncated', False):
                     break
 
-                # 更新续传令牌，用于获取下一页
+                # 更新续传令牌, 用于获取下一页
                 continuation_token = response.get('NextContinuationToken')
 
+            # 对object list汇总处理, 成为下载单元
+            package_totally = {}
+            for s3_key in object_list:
+                if '/install/' in s3_key:
+                    unit = s3_key.split('/install/')[0]
+                    if unit not in package_totally and any([f'{unit}/rosbag' in s3_key for s3_key in object_list]):
+                        package_totally[unit] = 0
+
+            package_totally = {}
+            for s3_key, s3_size in object_list.items():
+                for unit in package_totally:
+                    if unit in s3_key:
+                        package_totally[unit] += s3_size
+                        break
+
+            sorted_list = sorted(package_totally.items(), key=lambda x: x[1], reverse=False)
+            package_totally = dict(sorted_list)
+
             # 输出汇总信息
-            print(f"在路径 {s3_path} 下共找到 {total_objects} 个对象，"
-                  f"符合条件的有 {filtered_objects} 个，"
+            print(f"在路径 {s3_path} 下共找到 {total_objects} 个对象, "
+                  f"符合条件的有 {filtered_objects} 个, "
                   f"总大小 {round(total_size / 1024 ** 3, 2)} GB")
 
-            return filtered_objects, total_size
+            if local_dir is not None:
+                free, _, _ = check_folder_space(local_dir)
+                s = 0
+                package_for_download = {}
+                for unit, unit_size in package_totally.items():
+                    s += unit_size
+                    if s < free - 20 * 1024 ** 3:
+                        package_for_download[unit] = unit_size
+                    else:
+                        break
+
+                return package_for_download
+
+            return package_totally
 
         except Exception as e:
             print(f"列出对象时出错: {e}")
             return None
 
-    def download_s3_folder(self, bucket_name, s3_path, version='', include=None, exclude=None, target_num=None, target_size=None):
+    def download_directory(self, bucket_name, s3_path, version='', include=None, exclude=None, target_num=None, target_size=None):
         if include is None:
             include = []
         if exclude is None:
@@ -468,7 +488,7 @@ class AEBDataCloud:
             if 'Contents' in page:
                 for obj in page['Contents']:
                     s3_key = obj['Key']
-                    # 跳过目录（S3中没有真正的目录，只有以/结尾的键）
+                    # 跳过目录（S3中没有真正的目录, 只有以/结尾的键）
                     if s3_key.endswith('/'):
                         continue
 
@@ -477,14 +497,14 @@ class AEBDataCloud:
 
                     # 非install和parameter的会看是否已经下载过
                     if s3_key in self.download_record[version]:
-                        print(f'{version}:{s3_key}已下载过，跳过')
+                        print(f'{version}:{s3_key}已下载过, 跳过')
                         continue
 
-                    # 如果需要包含字符，则至少包含其中一个
+                    # 如果需要包含字符, 则至少包含其中一个
                     if len(include) and (not any([i in s3_key for i in include])):
                         continue
 
-                    # 如果需要排除字符，则包含一个字符则排除
+                    # 如果需要排除字符, 则包含一个字符则排除
                     if len(exclude) and (any([e in s3_key for e in exclude])):
                         continue
 
@@ -499,7 +519,7 @@ class AEBDataCloud:
                     print('------------------------------------------------------------------')
                     print(f"{local_dir}可用 / 已用 / 总共: >>>> {round(free / 1024 ** 3, 2)} GB <<<< / {round(used / 1024 ** 3, 2)} GB / {round(total / 1024 ** 3, 2)} GB")
                     print(f"目标文件{s3_key}大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
-                    aeb_raw_data_size = get_folder_size(local_dir)
+                    aeb_raw_data_size = calculate_local_folder_size(local_dir)
                     print(f"AEBRawData占用空间 >>>> {round(aeb_raw_data_size / 1024 ** 3, 3)} GB <<<<, "
                           f"警戒水位 >>>> {round(aeb_raw_data_size * ratio / 1024 ** 3, 3)} GB <<<<, "
                           f"预计可下载 >>>> {round((free - aeb_raw_data_size) / (1 + ratio) / 1024 ** 3, 3)} GB <<<<")
@@ -526,8 +546,8 @@ class AEBDataCloud:
                 break
 
         # 输出更详细的下载统计信息
-        print(f"下载完成，共下载 {total_downloaded} 个文件，"
-              f"总大小 {round(total_size / 1024 ** 2, 2)} MB，"
+        print(f"下载完成, 共下载 {total_downloaded} 个文件, "
+              f"总大小 {round(total_size / 1024 ** 2, 2)} MB, "
               f"文件保存在: {os.path.abspath(local_dir)}")
 
     def upload_directory(self, bucket_name, local_dir, s3_path):
@@ -543,7 +563,7 @@ class AEBDataCloud:
             for file in files:
                 local_file_path = os.path.join(root, file)
 
-                # 获取相对路径，用于保持目录结构
+                # 获取相对路径, 用于保持目录结构
                 relative_path = os.path.relpath(local_file_path, local_dir)
                 s3_key = os.path.join(s3_path, relative_path).replace(os.sep, '/')
 
@@ -560,7 +580,7 @@ class AEBDataCloud:
                     print(f"上传失败 {local_file_path}: {e}")
 
         # 输出上传统计信息
-        print(f"上传完成，共上传 {total_uploaded} 个文件，"
+        print(f"上传完成, 共上传 {total_uploaded} 个文件, "
               f"总大小 {round(total_size / 1024 ** 2, 2)} MB")
         return True
 
@@ -645,7 +665,6 @@ class AEBDataReplay:
     def monitor_replay_status(self):
         for scenario_id,  rosbag_path in self.replay_config['rosbag'].items():
             pred_raw_folder = self.workspace_path / '01_Prediction' / scenario_id
-
 
     def run_aeb_replay(self):
         if not self.create_workspace():
@@ -732,7 +751,7 @@ class AEBDataProcessor2:
             for qcraft_package_path in v['Qcraft']:
                 qcraft_package_id = os.path.basename(qcraft_package_path)
                 if qcraft_package_id in self.invalid_q_package:
-                    print(f'========={qcraft_package_id}========== 为无效场景，没有匹配的rosbag')
+                    print(f'========={qcraft_package_id}========== 为无效场景, 没有匹配的rosbag')
                     continue
 
                 print(f'===========正在解析 {qcraft_package_id} ===========')
@@ -864,7 +883,7 @@ if __name__ == '__main__':
     aws_secret_access_key='h1cY4WzpNxmQCpsXlXFpO4nWjNp3pbH0ZuBsuGmu'  # 替换为你的Secret Key
     bucket_name = 'aeb'
     s3_path = 'ALL/'
-    # 如果需要包含字符，则至少包含其中一个
+    # 如果需要包含字符, 则至少包含其中一个
     # include = [
     #     'AH4EM-SIMU182/',
     #     'AH4EM-SIMU182-NEW/',
@@ -878,14 +897,14 @@ if __name__ == '__main__':
     #     'EP39-SNV001',
     # ]
     include = ['AH4EM-SIMU182/']
-    # 如果需要排除字符，则包含一个字符则排除
+    # 如果需要排除字符, 则包含一个字符则排除
     exclude = ['canlog', 'CAN']
     version = 'AH4EM_AD_3.4.0_RC5_ENG'
 
     aeb_downloader = AEBDataCloud(endpoint_url, aws_access_key_id, aws_secret_access_key)
     filtered_objects, total_size = aeb_downloader.list_objects(bucket_name, s3_path, version, include=include, exclude=exclude)
     print(filtered_objects, total_size)
-    # aeb_downloader.download_s3_folder(bucket_name, s3_path, version, include, exclude)
+    # aeb_downloader.download_directory(bucket_name, s3_path, version, include, exclude)
     # a = AEBDataManager()
     # config = {
     #     "host": "10.192.68.107",

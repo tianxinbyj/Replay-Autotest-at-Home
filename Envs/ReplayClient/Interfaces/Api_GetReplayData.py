@@ -9,12 +9,12 @@ from Libs import get_project_path
 
 sys.path.append(get_project_path())
 
-from Envs.Master.Tools.AEBDataProcessor import AEBDataManager
+from Envs.Master.Tools.AEBDataProcessor import AEBDataTransfer
 
 
 def get_replay_list():
     print('id | path | prepared_size | prepared_num | transferred_size | transferred_num | replayed_size | replayed_num')
-    aeb_data_manager = AEBDataManager()
+    aeb_data_manager = AEBDataTransfer()
     for k, v in aeb_data_manager.aeb_data_package_list.items():
         print(k, v['path'],
               v['prepared_size'], v['prepared_num'],
@@ -22,7 +22,7 @@ def get_replay_list():
               v['replayed_size'], v['replayed_num'])
 
 def transfer_data(host, username, password, data_label, remote_base_dir):
-    aeb_data_manager = AEBDataManager()
+    aeb_data_manager = AEBDataTransfer()
     aeb_data_manager.transfer_data(host, username, password, data_label, remote_base_dir)
 
 
