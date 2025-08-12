@@ -34,7 +34,7 @@ Replay02:
     username: zhangliwei01
     password: Pass1234
     py_path: /home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home
-    sys_interpreter: /usr/bin/python3
+    sys_interpreter: /home/zhangliwei01/ZONE/PythonProject/Replay-Autotest-at-Home/venv/bin/python3
     sil_pkg_path: /home/zhangliwei01/ZONE/sil_pkg/sil
     ros_docker_path: self
   ReplayClient:
