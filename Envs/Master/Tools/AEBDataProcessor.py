@@ -139,7 +139,6 @@ class AEBDataCloud:
                     if unit not in package_totally and any([f'{unit}/rosbag' in s3_key for s3_key in object_list]):
                         package_totally[unit] = 0
 
-            package_totally = {}
             for s3_key, s3_size in object_list.items():
                 for unit in package_totally:
                     if unit in s3_key:
@@ -150,14 +149,16 @@ class AEBDataCloud:
             package_totally = dict(sorted_list)
 
             # 输出汇总信息
+            print('=========================================================================')
             print(f"在路径 {s3_path} 下共找到 {total_objects} 个对象, "
                   f"符合条件的有 {filtered_objects} 个, "
                   f"总大小 {round(total_size / 1024 ** 3, 2)} GB")
             for unit, unit_size in package_totally.items():
-                print(f'----> {unit}: 大小 >>>> {round(unit_size / 1024 ** 3), 2} GB <<<<')
+                print(f'----> {unit}: 大小 >>>> {round(unit_size / 1024 ** 3, 2)} GB <<<<')
 
             if local_dir is not None:
                 free, _, _ = check_folder_space(local_dir)
+                print('=========================================================================')
                 print(f'{AEBRawDataPath} 有空间 >>>> {round(free / 1024 ** 3, 2)} GB <<<<')
                 s = 0
                 ratio = 1.5
@@ -166,7 +167,7 @@ class AEBDataCloud:
                     s += unit_size
                     if s * ratio + 20 * 1024 ** 3 < free:
                         package_for_download[unit] = unit_size
-                        print(f'------> {unit}: 大小 >>>> {round(unit_size / 1024 ** 3), 2} GB <<<<, 累积大小 >>>> {round(s / 1024 ** 3), 2} GB <<<<')
+                        print(f'--------> {unit}: 大小 >>>> {round(unit_size / 1024 ** 3, 2)} GB <<<<, 累积大小 >>>> {round(s / 1024 ** 3, 2)} GB <<<<')
                     else:
                         break
 
@@ -617,12 +618,14 @@ class AEBDataReplay:
             self.host = None
             self.username = None
             self.password = None
+            self.replay_room = None
         else:
             bench_config = data[bench_id]
-            self.interface_path = f'{project_path}/Envs/ReplayClient/Interfaces'
-            self.host = bench_config['ReplayClient']['ip']
-            self.username = bench_config['ReplayClient']['username']
-            self.password = str(bench_config['ReplayClient']['password'])
+            self.interface_path = f'{bench_config["Master"]["py_path"]}/Envs/ReplayClient/Interfaces'
+            self.host = bench_config['Master']['ip']
+            self.username = bench_config['Master']['username']
+            self.password = str(bench_config['Master']['password'])
+            self.replay_room = f'/home/{self.username}/ZONE/AEBReplayRoom'
 
     def send_cmd(self, command):
         if self.host is None or (not check_connection(self.host)):
@@ -645,8 +648,8 @@ class AEBDataReplay:
             ssh.close()
             return None
 
-    def create_replay_workspace(self, replay_data_path, action):
-        command = f'cd {self.interface_path} && python3 Api_AEBReplayTask.py -a {action} -f {replay_data_path}'
+    def create_replay_workspace(self):
+        command = f'cd {self.interface_path} && python3 Api_AEBReplayTask.py -a create -f {self.replay_room}'
 
         print(command)
         res = self.send_cmd(command)
@@ -858,42 +861,3 @@ class AEBDataProcessor2:
         for t in self.thread_list:
             t.join()
         self.thread_list.clear()
-
-
-if __name__ == '__main__':
-    endpoint_url='http://10.192.53.221:8080'  # 你的S3 endpoint
-    aws_access_key_id='44JAMVA71J5L90D9DK77'  # 替换为你的Access Key
-    aws_secret_access_key='h1cY4WzpNxmQCpsXlXFpO4nWjNp3pbH0ZuBsuGmu'  # 替换为你的Secret Key
-    bucket_name = 'aeb'
-    s3_path = 'ALL/'
-    # 如果需要包含字符, 则至少包含其中一个
-    # include = [
-    #     'AH4EM-SIMU182/',
-    #     'AH4EM-SIMU182-NEW/',
-    #     'AH4EM-HNV032/',
-    #     'AH4EM-HNV033/',
-    #     'AH4EM-HNV036/',
-    #     'EP39-PPV001',
-    #     'EP39-PPV005',
-    #     'EP39-PPV008',
-    #     'EP39-PP001',
-    #     'EP39-SNV001',
-    # ]
-    include = ['AH4EM-SIMU182/']
-    # 如果需要排除字符, 则包含一个字符则排除
-    exclude = ['canlog', 'CAN']
-    version = 'AH4EM_AD_3.4.0_RC5_ENG'
-
-    aeb_downloader = AEBDataCloud(endpoint_url, aws_access_key_id, aws_secret_access_key)
-    filtered_objects, total_size = aeb_downloader.list_objects(bucket_name, s3_path, version, include=include, exclude=exclude)
-    print(filtered_objects, total_size)
-    # aeb_downloader.download_directory(bucket_name, s3_path, version, include, exclude)
-    # a = AEBDataManager()
-    # config = {
-    #     "host": "10.192.68.107",
-    #     "username": "zhangliwei01",
-    #     "password": "Pass1234",
-    #     "data_label": "AH4EM-SIMU023|202507|20250708",
-    #     "remote_base_dir": "/home/zhangliwei01/ZONE/AEBReplayData"  # 远程文件夹路径
-    # }
-    # a.transfer_data(**config)

@@ -7,10 +7,10 @@ import time
 import yaml
 from pathlib import Path
 
-from Envs.Master.Tools.DataReplayTest import DataReplayTest
 from Libs import get_project_path
-
 sys.path.append(get_project_path())
+
+from Envs.Master.Tools.DataReplayTest import DataReplayTest
 from Utils.Libs import project_path
 
 
