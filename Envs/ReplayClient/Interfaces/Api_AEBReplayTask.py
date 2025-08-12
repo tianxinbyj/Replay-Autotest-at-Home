@@ -11,7 +11,7 @@ from Libs import get_project_path
 sys.path.append(get_project_path())
 
 from Envs.Master.Tools.DataReplayTest import DataReplayTest
-from Utils.Libs import project_path
+from Utils.Libs import project_path, kill_tmux_session_if_exists, bench_config, bench_id, get_folder_size
 
 
 class AEBReplayTask:
@@ -21,7 +21,7 @@ class AEBReplayTask:
         self.replay_data_path = Path(replay_data_path)
         self.workspace_path = self.replay_data_path / 'ReplayWorkspace'
 
-    def create_replay_config(self):
+    def create_replay_config(self, scenario_num):
         for rosbag_dir in self.replay_data_path.rglob('rosbag'):
             replay_config = {
                 'install': str(rosbag_dir.parent / 'install'),
@@ -38,7 +38,7 @@ class AEBReplayTask:
                             if rosbag_path.exists():
                                 replay_config['rosbag'][file.name] = str(rosbag_path.absolute())
                                 scenario_count += 1
-                                if scenario_count > 20:
+                                if scenario_count >= scenario_num:
                                     break
 
             if scenario_count:
@@ -60,8 +60,8 @@ class AEBReplayTask:
 
         return test_config
 
-    def create_workspace(self):
-        test_config = self.create_replay_config()
+    def create_workspace(self, scenario_num=20):
+        test_config = self.create_replay_config(scenario_num)
         if test_config is None:
             print('没有找到可用的test_config')
             return None
@@ -85,27 +85,50 @@ class AEBReplayTask:
             pred_raw_folder = self.workspace_path / '01_Prediction' / scenario_id
 
     def run_aeb_replay(self):
-        if not self.create_workspace():
-            print('未创建工作空间')
-            return False
+        tmux_session = f'{bench_id}_ReplayTestSes'
+        tmux_window = f'{bench_id}_ReplayTestWin'
+        kill_tmux_session_if_exists(tmux_session)
 
-        ddd = DataReplayTest(self.workspace_path)
-        ddd.start()
+        os.system(f"tmux new-session -s {tmux_session} -n {tmux_window} -d")
+        api_folder = os.path.join(project_path, 'Envs', 'Master', 'Interfaces')
+        os.system(f"tmux send-keys -t {tmux_session}:{tmux_window} 'cd {api_folder}' C-m")
+        time.sleep(1)
+        sys_interpreter = bench_config['Master']['sys_interpreter']
+        os.system(f"tmux send-keys -t {tmux_session}:{tmux_window} '{sys_interpreter} Api_StartReplayTest.py -t {self.workspace_path}' C-m")
+
+        t0 = time.time
+        time.sleep(5)
+        while True:
+            workspace_size_1 = get_folder_size(self.workspace_path)
+            time.sleep(30)
+            workspace_size_2 = get_folder_size(self.workspace_path)
+            if workspace_size_1 == workspace_size_2:
+                print(f'{self.workspace_path} TASK IS DONE!')
+                break
+            print(f'{round(time.time() - t0)} seconds, {self.workspace_path} 测试中')
+
+        kill_tmux_session_if_exists(tmux_session)
 
 
 def main():
     parser = argparse.ArgumentParser(description="start aeb replay task")
     parser.add_argument("-a", "--action", type=str, required=True, help="replay action")
-    parser.add_argument("-f", "--workspace", type=str, required=True, help="replay_data_path")
+    parser.add_argument("-f", "--replay_data_path", type=str, required=True, help="replay data path")
+    parser.add_argument("-n", "--scenario_num", type=int, default=20, help="scenario num")
 
     args = parser.parse_args()
     action = args.action
     replay_data_path = args.replay_data_path
+    scenario_num = args.scenario_num
 
     aeb_replay_task = AEBReplayTask(replay_data_path)
     if action == 'create':
-        if aeb_replay_task.create_workspace():
+        if aeb_replay_task.create_workspace(scenario_num):
             print(aeb_replay_task.workspace_path)
 
     elif action == 'run':
         aeb_replay_task.run_aeb_replay()
+
+
+if __name__ == '__main__':
+    main()
