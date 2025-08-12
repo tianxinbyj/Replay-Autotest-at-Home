@@ -619,6 +619,7 @@ class AEBDataReplay:
             self.username = None
             self.password = None
             self.replay_room = None
+            self.python = None
         else:
             bench_config = data[bench_id]
             self.interface_path = f'{bench_config["Master"]["py_path"]}/Envs/ReplayClient/Interfaces'
@@ -626,6 +627,7 @@ class AEBDataReplay:
             self.username = bench_config['Master']['username']
             self.password = str(bench_config['Master']['password'])
             self.replay_room = f'/home/{self.username}/ZONE/AEBReplayRoom'
+            self.python = bench_config['Master']['sys_interpreter']
 
     def send_cmd(self, command):
         if self.host is None or (not check_connection(self.host)):
@@ -649,7 +651,7 @@ class AEBDataReplay:
             return None
 
     def create_replay_workspace(self):
-        command = f'cd {self.interface_path} && python3 Api_AEBReplayTask.py -a create -f {self.replay_room}'
+        command = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a create -f {self.replay_room}'
 
         print(command)
         res = self.send_cmd(command)

@@ -287,6 +287,31 @@ def create_folder(path, update=True):
             os.makedirs(path)
 
 
+def copy_to_destination(source, destination_dir):
+    # 确保目标文件夹存在
+    if not os.path.exists(destination_dir):
+        os.makedirs(destination_dir)
+
+    destination = os.path.join(destination_dir, os.path.basename(source))
+    existed_flag = os.path.exists(destination)
+
+    if os.path.isfile(source):
+        if existed_flag:
+            os.remove(destination)
+        shutil.copy(source, destination)
+
+    elif os.path.isdir(source):
+        if existed_flag:
+            shutil.rmtree(destination)
+        shutil.copytree(source, destination)
+
+    else:
+        print(f"{source}源路径不存在或既不是文件也不是文件夹")
+        return None
+
+    return destination
+
+
 def calculate_file_checksum(file_path, method='md5'):
     """
     计算文件的校验和（哈希值）。
