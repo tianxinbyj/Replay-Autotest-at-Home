@@ -15,7 +15,6 @@ pyyaml
 pytz
 pyvisa
 pyserial
-moviepy
 Pillow
 pexpect
 openpyxl
