@@ -416,6 +416,16 @@ def is_python_file_running(file_name):
     return len(running_pids) > 0, running_pids
 
 
+def check_connection(ip):
+    command = ['ping', '-c', '3', '-W', '1', ip]
+    result = subprocess.run(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    return result.returncode == 0
+
+
 def find_file(filename, directory):
     """
     在指定目录及其子目录中递归查找特定文件名的文件。

@@ -5,6 +5,7 @@
 import json
 import os
 import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -18,11 +19,10 @@ import paramiko
 import yaml
 
 from Envs.Master.Modules.DataTransformer import DataTransformer, DataLoggerAnalysis
-from Envs.Master.Tools.DataReplayTest import DataReplayTest
 from Envs.Master.Tools.QCameraConfig import QCameraConfig
 from Utils.FileDeliverer import calculate_local_folder_size, deliver_file, create_remote_folder, get_remote_disk_space
 from Utils.Libs import ros_docker_path, kill_tmux_session_if_exists, create_folder, force_delete_folder, \
-    generate_unique_id, ThreadManager, project_path, check_folder_space
+    generate_unique_id, ThreadManager, project_path, check_folder_space, check_connection
 
 
 # Replay0Z上的
@@ -54,151 +54,259 @@ def reindex(install_path, bag_folder):
     kill_tmux_session_if_exists(tmux_session)
 
 
-class AEBDataTransfer:
+class AEBDataCloud:
 
-    def __init__(self):
-        self.aeb_replay_data_path = Path(AEBReplayDataPath)
-        self.package_status = None
-        self.aeb_data_package_list = {}
-        self.package_status_path = Path(AEBReplayDataPath) / 'AEBPackageStatus.json'
-        self.list_packages()
-
-    def list_packages(self):
-        for rosbag_dir in self.aeb_replay_data_path.rglob('*rosbag'):
-            replay_package_path = rosbag_dir.parent
-            if (replay_package_path / 'stats.txt').exists():
-                data_label = str(replay_package_path.relative_to(self.aeb_replay_data_path)).replace('/', '*')
-                prepared_size, transferred_size = 0, 0
-                prepared_num, transferred_num = 0, 0
-                for rosbag_path in rosbag_dir.glob('*'):
-                    if rosbag_path.is_dir() and str(rosbag_path.name) not in self.package_status:
-                        self.package_status[str(rosbag_path.name)] = {
-                            'path': str(rosbag_path),
-                            'status': 'prepared',
-                            'size': calculate_local_folder_size(rosbag_path),
-                        }
-                        self.save_package_status()
-
-                    package_status = self.package_status[str(rosbag_path.name)]
-                    if package_status['status'] == 'prepared':
-                        prepared_size += package_status['size']
-                        prepared_num += 1
-                    elif package_status['status'] == 'transferred':
-                        transferred_size += package_status['size']
-                        transferred_num += 1
-
-                    self.aeb_data_package_list[data_label] = {
-                        'path': str(replay_package_path),
-                        'prepared_size': prepared_size,
-                        'prepared_num': prepared_num,
-                        'transferred_size': transferred_size,
-                        'transferred_num': transferred_num,
-                    }
-
-        for k, v in self.aeb_data_package_list.items():
-            print(k, v['path'],
-                  round(v['prepared_size'] / 1024 ** 3, 1), v['prepared_num'],
-                  round(v['transferred_size'] / 1024 ** 3, 1), v['transferred_num'])
-
-        return self.aeb_data_package_list
-
-
-    def transfer_data(self, host, username, password, data_label, remote_base_dir, check_flag=False):
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(
-            host,
-            port=22,
-            username=username,
-            password=password,
+    def __init__(self, endpoint_url, aws_access_key_id, aws_secret_access_key):
+        # 配置S3客户端
+        self.s3_client = boto3.client(
+            's3',
+            endpoint_url=endpoint_url,  # 你的S3 endpoint
+            aws_access_key_id=aws_access_key_id,  # 替换为你的Access Key
+            aws_secret_access_key=aws_secret_access_key,  # 替换为你的Secret Key
+            config=Config(signature_version='s3v4'),
+            region_name='cn-north-1'  # 区域名称, 可根据实际情况修改
         )
 
-        # 确认远程空间
-        data_size = self.aeb_data_package_list[data_label]['prepared_size']
-        remote_space = get_remote_disk_space(ssh, remote_base_dir)
-        print(f"{data_label}数据大小 >>>> {round(data_size / 1024 ** 3, 1)} GB <<<<")
-        print(f"{host} {remote_base_dir}远程空间大小 >>>> {round(remote_space / 1024 ** 3, 1)} GB <<<<")
-        if remote_space < data_size + 20 * 1024 ** 3:
-            print('远程空间大小可能不足!')
-            if check_flag:
-                print('是否继续传送数据 y:是, n:否')
-                while True:
-                    user_input = input("> ").strip().lower()
-                    if user_input == "y":
-                        print("继续传送数据")
-                        break
-                    elif user_input == "n":
-                        print("停止传送数据")
-                        return
-                    else:
-                        print("输入无效，请输入 'y' 或者 ‘n’ 以继续...")
+        self.download_record_path = Path(AEBRawDataPath) / 'AEBDownloadRecord.json'
+        self.download_record = self.load_download_status()
 
-        # 建立远程文件夹
-        for dir in data_label.split('*'):
-            remote_base_dir = create_remote_folder(ssh, remote_base_dir, dir)
-            if not remote_base_dir:
-                print(0)
-                return
+    def list_objects(self, bucket_name, s3_path, version='', include=None, exclude=None, local_dir=AEBRawDataPath):
+        if include is None:
+            include = []
+        if exclude is None:
+            exclude = []
 
-        package_path = Path(self.aeb_data_package_list[data_label]['path'])
-        install_path = Path(package_path) / 'install'
-        parameter_path = Path(package_path) / 'params'
-        if not deliver_file(
-                host=host, username=username, password=password,
-                local_folder=install_path, remote_base_dir=remote_base_dir
-        ):
-            print(0)
-            return
+        try:
+            object_list = {}
+            total_size = 0
+            total_objects = 0
+            filtered_objects = 0
+            continuation_token = None
 
-        if not deliver_file(
-                host=host, username=username, password=password,
-                local_folder=parameter_path, remote_base_dir=remote_base_dir
-        ):
-            print(0)
-            return
+            # 循环处理分页, 直到获取所有对象
+            while True:
+                # 准备请求参数
+                params = {
+                    'Bucket': bucket_name,
+                    'Prefix': s3_path
+                }
+                # 如果有续传令牌, 添加到请求参数中
+                if continuation_token:
+                    params['ContinuationToken'] = continuation_token
 
-        remote_rosbag_path = create_remote_folder(ssh, remote_base_dir, 'rosbag')
-        if not remote_rosbag_path:
-            print(0)
-            return
+                # 调用API获取对象列表
+                response = self.s3_client.list_objects_v2(**params)
 
-        for rosbag_path in sorted((package_path / 'rosbag').glob('*')):
-            if str(rosbag_path.name) not in self.package_status:
-                print(f'{rosbag_path.name}是一个未知数据')
-                continue
-            elif self.package_status[str(rosbag_path.name)]['status'] == 'prepared':
-                self.package_status[str(rosbag_path.name)]['status'] = 'busy'
-                self.save_package_status()
-                try:
-                    if deliver_file(
-                            host=host, username=username, password=password,
-                            local_folder=rosbag_path, remote_base_dir=remote_rosbag_path,
-                            backup_space=20,
-                    ):
-                        self.package_status[str(rosbag_path.name)]['status'] = 'transferred'
-                        self.save_package_status()
-                    else:
-                        self.package_status[str(rosbag_path.name)]['status'] = 'prepared'
-                        self.save_package_status()
-                        print('停止传输数据')
-                        break
+                # 处理当前页的对象
+                if 'Contents' in response:
+                    page_objects = len(response['Contents'])
+                    total_objects += page_objects
 
-                except Exception as e:
-                    print(e)
-                    self.package_status[str(rosbag_path.name)]['status'] = 'prepared'
-                    self.save_package_status()
-                    print('停止传输数据')
+                    for obj in response['Contents']:
+                        s3_key = obj['Key']
+
+                        if version in self.download_record and s3_key in self.download_record[version]:
+                            print(f'{version}:{s3_key} 已下载, 排除')
+                            continue
+
+                        # 应用包含过滤条件
+                        if len(include) and (not any([i in s3_key for i in include])):
+                            continue
+
+                        # 应用排除过滤条件
+                        if len(exclude) and (any([e in s3_key for e in exclude])):
+                            continue
+
+                        # 显示符合条件的对象
+                        total_size += obj['Size']
+                        filtered_objects += 1
+                        object_list[s3_key] = obj['Size']
+
+                        print(f"- {s3_key} (大小 {round(obj['Size'] / 1024 ** 2, 2)} MB / {round(total_size / 1024 ** 2, 2)} MB) - {filtered_objects}个")
+
+                # 检查是否还有更多对象
+                if not response.get('IsTruncated', False):
                     break
 
-    def save_package_status(self):
-        with open(self.package_status_path, 'w', encoding='utf-8') as f:
-            json.dump(self.package_status, f, ensure_ascii=False, indent=4)
+                # 更新续传令牌, 用于获取下一页
+                continuation_token = response.get('NextContinuationToken')
 
-    def load_package_status(self):
-        if not self.package_status_path.exists():
+            # 对object list汇总处理, 成为下载单元
+            package_totally = {}
+            for s3_key in object_list:
+                if '/install/' in s3_key:
+                    unit = s3_key.split('/install/')[0]
+                    if unit not in package_totally and any([f'{unit}/rosbag' in s3_key for s3_key in object_list]):
+                        package_totally[unit] = 0
+
+            package_totally = {}
+            for s3_key, s3_size in object_list.items():
+                for unit in package_totally:
+                    if unit in s3_key:
+                        package_totally[unit] += s3_size
+                        break
+
+            sorted_list = sorted(package_totally.items(), key=lambda x: x[1], reverse=False)
+            package_totally = dict(sorted_list)
+
+            # 输出汇总信息
+            print(f"在路径 {s3_path} 下共找到 {total_objects} 个对象, "
+                  f"符合条件的有 {filtered_objects} 个, "
+                  f"总大小 {round(total_size / 1024 ** 3, 2)} GB")
+            for unit, unit_size in package_totally.items():
+                print(f'----> {unit}: 大小 >>>> {round(unit_size / 1024 ** 3), 2} GB <<<<')
+
+            if local_dir is not None:
+                free, _, _ = check_folder_space(local_dir)
+                print(f'{AEBRawDataPath} 有空间 >>>> {round(free / 1024 ** 3, 2)} GB <<<<')
+                s = 0
+                ratio = 1.5
+                package_for_download = {}
+                for unit, unit_size in package_totally.items():
+                    s += unit_size
+                    if s * ratio + 20 * 1024 ** 3 < free:
+                        package_for_download[unit] = unit_size
+                        print(f'------> {unit}: 大小 >>>> {round(unit_size / 1024 ** 3), 2} GB <<<<, 累积大小 >>>> {round(s / 1024 ** 3), 2} GB <<<<')
+                    else:
+                        break
+
+                if not package_for_download:
+                    print('空间不足, 无法下载任意package')
+
+                return package_for_download
+
+            return package_totally
+
+        except Exception as e:
+            print(f"列出对象时出错: {e}")
+            return None
+
+    def download_directory(self, bucket_name, s3_path, version='', include=None, exclude=None, target_num=None, target_size=None):
+        if include is None:
+            include = []
+        if exclude is None:
+            exclude = []
+
+        t0 = time.time()
+        local_dir = AEBRawDataPath
+        os.makedirs(local_dir, exist_ok=True)
+
+        """递归下载S3路径下的所有文件"""
+        total_downloaded = 0
+        total_size = 0
+        break_flag = False
+
+        # 使用分页器处理超过1000个对象的情况
+        paginator = self.s3_client.get_paginator('list_objects_v2')
+        for page in paginator.paginate(Bucket=bucket_name, Prefix=s3_path):
+            if 'Contents' in page:
+                for obj in page['Contents']:
+                    s3_key = obj['Key']
+                    # 跳过目录（S3中没有真正的目录, 只有以/结尾的键）
+                    if s3_key.endswith('/'):
+                        continue
+
+                    if version not in self.download_record:
+                        self.download_record[version] = {}
+
+                    # 非install和parameter的会看是否已经下载过
+                    if s3_key in self.download_record[version]:
+                        print(f'{version}:{s3_key}已下载过, 跳过')
+                        continue
+
+                    # 如果需要包含字符, 则至少包含其中一个
+                    if len(include) and (not any([i in s3_key for i in include])):
+                        continue
+
+                    # 如果需要排除字符, 则包含一个字符则排除
+                    if len(exclude) and (any([e in s3_key for e in exclude])):
+                        continue
+
+                    # 构建本地文件路径
+                    local_file = os.path.join(local_dir, os.path.relpath(s3_key, s3_path))
+                    local_path = os.path.dirname(local_file)
+                    os.makedirs(local_path, exist_ok=True)
+
+                    # 下载文件
+                    free, used, total = check_folder_space(local_dir)
+                    ratio = 1.5
+                    print('------------------------------------------------------------------')
+                    print(f"{local_dir}可用 / 已用 / 总共: >>>> {round(free / 1024 ** 3, 2)} GB <<<< / {round(used / 1024 ** 3, 2)} GB / {round(total / 1024 ** 3, 2)} GB")
+                    print(f"目标文件{s3_key}大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
+                    aeb_raw_data_size = calculate_local_folder_size(local_dir)
+                    print(f"AEBRawData占用空间 >>>> {round(aeb_raw_data_size / 1024 ** 3, 3)} GB <<<<, "
+                          f"警戒水位 >>>> {round(aeb_raw_data_size * ratio / 1024 ** 3, 3)} GB <<<<, "
+                          f"预计可下载 >>>> {round((free - aeb_raw_data_size) / (1 + ratio) / 1024 ** 3, 3)} GB <<<<")
+                    if 'install' not in s3_key and 'params' not in s3_key and free < aeb_raw_data_size * ratio:
+                        print(f"预留空间不足, 停止下载")
+                        break_flag = True
+                        break
+
+                    self.s3_client.download_file(bucket_name, s3_key, local_file)
+                    if 'install' not in s3_key and 'params' not in s3_key:
+                        self.download_record[version][s3_key] = obj['Size'] / 1024 ** 2
+                        self.save_download_status()
+
+                    total_downloaded += 1
+                    total_size += obj['Size']
+                    print(f"下载: {s3_key} -> {local_file}, "
+                          f"大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
+                    if target_num and target_size:
+                        print(f'个数{total_downloaded} / {target_num} 完成, {round(total_size / 1024 ** 3, 2)} GB / {round(target_size / 1024 ** 3, 2)} GB 完成, {total_size / target_size:.2%} 完成')
+                    print(f"共计 {round(total_size / 1024 ** 2, 2)} MB, {round(time.time() - t0)} 秒, {total_downloaded} 个, "
+                          f"平均速度 >>>> {round(total_size/(time.time() - t0) / 1024 ** 2)} MB/s <<<<")
+
+            if break_flag:
+                break
+
+        # 输出更详细的下载统计信息
+        print(f"下载完成, 共下载 {total_downloaded} 个文件, "
+              f"总大小 {round(total_size / 1024 ** 2, 2)} MB, "
+              f"文件保存在: {os.path.abspath(local_dir)}")
+
+    def upload_directory(self, bucket_name, local_dir, s3_path):
+        if not os.path.isdir(local_dir):
+            print(f"错误：{local_dir} 不是一个有效的目录")
+            return False
+
+        total_uploaded = 0
+        total_size = 0
+
+        # 遍历本地目录
+        for root, dirs, files in os.walk(local_dir):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+
+                # 获取相对路径, 用于保持目录结构
+                relative_path = os.path.relpath(local_file_path, local_dir)
+                s3_key = os.path.join(s3_path, relative_path).replace(os.sep, '/')
+
+                # 上传文件
+                file_size = os.path.getsize(local_file_path)
+                try:
+                    print(f"上传: {local_file_path} -> {s3_key} "
+                          f"(大小: {round(file_size / 1024 ** 2, 2)} MB)")
+
+                    self.s3_client.upload_file(local_file_path, bucket_name, s3_key)
+                    total_uploaded += 1
+                    total_size += file_size
+                except Exception as e:
+                    print(f"上传失败 {local_file_path}: {e}")
+
+        # 输出上传统计信息
+        print(f"上传完成, 共上传 {total_uploaded} 个文件, "
+              f"总大小 {round(total_size / 1024 ** 2, 2)} MB")
+        return True
+
+    def save_download_status(self):
+        with open(self.download_record_path, 'w', encoding='utf-8') as f:
+            json.dump(self.download_record, f, ensure_ascii=False, indent=4)
+
+    def load_download_status(self):
+        if not self.download_record_path.exists():
             return {}
 
-        with open(self.package_status_path, 'r', encoding='utf-8') as file:
+        with open(self.download_record_path, 'r', encoding='utf-8') as file:
             return json.load(file)
 
 
@@ -349,330 +457,205 @@ class AEBDataProcessor:
         print(f"所有任务已完成, 程序退出, 删除{raw_package_path}")
 
 
-class AEBDataCloud:
+class AEBDataTransfer:
 
-    def __init__(self, endpoint_url, aws_access_key_id, aws_secret_access_key):
-        # 配置S3客户端
-        self.s3_client = boto3.client(
-            's3',
-            endpoint_url=endpoint_url,  # 你的S3 endpoint
-            aws_access_key_id=aws_access_key_id,  # 替换为你的Access Key
-            aws_secret_access_key=aws_secret_access_key,  # 替换为你的Secret Key
-            config=Config(signature_version='s3v4'),
-            region_name='cn-north-1'  # 区域名称, 可根据实际情况修改
+    def __init__(self):
+        self.aeb_replay_data_path = Path(AEBReplayDataPath)
+        self.aeb_data_package_list = {}
+        self.package_status_path = Path(AEBReplayDataPath) / 'AEBPackageStatus.json'
+        self.package_status = self.load_package_status()
+        self.list_packages()
+
+    def list_packages(self):
+        for rosbag_dir in self.aeb_replay_data_path.rglob('*rosbag'):
+            replay_package_path = rosbag_dir.parent
+            if (replay_package_path / 'stats.txt').exists():
+                data_label = str(replay_package_path.relative_to(self.aeb_replay_data_path)).replace('/', '*')
+                prepared_size, transferred_size = 0, 0
+                prepared_num, transferred_num = 0, 0
+                for rosbag_path in rosbag_dir.glob('*'):
+                    if rosbag_path.is_dir() and str(rosbag_path.name) not in self.package_status:
+                        self.package_status[str(rosbag_path.name)] = {
+                            'path': str(rosbag_path),
+                            'stats': 'prepared',
+                            'size': calculate_local_folder_size(rosbag_path),
+                        }
+                        self.save_package_status()
+
+                    package_status = self.package_status[str(rosbag_path.name)]
+                    if package_status['stats'] == 'prepared':
+                        prepared_size += package_status['size']
+                        prepared_num += 1
+                    elif package_status['stats'] == 'transferred':
+                        transferred_size += package_status['size']
+                        transferred_num += 1
+
+                    self.aeb_data_package_list[data_label] = {
+                        'path': str(replay_package_path),
+                        'prepared_size': prepared_size,
+                        'prepared_num': prepared_num,
+                        'transferred_size': transferred_size,
+                        'transferred_num': transferred_num,
+                    }
+
+        sorted_list = sorted(self.aeb_data_package_list.items(), key=lambda x: x[1]['prepared_size'], reverse=True)
+        self.aeb_data_package_list = dict(sorted_list)
+
+        for k, v in self.aeb_data_package_list.items():
+            print(k, v['path'],
+                  '>>>>', round(v['prepared_size'] / 1024 ** 3, 2), 'GB <<<<', v['prepared_num'],
+                  round(v['transferred_size'] / 1024 ** 3, 2), v['transferred_num'])
+
+        return self.aeb_data_package_list
+
+    def transfer_data(self, host, username, password, data_label, remote_base_dir, check_flag=False):
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(
+            host,
+            port=22,
+            username=username,
+            password=password,
         )
 
-        self.download_record_path = Path(AEBRawDataPath) / 'AEBDownloadRecord.json'
-        self.download_record = self.load_download_status()
+        # 确认远程空间
+        data_size = self.aeb_data_package_list[data_label]['prepared_size']
+        remote_space = get_remote_disk_space(ssh, remote_base_dir)
+        print(f"{data_label}数据大小 >>>> {round(data_size / 1024 ** 3, 2)} GB <<<<")
+        print(f"{host} {remote_base_dir}远程空间大小 >>>> {round(remote_space / 1024 ** 3, 2)} GB <<<<")
+        if remote_space < data_size + 20 * 1024 ** 3:
+            print('远程空间大小可能不足!')
+            if check_flag:
+                print('是否继续传送数据 y:是, n:否')
+                while True:
+                    user_input = input("> ").strip().lower()
+                    if user_input == "y":
+                        print("继续传送数据")
+                        break
+                    elif user_input == "n":
+                        print("停止传送数据")
+                        return
+                    else:
+                        print("输入无效，请输入 'y' 或者 ‘n’ 以继续...")
 
-    def list_objects(self, bucket_name, s3_path, version='', include=None, exclude=None, local_dir=None):
-        if include is None:
-            include = []
-        if exclude is None:
-            exclude = []
+        # 建立远程文件夹
+        for dir in data_label.split('*'):
+            remote_base_dir = create_remote_folder(ssh, remote_base_dir, dir)
+            if not remote_base_dir:
+                print(0)
+                return
 
-        try:
-            object_list = {}
-            total_size = 0
-            total_objects = 0
-            filtered_objects = 0
-            continuation_token = None
+        package_path = Path(self.aeb_data_package_list[data_label]['path'])
+        install_path = Path(package_path) / 'install'
+        parameter_path = Path(package_path) / 'params'
+        if not deliver_file(
+                host=host, username=username, password=password,
+                local_folder=install_path, remote_base_dir=remote_base_dir
+        ):
+            print(0)
+            return
 
-            # 循环处理分页, 直到获取所有对象
-            while True:
-                # 准备请求参数
-                params = {
-                    'Bucket': bucket_name,
-                    'Prefix': s3_path
-                }
-                # 如果有续传令牌, 添加到请求参数中
-                if continuation_token:
-                    params['ContinuationToken'] = continuation_token
+        if not deliver_file(
+                host=host, username=username, password=password,
+                local_folder=parameter_path, remote_base_dir=remote_base_dir
+        ):
+            print(0)
+            return
 
-                # 调用API获取对象列表
-                response = self.s3_client.list_objects_v2(**params)
+        remote_rosbag_path = create_remote_folder(ssh, remote_base_dir, 'rosbag')
+        if not remote_rosbag_path:
+            print(0)
+            return
 
-                # 处理当前页的对象
-                if 'Contents' in response:
-                    page_objects = len(response['Contents'])
-                    total_objects += page_objects
+        for rosbag_path in sorted((package_path / 'rosbag').glob('*')):
+            if str(rosbag_path.name) not in self.package_status:
+                print(f'{rosbag_path.name}是一个未知数据')
+                continue
+            elif self.package_status[str(rosbag_path.name)]['stats'] == 'prepared':
+                self.package_status[str(rosbag_path.name)]['stats'] = 'busy'
+                self.save_package_status()
+                try:
+                    if deliver_file(
+                            host=host, username=username, password=password,
+                            local_folder=rosbag_path, remote_base_dir=remote_rosbag_path,
+                            backup_space=20,
+                    ):
+                        self.package_status[str(rosbag_path.name)]['stats'] = 'transferred'
+                        self.save_package_status()
+                    else:
+                        self.package_status[str(rosbag_path.name)]['stats'] = 'prepared'
+                        self.save_package_status()
+                        print('停止传输数据')
+                        break
 
-                    for obj in response['Contents']:
-                        s3_key = obj['Key']
-
-                        if version in self.download_record and s3_key in self.download_record[version]:
-                            continue
-
-                        # 应用包含过滤条件
-                        if len(include) and (not any([i in s3_key for i in include])):
-                            continue
-
-                        # 应用排除过滤条件
-                        if len(exclude) and (any([e in s3_key for e in exclude])):
-                            continue
-
-                        # 显示符合条件的对象
-                        total_size += obj['Size']
-                        filtered_objects += 1
-                        object_list[s3_key] = obj['Size']
-
-                        print(f"- {s3_key} (大小 {round(obj['Size'] / 1024 ** 2, 2)} MB / {round(total_size / 1024 ** 2, 2)} MB) - {filtered_objects}个")
-
-                # 检查是否还有更多对象
-                if not response.get('IsTruncated', False):
+                except Exception as e:
+                    print(e)
+                    self.package_status[str(rosbag_path.name)]['stats'] = 'prepared'
+                    self.save_package_status()
+                    print('停止传输数据')
                     break
 
-                # 更新续传令牌, 用于获取下一页
-                continuation_token = response.get('NextContinuationToken')
+    def save_package_status(self):
+        with open(self.package_status_path, 'w', encoding='utf-8') as f:
+            json.dump(self.package_status, f, ensure_ascii=False, indent=4)
 
-            # 对object list汇总处理, 成为下载单元
-            package_totally = {}
-            for s3_key in object_list:
-                if '/install/' in s3_key:
-                    unit = s3_key.split('/install/')[0]
-                    if unit not in package_totally and any([f'{unit}/rosbag' in s3_key for s3_key in object_list]):
-                        package_totally[unit] = 0
-
-            package_totally = {}
-            for s3_key, s3_size in object_list.items():
-                for unit in package_totally:
-                    if unit in s3_key:
-                        package_totally[unit] += s3_size
-                        break
-
-            sorted_list = sorted(package_totally.items(), key=lambda x: x[1], reverse=False)
-            package_totally = dict(sorted_list)
-
-            # 输出汇总信息
-            print(f"在路径 {s3_path} 下共找到 {total_objects} 个对象, "
-                  f"符合条件的有 {filtered_objects} 个, "
-                  f"总大小 {round(total_size / 1024 ** 3, 2)} GB")
-
-            if local_dir is not None:
-                free, _, _ = check_folder_space(local_dir)
-                s = 0
-                package_for_download = {}
-                for unit, unit_size in package_totally.items():
-                    s += unit_size
-                    if s < free - 20 * 1024 ** 3:
-                        package_for_download[unit] = unit_size
-                    else:
-                        break
-
-                return package_for_download
-
-            return package_totally
-
-        except Exception as e:
-            print(f"列出对象时出错: {e}")
-            return None
-
-    def download_directory(self, bucket_name, s3_path, version='', include=None, exclude=None, target_num=None, target_size=None):
-        if include is None:
-            include = []
-        if exclude is None:
-            exclude = []
-
-        t0 = time.time()
-        local_dir = AEBRawDataPath
-        os.makedirs(local_dir, exist_ok=True)
-
-        """递归下载S3路径下的所有文件"""
-        total_downloaded = 0
-        total_size = 0
-        break_flag = False
-
-        # 使用分页器处理超过1000个对象的情况
-        paginator = self.s3_client.get_paginator('list_objects_v2')
-        for page in paginator.paginate(Bucket=bucket_name, Prefix=s3_path):
-            if 'Contents' in page:
-                for obj in page['Contents']:
-                    s3_key = obj['Key']
-                    # 跳过目录（S3中没有真正的目录, 只有以/结尾的键）
-                    if s3_key.endswith('/'):
-                        continue
-
-                    if version not in self.download_record:
-                        self.download_record[version] = {}
-
-                    # 非install和parameter的会看是否已经下载过
-                    if s3_key in self.download_record[version]:
-                        print(f'{version}:{s3_key}已下载过, 跳过')
-                        continue
-
-                    # 如果需要包含字符, 则至少包含其中一个
-                    if len(include) and (not any([i in s3_key for i in include])):
-                        continue
-
-                    # 如果需要排除字符, 则包含一个字符则排除
-                    if len(exclude) and (any([e in s3_key for e in exclude])):
-                        continue
-
-                    # 构建本地文件路径
-                    local_file = os.path.join(local_dir, os.path.relpath(s3_key, s3_path))
-                    local_path = os.path.dirname(local_file)
-                    os.makedirs(local_path, exist_ok=True)
-
-                    # 下载文件
-                    free, used, total = check_folder_space(local_dir)
-                    ratio = 1.5
-                    print('------------------------------------------------------------------')
-                    print(f"{local_dir}可用 / 已用 / 总共: >>>> {round(free / 1024 ** 3, 2)} GB <<<< / {round(used / 1024 ** 3, 2)} GB / {round(total / 1024 ** 3, 2)} GB")
-                    print(f"目标文件{s3_key}大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
-                    aeb_raw_data_size = calculate_local_folder_size(local_dir)
-                    print(f"AEBRawData占用空间 >>>> {round(aeb_raw_data_size / 1024 ** 3, 3)} GB <<<<, "
-                          f"警戒水位 >>>> {round(aeb_raw_data_size * ratio / 1024 ** 3, 3)} GB <<<<, "
-                          f"预计可下载 >>>> {round((free - aeb_raw_data_size) / (1 + ratio) / 1024 ** 3, 3)} GB <<<<")
-                    if 'install' not in s3_key and 'params' not in s3_key and free < aeb_raw_data_size * ratio:
-                        print(f"预留空间不足, 停止下载")
-                        break_flag = True
-                        break
-
-                    self.s3_client.download_file(bucket_name, s3_key, local_file)
-                    if 'install' not in s3_key and 'params' not in s3_key:
-                        self.download_record[version][s3_key] = obj['Size'] / 1024 ** 2
-                        self.save_download_status()
-
-                    total_downloaded += 1
-                    total_size += obj['Size']
-                    print(f"下载: {s3_key} -> {local_file}, "
-                          f"大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
-                    if target_num and target_size:
-                        print(f'个数{total_downloaded} / {target_num} 完成, {round(total_size / 1024 ** 3, 2)} GB / {round(target_size / 1024 ** 3, 2)} GB 完成, {total_size / target_size:.2%} 完成')
-                    print(f"共计 {round(total_size / 1024 ** 2, 2)} MB, {round(time.time() - t0)} 秒, {total_downloaded} 个, "
-                          f"平均速度 >>>> {round(total_size/(time.time() - t0) / 1024 ** 2)} MB/s <<<<")
-
-            if break_flag:
-                break
-
-        # 输出更详细的下载统计信息
-        print(f"下载完成, 共下载 {total_downloaded} 个文件, "
-              f"总大小 {round(total_size / 1024 ** 2, 2)} MB, "
-              f"文件保存在: {os.path.abspath(local_dir)}")
-
-    def upload_directory(self, bucket_name, local_dir, s3_path):
-        if not os.path.isdir(local_dir):
-            print(f"错误：{local_dir} 不是一个有效的目录")
-            return False
-
-        total_uploaded = 0
-        total_size = 0
-
-        # 遍历本地目录
-        for root, dirs, files in os.walk(local_dir):
-            for file in files:
-                local_file_path = os.path.join(root, file)
-
-                # 获取相对路径, 用于保持目录结构
-                relative_path = os.path.relpath(local_file_path, local_dir)
-                s3_key = os.path.join(s3_path, relative_path).replace(os.sep, '/')
-
-                # 上传文件
-                file_size = os.path.getsize(local_file_path)
-                try:
-                    print(f"上传: {local_file_path} -> {s3_key} "
-                          f"(大小: {round(file_size / 1024 ** 2, 2)} MB)")
-
-                    self.s3_client.upload_file(local_file_path, bucket_name, s3_key)
-                    total_uploaded += 1
-                    total_size += file_size
-                except Exception as e:
-                    print(f"上传失败 {local_file_path}: {e}")
-
-        # 输出上传统计信息
-        print(f"上传完成, 共上传 {total_uploaded} 个文件, "
-              f"总大小 {round(total_size / 1024 ** 2, 2)} MB")
-        return True
-
-    def save_download_status(self):
-        with open(self.download_record_path, 'w', encoding='utf-8') as f:
-            json.dump(self.download_record, f, ensure_ascii=False, indent=4)
-
-    def load_download_status(self):
-        if not self.download_record_path.exists():
+    def load_package_status(self):
+        if not self.package_status_path.exists():
             return {}
 
-        with open(self.download_record_path, 'r', encoding='utf-8') as file:
+        with open(self.package_status_path, 'r', encoding='utf-8') as file:
             return json.load(file)
 
 
 class AEBDataReplay:
 
-    def __init__(self, replay_data_path):
-        self.replay_config = None
-        self.replay_data_path = Path(replay_data_path)
-        self.workspace_path = self.replay_data_path / 'ReplayWorkspace'
+    def __init__(self, bench_id):
+        bench_config_yaml = os.path.join(project_path, 'Docs', 'Resources', 'bench_config.yaml')
+        with open(bench_config_yaml, 'r', encoding='utf-8') as file:
+            data = yaml.safe_load(file)
+        if bench_id not in data:
+            self.host = None
+            self.username = None
+            self.password = None
+        else:
+            bench_config = data[bench_id]
+            self.interface_path = f'{project_path}/Envs/ReplayClient/Interfaces'
+            self.host = bench_config['ReplayClient']['ip']
+            self.username = bench_config['ReplayClient']['username']
+            self.password = str(bench_config['ReplayClient']['password'])
 
-    def create_replay_config(self):
-        for rosbag_dir in self.replay_data_path.rglob('rosbag'):
-            replay_config = {
-                'install': str(rosbag_dir.parent / 'install'),
-                'params': str(rosbag_dir.parent / 'params'),
-                'rosbag': {},
-            }
-            scenario_count = 0
-            for file in rosbag_dir.glob('*'):
-                if file.is_dir() and (file / 'stats.txt').exists():
-                    with open(file / 'stats.txt', 'r') as f:
-                        stats = f.read()
-                        if 'transfer_OK' in stats and 'replay_ok' not in stats:
-                            rosbag_path = (file / 'ROSBAG' / 'COMBINE')
-                            if rosbag_path.exists():
-                                replay_config['rosbag'][file.name] = str(rosbag_path.absolute())
-                                scenario_count += 1
-                                if scenario_count > 20:
-                                    break
-
-            if scenario_count:
-                self.replay_config = replay_config
-                break
-
-        if self.replay_config is None:
+    def send_cmd(self, command):
+        if self.host is None or (not check_connection(self.host)):
             return None
 
-        test_config_path = Path(project_path) / 'Envs' / 'Master' / 'Tools' / 'TestConfig.yaml'
-        with open(test_config_path, 'r') as f:
-            test_config = yaml.load(f, Loader=yaml.FullLoader)
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # 自动添加远程主机密钥
 
-        test_config['test_date'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        test_config['pred_folder'] = str(self.workspace_path / '01_Prediction')
-        test_config['gt_folder'] = str(self.workspace_path / '02_GroundTruth')
-        test_config['scenario_tag'][0]['scenario_id'] = self.replay_config['rosbag']
-        print(f'测试场景包含{list(self.replay_config["rosbag"].keys())}')
+        try:
+            # 连接到远程主机
+            ssh.connect(hostname=self.host, username=self.username, password=self.password)
+            stdin, stdout, stderr = ssh.exec_command(command)
+            res = stdout.read().decode()
+            err = stderr.read().decode()
+            ssh.close()
+            return res
 
-        return test_config
-
-    def create_workspace(self):
-        test_config = self.create_replay_config()
-        if test_config is None:
-            print('没有找到可用的test_config')
+        except Exception as e:
+            print(f"Error: {e}")
+            ssh.close()
             return None
 
-        if self.workspace_path.exists():
-            shutil.rmtree(self.workspace_path)
+    def create_replay_workspace(self, replay_data_path, action):
+        command = f'cd {self.interface_path} && python3 Api_AEBReplayTask.py -a {action} -f {replay_data_path}'
 
-        os.makedirs(self.workspace_path / '01_Prediction', exist_ok=True)
-        os.makedirs(self.workspace_path / '02_GroundTruth', exist_ok=True)
-        os.makedirs(self.workspace_path / '03_Workspace', exist_ok=True)
-        os.makedirs(self.workspace_path / '04_TestData' / '1-Obstacles', exist_ok=True)
-        shutil.copytree(self.replay_config['install'], self.workspace_path / '03_Workspace' / 'install')
-        test_config_path = self.workspace_path / '04_TestData' / '1-Obstacles' / 'TestConfig.yaml'
-        with open(test_config_path, 'w') as f:
-            yaml.dump(test_config, f, sort_keys=False)
+        print(command)
+        res = self.send_cmd(command)
 
-        return True
-
-    def monitor_replay_status(self):
-        for scenario_id,  rosbag_path in self.replay_config['rosbag'].items():
-            pred_raw_folder = self.workspace_path / '01_Prediction' / scenario_id
-
-    def run_aeb_replay(self):
-        if not self.create_workspace():
-            print('未创建工作空间')
+        try:
+            r = eval(res.strip().split('\n')[-1])
+            return r
+        except:
             return False
-
-        ddd = DataReplayTest(self.workspace_path)
-        ddd.start()
 
 
 class AEBDataProcessor2:
