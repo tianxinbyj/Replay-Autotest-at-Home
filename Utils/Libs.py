@@ -107,6 +107,26 @@ def contains_chinese(s):
     return False
 
 
+def replace_path_in_dict(input_dict, old_path, new_path):
+    """
+    递归遍历字典，找到所有是路径的值，并替换路径中的特定部分。
+    """
+    if isinstance(input_dict, dict):
+        for key, value in input_dict.items():
+            if isinstance(value, dict):
+                replace_path_in_dict(value, old_path, new_path)
+            elif isinstance(value, list):
+                for i, item in enumerate(value):
+                    if isinstance(item, dict):
+                        replace_path_in_dict(item, old_path, new_path)
+                    elif isinstance(item, str) and old_path in item:
+                        value[i] = item.replace(old_path, new_path)
+            elif isinstance(value, str) and old_path in value:
+                input_dict[key] = value.replace(old_path, new_path)
+
+    return input_dict
+
+
 def get_string_display_length(s):
     """计算字符串的大致显示长度"""
     length = 0
