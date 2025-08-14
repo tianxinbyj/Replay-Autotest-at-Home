@@ -282,6 +282,11 @@ def get_ros_docker_path():
         return os.path.join(get_project_path(), 'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
     return ros_docker_path
 
+def get_tmux_ssh_test_path():
+    """
+    返回启动回灌模式的shell脚本的文件路径
+    """
+    return os.path.join(get_project_path(), 'Docs', 'Resources', 'qos_config', 'tmux_ssh_v17_test.sh')
 
 def parse_test_encyclopaedia():
     test_encyclopaedia_yaml = os.path.join(get_project_path(), 'Docs', 'Resources', 'test_encyclopaedia.yaml')
@@ -493,6 +498,7 @@ bench_id = get_bench_id()
 project_path = get_project_path()
 bench_config = parse_bench_config()
 ros_docker_path = get_ros_docker_path()
+tmux_ssh_test_path = get_tmux_ssh_test_path()
 test_encyclopaedia = parse_test_encyclopaedia()
 variables = parse_code_variables()
 

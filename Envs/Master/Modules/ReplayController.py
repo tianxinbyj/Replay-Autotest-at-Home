@@ -630,7 +630,7 @@ class ReplayController:
             columns = []
             topic_duration = {}
             for topic in test_topic['topics_for_parser']:
-                if topic in []:
+                if topic in ['/VA/QC/MonoObstaclesTracks']:
                     continue
 
                 columns.append(topic)
