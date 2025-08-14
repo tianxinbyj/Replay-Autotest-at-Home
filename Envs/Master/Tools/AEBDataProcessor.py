@@ -182,7 +182,7 @@ class AEBDataCloud:
             print(f"列出对象时出错: {e}")
             return None
 
-    def download_directory(self, bucket_name, s3_path, version='', include=None, exclude=None, target_num=None, target_size=None):
+    def download_directory(self, bucket_name, s3_path, version='', include=None, exclude=None):
         if include is None:
             include = []
         if exclude is None:
@@ -252,8 +252,6 @@ class AEBDataCloud:
                     total_size += obj['Size']
                     print(f"下载: {s3_key} -> {local_file}, "
                           f"大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
-                    if target_num and target_size:
-                        print(f'个数{total_downloaded} / {target_num} 完成, {round(total_size / 1024 ** 3, 2)} GB / {round(target_size / 1024 ** 3, 2)} GB 完成, {total_size / target_size:.2%} 完成')
                     print(f"共计 {round(total_size / 1024 ** 2, 2)} MB, {round(time.time() - t0)} 秒, {total_downloaded} 个, "
                           f"平均速度 >>>> {round(total_size/(time.time() - t0) / 1024 ** 2)} MB/s <<<<")
 
@@ -614,19 +612,19 @@ class AEBDataReplay:
         bench_config_yaml = os.path.join(project_path, 'Docs', 'Resources', 'bench_config.yaml')
         with open(bench_config_yaml, 'r', encoding='utf-8') as file:
             data = yaml.safe_load(file)
-        if bench_id not in data:
+        self.bench_id = bench_id
+
+        if self.bench_id not in data:
             self.host = None
             self.username = None
             self.password = None
-            self.replay_room = None
             self.python = None
         else:
-            bench_config = data[bench_id]
+            bench_config = data[self.bench_id]
             self.interface_path = f'{bench_config["Master"]["py_path"]}/Envs/ReplayClient/Interfaces'
             self.host = bench_config['Master']['ip']
             self.username = bench_config['Master']['username']
             self.password = str(bench_config['Master']['password'])
-            self.replay_room = f'/home/{self.username}/ZONE/AEBReplayRoom'
             self.python = bench_config['Master']['sys_interpreter']
 
     def send_cmd(self, command):
@@ -650,18 +648,51 @@ class AEBDataReplay:
             ssh.close()
             return None
 
-    def create_replay_workspace(self):
-        command = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a create -f {self.replay_room}'
+    def create_replay_workspace(self, scenario_num=20):
+        command = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a create -n {scenario_num}'
 
         print(command)
         res = self.send_cmd(command)
 
         try:
-            r = eval(res.strip().split('\n')[-1])
-            return r
+            return res.strip().split('\n')[-1]
         except:
             return False
 
+    def start_replay(self):
+        command = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a start'
+
+        print(command)
+        res = self.send_cmd(command)
+
+        time.sleep(3)
+        command = f'DISPLAY=:0 gnome-terminal --command="tmux attach -t {self.bench_id}_ReplayTestSes"'
+
+        self.send_cmd(command)
+        try:
+            return res.strip().split('\n')
+        except:
+            return False
+
+    def get_replay_process(self):
+        command = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a process'
+        res = self.send_cmd(command)
+
+        try:
+            return float(res.strip().split('\n')[-1])
+        except:
+            return 0
+
+    def stop_replay(self):
+        command = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a stop'
+
+        print(command)
+        res = self.send_cmd(command)
+
+        try:
+            return res.strip().split('\n')[-1]
+        except:
+            return 0
 
 class AEBDataProcessor2:
 
