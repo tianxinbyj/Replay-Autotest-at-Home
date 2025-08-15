@@ -6,9 +6,13 @@
 import argparse
 import json
 import os
+import sys
 
 import boto3
 from botocore.client import Config
+
+from Libs import get_project_path
+sys.path.append(get_project_path())
 
 from Envs.Master.Modules.Libs import get_project_path
 
@@ -93,7 +97,7 @@ class S3Client:
         except Exception as e:
             print(f"列出对象时出错: {e}")
 
-    def download_s3_folder(self, bucket_name, s3_path, local_dir, include=None, exclude=None):
+    def download_directory(self, bucket_name, s3_path, local_dir, include=None, exclude=None):
         if include is None:
             include = []
         if exclude is None:
@@ -142,7 +146,7 @@ class S3Client:
               f"总大小 {round(total_size / 1024 / 1024, 2)} MB，"
               f"文件保存在: {os.path.abspath(local_dir)}")
 
-    def upload_directory(self, bucket_name, local_dir, s3_path):
+    def upload_directory(self, bucket_name, local_dir, s3_path, delete_flag):
         if not os.path.isdir(local_dir):
             print(f"错误：{local_dir} 不是一个有效的目录")
             return False
@@ -179,6 +183,7 @@ class S3Client:
 
 def main():
     parser = argparse.ArgumentParser(description="match obstacles")
+    parser.add_argument("-a", "--action", type=str, required=True, help="action")
     parser.add_argument("-u", "--endpoint_url", type=str, required=True, help="endpoint url")
     parser.add_argument("-k", "--aws_access_key_id", type=str, required=True, help="access key id")
     parser.add_argument("-s", "--aws_secret_access_key", type=str, required=True, help="secret access key")
@@ -187,8 +192,11 @@ def main():
     parser.add_argument("-f", "--local_dir", type=str, required=False, default='n/a', help="local dir")
     parser.add_argument("-i", "--include", type=str, nargs='*', default=None, required=False, help="必须包含字符串的文件")
     parser.add_argument("-x", "--exclude", type=str, nargs='*', default=None, required=False, help="排除包含字符串的文件")
+    parser.add_argument("-d", "--delete_flag", type=int, default=0, help="delete flag")
+
     args = parser.parse_args()
 
+    action = args.action
     endpoint_url = args.endpoint_url
     aws_access_key_id = args.aws_access_key_id
     aws_secret_access_key = args.aws_secret_access_key
@@ -197,31 +205,36 @@ def main():
     local_dir = args.local_dir
     include = args.include
     exclude = args.exclude
+    delete_flag = args.delete_flag
 
     if s3_path.startswith('/'):
         s3_path = s3_path[1:]
 
     s3_client = S3Client(endpoint_url, aws_access_key_id, aws_secret_access_key)
-    if local_dir != 'n/a':
-        s3_client.download_s3_folder(bucket_name, s3_path, local_dir, include, exclude)
-    else:
+    if action == 'list':
         s3_client.list_objects(bucket_name, s3_path, include, exclude)
 
+    elif action == 'download':
+        s3_client.download_directory(bucket_name, s3_path, local_dir, include, exclude)
+
+    elif action == 'upload':
+        s3_client.upload_directory(bucket_name, s3_path, local_dir, delete_flag)
+        
 
 if __name__ == '__main__':
-    # main()
-    cmd = '''
-    /usr/bin/python3 Api_DownloadS3.py -u http://10.192.53.221:8080 -k QB1YGVNUKJP2MRK8AK2R -s JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH -n prod-ac-dmp -p backup/data/collect/self/driving/20250530-20250529-car2-bev-Lidar/3D_data_LSJWK4095NS119733 -i n000001 -x .pcap
-    '''
-    endpoint_url='http://10.192.53.221:8080'  # 你的S3 endpoint
-    aws_access_key_id='44JAMVA71J5L90D9DK77'  # 替换为你的Access Key
-    aws_secret_access_key='h1cY4WzpNxmQCpsXlXFpO4nWjNp3pbH0ZuBsuGmu'  # 替换为你的Secret Key
-    # bucket_name = 'prod-ac-dmp'
-    bucket_name = 'aeb'
-    s3_path = 'ALL/'
-    include = ['AH4EM-SIMU182/202507/20250713']
-    exclude = ['canlog']
-    local_dir = '/media/data/Q_DATA/AebRawData'
-    s3_client = S3Client(endpoint_url, aws_access_key_id, aws_secret_access_key)
-    # s3_client.list_objects(bucket_name, s3_path, include=include, exclude=exclude)
-    s3_client.download_s3_folder(bucket_name, s3_path, local_dir, include, exclude)
+    main()
+    # cmd = '''
+    # /usr/bin/python3 Api_DownloadS3.py -u http://10.192.53.221:8080 -k QB1YGVNUKJP2MRK8AK2R -s JxRde3bPdoxWaBBFwmmqH81ytiNIoTILh9CGCYJH -n prod-ac-dmp -p backup/data/collect/self/driving/20250530-20250529-car2-bev-Lidar/3D_data_LSJWK4095NS119733 -i n000001 -x .pcap
+    # '''
+    # endpoint_url='http://10.192.53.221:8080'  # 你的S3 endpoint
+    # aws_access_key_id='44JAMVA71J5L90D9DK77'  # 替换为你的Access Key
+    # aws_secret_access_key='h1cY4WzpNxmQCpsXlXFpO4nWjNp3pbH0ZuBsuGmu'  # 替换为你的Secret Key
+    # # bucket_name = 'prod-ac-dmp'
+    # bucket_name = 'aeb'
+    # s3_path = 'ALL/'
+    # include = ['AH4EM-SIMU182/202507/20250713']
+    # exclude = ['canlog']
+    # local_dir = '/media/data/Q_DATA/AebRawData'
+    # s3_client = S3Client(endpoint_url, aws_access_key_id, aws_secret_access_key)
+    # # s3_client.list_objects(bucket_name, s3_path, include=include, exclude=exclude)
+    # s3_client.download_directory(bucket_name, s3_path, local_dir, include, exclude)
