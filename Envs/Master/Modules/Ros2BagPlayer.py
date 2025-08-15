@@ -22,7 +22,7 @@ class Ros2BagPlayer:
         self.sil_tmux_session = variables['tmux_node']['sil_pkg'][0]
         self.sil_tmux_window = variables['tmux_node']['sil_pkg'][1]
 
-    def start_play(self, ros2bag_path, play_topic_list=None, play_remap_flag=True):
+    def start_play(self, ros2bag_path, play_topic_list=None, play_remap_flag=True, replay_radar_topic=True):
         """
         开始播放ros2 bag
         topic_list: 需要播放的ros2bag
@@ -38,8 +38,22 @@ class Ros2BagPlayer:
             play_topic_list = ['/Camera/Rear/H265', '/Camera/FrontWide/H265',
                                '/Camera/SorroundRear/H265', '/Camera/SorroundFront/H265',
                                '/Camera/SorroundRight/H265', '/Camera/SorroundLeft/H265',
-                               '/SA/INSPVA', '/SA/IMU', '/SA/GNSS',
-                               '/VA/VehicleStatusIpd', '/VA/VehicleMotionIpd']
+                               # map_loc_sensor_abstraction node pub these 4 topic
+                               '/SA/INSPVA', '/SA/IMU', '/SA/GNSS','/SA/InsIAM',
+                               # signal2service node pub these 2 topic
+                               '/VA/VehicleStatusIpd', '/VA/VehicleMotionIpd',
+                               ]
+        ros2bag_duration_nanosec_, topic_in_bag_list = self.get_ros2bag_metadata_yaml(ros2bag_path)
+
+        if replay_radar_topic and {'/SAFrontRadarLocation', '/SAFrontRadarObject', '/SASR5RearLeftCornerRadarObject',
+                                   '/SASR5RearRightCornerRadarObject',
+                                   '/VA/VehicleHMI'}.issubset(set(topic_in_bag_list)):
+            play_topic_list += ['/VA/VehicleHMI', '/SAFrontRadarLocation','/SAFrontRadarObject', '/SASR5RearLeftCornerRadarObject','/SASR5RearRightCornerRadarObject']
+
+        # # SD 导航、定位部分相关的topic
+        if replay_radar_topic and {'/SOA/PI/NavigationInfoES39', '/SOA/SDNaviLinkInfoES39', '/SegmentInfoListES39'}.issubset(set(topic_in_bag_list)):
+            play_topic_list += ['/SOA/PI/NavigationInfoES39', '/SOA/SDNaviLinkInfoES39', '/SegmentInfoListES39']
+
 
         # 打开sil转发节点
         self.run_sil_pkg()
@@ -55,7 +69,7 @@ class Ros2BagPlayer:
 
         play_topic_str = ' '.join(play_topic_list)
         remap_topic_str = ' '.join([topic + ':=/o' + topic for topic in play_topic_list])
-
+        print(remap_topic_str)
         if play_remap_flag:
             ros_play_cmd = f'ros2 bag play {ros2bag_path} --topic {play_topic_str} --remap {remap_topic_str}'
 
