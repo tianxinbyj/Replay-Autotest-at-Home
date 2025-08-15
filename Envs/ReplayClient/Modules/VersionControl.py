@@ -130,6 +130,8 @@ class VersionControl:
             pass
         elif ecu_type in ['j6e', 'J6E']:
             raise NotImplemented
+        elif ecu_type in ['EP39','AH4EM']:
+            self.j5b_addr = None
 
         self.s32g_addr = '172.31.131.34'
         self.j5a_addr = '172.31.131.35'
@@ -184,12 +186,12 @@ class VersionControl:
         ssh_port = 22
         ssh_user = 'root'
         ssh_pass = ''
+        if self.ecu_type != 'EP39':
+            self.j5a_ssh_client = paramiko.SSHClient()
+            self.j5b_ssh_client = paramiko.SSHClient()
 
-        self.j5a_ssh_client = paramiko.SSHClient()
-        self.j5b_ssh_client = paramiko.SSHClient()
-
-        self.j5a_ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.j5b_ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.j5a_ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.j5b_ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 
 
@@ -197,10 +199,11 @@ class VersionControl:
 
     def power_ctrl_power_on(self):
         max_get_status_time = 5
+        print('try to power on')
         while max_get_status_time > 0  :
             max_get_status_time -= 1
             power_status = self.power_ctrl_get_status()
-            print('get status:')
+            # print('get status:')
             if not power_status:
                 if max_get_status_time == 0:
                     raise EnvironmentError('get power status failed 5 times')
@@ -222,7 +225,7 @@ class VersionControl:
         while max_get_status_time > 0  :
             max_get_status_time -= 1
             power_status = self.power_ctrl_get_status()
-            print('get status:')
+            # print('get status:')
             if not power_status:
                 if max_get_status_time == 0:
                     raise EnvironmentError('get power status failed 5 times')
@@ -608,6 +611,36 @@ class VersionControl:
                         return True
                 else:
                     beyond_times = max(beyond_times - 3, 0)  # 如果低于 3.0,则 超过次数 -3,
+                    print(loop_times, '----', beyond_times, ':::', temp_ampere)
+                    if loop_times + beyond_times <= flag_times:
+                        print(loop_times, '----', beyond_times, ':::', temp_ampere,'left time is not enough')
+                        break
+            return False
+
+        elif self.ecu_type == "EP39":
+            Ampere_limit = 0.9
+            loop_times = 16  # 循环检查的最大次数 ，每次循环检查电流后停顿0.5s
+            flag_times = 10
+            time.sleep(5)
+            while loop_times > 0:
+                time.sleep(0.25)
+                loop_times -= 1  # 循环减少一次
+                #  将 status 中的电流数值提取出来
+                temp_status = self.power_ctrl_get_status()
+                if temp_status:
+                # print(temp_status)
+                    temp_ampere = temp_status['current_value']
+                else:
+                    temp_ampere = 0
+                if temp_ampere >= Ampere_limit:
+                    beyond_times += 1
+                    print(loop_times, '----', beyond_times, ':::', temp_ampere)
+                    # 大于 电流限定次数时 返回True
+                    if beyond_times >= flag_times:
+                        # reset config
+                        return True
+                else:
+                    beyond_times = max(beyond_times - 1, 0)  # 如果电流小 ,则 电流超过次数 -1,
                     print(loop_times, '----', beyond_times, ':::', temp_ampere)
                     if loop_times + beyond_times <= flag_times:
                         print(loop_times, '----', beyond_times, ':::', temp_ampere,'left time is not enough')
@@ -1153,15 +1186,17 @@ class VersionControl:
 
 if __name__ == '__main__':
     VC = VersionControl()
-    pw_sta = VC.get_power_status()
+    pw_sta = VC.power_ctrl_get_status()
     print(pw_sta)
     #
 
-    # VC.power_ctrl_power_off()
-    if not pw_sta['power_is_on']:
-
-
-        VC.power_ctrl_power_on()
+    VC.power_ctrl_power_off()
+    time.sleep(3)
+    VC.power_ctrl_power_on()
+    # if not pw_sta['power_is_on']:
+    #
+    #
+    #     VC.power_ctrl_power_on()
     #
     # fff = VC.check_ecu_sensor_camera_init_success()
     # print(fff)
