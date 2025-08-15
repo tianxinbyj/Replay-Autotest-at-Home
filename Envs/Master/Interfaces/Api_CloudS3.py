@@ -6,6 +6,7 @@
 import argparse
 import json
 import os
+import shutil
 import sys
 
 import boto3
@@ -178,6 +179,8 @@ class S3Client:
         # 输出上传统计信息
         print(f"上传完成，共上传 {total_uploaded} 个文件，"
               f"总大小 {round(total_size / 1024 / 1024, 2)} MB")
+        print(f"删除本地文件 {local_dir}")
+        shutil.rmtree(local_dir)
         return True
 
 
