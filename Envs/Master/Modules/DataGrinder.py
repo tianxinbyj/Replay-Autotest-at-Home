@@ -24,15 +24,12 @@ from scipy.interpolate import interp1d
 from spire.xls import *
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from Libs import get_project_path, copy_to_destination
-from Utils.VideoProcess import image2video
+from Libs import get_project_path
 
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
 sys.path.append(get_project_path())
-
+from Utils.VideoProcess import image2video
 from Utils.Libs import test_encyclopaedia, create_folder, contains_chinese, get_string_display_length, project_path
-from Utils.Libs import generate_unique_id, bench_config, sync_test_result, find_file
+from Utils.Libs import generate_unique_id, bench_config, sync_test_result, find_file, copy_to_destination
 from Utils.Libs import font_size, title_font, axis_font, legend_font, wrap_text
 from Utils.Logger import send_log
 from Utils.SSHClient import SSHClient
@@ -42,6 +39,8 @@ from Envs.Master.Modules.PDFReportTemplate import PDFReportTemplate
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics import PreProcess, MatchTool, MetricEvaluator, MetricStatistics, ObjectModel
 from Envs.Master.Modules.PerceptMetrics.PerceptMetrics.KpiGenerator import ObstaclesKpi, LinesKpi, SlotsKpi
 
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
 scenario_test_record_path = os.path.join(project_path, 'Docs', 'Resources', 'scenario_info', 'scenario_test_record.csv')
 
 

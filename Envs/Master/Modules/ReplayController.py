@@ -15,12 +15,13 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
+import requests
 import yaml
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-from Libs import get_project_path, draw_map
+from Libs import get_project_path
 from Ros2BagParser import Ros2BagParser
 from Ros2BagRecorder import Ros2BagRecorder
 from Ros2BagPlayer import Ros2BagPlayer
@@ -29,6 +30,43 @@ sys.path.append(get_project_path())
 from Utils.Libs import test_encyclopaedia, calculate_file_checksum, create_folder
 from Utils.SSHClient import SSHClient
 from Utils.Logger import send_log, bench_config
+
+
+def draw_map(data, map_path, longitude_offset=0.01113, latitude_offset=0.00385):
+    center = '{:.5f},{:.5f}'.format(data['longitude'].mean() + longitude_offset,
+                                    data['latitude'].mean() + latitude_offset)
+    marker = []
+    for idx, row in data.iterrows():
+        if idx % 1000 == 0:
+            marker.append(
+                '{:.5f},{:.5f}'.format(row['longitude'] + longitude_offset, row['latitude'] + latitude_offset))
+    marker = '|'.join(marker)
+    print(marker)
+    # 你的百度地图API密钥
+    api_key = 'kob5tDyCv7qDUGZrYjfLdQHTw7jtFkl3'
+    # 静态地图服务的基础URL
+    static_map_url = 'http://api.map.baidu.com/staticimage/v2/'
+    params = {
+        'ak': api_key,  # API密钥
+        'center': center,
+        'width': '960',  # 图片宽度
+        'height': '540',  # 图片高度
+        'zoom': '16',  # 地图缩放级别
+        'markers': marker,  # 标记点（经度，纬度）：标记标签
+        'output': 'png'  # 输出格式
+    }
+    full_url = f"{static_map_url}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
+    response = requests.get(full_url)
+
+    if response.status_code == 200:
+        # 保存图片到文件
+        with open(map_path, 'wb') as f:
+            f.write(response.content)
+        print(f"地图图片已保存为{map_path}")
+        return 1
+    else:
+        print(f"请求失败，状态码：{response.status_code}")
+        return 0
 
 
 class ReplayController:
@@ -486,6 +524,9 @@ class ReplayController:
             sensor_center_log = sensor_center_log[(sensor_center_log['time_stamp'] >= t_min) & (sensor_center_log['time_stamp'] <= t_max)]
             sensor_center_log.to_csv(sensor_center_log_csv_path, index=False)
             plot_log()
+        else:
+            with open(os.path.join(self.pred_raw_folder, scenario_id, f'{scenario_id}-SensorCenterLog.png'), 'w') as f:
+                pass  # 仅创建空文件
 
         send_log(self, f'复制sensor_center日志文件')
 
@@ -589,7 +630,7 @@ class ReplayController:
             columns = []
             topic_duration = {}
             for topic in test_topic['topics_for_parser']:
-                if topic in []:
+                if topic in ['/VA/QC/MonoObstaclesTracks']:
                     continue
 
                 columns.append(topic)

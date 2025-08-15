@@ -13,7 +13,11 @@ import signal
 import string
 import subprocess
 import sys
+import threading
 import time
+from queue import Queue
+
+import psutil
 import yaml
 
 
@@ -30,6 +34,46 @@ def get_project_path():
         if parent_folder == folder:
             raise Exception("未找到项目路径")
         folder = parent_folder
+
+
+class ThreadManager:
+    def __init__(self, max_threads=5):
+        self.max_threads = max_threads
+        self.semaphore = threading.Semaphore(max_threads)
+        self.task_queue = Queue()
+        self.running = True
+        # 启动一个线程来处理任务队列
+        self.worker = threading.Thread(target=self.process_tasks)
+        self.worker.start()
+
+    def process_tasks(self):
+        """处理任务队列中的任务"""
+        while self.running or not self.task_queue.empty():
+            if not self.task_queue.empty():
+                task, args = self.task_queue.get()
+                self.semaphore.acquire()  # 获取信号量，控制并发数量
+                thread = threading.Thread(target=self.run_task, args=(task, args))
+                thread.start()
+            else:
+                time.sleep(0.1)  # 短暂休眠，减少CPU占用
+
+    def run_task(self, task, args):
+        """执行具体任务，并在完成后释放信号量"""
+        try:
+            task(*args)
+        finally:
+            self.semaphore.release()  # 释放信号量，允许新线程启动
+            self.task_queue.task_done()
+
+    def add_task(self, task, *args):
+        """添加新任务到队列"""
+        self.task_queue.put((task, args))
+
+    def stop(self):
+        """停止任务管理器"""
+        self.running = False
+        self.worker.join()  # 等待工作线程结束
+        self.task_queue.join()  # 等待所有任务完成
 
 
 def sync_test_result(method):
@@ -61,6 +105,26 @@ def contains_chinese(s):
         if '\u4e00' <= char <= '\u9fff':
             return True
     return False
+
+
+def replace_path_in_dict(input_dict, old_path, new_path):
+    """
+    递归遍历字典，找到所有是路径的值，并替换路径中的特定部分。
+    """
+    if isinstance(input_dict, dict):
+        for key, value in input_dict.items():
+            if isinstance(value, dict):
+                replace_path_in_dict(value, old_path, new_path)
+            elif isinstance(value, list):
+                for i, item in enumerate(value):
+                    if isinstance(item, dict):
+                        replace_path_in_dict(item, old_path, new_path)
+                    elif isinstance(item, str) and old_path in item:
+                        value[i] = item.replace(old_path, new_path)
+            elif isinstance(value, str) and old_path in value:
+                input_dict[key] = value.replace(old_path, new_path)
+
+    return input_dict
 
 
 def get_string_display_length(s):
@@ -218,6 +282,11 @@ def get_ros_docker_path():
         return os.path.join(get_project_path(), 'Docs', 'Resources', 'qos_config', 'docker_rolling_hil.sh')
     return ros_docker_path
 
+def get_tmux_ssh_test_path():
+    """
+    返回启动回灌模式的shell脚本的文件路径
+    """
+    return os.path.join(get_project_path(), 'Docs', 'Resources', 'qos_config', 'tmux_ssh_v17_test.sh')
 
 def parse_test_encyclopaedia():
     test_encyclopaedia_yaml = os.path.join(get_project_path(), 'Docs', 'Resources', 'test_encyclopaedia.yaml')
@@ -241,6 +310,31 @@ def create_folder(path, update=True):
     else:
         if not os.path.exists(path):
             os.makedirs(path)
+
+
+def copy_to_destination(source, destination_dir):
+    # 确保目标文件夹存在
+    if not os.path.exists(destination_dir):
+        os.makedirs(destination_dir)
+
+    destination = os.path.join(destination_dir, os.path.basename(source))
+    existed_flag = os.path.exists(destination)
+
+    if os.path.isfile(source):
+        if existed_flag:
+            os.remove(destination)
+        shutil.copy(source, destination)
+
+    elif os.path.isdir(source):
+        if existed_flag:
+            shutil.rmtree(destination)
+        shutil.copytree(source, destination)
+
+    else:
+        print(f"{source}源路径不存在或既不是文件也不是文件夹")
+        return None
+
+    return destination
 
 
 def calculate_file_checksum(file_path, method='md5'):
@@ -292,6 +386,29 @@ def get_folder_size(folder_path: str) -> int:
     return total_size
 
 
+def check_folder_space(path):
+    if not os.path.exists(path):
+        print(f"错误: 路径 '{path}' 不存在")
+        return
+
+    if not os.path.isdir(path):
+        print(f"错误: '{path}' 不是一个文件夹")
+        return
+
+    try:
+        # 使用shutil获取磁盘总空间、已用空间和可用空间
+        disk_usage = shutil.disk_usage(path)
+        return disk_usage.free, disk_usage.used, disk_usage.total
+
+    except PermissionError:
+        print(f"错误: 没有权限访问 '{path}'")
+        return
+
+    except Exception as e:
+        print(f"发生错误: {str(e)}")
+        return
+
+
 def force_delete_folder(folder_path):
     if not os.path.exists(folder_path):
         print(f'不存在{folder_path}, 不需要删除')
@@ -319,6 +436,46 @@ def force_delete_folder(folder_path):
     print(f'{folder_path} 删除成功')
 
 
+def is_python_file_running(file_name):
+    """
+    检查指定的Python文件是否正在运行
+
+    参数:
+        file_name: 要检查的Python文件名（如 "my_script.py"）
+
+    返回:
+        布尔值: 如果文件正在运行则返回True，否则返回False
+        列表: 正在运行的进程ID列表
+    """
+    running_pids = []
+
+    # 遍历所有正在运行的进程
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            # 检查是否是Python进程
+            if proc.info['name'].lower().startswith(('python', 'python3')):
+                cmdline = proc.info['cmdline']
+                if cmdline:
+                    # 检查命令行参数中是否包含目标文件名
+                    for arg in cmdline:
+                        if arg.endswith(file_name):
+                            running_pids.append(proc.info['pid'])
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+
+    return len(running_pids) > 0, running_pids
+
+
+def check_connection(ip):
+    command = ['ping', '-c', '3', '-W', '1', ip]
+    result = subprocess.run(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    return result.returncode == 0
+
+
 def find_file(filename, directory):
     """
     在指定目录及其子目录中递归查找特定文件名的文件。
@@ -341,6 +498,7 @@ bench_id = get_bench_id()
 project_path = get_project_path()
 bench_config = parse_bench_config()
 ros_docker_path = get_ros_docker_path()
+tmux_ssh_test_path = get_tmux_ssh_test_path()
 test_encyclopaedia = parse_test_encyclopaedia()
 variables = parse_code_variables()
 
@@ -395,3 +553,8 @@ topic2camera = {
     '/Camera/SorroundRear/H265': 'CAM_FISHEYE_BACK',
     '/Camera/Rear/H265': 'CAM_BACK',
 }
+
+
+if __name__ == '__main__':
+    python_file = 'run_aeb_process.py'
+    print(is_python_file_running(python_file))

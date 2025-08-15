@@ -15,7 +15,6 @@ pyyaml
 pytz
 pyvisa
 pyserial
-moviepy
 Pillow
 pexpect
 openpyxl
@@ -39,3 +38,4 @@ boto3
 botocore
 fastapi
 uvicorn[standard]
+netifaces

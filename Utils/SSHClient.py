@@ -6,6 +6,7 @@ import os
 import subprocess
 import time
 
+import pandas as pd
 import paramiko
 from scp import SCPClient
 
@@ -57,7 +58,6 @@ class SSHClient:
     def send_cmd(self, command):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # 自动添加远程主机密钥
-        res = None
 
         try:
             # 连接到远程主机
@@ -65,16 +65,13 @@ class SSHClient:
             stdin, stdout, stderr = ssh.exec_command(command)
             res = stdout.read().decode()
             err = stderr.read().decode()
-            # print(res)
-            # print('======================')
-            # print(err)
+            ssh.close()
+            return res
 
         except Exception as e:
             print(f"Error: {e}")
-
-        finally:
             ssh.close()
-            return res
+            return None
 
     def create_test_folder(self, test_folder, create_time=None):
         if not create_time:
