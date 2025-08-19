@@ -147,7 +147,7 @@ class S3Client:
               f"总大小 {round(total_size / 1024 / 1024, 2)} MB，"
               f"文件保存在: {os.path.abspath(local_dir)}")
 
-    def upload_directory(self, bucket_name, local_dir, s3_path, delete_flag):
+    def upload_directory(self, bucket_name, s3_path, local_dir):
         if not os.path.isdir(local_dir):
             print(f"错误：{local_dir} 不是一个有效的目录")
             return False
@@ -190,13 +190,11 @@ def main():
     parser.add_argument("-u", "--endpoint_url", type=str, required=True, help="endpoint url")
     parser.add_argument("-k", "--aws_access_key_id", type=str, required=True, help="access key id")
     parser.add_argument("-s", "--aws_secret_access_key", type=str, required=True, help="secret access key")
-    parser.add_argument("-n", "--bucket_name", type=str, required=True, help="bucket name")
+    parser.add_argument("-b", "--bucket_name", type=str, required=True, help="bucket name")
     parser.add_argument("-p", "--s3_path", type=str, required=True, help="s3 path")
     parser.add_argument("-f", "--local_dir", type=str, required=False, default='n/a', help="local dir")
     parser.add_argument("-i", "--include", type=str, nargs='*', default=None, required=False, help="必须包含字符串的文件")
     parser.add_argument("-x", "--exclude", type=str, nargs='*', default=None, required=False, help="排除包含字符串的文件")
-    parser.add_argument("-d", "--delete_flag", type=int, default=0, help="delete flag")
-
     args = parser.parse_args()
 
     action = args.action
@@ -208,7 +206,6 @@ def main():
     local_dir = args.local_dir
     include = args.include
     exclude = args.exclude
-    delete_flag = args.delete_flag
 
     if s3_path.startswith('/'):
         s3_path = s3_path[1:]
@@ -221,8 +218,8 @@ def main():
         s3_client.download_directory(bucket_name, s3_path, local_dir, include, exclude)
 
     elif action == 'upload':
-        s3_client.upload_directory(bucket_name, s3_path, local_dir, delete_flag)
-        
+        s3_client.upload_directory(bucket_name, s3_path, local_dir)
+
 
 if __name__ == '__main__':
     main()

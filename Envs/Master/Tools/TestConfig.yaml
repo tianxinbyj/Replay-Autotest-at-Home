@@ -16,7 +16,7 @@ test_action:
     truth_source: robosense
     video_info: 0
     bag_update: 1
-    replay_end: 98
+    replay_end: 99
     retest: 1
   scenario_unit:
     check: /VA/QC/FsObstacles
