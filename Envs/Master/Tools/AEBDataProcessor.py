@@ -16,6 +16,7 @@ from botocore.client import Config
 
 import pandas as pd
 import paramiko
+from scp import SCPClient
 import yaml
 
 from Envs.Master.Modules.DataTransformer import DataTransformer, DataLoggerAnalysis
@@ -105,16 +106,16 @@ class AEBDataCloud:
                     for obj in response['Contents']:
                         s3_key = obj['Key']
 
-                        if version in self.download_record and s3_key in self.download_record[version]:
-                            print(f'{version}:{s3_key} 已下载, 排除')
-                            continue
-
                         # 应用包含过滤条件
                         if len(include) and (not any([i in s3_key for i in include])):
                             continue
 
                         # 应用排除过滤条件
                         if len(exclude) and (any([e in s3_key for e in exclude])):
+                            continue
+
+                        if version in self.download_record and s3_key in self.download_record[version]:
+                            print(f'{version}:{s3_key} 已下载, 排除')
                             continue
 
                         # 显示符合条件的对象
@@ -297,6 +298,66 @@ class AEBDataCloud:
               f"总大小 {round(total_size / 1024 ** 2, 2)} MB")
         return True
 
+    def delete_objects(self, bucket_name, s3_path, include=None, exclude=None):
+        if include is None:
+            include = []
+        if exclude is None:
+            exclude = []
+
+        deleted_s3 = 0  # S3删除计数
+        total_size_s3 = 0  # S3删除总大小
+
+        try:
+            # 1. 分页获取S3中符合条件的对象
+            paginator = self.s3_client.get_paginator('list_objects_v2')
+            objects_to_delete = []  # 待删除的S3对象Key列表
+
+            for page in paginator.paginate(Bucket=bucket_name, Prefix=s3_path):
+                if 'Contents' in page:
+                    for obj in page['Contents']:
+                        s3_key = obj['Key']
+                        # 跳过目录（以/结尾的键）
+                        if s3_key.endswith('/'):
+                            continue
+
+                        # 应用过滤条件
+                        if len(include) and not any([i in s3_key for i in include]):
+                            continue
+
+                        if len(exclude) and any([e in s3_key for e in exclude]):
+                            continue
+
+                        objects_to_delete.append(s3_key)
+                        print(f'待删除对象: {s3_key}')
+                        total_size_s3 += obj['Size']
+
+            # 2. 批量删除S3对象（每次最多删除1000个）
+            if objects_to_delete:
+                # 拆分列表（S3批量删除最多支持1000个对象/请求）
+                batch_size = 1000
+                for i in range(0, len(objects_to_delete), batch_size):
+                    batch = objects_to_delete[i:i+batch_size]
+                    delete_request = {'Objects': [{'Key': key} for key in batch]}
+                    
+                    self.s3_client.delete_objects(
+                        Bucket=bucket_name,
+                        Delete=delete_request
+                    )
+                    deleted_s3 += len(batch)
+                    print(f"已删除S3对象 {i+1}-{min(i+batch_size, len(objects_to_delete))}/{len(objects_to_delete)}")
+                    # 输出删除统计
+
+            print("\n" + "="*60)
+            print(f"删除完成：")
+            print(f"- S3: {deleted_s3} 个对象，总大小 {round(total_size_s3 / 1024 ** 3, 2)} GB")
+            print("="*60)
+
+            return True
+
+        except Exception as e:
+            print(f"删除操作失败: {e}")
+            return False
+
     def save_download_status(self):
         with open(self.download_record_path, 'w', encoding='utf-8') as f:
             json.dump(self.download_record, f, ensure_ascii=False, indent=4)
@@ -336,8 +397,8 @@ class AEBDataProcessor:
             if continue_flag:
                 print(f'{str(raw_package_path)}没有固定, 跳过')
                 print(
-                    f"{str(AEBRawDataPath)} 占用 >>>> {round(calculate_local_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
-                    f"{str(AEBReplayDataPath)} 占用 >>>> {round(calculate_local_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
+                    f"{AEBRawDataPath} 占用 >>>> {round(calculate_local_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
+                    f"{AEBReplayDataPath} 占用 >>>> {round(calculate_local_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
                 continue
 
             install_gz = raw_package_path / 'install' / 'install.tar.gz'
@@ -413,8 +474,8 @@ class AEBDataProcessor:
             left = 20
             print('------------------------------------------------------------------')
             print(f"可用 / 已用 / 总共: >>>> {round(free / 1024 ** 3, 2)} GB <<<< / {round(used / 1024 ** 3, 2)} GB / {round(total / 1024 ** 3, 2)} GB")
-            print(f"{str(AEBRawDataPath)} 占用 >>>> {round(calculate_local_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
-                  f"{str(AEBReplayDataPath)} 占用 >>>> {round(calculate_local_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
+            print(f"{AEBRawDataPath} 占用 >>>> {round(calculate_local_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
+                  f"{AEBReplayDataPath} 占用 >>>> {round(calculate_local_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
 
             if free < left * 1024 ** 3:
                 print(f"预留空间不足{left} GB, 停止转化")
@@ -461,17 +522,15 @@ class AEBDataTransfer:
     def __init__(self):
         self.aeb_replay_data_path = Path(AEBReplayDataPath)
         self.aeb_data_package_list = {}
-        self.package_status_path = Path(AEBReplayDataPath) / 'AEBPackageStatus.json'
+        self.package_status_path = self.aeb_replay_data_path / 'AEBPackageStatus.json'
         self.package_status = self.load_package_status()
         self.list_packages()
+        self.save_package_status()
 
     def list_packages(self):
         for rosbag_dir in self.aeb_replay_data_path.rglob('*rosbag'):
             replay_package_path = rosbag_dir.parent
             if (replay_package_path / 'stats.txt').exists():
-                data_label = str(replay_package_path.relative_to(self.aeb_replay_data_path)).replace('/', '*')
-                prepared_size, transferred_size = 0, 0
-                prepared_num, transferred_num = 0, 0
                 for rosbag_path in rosbag_dir.glob('*'):
                     if rosbag_path.is_dir() and str(rosbag_path.name) not in self.package_status:
                         self.package_status[str(rosbag_path.name)] = {
@@ -481,21 +540,23 @@ class AEBDataTransfer:
                         }
                         self.save_package_status()
 
-                    package_status = self.package_status[str(rosbag_path.name)]
-                    if package_status['stats'] == 'prepared':
-                        prepared_size += package_status['size']
-                        prepared_num += 1
-                    elif package_status['stats'] == 'transferred':
-                        transferred_size += package_status['size']
-                        transferred_num += 1
-
-                    self.aeb_data_package_list[data_label] = {
-                        'path': str(replay_package_path),
-                        'prepared_size': prepared_size,
-                        'prepared_num': prepared_num,
-                        'transferred_size': transferred_size,
-                        'transferred_num': transferred_num,
-                    }
+        for name, info in self.package_status.items():
+            stats = info['stats']
+            size = info['size']
+            path = info['path']
+            data_label = str(Path(path).parent.parent.relative_to(self.aeb_replay_data_path)).replace('/', '*')
+            if data_label not in self.aeb_data_package_list:
+                self.aeb_data_package_list[data_label] = {
+                    'path': str(Path(path).parent.parent),
+                    'prepared_size': 0,
+                    'prepared_num': 0,
+                    'transferred_size': 0,
+                    'transferred_num': 0,
+                    'tested_size': 0,
+                    'tested_num': 0,
+                }
+            self.aeb_data_package_list[data_label][f'{stats}_size'] += size
+            self.aeb_data_package_list[data_label][f'{stats}_num'] += 1
 
         sorted_list = sorted(self.aeb_data_package_list.items(), key=lambda x: x[1]['prepared_size'], reverse=True)
         self.aeb_data_package_list = dict(sorted_list)
@@ -503,11 +564,28 @@ class AEBDataTransfer:
         for k, v in self.aeb_data_package_list.items():
             print(k, v['path'],
                   '>>>>', round(v['prepared_size'] / 1024 ** 3, 2), 'GB <<<<', v['prepared_num'],
-                  round(v['transferred_size'] / 1024 ** 3, 2), v['transferred_num'])
+                  '>>>>', round(v['transferred_size'] / 1024 ** 3, 2), 'GB <<<<', v['transferred_num'],
+                  '>>>>', round(v['tested_size'] / 1024 ** 3, 2), 'GB <<<<', v['tested_num'])
 
         return self.aeb_data_package_list
 
-    def transfer_data(self, host, username, password, data_label, remote_base_dir, check_flag=False):
+    def transfer_data(self, bench_id, data_label, remote_base_dir=None, check_flag=False):
+        bench_config_yaml = os.path.join(project_path, 'Docs', 'Resources', 'bench_config.yaml')
+        with open(bench_config_yaml, 'r', encoding='utf-8') as file:
+            data = yaml.safe_load(file)
+
+        if bench_id not in data:
+            print(f'{bench_id} 未找到')
+            sys.exit(1)
+        else:
+            bench_config = data[bench_id]
+            host = bench_config['Master']['ip']
+            username = bench_config['Master']['username']
+            password = str(bench_config['Master']['password'])
+
+        if remote_base_dir is None:
+            remote_base_dir = f'/home/{username}/ZONE/AEBReplayRoom'
+
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(
@@ -520,9 +598,9 @@ class AEBDataTransfer:
         # 确认远程空间
         data_size = self.aeb_data_package_list[data_label]['prepared_size']
         remote_space = get_remote_disk_space(ssh, remote_base_dir)
-        print(f"{data_label}数据大小 >>>> {round(data_size / 1024 ** 3, 2)} GB <<<<")
-        print(f"{host} {remote_base_dir}远程空间大小 >>>> {round(remote_space / 1024 ** 3, 2)} GB <<<<")
-        if remote_space < data_size + 20 * 1024 ** 3:
+        print(f"{data_label} 数据大小 >>>> {round(data_size / 1024 ** 3, 2)} GB <<<<")
+        print(f"{username}@{host}:{remote_base_dir} 远程空间大小 >>>> {round(remote_space / 1024 ** 3, 2)} GB <<<<")
+        if remote_space < data_size + 40 * 1024 ** 3:
             print('远程空间大小可能不足!')
             if check_flag:
                 print('是否继续传送数据 y:是, n:否')
@@ -577,7 +655,7 @@ class AEBDataTransfer:
                     if deliver_file(
                             host=host, username=username, password=password,
                             local_folder=rosbag_path, remote_base_dir=remote_rosbag_path,
-                            backup_space=20,
+                            backup_space=40,
                     ):
                         self.package_status[str(rosbag_path.name)]['stats'] = 'transferred'
                         self.save_package_status()
@@ -595,8 +673,9 @@ class AEBDataTransfer:
                     break
 
     def save_package_status(self):
+        sorted_list = sorted(self.package_status.items(), key=lambda x: x[1]['path'])
         with open(self.package_status_path, 'w', encoding='utf-8') as f:
-            json.dump(self.package_status, f, ensure_ascii=False, indent=4)
+            json.dump(dict(sorted_list), f, ensure_ascii=False, indent=4)
 
     def load_package_status(self):
         if not self.package_status_path.exists():
@@ -659,16 +738,33 @@ class AEBDataReplay:
         except:
             return False
 
+    def prepare_replay(self):
+
+        prepare_cmd = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a prepare'
+        print('prepare_cmd prepare_cmd',prepare_cmd)
+        prepare_res = self.send_cmd(prepare_cmd)
+        print("after prepare_res self.send_cmd(prepare_cmd) self.send_cmd(prepare_cmd)")
+        time.sleep(3)
+        command = f'DISPLAY=:0 gnome-terminal -- bash -c "tmux attach -t my_ssh_session ; exec bash"'
+
+        self.send_cmd(command)
+
+        try:
+            print("prepare_res prepare_res",prepare_res)
+            return float(prepare_res.strip().split('\n')[-1])
+        except:
+            return 0
+
     def start_replay(self):
         command = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a start'
 
         print(command)
         res = self.send_cmd(command)
 
-        time.sleep(3)
+        time.sleep(2)
         command = f'DISPLAY=:0 gnome-terminal --command="tmux attach -t {self.bench_id}_ReplayTestSes"'
-
         self.send_cmd(command)
+
         try:
             return res.strip().split('\n')
         except:
@@ -688,11 +784,70 @@ class AEBDataReplay:
 
         print(command)
         res = self.send_cmd(command)
+        print(res.strip().split('\n'))
+        print('=========================')
 
         try:
-            return res.strip().split('\n')[-1]
+            return res.strip().split('\n')
         except:
             return 0
+
+    def upload(self, endpoint_url, aws_access_key_id, aws_secret_access_key, bucket_name, s3_path):
+        command = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a upload -u {endpoint_url} -k {aws_access_key_id} -s {aws_secret_access_key} -b {bucket_name} -p {s3_path}'
+
+        print(command)
+        res = self.send_cmd(command)
+        print(res.strip().split('\n'))
+        print('=========================')
+
+        time.sleep(2)
+        command = f'DISPLAY=:0 gnome-terminal --command="tmux attach -t {self.bench_id}_UploadTestSes"'
+        self.send_cmd(command)
+
+        try:
+            return res.strip().split('\n')
+        except:
+            return 0
+
+    def clear(self):
+        command = f'cd {self.interface_path} && {self.python} Api_AEBReplayTask.py -a clear'
+
+        print(command)
+        res = self.send_cmd(command)
+        print(res.strip().split('\n'))
+        print('=========================')
+        remote_file_path = res.strip().split('\n')[-1]
+        local_save_path = Path(AEBReplayDataPath) / 'tested_scenario_list.txt'
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(hostname=self.host, username=self.username, password=self.password)
+
+        # 通过 SCP 下载文件
+        with SCPClient(ssh.get_transport()) as scp:
+            scp.get(remote_file_path, str(local_save_path))
+            print(f"文件已下载到：{local_save_path}")
+
+        ssh.close()
+
+        with open(local_save_path, 'r') as f:
+            scenario_list = [t.split('\n')[0] for t in f.readlines()]
+
+        package_status_path = Path(AEBReplayDataPath) / 'AEBPackageStatus.json'
+        with open(package_status_path, 'r', encoding='utf-8') as file:
+            package_status = json.load(file)
+
+        for scenario_id in scenario_list:
+            print(f'{str(Path(AEBReplayDataPath) / scenario_id)} 已删除')
+            shutil.rmtree(Path(AEBReplayDataPath) / scenario_id)
+            if scenario_id.split('/')[-1] in package_status:
+                package_status[scenario_id.split('/')[-1]]['stats'] = 'tested'
+
+        sorted_list = sorted(package_status.items(), key=lambda x: x[1]['path'])
+        with open(package_status_path, 'w', encoding='utf-8') as f:
+            json.dump(dict(sorted_list), f, ensure_ascii=False, indent=4)
+        print(f'{str(package_status_path)} 已更新')
+
 
 class AEBDataProcessor2:
 
