@@ -1,6 +1,8 @@
 import glob
 import json
 import os
+import stat
+import subprocess
 import sys
 import threading
 from typing import Optional, Callable
@@ -223,6 +225,13 @@ def list_serial_ports() -> Optional[List]:
     print("缓存已过期，更新...")
     result = []
     for port in ports:
+        if "USB0" in port:
+            if check_ttyusb_permission():
+                print("/dev/ttyUSB0 的权限足够控制自动电源")
+                # pass
+            else:
+                # 手动执行 sudo chmod 666 /dev/ttyUSB0 即可
+                raise Exception("必须要将自动电源的权限设置为大于666")
         try:
             # 检查port是否可以打开
             s = serial.Serial(port)
@@ -233,6 +242,7 @@ def list_serial_ports() -> Optional[List]:
             if device_info:
                 result.append(device_info)
         except (OSError, serial.SerialException):
+            # print(OSError, serial.SerialException)
             pass
 
     # 更新缓存内容
@@ -358,6 +368,66 @@ def switch_to_remote_mode(power_inter, serial_number):
         print("HTTPException caught with :", e)
         return False
 
+
+def permission_to_octal(permission_str):
+    """将权限字符串（如'rw-rw-rw-'）转换为八进制数值"""
+    # 只取权限部分（去掉第一个字符的文件类型标识）
+    perms = permission_str[1:]
+    octal = 0
+    # 遍历每一组权限(rwx)
+    for i in range(0, 9, 3):
+        # 处理读权限
+        if perms[i] == 'r':
+            octal += 4
+        # 处理写权限
+        if perms[i + 1] == 'w':
+            octal += 2
+        # 处理执行权限
+        if perms[i + 2] == 'x':
+            octal += 1
+        # 左移3位处理下一组
+        if i < 6:
+            octal <<= 3
+    return octal
+
+
+def check_ttyusb_permission(device_path='/dev/ttyUSB0'):
+    try:
+        # 执行ls -l命令获取权限信息
+        result = subprocess.run(
+            ['ls', '-l', device_path],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        # 解析输出结果
+        output = result.stdout.strip()
+        if not output:
+            print(f"未找到设备 {device_path} 的信息")
+            return False
+
+        # 提取权限字符串（输出的第一个字段）
+        permission_str = output.split()[0]
+        print(f"设备 {device_path} 的权限字符串: {permission_str}")
+
+        # 转换为八进制
+        octal_perm = permission_to_octal(permission_str)
+        print(f"对应的八进制权限: {oct(octal_perm)}")
+
+        # 判断是否大于等于666
+        if octal_perm >= 0o666:
+            print(f"权限大于等于666")
+            return True
+        else:
+            print(f"权限小于666")
+            return False
+
+    except subprocess.CalledProcessError:
+        print(f"设备 {device_path} 不存在或无法访问")
+    except Exception as e:
+        print(f"检查权限时出错: {str(e)}")
+    return False
 
 if __name__ == "__main__":
     power_ctrl = PowerSupplyObjectManager()
