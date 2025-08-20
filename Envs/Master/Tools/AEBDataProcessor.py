@@ -555,8 +555,9 @@ class AEBDataTransfer:
                     'tested_size': 0,
                     'tested_num': 0,
                 }
-            self.aeb_data_package_list[data_label][f'{stats}_size'] += size
-            self.aeb_data_package_list[data_label][f'{stats}_num'] += 1
+            if stats in ['prepared', 'transferred', 'tested']:
+                self.aeb_data_package_list[data_label][f'{stats}_size'] += size
+                self.aeb_data_package_list[data_label][f'{stats}_num'] += 1
 
         sorted_list = sorted(self.aeb_data_package_list.items(), key=lambda x: x[1]['prepared_size'], reverse=True)
         self.aeb_data_package_list = dict(sorted_list)
