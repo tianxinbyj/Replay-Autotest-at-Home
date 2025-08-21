@@ -287,19 +287,30 @@ def open_replay_model(session="start_replay_model"):
     """
     运行tmux_ssh_v17_test.sh，开启ecu的回灌模式
     """
-    # kill_tmux_session_if_exists('') # 在shell 终端中已经执行了
-    # subprocess.run(['bash', tmux_ssh_test_path])
-    # 打开一个title 的终端 ，必要时需要关闭
-    # process = subprocess.Popen([
-    #     'gnome-terminal',
-    #     f'--title={title}',
-    #     '--',
-    #     'bash', '-c',
-    #     f'bash {tmux_ssh_test_path}; exec bash'
-    # ])
-    kill_tmux_session_if_exists(session) # 关闭  session start_replay_model ，并不会关闭嵌套的子tmux终端 my_ssh_session(启动回灌模式的一个tmux窗口)
+    # kill_tmux_session_if_exists(session) # 关闭  session start_replay_model ，并不会关闭嵌套的子tmux终端 my_ssh_session(启动回灌模式的一个tmux窗口)
 
+    # 查找是否有这个session  start_replay_model
+    # result = subprocess.run(['tmux', 'ls'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    # if result.returncode != 0:
+    #     print("Error listing tmux sessions:", result.stderr)
+    #
+    # find_session_flag = False
+    # for line in result.stdout.splitlines():
+    #     if session in line:
+    #         find_session_flag = True
+    #         break
+    #
+    # #没有 session start_replay_model时 创建这个session
+    # if not find_session_flag:
+    #     os.system(f'tmux new-session -s {session} -n tmux_ssh -d')
+    # else:
+    #     print("Already exists start_replay_model tmux session ,,,,,,,,")
+    kill_tmux_session_if_exists("my_ssh_session")
+    time.sleep(0.5)
+    kill_tmux_session_if_exists("start_replay_model")
+    time.sleep(1)
     os.system(f'tmux new-session -s {session} -n tmux_ssh -d')
+    time.sleep(0.5)
     os.system(f'tmux send-keys -t {session}:tmux_ssh "if [ -n "$TMUX" ]; then unset TMUX; fi; bash {tmux_ssh_test_path}" C-m')
 
     terminal_title = session
@@ -372,6 +383,36 @@ class ChangeConfigVer:
         self.remote_jsons_paths = ['/app_data/zone/camera/', '/app_data/zone/camera/release', '/app_data/zone/camera/production']
 
         # self.check_files = self.get_check_files()
+        self.power_supply = VersionControl('EP39')
+        # 如果初始化时，可编程自动电源没有上电，需要对电源进行上电控制
+        try:
+            if power_status := self.power_supply.power_ctrl_get_status():
+                pass
+            try:
+                if power_status:
+                    loop_time = 4
+
+                    if not power_status['power_is_on']:
+                        while loop_time:
+                            loop_time -= 1
+                            self.power_supply.power_ctrl_power_on()
+
+                            time.sleep(3)
+                            if self.power_supply.check_power_on_success():
+                                break
+                    if loop_time < 0:
+                        raise EnvironmentError("反复上电检验失败，手动检查")
+            except EnvironmentError  :
+                raise EnvironmentError("上电成功校验失败")
+
+        except Exception as EEE:
+            if isinstance(EEE, EnvironmentError):
+                raise EnvironmentError("上电成功校验失败,请手动检查")
+
+            else:
+                self.auto_power_flag = False
+        else:
+            self.auto_power_flag = True
 
     def create_ssh_client(self) -> paramiko.SSHClient:
         """创建SSH连接客户端"""
@@ -441,7 +482,9 @@ class ChangeConfigVer:
         time.sleep(0.1)
         mount_cmd = [
             "blockdev --setrw `mount | grep by-name/app_ | awk '{print $1}'`",
-            "mount -o remount,rw /app"
+            "mount -o remount,rw /app",
+            # 保存一下
+            "sync"
         ]
         # 执行更换命令的权限
         for cmd in mount_cmd:
@@ -563,13 +606,13 @@ class ChangeConfigVer:
         print(f"尝试 {max_tru_start_times} 次启动回灌模式均失败，请手动检查")
         return False
 
-    def change_config_in_one(self, auto_power_flag=True,max_scp_times = 3):
+    def change_config_in_one(self,max_scp_times = 3):
 
         print("start check local config and get md5")
         self.check_local_files_and_get_md5()
-        print("start mount app floder")
+        print("start mount app folder")
         self.mount_remote_app()
-        print("start rm app floder")
+        print("start rm v2 folder")
         self.rm_remote_v2()
         print("start scp local config to remote")
 
@@ -588,25 +631,24 @@ class ChangeConfigVer:
         if scp_times > max_scp_times:
             boxed_text("反复多次更换参数失败，请检查参数")
             return False
-        power_supply = VersionControl('EP39')
-        try:
-            power_supply.power_ctrl_get_status()
-        except Exception as exc:
-            print(exc)
-            auto_power_flag = False
-        else:
-            auto_power_flag = True
-        if auto_power_flag:
+        # try:
+        #     self.power_supply.power_ctrl_get_status()
+        # except Exception as exc:
+        #     print(exc)
+        #     self.auto_power_flag = False
+        # else:
+        #     self.auto_power_flag = True
+        if self.auto_power_flag:
 
             print("auto power off and power on ")
-            power_supply.power_ctrl_power_off()
+            self.power_supply.power_ctrl_power_off()
 
             time.sleep(3)
-            power_supply.power_ctrl_power_on()
+            self.power_supply.power_ctrl_power_on()
             time.sleep(1)
 
 
-            power_off_on_success = power_supply.check_power_on_success()
+            power_off_on_success = self.power_supply.check_power_on_success()
             if power_off_on_success:
                 print(create_boxed_prompt("参数更换成功，并重新上下电", COLORS["red"]))
                 return True

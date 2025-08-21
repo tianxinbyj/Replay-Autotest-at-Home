@@ -629,7 +629,8 @@ class VersionControl:
                 temp_status = self.power_ctrl_get_status()
                 if temp_status:
                 # print(temp_status)
-                    temp_ampere = temp_status['current_value']
+                    temp_ampere = float(temp_status['current_value'])
+                    # print(temp_ampere,type(temp_ampere),"temp_ampere")
                 else:
                     temp_ampere = 0
                 if temp_ampere >= Ampere_limit:
@@ -1185,7 +1186,7 @@ class VersionControl:
 
 
 if __name__ == '__main__':
-    VC = VersionControl()
+    VC = VersionControl('EP39')
     pw_sta = VC.power_ctrl_get_status()
     print(pw_sta)
     #
@@ -1193,6 +1194,7 @@ if __name__ == '__main__':
     VC.power_ctrl_power_off()
     time.sleep(3)
     VC.power_ctrl_power_on()
+    VC.check_power_on_success()
     # if not pw_sta['power_is_on']:
     #
     #
