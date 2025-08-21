@@ -15,7 +15,7 @@ Replay04:
     sys_interpreter: /usr/bin/python3
 Replay03:
   Master:
-    ip: localhost
+    ip: 10.192.68.108
     username: hp
     password: admin
     py_path: /home/hp/Replay-Autotest-at-Home

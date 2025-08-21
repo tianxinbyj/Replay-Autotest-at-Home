@@ -238,7 +238,7 @@ class AEBDataCloud:
                     aeb_raw_data_size = calculate_local_folder_size(local_dir)
                     print(f"AEBRawData占用空间 >>>> {round(aeb_raw_data_size / 1024 ** 3, 3)} GB <<<<, "
                           f"警戒水位 >>>> {round(aeb_raw_data_size * ratio / 1024 ** 3, 3)} GB <<<<, "
-                          f"预计可下载 >>>> {round((free - aeb_raw_data_size) / (1 + ratio) / 1024 ** 3, 3)} GB <<<<")
+                          f"预计可下载 >>>> {round(free / (1 + ratio) / 1024 ** 3, 3)} GB <<<<")
                     if 'install' not in s3_key and 'params' not in s3_key and free < aeb_raw_data_size * ratio:
                         print(f"预留空间不足, 停止下载")
                         break_flag = True
@@ -378,12 +378,7 @@ class AEBDataProcessor:
         aeb_raw_data_path_list = self.aeb_raw_data_path.rglob('*rosbag')
         for f in sorted(aeb_raw_data_path_list):
             raw_package_path = f.parent
-
-            # 在AEBReplayDataPath生成新文件夹,确认是否生成过
             replay_package_path = self.aeb_replay_data_path / raw_package_path.relative_to(self.aeb_raw_data_path)
-            if (replay_package_path / 'stats.txt').exists():
-                print(f'{str(raw_package_path)}有转化记录, 跳过')
-                continue
 
             # check 文件夹是否还在运动
             continue_flag = False
@@ -399,6 +394,11 @@ class AEBDataProcessor:
                 print(
                     f"{AEBRawDataPath} 占用 >>>> {round(calculate_local_folder_size(AEBRawDataPath) / 1024 ** 3, 2)} <<<< GB, "
                     f"{AEBReplayDataPath} 占用 >>>> {round(calculate_local_folder_size(AEBReplayDataPath) / 1024 ** 3, 2)} <<<< GB")
+                (replay_package_path / 'stats.txt').unlink(missing_ok=True)
+                continue
+
+            if (replay_package_path / 'stats.txt').exists():
+                print(f'{str(raw_package_path)}有转化记录, 跳过')
                 continue
 
             install_gz = raw_package_path / 'install' / 'install.tar.gz'
@@ -525,7 +525,6 @@ class AEBDataTransfer:
         self.package_status_path = self.aeb_replay_data_path / 'AEBPackageStatus.json'
         self.package_status = self.load_package_status()
         self.list_packages()
-        self.save_package_status()
 
     def list_packages(self):
         for rosbag_dir in self.aeb_replay_data_path.rglob('*rosbag'):
@@ -555,8 +554,9 @@ class AEBDataTransfer:
                     'tested_size': 0,
                     'tested_num': 0,
                 }
-            self.aeb_data_package_list[data_label][f'{stats}_size'] += size
-            self.aeb_data_package_list[data_label][f'{stats}_num'] += 1
+            if stats in ['prepared', 'transferred', 'tested']:
+                self.aeb_data_package_list[data_label][f'{stats}_size'] += size
+                self.aeb_data_package_list[data_label][f'{stats}_num'] += 1
 
         sorted_list = sorted(self.aeb_data_package_list.items(), key=lambda x: x[1]['prepared_size'], reverse=True)
         self.aeb_data_package_list = dict(sorted_list)
@@ -745,12 +745,12 @@ class AEBDataReplay:
         prepare_res = self.send_cmd(prepare_cmd)
         print("after prepare_res self.send_cmd(prepare_cmd) self.send_cmd(prepare_cmd)")
         time.sleep(3)
-        command = f'DISPLAY=:0 gnome-terminal -- bash -c "tmux attach -t my_ssh_session ; exec bash"'
+        command = f'DISPLAY=:0 gnome-terminal -- bash -c "tmux attach -t start_replay_model"'
 
         self.send_cmd(command)
 
         try:
-            print("prepare_res prepare_res",prepare_res)
+            print("prepare_res prepare_res\n----------\n",prepare_res)
             return float(prepare_res.strip().split('\n')[-1])
         except:
             return 0
@@ -817,7 +817,7 @@ class AEBDataReplay:
         print(res.strip().split('\n'))
         print('=========================')
         remote_file_path = res.strip().split('\n')[-1]
-        local_save_path = Path(AEBReplayDataPath) / 'tested_scenario_list.txt'
+        local_save_path = Path(AEBReplayDataPath) / (Path(remote_file_path).name)
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -830,18 +830,28 @@ class AEBDataReplay:
 
         ssh.close()
 
-        with open(local_save_path, 'r') as f:
-            scenario_list = [t.split('\n')[0] for t in f.readlines()]
+        with open(local_save_path, 'r', encoding='utf-8') as f:
+            scenario_list = json.load(f)
 
         package_status_path = Path(AEBReplayDataPath) / 'AEBPackageStatus.json'
         with open(package_status_path, 'r', encoding='utf-8') as file:
             package_status = json.load(file)
 
-        for scenario_id in scenario_list:
-            print(f'{str(Path(AEBReplayDataPath) / scenario_id)} 已删除')
-            shutil.rmtree(Path(AEBReplayDataPath) / scenario_id)
-            if scenario_id.split('/')[-1] in package_status:
-                package_status[scenario_id.split('/')[-1]]['stats'] = 'tested'
+        for scenario_id in scenario_list['GOOD']:
+            rosbag_path = Path(AEBReplayDataPath) / scenario_list['DIR'] / 'rosbag' / scenario_id
+            print(f'{str(rosbag_path)} 已删除')
+            shutil.rmtree(rosbag_path)
+            if str(rosbag_path.name) in package_status.keys():
+                print(f'{str(rosbag_path.name)} 状态修改为tested')
+                package_status[str(rosbag_path.name)]['stats'] = 'tested'
+        
+        for scenario_id in scenario_list['BAD']:
+            rosbag_path = Path(AEBReplayDataPath) / scenario_list['DIR'] / 'rosbag' / scenario_id
+            print(f'{str(rosbag_path)} 已删除')
+            shutil.rmtree(rosbag_path)
+            if str(rosbag_path.name) in package_status.keys():
+                print(f'{str(rosbag_path.name)} 状态修改为invalid')
+                package_status[str(rosbag_path.name)]['stats'] = 'invalid'
 
         sorted_list = sorted(package_status.items(), key=lambda x: x[1]['path'])
         with open(package_status_path, 'w', encoding='utf-8') as f:
