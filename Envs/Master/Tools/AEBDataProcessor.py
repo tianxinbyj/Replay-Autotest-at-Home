@@ -745,7 +745,7 @@ class AEBDataReplay:
         prepare_res = self.send_cmd(prepare_cmd)
         print("after prepare_res self.send_cmd(prepare_cmd) self.send_cmd(prepare_cmd)")
         time.sleep(3)
-        command = f'DISPLAY=:0 gnome-terminal -- bash -c "tmux attach -t start_replay_model ; exec bash"'
+        command = f'DISPLAY=:0 gnome-terminal -- bash -c "tmux attach -t start_replay_model"'
 
         self.send_cmd(command)
 
@@ -817,7 +817,7 @@ class AEBDataReplay:
         print(res.strip().split('\n'))
         print('=========================')
         remote_file_path = res.strip().split('\n')[-1]
-        local_save_path = Path(AEBReplayDataPath) / 'tested_scenario_list.txt'
+        local_save_path = Path(AEBReplayDataPath) / (Path(remote_file_path).name)
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -830,20 +830,28 @@ class AEBDataReplay:
 
         ssh.close()
 
-        with open(local_save_path, 'r') as f:
-            scenario_list = [t.split('\n')[0] for t in f.readlines()]
+        with open(local_save_path, 'r', encoding='utf-8') as f:
+            scenario_list = json.load(f)
 
         package_status_path = Path(AEBReplayDataPath) / 'AEBPackageStatus.json'
         with open(package_status_path, 'r', encoding='utf-8') as file:
             package_status = json.load(file)
 
-        for scenario_id in scenario_list:
-            rosbag_path = Path(AEBReplayDataPath) / scenario_id
+        for scenario_id in scenario_list['GOOD']:
+            rosbag_path = Path(AEBReplayDataPath) / scenario_list['DIR'] / 'rosbag' / scenario_id
             print(f'{str(rosbag_path)} 已删除')
             shutil.rmtree(rosbag_path)
             if str(rosbag_path.name) in package_status.keys():
                 print(f'{str(rosbag_path.name)} 状态修改为tested')
                 package_status[str(rosbag_path.name)]['stats'] = 'tested'
+        
+        for scenario_id in scenario_list['BAD']:
+            rosbag_path = Path(AEBReplayDataPath) / scenario_list['DIR'] / 'rosbag' / scenario_id
+            print(f'{str(rosbag_path)} 已删除')
+            shutil.rmtree(rosbag_path)
+            if str(rosbag_path.name) in package_status.keys():
+                print(f'{str(rosbag_path.name)} 状态修改为invalid')
+                package_status[str(rosbag_path.name)]['stats'] = 'invalid'
 
         sorted_list = sorted(package_status.items(), key=lambda x: x[1]['path'])
         with open(package_status_path, 'w', encoding='utf-8') as f:
