@@ -78,10 +78,13 @@ class AEBReplayTask:
                         if 'transfer_OK' in stats:
                             rosbag_path = (file / 'ROSBAG' / 'COMBINE')
                             if rosbag_path.exists():
-                                replay_config['rosbag'][file.name] = str(rosbag_path.absolute())
-                                scenario_count += 1
-                                if scenario_count >= scenario_num:
-                                    break
+                                if (rosbag_path / 'metadata.yaml').exists():
+                                    replay_config['rosbag'][file.name] = str(rosbag_path.absolute())
+                                    scenario_count += 1
+                                    if scenario_count >= scenario_num:
+                                        break
+                                else:
+                                    shutil.rmtree(rosbag_path.parent.parent)
 
             if scenario_count:
                 self.replay_config = replay_config
