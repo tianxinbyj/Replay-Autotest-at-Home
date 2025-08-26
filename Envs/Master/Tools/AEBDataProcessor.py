@@ -622,6 +622,7 @@ class AEBDataTransfer:
                 print(0)
                 return
 
+        remote_rosbag_path = create_remote_folder(ssh, remote_base_dir, 'rosbag')
         package_path = Path(self.aeb_data_package_list[data_label]['path'])
         install_path = Path(package_path) / 'install'
         parameter_path = Path(package_path) / 'params'
@@ -639,7 +640,6 @@ class AEBDataTransfer:
             print(0)
             return
 
-        remote_rosbag_path = create_remote_folder(ssh, remote_base_dir, 'rosbag')
         if not remote_rosbag_path:
             print(0)
             return

@@ -319,11 +319,26 @@ def deliver_file(host, username, password, local_folder, remote_base_dir, backup
 
 if __name__ == "__main__":
     config = {
-        "host": "10.192.68.107",
-        "username": "zhangliwei01",
-        "password": "Pass1234",
+        "host": "10.192.68.108",
+        "username": "hp",
+        "password": "admin",
         "local_folder": "/media/data/Q_DATA/AebReplayData/AH4EM-SIMU023/202507/20250708/parameter",
         "remote_base_dir": "/home/zhangliwei01/ZONE"  # 远程文件夹路径
     }
 
-    deliver_file(*config.values())
+    # deliver_file(*config.values())
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    # 连接到远程服务器
+    print(f"正在连接到远程服务器 {config['host']}...")
+    ssh.connect(
+        config['host'],
+        port=22,
+        username=config['username'],
+        password=config['password']
+    )
+    print("连接成功")
+
+    create_remote_folder(ssh, '/home/hp/ZONE/AEBReplayRoom/AH4EM-SIMU182/202507/20250705', 'rosbag', 1)
