@@ -512,7 +512,7 @@ class ReplayController:
                     if 'sensor send msg fps' in line:
                         sensor_center_log_lines.append(parse_log_line(line.strip()))
 
-        if len(sensor_center_log_lines):
+        if len(sensor_center_log_lines) >= 15:
             sensor_center_log_csv_path = os.path.join(self.pred_raw_folder, scenario_id, 'sensor_center_log.csv')
             sensor_center_log = pd.DataFrame(sensor_center_log_lines, columns=['time_stamp', '4', '5', '6', '7', '8', '9']).reset_index(drop=True)
             # 找最后一段时间升序的区间
