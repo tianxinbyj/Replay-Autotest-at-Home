@@ -523,7 +523,10 @@ class ReplayController:
             sensor_center_log = sensor_center_log.drop('time_diff', axis=1)
             sensor_center_log = sensor_center_log[(sensor_center_log['time_stamp'] >= t_min) & (sensor_center_log['time_stamp'] <= t_max)]
             sensor_center_log.to_csv(sensor_center_log_csv_path, index=False)
-            plot_log()
+            try:
+                plot_log()
+            except Exception as e:
+                print(e)
         else:
             with open(os.path.join(self.pred_raw_folder, scenario_id, f'{scenario_id}-SensorCenterLog.png'), 'w') as f:
                 pass  # 仅创建空文件
