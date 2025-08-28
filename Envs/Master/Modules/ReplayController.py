@@ -512,7 +512,7 @@ class ReplayController:
                     if 'sensor send msg fps' in line:
                         sensor_center_log_lines.append(parse_log_line(line.strip()))
 
-        if len(sensor_center_log_lines):
+        if len(sensor_center_log_lines) >= 15:
             sensor_center_log_csv_path = os.path.join(self.pred_raw_folder, scenario_id, 'sensor_center_log.csv')
             sensor_center_log = pd.DataFrame(sensor_center_log_lines, columns=['time_stamp', '4', '5', '6', '7', '8', '9']).reset_index(drop=True)
             # 找最后一段时间升序的区间
@@ -523,7 +523,10 @@ class ReplayController:
             sensor_center_log = sensor_center_log.drop('time_diff', axis=1)
             sensor_center_log = sensor_center_log[(sensor_center_log['time_stamp'] >= t_min) & (sensor_center_log['time_stamp'] <= t_max)]
             sensor_center_log.to_csv(sensor_center_log_csv_path, index=False)
-            plot_log()
+            try:
+                plot_log()
+            except Exception as e:
+                print(e)
         else:
             with open(os.path.join(self.pred_raw_folder, scenario_id, f'{scenario_id}-SensorCenterLog.png'), 'w') as f:
                 pass  # 仅创建空文件
