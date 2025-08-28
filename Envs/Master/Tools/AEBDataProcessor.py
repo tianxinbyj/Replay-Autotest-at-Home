@@ -397,9 +397,9 @@ class AEBDataProcessor:
                 (replay_package_path / 'stats.txt').unlink(missing_ok=True)
                 continue
 
-            if (replay_package_path / 'stats.txt').exists():
-                print(f'{str(raw_package_path)}有转化记录, 跳过')
-                continue
+            # if (replay_package_path / 'stats.txt').exists():
+            #     print(f'{str(raw_package_path)}有转化记录, 跳过')
+            #     continue
 
             install_gz = raw_package_path / 'install' / 'install.tar.gz'
             if not install_gz.exists():
@@ -532,6 +532,7 @@ class AEBDataTransfer:
             if (replay_package_path / 'stats.txt').exists():
                 for rosbag_path in rosbag_dir.glob('*'):
                     if rosbag_path.is_dir() and str(rosbag_path.name) not in self.package_status:
+                        self.load_package_status()
                         self.package_status[str(rosbag_path.name)] = {
                             'path': str(rosbag_path),
                             'stats': 'prepared',
@@ -553,8 +554,10 @@ class AEBDataTransfer:
                     'transferred_num': 0,
                     'tested_size': 0,
                     'tested_num': 0,
+                    'invalid_size': 0,
+                    'invalid_num': 0,
                 }
-            if stats in ['prepared', 'transferred', 'tested']:
+            if stats in ['prepared', 'transferred', 'tested', 'invalid']:
                 self.aeb_data_package_list[data_label][f'{stats}_size'] += size
                 self.aeb_data_package_list[data_label][f'{stats}_num'] += 1
 
@@ -565,7 +568,9 @@ class AEBDataTransfer:
             print(k, v['path'],
                   '>>>>', round(v['prepared_size'] / 1024 ** 3, 2), 'GB <<<<', v['prepared_num'],
                   '>>>>', round(v['transferred_size'] / 1024 ** 3, 2), 'GB <<<<', v['transferred_num'],
-                  '>>>>', round(v['tested_size'] / 1024 ** 3, 2), 'GB <<<<', v['tested_num'])
+                  '>>>>', round(v['tested_size'] / 1024 ** 3, 2), 'GB <<<<', v['tested_num'],
+                  '>>>>', round(v['invalid_size'] / 1024 ** 3, 2), 'GB <<<<', v['invalid_num'],
+                  )
 
         return self.aeb_data_package_list
 
@@ -649,6 +654,7 @@ class AEBDataTransfer:
                 print(f'{rosbag_path.name}是一个未知数据')
                 continue
             elif self.package_status[str(rosbag_path.name)]['stats'] == 'prepared':
+                self.load_package_status()
                 self.package_status[str(rosbag_path.name)]['stats'] = 'busy'
                 self.save_package_status()
                 try:
@@ -657,9 +663,11 @@ class AEBDataTransfer:
                             local_folder=rosbag_path, remote_base_dir=remote_rosbag_path,
                             backup_space=40,
                     ):
+                        self.load_package_status()
                         self.package_status[str(rosbag_path.name)]['stats'] = 'transferred'
                         self.save_package_status()
                     else:
+                        self.load_package_status()
                         self.package_status[str(rosbag_path.name)]['stats'] = 'prepared'
                         self.save_package_status()
                         print('停止传输数据')
@@ -667,6 +675,7 @@ class AEBDataTransfer:
 
                 except Exception as e:
                     print(e)
+                    self.load_package_status()
                     self.package_status[str(rosbag_path.name)]['stats'] = 'prepared'
                     self.save_package_status()
                     print('停止传输数据')
@@ -839,16 +848,22 @@ class AEBDataReplay:
 
         for scenario_id in scenario_list['GOOD']:
             rosbag_path = Path(AEBReplayDataPath) / scenario_list['DIR'] / 'rosbag' / scenario_id
-            print(f'{str(rosbag_path)} 已删除')
-            shutil.rmtree(rosbag_path)
+            if rosbag_path.exists():
+                print(f'{str(rosbag_path)} 已删除')
+                shutil.rmtree(rosbag_path)
+            else:
+                print(f'{str(rosbag_path)} 未找到')
             if str(rosbag_path.name) in package_status.keys():
                 print(f'{str(rosbag_path.name)} 状态修改为tested')
                 package_status[str(rosbag_path.name)]['stats'] = 'tested'
         
         for scenario_id in scenario_list['BAD']:
             rosbag_path = Path(AEBReplayDataPath) / scenario_list['DIR'] / 'rosbag' / scenario_id
-            print(f'{str(rosbag_path)} 已删除')
-            shutil.rmtree(rosbag_path)
+            if rosbag_path.exists():
+                print(f'{str(rosbag_path)} 已删除')
+                shutil.rmtree(rosbag_path)
+            else:
+                print(f'{str(rosbag_path)} 未找到')
             if str(rosbag_path.name) in package_status.keys():
                 print(f'{str(rosbag_path.name)} 状态修改为invalid')
                 package_status[str(rosbag_path.name)]['stats'] = 'invalid'
