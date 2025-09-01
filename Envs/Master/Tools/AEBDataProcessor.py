@@ -826,6 +826,14 @@ class AEBDataReplay:
         print(res.strip().split('\n'))
         print('=========================')
         remote_file_path = res.strip().split('\n')[-1]
+        clear_i = 0
+        while not remote_file_path:
+            res = self.send_cmd(command)
+            remote_file_path = res.strip().split('\n')[-1]
+            clear_i += 1
+            if clear_i > 3:
+                break
+
         local_save_path = Path(AEBReplayDataPath) / (Path(remote_file_path).name)
 
         ssh = paramiko.SSHClient()

@@ -127,7 +127,7 @@ class AEBReplayTask:
         with open(test_config_path, 'w') as f:
             yaml.dump(test_config, f, sort_keys=False)
 
-        print(f'{str(self.workspace_path)}')
+        print(test_config['scenario_tag'][0]['scenario_id'])
         return None
 
     def start_replay(self):
@@ -164,7 +164,7 @@ class AEBReplayTask:
             'GOOD': valid_scenario_list, 'BAD': [], 'DIR': str(Path(car_id) / test_config['s3_level'][1] / car_date)
         }
         t = test_config['test_date']
-        self.upload_scenario_path = self.replay_data_path / f'UploadScenarioList@{car_id}@{car_date}@{bench_id}@{t}.json'
+        self.upload_scenario_path = self.replay_data_path / f'UploadScenarioList@{t}@{bench_id}@{car_id}@{car_date}.json'
 
         # 记录不良场景, 2次不良不再测试
         invalid_scenario_list = output_statistic[output_statistic['isValid'] == 0].index.tolist()
@@ -207,7 +207,7 @@ class AEBReplayTask:
                                 self.workspace_path / '01_Prediction' / scenario_id, 
                                 upload_dir / 'rosbag' / scenario_id)
 
-                        new_output_statistic_path = upload_dir / 'rosbag' / f'ReplayResult@{car_id}@{car_date}@{bench_id}@{t}.csv'
+                        new_output_statistic_path = upload_dir / 'rosbag' / f'UploadScenarioList@{t}@{bench_id}@{car_id}@{car_date}.csv'
                         output_statistic_path.rename(new_output_statistic_path)
 
                         (upload_dir / 'install').mkdir(parents=True, exist_ok=True)
