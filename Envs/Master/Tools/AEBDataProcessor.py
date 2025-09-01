@@ -236,9 +236,9 @@ class AEBDataCloud:
                     print(f"{local_dir}可用 / 已用 / 总共: >>>> {round(free / 1024 ** 3, 2)} GB <<<< / {round(used / 1024 ** 3, 2)} GB / {round(total / 1024 ** 3, 2)} GB")
                     print(f"目标文件{s3_key}大小 {round(obj['Size'] / 1024 ** 2, 2)} MB")
                     aeb_raw_data_size = calculate_local_folder_size(local_dir)
-                    print(f"AEBRawData占用空间 >>>> {round(aeb_raw_data_size / 1024 ** 3, 3)} GB <<<<, "
-                          f"警戒水位 >>>> {round(aeb_raw_data_size * ratio / 1024 ** 3, 3)} GB <<<<, "
-                          f"预计可下载 >>>> {round(free / (1 + ratio) / 1024 ** 3, 3)} GB <<<<")
+                    print(f"AEBRawData占用空间 >>>> {round(aeb_raw_data_size / 1024 ** 3, 2)} GB <<<<, "
+                          f"警戒水位 >>>> {round(aeb_raw_data_size * ratio / 1024 ** 3, 2)} GB <<<<, "
+                          f"预计可下载 >>>> {round(free / (1 + ratio) / 1024 ** 3, 2)} GB <<<<")
                     if 'install' not in s3_key and 'params' not in s3_key and free < aeb_raw_data_size * ratio:
                         print(f"预留空间不足, 停止下载")
                         break_flag = True
@@ -521,12 +521,12 @@ class AEBDataTransfer:
 
     def __init__(self):
         self.aeb_replay_data_path = Path(AEBReplayDataPath)
-        self.aeb_data_package_list = {}
         self.package_status_path = self.aeb_replay_data_path / 'AEBPackageStatus.json'
         self.package_status = self.load_package_status()
         self.list_packages()
 
     def list_packages(self):
+        self.aeb_data_package_list = {}
         for rosbag_dir in self.aeb_replay_data_path.rglob('*rosbag'):
             replay_package_path = rosbag_dir.parent
             if (replay_package_path / 'stats.txt').exists():
