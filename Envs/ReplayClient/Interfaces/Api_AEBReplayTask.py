@@ -127,7 +127,7 @@ class AEBReplayTask:
         with open(test_config_path, 'w') as f:
             yaml.dump(test_config, f, sort_keys=False)
 
-        print(test_config['scenario_tag'][0]['scenario_id'])
+        print(test_config['scenario_tag'][0]['scenario_id'].keys())
         return None
 
     def start_replay(self):
@@ -242,7 +242,7 @@ class AEBReplayTask:
 
         matching_files = []
         for file in self.workspace_path.rglob('*'):
-            if file.is_file() and 'ReplayResult@' in file.name:
+            if file.is_file() and 'UploadScenarioList@' in file.name:
                 matching_files.append(str(file.absolute()))
 
         if not matching_files:
